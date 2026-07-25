@@ -41,3 +41,12 @@
 - 原因：版本化，便于后续迁移
 - 影响：storage / 测试
 - 决策人：C0
+
+
+## D-007 · 2026-07-26 · Gate 1 通过并合并 C1
+
+- 决策：C1 `feat/c1-foundation` **APPROVE_MERGE**
+- 原因：六路由/Store/LocalStorage/三态/测试/治理检查全部通过，无越权
+- 影响：解锁 Wave2 并行 C2/C3/C4
+- 决策人：C0
+- 证据：`docs/tasks/GATE_1_REPORT.md`；功能 commit `8432b6b`

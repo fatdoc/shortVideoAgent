@@ -15,6 +15,7 @@
 | R-003 | 低 | Playwright 浏览器未安装时 e2e 失败 | C7 负责安装；Gate0 不强制 e2e |
 | R-004 | 低 | Antd/React 大版本 API 差异 | 锁定 package.json；C1 统一封装 |
 | R-005 | 低 | LocalStorage 结构升级导致旧数据不兼容 | key 带版本；提供 reset |
+| R-008 | 低 | `PROJECT_STATUS_LABEL` 与 `ProjectStatus` 枚举未完全对齐 | C1 后续小修；不阻塞业务并行 |
 
 ## 观察项
 

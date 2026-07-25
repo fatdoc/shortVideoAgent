@@ -22,10 +22,10 @@
 
 ## Wave 1 · C1 基座
 
-- [ ] 设计系统完善
-- [ ] 布局与导航打磨
-- [ ] Store/Mock 加固
-- [ ] 六路由稳定
+- [x] 设计系统完善
+- [x] 布局与导航打磨
+- [x] Store/Mock 加固
+- [x] 六路由稳定
 
 ### Gate 1
 
@@ -34,6 +34,9 @@
 - 六路由存在
 - Mock/Store/LocalStorage 可用
 - build 通过
+
+**Gate 1 结论：PASS · APPROVE_MERGE（2026-07-26）**  
+报告：`docs/tasks/GATE_1_REPORT.md`
 
 ## Wave 2 · C2 / C3 / C4 并行
 

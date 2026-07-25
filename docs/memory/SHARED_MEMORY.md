@@ -1,8 +1,8 @@
 # SHARED MEMORY · 权威共同记忆
 
 > 仅 C0 可修改。C1—C7 只读。  
-> 更新时间：2026-07-26  
-> 当前 Gate：Gate 0
+> 更新时间：2026-07-26（Gate1 验收后）  
+> 当前 Gate：Gate 1（已通过，可启动 C2/C3/C4）
 
 ## 项目目标
 
@@ -86,7 +86,12 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 
 ## 当前 Gate
 
-**Gate 0**：治理系统 + 前端骨架
+**Gate 1：PASS（APPROVE_MERGE）**
+
+- C1 基座已验收：六路由、Store、LocalStorage、公共三态可用
+- 功能 Commit：`8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14`
+- 报告：`docs/tasks/GATE_1_REPORT.md`
+- 下一波：并行 C2 / C3 / C4（Wave 2）
 
 ## 当前阻塞
 
@@ -103,6 +108,8 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 - `validate:governance` 通过
 
 ## 最新决策
+
+7. 2026-07-26 Gate1：C1 基座 APPROVE_MERGE，允许启动 C2/C3/C4。
 
 1. 使用 npm + Vite React TS
 2. 统一 Demo 项目 ID = `demo-local-001`
