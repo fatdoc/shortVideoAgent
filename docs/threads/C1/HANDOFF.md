@@ -1,7 +1,7 @@
 # C1 HANDOFF
 
 - 当前分支：`feat/c1-foundation`
-- 当前 Commit：`171d5b6480f21d0052c6e53c55a0a4d4d9aad6f7`（含文档；功能主体 `8432b6b`）
+- 当前 Commit：`8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14`
 - 可运行页面：
   - `/dashboard`
   - `/projects/new`
@@ -43,5 +43,4 @@
 
 ## Commit Hash
 
-- 功能交付：`8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14`
-- 分支 tip：`171d5b6480f21d0052c6e53c55a0a4d4d9aad6f7`
+- `8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14`
