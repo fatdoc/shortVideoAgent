@@ -44,4 +44,4 @@
 ## Commit Hash
 
 - 功能提交：`8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14`
-- 文档回填提交：以最新 `docs(c1)` commit 为准
+- 文档回填（本文件最终版将在提交后与 HEAD 对齐）：见仓库 `feat/c1-foundation` 最新 commit
