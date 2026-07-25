@@ -19,3 +19,9 @@ C0 决策：待定
 ## 当前请求
 
 无。
+
+## 已关闭 / 说明
+
+- 未发现需要 C0 裁决的协议冲突。
+- mockApi 扩展了 `updateBrand` / `updateStoryboard` / `updateTimeline`，仍兼容既有 `DemoWorkspace` 协议，未改 domain 字段结构。
+- `NotFoundPage` 属于全局路由兜底，由 C1 维护。

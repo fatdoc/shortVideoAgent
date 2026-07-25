@@ -21,3 +21,8 @@ export function clearWorkspace(): void {
   if (typeof window === 'undefined') return;
   window.localStorage.removeItem(STORAGE_KEY);
 }
+
+export function hasPersistedWorkspace(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(STORAGE_KEY) != null;
+}

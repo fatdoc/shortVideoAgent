@@ -15,6 +15,25 @@ export const colors = {
   bgElevated: '#FFFFFF',
   sidebar: '#001529',
   sidebarText: 'rgba(255,255,255,0.85)',
+  sidebarMuted: 'rgba(255,255,255,0.45)',
+} as const;
+
+export const statusColors = {
+  matched: '#52C41A',
+  reshoot: '#FA8C16',
+  missing: '#FF4D4F',
+  ai_placeholder: '#13C2C2',
+  pass: '#52C41A',
+  warn: '#FA8C16',
+  fail: '#FF4D4F',
+  pending: '#8C8C8C',
+  draft: '#8C8C8C',
+  briefing: '#1677FF',
+  scripting: '#1677FF',
+  storyboarding: '#13C2C2',
+  production: '#722ED1',
+  reviewing: '#FA8C16',
+  exported: '#52C41A',
 } as const;
 
 export const spacing = {
@@ -41,4 +60,12 @@ export const layout = {
   sidebarWidth: 220,
   topbarHeight: 56,
   contentMaxWidth: 1440,
+  contentMinHeight: 'calc(100vh - 56px - 48px)',
+  pagePadding: 24,
+} as const;
+
+export const zIndex = {
+  sidebar: 30,
+  topbar: 20,
+  overlay: 1000,
 } as const;
