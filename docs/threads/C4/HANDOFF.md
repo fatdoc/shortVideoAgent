@@ -1,7 +1,8 @@
 # C4 HANDOFF
 
 - 当前分支：`feat/c4-script-editor`
-- 当前 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`（功能提交；若其后有 docs pin 提交，以 `git log -1` 为准）
+- 当前 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
+- 功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
 - 可运行页面：
   - `/projects/demo-local-001/script`（完整脚本编辑器）
 - 关键文件：
@@ -32,4 +33,4 @@
 
 ## Commit Hash
 
-- feature：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
+- `6f1cf3e0b5a68f328ef137896f15680a865e654a`
