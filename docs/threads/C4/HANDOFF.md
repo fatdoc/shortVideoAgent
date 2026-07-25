@@ -1,7 +1,7 @@
 # C4 HANDOFF
 
 - 当前分支：`feat/c4-script-editor`
-- 当前 Commit：待本线程提交后回填（见 CHANGELOG / 下方 Commit Hash）
+- 当前 Commit：
 - 可运行页面：
   - `/projects/demo-local-001/script`（完整脚本编辑器）
 - 关键文件：
@@ -32,4 +32,5 @@
 
 ## Commit Hash
 
-- （提交后填写）
+- 
+- feature: 
