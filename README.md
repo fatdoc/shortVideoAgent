@@ -1,0 +1,46 @@
+# 短视频营销 Agent 前端可交互 MVP
+
+企业级 AI 短视频生产工作台的前端可交互 Demo。  
+当前阶段只做前端 + Mock 数据，不接入真实后端与大模型。
+
+## 多线程开发入口
+
+**任何新窗口 / 新线程开工前，请先阅读：**
+
+➡️ [docs/00_README_FIRST.md](./docs/00_README_FIRST.md)
+
+## 快速启动
+
+```bash
+npm install
+npm run dev
+```
+
+常用命令：
+
+```bash
+npm run lint
+npm run build
+npm run test
+npm run validate:governance
+```
+
+## 技术栈
+
+React · TypeScript · Vite · Ant Design · React Router · Zustand · Recharts · dnd-kit · react-dropzone · LocalStorage · Vitest · Playwright · ESLint · Prettier
+
+## 当前 Gate
+
+Gate 0：治理系统、共同记忆、数据协议、前端骨架
+
+## 统一 Demo 项目
+
+- ID：`demo-local-001`
+- 名称：海底捞火锅·北京三里屯店探店视频
+
+## 目录速览
+
+- `docs/` 共同记忆、职责、提示词、任务板
+- `src/` 前端源码
+- `UI/` UI 参考图（只读）
+- `scripts/validate-governance.mjs` 治理完整性检查
