@@ -9,8 +9,15 @@ interface AppProvidersProps {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <ConfigProvider locale={zhCN} theme={appTheme}>
-      <AntApp>{children}</AntApp>
+    <ConfigProvider
+      locale={zhCN}
+      theme={appTheme}
+      wave={{ disabled: false }}
+      button={{ autoInsertSpace: false }}
+    >
+      <AntApp message={{ maxCount: 3 }} notification={{ placement: 'topRight' }}>
+        {children}
+      </AntApp>
     </ConfigProvider>
   );
 }

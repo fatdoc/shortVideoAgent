@@ -9,7 +9,8 @@ import {
 import { Layout, Menu, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DEMO_PROJECT_ID, ROUTES } from '../domain/constants';
-import { layout } from '../design/tokens';
+import { colors, layout, zIndex } from '../design/tokens';
+import { useProjectStore } from '../stores/projectStore';
 
 const { Sider } = Layout;
 
@@ -22,32 +23,40 @@ const items = [
   { key: ROUTES.roughCut(DEMO_PROJECT_ID), icon: <FundViewOutlined />, label: '素材 / 初剪' },
 ];
 
+function resolveSelectedKey(pathname: string): string {
+  if (pathname.startsWith('/dashboard') || pathname === '/') return ROUTES.dashboard;
+  if (pathname.startsWith('/projects/new')) return ROUTES.projectNew;
+  if (pathname.includes('/brand')) return ROUTES.brand(DEMO_PROJECT_ID);
+  if (pathname.includes('/script')) return ROUTES.script(DEMO_PROJECT_ID);
+  if (pathname.includes('/storyboard')) return ROUTES.storyboard(DEMO_PROJECT_ID);
+  if (pathname.includes('/rough-cut')) return ROUTES.roughCut(DEMO_PROJECT_ID);
+  return ROUTES.dashboard;
+}
+
 export function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selected =
-    items.find((item) => location.pathname.startsWith(item.key))?.key ?? ROUTES.dashboard;
+  const project = useProjectStore((s) => s.workspace.project);
+  const selected = resolveSelectedKey(location.pathname);
 
   return (
     <Sider
       width={layout.sidebarWidth}
       theme="dark"
       style={{
-        overflow: 'auto',
+        overflow: 'hidden',
         height: '100vh',
         position: 'fixed',
         left: 0,
         top: 0,
         bottom: 0,
+        zIndex: zIndex.sidebar,
+        background: colors.sidebar,
       }}
     >
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <Typography.Text style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>
-          短视频 Agent
-        </Typography.Text>
-        <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 4 }}>
-          营销生产工作台
-        </div>
+      <div className="sidebar-brand">
+        <div className="sidebar-brand-title">短视频 Agent</div>
+        <div className="sidebar-brand-sub">营销生产工作台</div>
       </div>
       <Menu
         theme="dark"
@@ -55,8 +64,14 @@ export function Sidebar() {
         selectedKeys={[selected]}
         items={items}
         onClick={({ key }) => navigate(key)}
-        style={{ borderInlineEnd: 0, marginTop: 8 }}
+        style={{ borderInlineEnd: 0, marginTop: 8, paddingBottom: 88 }}
       />
+      <div className="sidebar-footer">
+        <Typography.Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
+          Demo · {project.id}
+        </Typography.Text>
+        <div style={{ marginTop: 4 }}>进度 {project.progress}%</div>
+      </div>
     </Sider>
   );
 }
