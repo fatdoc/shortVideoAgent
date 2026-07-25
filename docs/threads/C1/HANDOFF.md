@@ -1,7 +1,7 @@
 # C1 HANDOFF
 
 - 当前分支：`feat/c1-foundation`
-- 当前 Commit：见本文件底部 Commit Hash（提交后回填）
+- 当前 Commit：8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14
 - 可运行页面：
   - `/dashboard`
   - `/projects/new`
@@ -43,4 +43,4 @@
 
 ## Commit Hash
 
-- 待本地 commit 后回填
+- 
