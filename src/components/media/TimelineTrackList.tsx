@@ -4,6 +4,7 @@ import type { TimelineClip, TimelineTrack } from '../../domain/types';
 interface TimelineTrackListProps {
   tracks: TimelineTrack[];
   clips: TimelineClip[];
+  clipVisuals?: Record<string, string>;
   duration: number;
   playhead: number;
   selectedClipId: string | null;
@@ -33,6 +34,7 @@ function resolveTrackId(track: TimelineTrack, index: number): string {
 export function TimelineTrackList({
   tracks,
   clips,
+  clipVisuals = {},
   duration,
   playhead,
   selectedClipId,
@@ -75,6 +77,7 @@ export function TimelineTrackList({
                     const width = `${Math.max(4, ((clip.end - clip.start) / maxDuration) * 100)}%`;
                     const isSelected = selectedClipId === clip.id;
                     const color = resolveTrackColor(track);
+                    const visual = clipVisuals[clip.id];
                     return (
                       <button
                         type="button"
@@ -82,7 +85,13 @@ export function TimelineTrackList({
                         data-testid={`rough-cut-clip-${clip.id}`}
                         className={`media-track-clip ${isSelected ? 'is-selected' : ''}`}
                         onClick={() => onSelectClip(clip.id)}
-                        style={{ left, width, background: color }}
+                        style={{
+                          left,
+                          width,
+                          background: visual
+                            ? `linear-gradient(rgba(8, 15, 28, 0.16), rgba(8, 15, 28, 0.16)), url("${visual}") center / cover`
+                            : color,
+                        }}
                         title={`${track.name}：${clip.label}（${formatTime(clip.start)} - ${formatTime(clip.end)}）`}
                       >
                         <span className="media-track-clip-label" title={clip.label}>

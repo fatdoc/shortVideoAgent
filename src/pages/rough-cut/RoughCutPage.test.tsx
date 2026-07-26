@@ -97,9 +97,11 @@ describe('RoughCutPage', () => {
   });
 
   it('shows QA panel and keep export disabled while qa status is not pass', async () => {
+    const user = userEvent.setup();
     renderPage();
     await screen.findByTestId('rough-cut-page');
 
+    await user.click(screen.getByRole('button', { name: '导出' }));
     expect(screen.getByTestId('rough-cut-export')).toBeDisabled();
     expect(screen.getByText('导出规则')).toBeInTheDocument();
     expect(screen.getAllByText('缺镜').length).toBeGreaterThan(0);

@@ -1,6 +1,7 @@
 import {
   ArrowRightOutlined,
   ExportOutlined,
+  LeftOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   ReconciliationOutlined,
@@ -249,6 +250,114 @@ export function RoughCutPage() {
     }),
     [videoTrackId, voiceTrackId, bgmTrackId, subtitleTrackId, overlayTrackId],
   );
+  const presentationClips = useMemo(() => {
+    const keepOutsideTrack = (trackId: string | undefined) =>
+      timeline.clips.filter((clip) => clip.trackId !== trackId);
+    const clipsOnTrack = (trackId: string | undefined) =>
+      timeline.clips.filter((clip) => clip.trackId === trackId);
+    let nextClips = [...timeline.clips];
+
+    if (videoTrackId) {
+      const videoClips = shotsWithIndex.reduce<TimelineClip[]>((acc, shot) => {
+        const start = acc.at(-1)?.end ?? 0;
+        acc.push({
+          id: `demo-video-${shot.id}`,
+          trackId: videoTrackId,
+          assetId: shot.assetId,
+          label: shot.description,
+          start,
+          end: Math.min(timeline.duration, start + shot.duration),
+        });
+        return acc;
+      }, []);
+      nextClips = [...keepOutsideTrack(videoTrackId), ...videoClips];
+    }
+
+    if (voiceTrackId) {
+      const savedVoiceClips = clipsOnTrack(voiceTrackId);
+      const voiceClips = shotsWithIndex.slice(0, 5).map((shot, index) => ({
+        id: `demo-voice-${shot.id}`,
+        trackId: voiceTrackId,
+        label: shot.narration || `第 ${index + 1} 段口播`,
+        start: index * 6,
+        end: Math.min(timeline.duration, index * 6 + 5.4),
+      }));
+      nextClips = [
+        ...nextClips.filter((clip) => clip.trackId !== voiceTrackId),
+        ...voiceClips,
+        ...savedVoiceClips,
+      ];
+    }
+
+    if (bgmTrackId) {
+      const savedBgmClips = clipsOnTrack(bgmTrackId);
+      nextClips = [
+        ...nextClips.filter((clip) => clip.trackId !== bgmTrackId),
+        {
+          id: 'demo-bgm-main',
+          trackId: bgmTrackId,
+          label: '轻快律动_BGM.mp3',
+          start: 0,
+          end: timeline.duration,
+        },
+        ...savedBgmClips,
+      ];
+    }
+
+    if (subtitleTrackId) {
+      const savedSubtitleClips = clipsOnTrack(subtitleTrackId);
+      const subtitleClips = shotsWithIndex.slice(0, 5).map((shot, index) => ({
+        id: `demo-subtitle-${shot.id}`,
+        trackId: subtitleTrackId,
+        label: shot.screenText || shot.description,
+        start: index * 6,
+        end: Math.min(timeline.duration, index * 6 + 5.6),
+      }));
+      nextClips = [
+        ...nextClips.filter((clip) => clip.trackId !== subtitleTrackId),
+        ...subtitleClips,
+        ...savedSubtitleClips,
+      ];
+    }
+
+    if (overlayTrackId) {
+      const savedOverlayClips = clipsOnTrack(overlayTrackId);
+      const overlays = ['热菜推荐', '招牌必点', '人气爆款', '口碑推荐'];
+      nextClips = [
+        ...nextClips.filter((clip) => clip.trackId !== overlayTrackId),
+        ...overlays.map((label, index) => ({
+          id: `demo-overlay-${index + 1}`,
+          trackId: overlayTrackId,
+          label,
+          start: index * 7.5,
+          end: Math.min(timeline.duration, index * 7.5 + 5.5),
+        })),
+        ...savedOverlayClips,
+      ];
+    }
+
+    return nextClips;
+  }, [
+    bgmTrackId,
+    overlayTrackId,
+    shotsWithIndex,
+    subtitleTrackId,
+    timeline.clips,
+    timeline.duration,
+    videoTrackId,
+    voiceTrackId,
+  ]);
+  const clipVisuals = useMemo(
+    () =>
+      Object.fromEntries(
+        presentationClips.flatMap((clip) => {
+          if (!clip.assetId) return [];
+          const asset = assetsById.get(clip.assetId);
+          return asset ? [[clip.id, resolveAssetVisual(asset)]] : [];
+        }),
+      ),
+    [assetsById, presentationClips],
+  );
 
   const matchedShots = workspace.storyboard.filter((shot) => shot.matchStatus === 'matched').length;
   const missingReasons = useMemo(
@@ -272,14 +381,14 @@ export function RoughCutPage() {
   ].filter(Boolean);
 
   const selectedClip = useMemo(
-    () => timeline.clips.find((clip) => clip.id === selectedClipId) ?? null,
-    [timeline.clips, selectedClipId],
+    () => presentationClips.find((clip) => clip.id === selectedClipId) ?? null,
+    [presentationClips, selectedClipId],
   );
-  const bgmClip = timeline.clips.find((clip) => clip.trackId === bgmTrackId) ?? null;
+  const bgmClip = presentationClips.find((clip) => clip.trackId === bgmTrackId) ?? null;
 
   const activeTimelineClip = useMemo(
     () =>
-      timeline.clips.find(
+      presentationClips.find(
         (clip) =>
           clip.trackId === trackIntents.video &&
           !!clip.assetId &&
@@ -287,7 +396,7 @@ export function RoughCutPage() {
           playhead < clip.end &&
           assetsById.has(clip.assetId),
       ) ?? null,
-    [timeline.clips, trackIntents.video, playhead, assetsById],
+    [presentationClips, trackIntents.video, playhead, assetsById],
   );
   const previewAsset = activeTimelineClip?.assetId
     ? assetsById.get(activeTimelineClip.assetId)
@@ -357,6 +466,11 @@ export function RoughCutPage() {
 
   const removeSelectedClip = useCallback(async () => {
     if (!selectedClip) return;
+    if (!timeline.clips.some((clip) => clip.id === selectedClip.id)) {
+      setSelectedClipId(null);
+      message.success('已取消选择演示片段');
+      return;
+    }
     await persistTimeline({
       clips: timeline.clips.filter((clip) => clip.id !== selectedClip.id),
       playhead,
@@ -447,6 +561,15 @@ export function RoughCutPage() {
     <div className="rough-cut-page" data-testid="rough-cut-page">
       <div className="project-page-toolbar">
         <div className="project-page-toolbar-copy">
+          <Button
+            type="link"
+            size="small"
+            icon={<LeftOutlined />}
+            className="rough-cut-back"
+            onClick={() => navigate(ROUTES.dashboard)}
+          >
+            返回项目
+          </Button>
           <div className="rough-cut-project-heading">
             <Typography.Title level={3} style={{ margin: 0 }}>
               海南陵水鸡 · 北京三里屯店
@@ -720,7 +843,8 @@ export function RoughCutPage() {
             </div>
             <TimelineTrackList
               tracks={timeline.tracks}
-              clips={timeline.clips}
+              clips={presentationClips}
+              clipVisuals={clipVisuals}
               duration={Math.max(0.001, timeline.duration)}
               playhead={playhead}
               selectedClipId={selectedClipId}
