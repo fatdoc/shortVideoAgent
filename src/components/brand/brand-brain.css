@@ -1,0 +1,373 @@
+.brand-brain-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brand-page-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand-page-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-page-title .ant-typography {
+  margin: 0;
+}
+
+.brand-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.brand-metric-card,
+.brand-panel,
+.brand-facts-panel {
+  background: #fff;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  box-shadow: 0 3px 14px rgba(15, 35, 65, 0.035);
+}
+
+.brand-metric-card {
+  min-height: 100px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.brand-metric-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+}
+
+.brand-metric-blue {
+  color: #1677ff;
+  background: #eaf2ff;
+}
+
+.brand-metric-purple {
+  color: #722ed1;
+  background: #f4edff;
+}
+
+.brand-metric-green {
+  color: #389e0d;
+  background: #f0f9e8;
+}
+
+.brand-metric-orange {
+  color: #d46b08;
+  background: #fff4e8;
+}
+
+.brand-metric-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.brand-metric-copy strong {
+  color: #172033;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.brand-metric-copy .ant-typography:last-child {
+  font-size: 12px;
+}
+
+.brand-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) 330px;
+  gap: 16px;
+  align-items: start;
+}
+
+.brand-main-column,
+.brand-side-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.brand-side-column {
+  position: sticky;
+  top: calc(var(--va-topbar-height) + 16px);
+}
+
+.brand-panel {
+  padding: 17px;
+}
+
+.brand-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.brand-panel-heading > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-panel-heading .ant-typography {
+  margin: 0;
+}
+
+.brand-identity {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.brand-logo {
+  width: 70px;
+  height: 70px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.45), transparent 30%),
+    linear-gradient(145deg, #f0483e, #9b1818);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.brand-identity-copy {
+  min-width: 0;
+}
+
+.brand-identity-copy .ant-typography {
+  margin-bottom: 4px;
+}
+
+.brand-detail-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 86px 1fr;
+  gap: 9px 10px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+.brand-detail-label {
+  color: #8c8c8c;
+}
+
+.brand-tone-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.brand-package-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.brand-package-item {
+  padding: 14px;
+  border: 1px solid #e8edf4;
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.brand-package-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.brand-package-price {
+  color: #1677ff;
+  font-size: 18px;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.brand-package-description {
+  display: block;
+  margin: 7px 0 10px;
+}
+
+.brand-person {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.brand-person-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, #283b57, #1677ff);
+  font-weight: 700;
+}
+
+.brand-person-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brand-category-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.brand-category-item {
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: #f6f8fb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #4d5769;
+}
+
+.brand-reference-list,
+.brand-risk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.brand-reference-item,
+.brand-risk-item {
+  padding: 10px 11px;
+  border-radius: 9px;
+  background: #f7f9fc;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+
+.brand-reference-icon,
+.brand-risk-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: #1677ff;
+  background: #eaf2ff;
+}
+
+.brand-risk-icon {
+  color: #fa8c16;
+  background: #fff4e8;
+}
+
+.brand-reference-copy,
+.brand-risk-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.brand-prohibited-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.brand-prohibited-cloud .ant-tag {
+  margin: 0;
+}
+
+.brand-facts-panel {
+  padding: 17px;
+}
+
+.brand-fact-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-fact-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.brand-fact-content .ant-typography:last-child {
+  font-size: 12px;
+}
+
+.brand-confidence-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-confidence-cell .ant-progress {
+  margin: 0;
+  flex: 1;
+}
+
+.brand-confidence-cell span {
+  width: 34px;
+  color: #595959;
+  font-size: 12px;
+}
+
+.brand-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.brand-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.brand-editor-field > .ant-typography:last-child {
+  font-size: 12px;
+}
+
+@media (max-width: 1320px) {
+  .brand-overview-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  .brand-package-grid {
+    grid-template-columns: 1fr;
+  }
+}
