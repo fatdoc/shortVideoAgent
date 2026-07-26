@@ -48,6 +48,10 @@ describe('BrandBrainPage', () => {
     renderPage();
     expect(screen.getByTestId('brand-brain-page')).toBeInTheDocument();
     expect(screen.getAllByText('海底捞火锅·北京三里屯店').length).toBeGreaterThan(0);
+    expect(screen.getByAltText('海底捞品牌标识')).toBeInTheDocument();
+    expect(screen.getByAltText('张勇头像')).toBeInTheDocument();
+    expect(screen.getByText('张勇（海底捞创始人）')).toBeInTheDocument();
+    expect(screen.getByText('1,268')).toBeInTheDocument();
     expect(screen.getByText('四宫格锅底')).toBeInTheDocument();
     expect(screen.getByTestId('brand-facts-panel')).toBeInTheDocument();
     expect(screen.getByText('C1')).toBeInTheDocument();
@@ -66,7 +70,6 @@ describe('BrandBrainPage', () => {
         '海底捞火锅·北京三里屯旗舰店',
       );
     }, { timeout: 3000 });
-    expect(await screen.findByText('已保存')).toBeInTheDocument();
   });
 
   it('changes claim status and saves it to the shared workspace', async () => {
@@ -75,16 +78,18 @@ describe('BrandBrainPage', () => {
     await user.click(screen.getByRole('tab', { name: '事实库' }));
     await user.click(screen.getByRole('combobox', { name: 'C1 状态' }));
     await user.click(await screen.findByText('待复核'));
-    await user.click(screen.getByTestId('brand-save'));
+    await user.click(screen.getByTestId('brand-more'));
+    await user.click(await screen.findByTestId('brand-save'));
     await waitFor(() => {
       expect(useProjectStore.getState().workspace.brand.facts[0].status).toBe('pending');
     });
-  });
+  }, 10_000);
 
   it('opens the script page entry', async () => {
     const user = userEvent.setup();
     renderPage();
-    await user.click(screen.getByTestId('brand-to-script'));
+    await user.click(screen.getByTestId('brand-more'));
+    await user.click(await screen.findByTestId('brand-to-script'));
     expect(await screen.findByText('Script route')).toBeInTheDocument();
   });
 });

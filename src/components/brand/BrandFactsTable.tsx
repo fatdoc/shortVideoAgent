@@ -1,5 +1,5 @@
 import { Empty, Input, Progress, Select, Table, Tag, Typography } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
+import { SearchOutlined, SoundOutlined } from '@ant-design/icons';
 import { useMemo, useState } from 'react';
 import type { Claim, ClaimStatus, ScriptVersion } from '../../domain/types';
 
@@ -30,6 +30,8 @@ interface BrandFactsTableProps {
   scripts: ScriptVersion[];
   disabled?: boolean;
   className?: string;
+  tone?: string[];
+  voiceExample?: string;
   onStatusChange: (claimId: string, status: ClaimStatus) => void;
 }
 
@@ -38,6 +40,8 @@ export function BrandFactsTable({
   scripts,
   disabled,
   className,
+  tone = [],
+  voiceExample,
   onStatusChange,
 }: BrandFactsTableProps) {
   const [query, setQuery] = useState('');
@@ -81,7 +85,32 @@ export function BrandFactsTable({
           />
         </div>
       </div>
-        <Table<Claim>
+      {tone.length ? (
+        <div className="brand-tone-summary">
+          <span className="brand-tone-summary-icon">
+            <SoundOutlined />
+          </span>
+          <div className="brand-tone-summary-copy">
+            <div className="brand-tone-summary-title">
+              <Typography.Text strong>语调关键词</Typography.Text>
+              <span className="brand-tone-summary-tags">
+                {tone.map((item) => (
+                  <Tag color="blue" key={item}>
+                    {item}
+                  </Tag>
+                ))}
+              </span>
+            </div>
+            <Typography.Text type="secondary">
+              口吻示例 {voiceExample ?? '“海底捞服务至上，让每一次用餐都暖心！”'}
+            </Typography.Text>
+          </div>
+          <Typography.Text type="secondary" className="brand-tone-summary-type">
+            类型
+          </Typography.Text>
+        </div>
+      ) : null}
+      <Table<Claim>
           className="brand-facts-table"
           rowKey="id"
           size="small"
