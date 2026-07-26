@@ -1,6 +1,6 @@
 # 集成状态 · INTEGRATION STATUS
 
-更新时间：2026-07-26（Gate 2 验收后）
+更新时间：2026-07-26（Wave 2.5 六页终验后）
 
 | 模块 | 线程 | 状态 | 备注 |
 |---|---|---|---|
@@ -10,11 +10,11 @@
 | 工作台/Brief | C2 | **DONE / MERGED** | Gate 2 APPROVE_MERGE |
 | 品牌大脑 | C3 | **DONE / MERGED** | Gate 2 APPROVE_MERGE |
 | 脚本编辑 | C4 | **DONE / MERGED** | Gate 2 APPROVE_WITH_FOLLOWUPS；follow-ups 已关闭 |
-| UI 忠实度纠偏 | C1—C4 | **IN_PROGRESS** | Wave 2.5，按图 1—4 分目录并行 |
-| 分镜 | C5 | **DISPATCHED** | 独立 Codex 工作树；消费 activeScript |
-| 初剪 | C6 | **DISPATCHED** | 独立 Codex 工作树；与 C5 对齐 storyboard 状态 |
-| 案例目录 | C0 / C1 | PLANNED | UI 容器稳定后扩展 CaseCatalog |
-| 测试集成 | C7 | NOT_STARTED | 依赖 C2—C6 |
+| UI 忠实度纠偏 | C1—C6 | **DONE / MERGED TO INTEGRATION** | 六页按图 1—6 完成同尺寸复验 |
+| 分镜 | C5 | **DONE / MERGED TO INTEGRATION** | 8 镜、拍摄清单、真实图片与统计区 |
+| 初剪 | C6 | **DONE / MERGED TO INTEGRATION** | 素材库、竖版预览、五轨时间线与 QA |
+| 案例目录 | C0 / C2 | **MVP DONE** | 工作台 5 个案例；完整 CaseCatalog 迁移仍为后续 |
+| 测试集成 | C0 / C7 | **C0 PRECHECK PASS** | 61 tests 与干净浏览器主链路通过；C7 专项仍可继续 |
 
 ## 分支
 
@@ -32,3 +32,5 @@
 - Gate 0：PASS WITH RISKS
 - Gate 1：APPROVE_MERGE（C1）
 - Gate 2：PASS · APPROVE_MERGE（C2/C3/C4）
+- Wave 2.5：PASS（图 1—6 P0/P1/P2 清零）
+- Gate 3 前置主链路：PASS（C0 precheck；C7 专项待选）

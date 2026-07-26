@@ -314,6 +314,7 @@ export function ScriptEditorPage() {
                 </span>
               ))}
             </div>
+            <span className="script-sr-only">CTA：{brief.cta}</span>
           </div>
           <div className="script-project-actions">
             <Button

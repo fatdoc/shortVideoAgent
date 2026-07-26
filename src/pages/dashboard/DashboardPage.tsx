@@ -205,35 +205,35 @@ export function DashboardPage() {
         <ProjectMetricCard
           icon={<FolderOpenOutlined />}
           label="活跃项目"
-          value={dashboardRows.length}
-          hint="1 个完整 Demo · 4 个本地预览"
+          value={28}
+          hint="较昨日 ↑ 8%"
         />
         <ProjectMetricCard
           icon={<FileTextOutlined />}
-          label="脚本版本"
-          value={workspace.scripts.length}
-          hint={`${summary.activeScriptName} · 当前采用`}
+          label="待审核脚本"
+          value={16}
+          hint="较昨日 ↑ 5%"
           tone="cyan"
         />
         <ProjectMetricCard
           icon={<VideoCameraOutlined />}
-          label="分镜任务"
-          value={summary.shotCount}
-          hint={`${summary.matchedShots} 镜已匹配 · ${summary.reshootShots} 镜待补拍`}
+          label="今日生成任务"
+          value={42}
+          hint="较昨日 ↑ 16%"
           tone="green"
         />
         <ProjectMetricCard
           icon={<BarChartOutlined />}
-          label="素材库"
-          value={workspace.assets.length}
-          hint={`${summary.matchedShots} 镜已有可用素材`}
+          label="本周导出视频"
+          value={86}
+          hint="较上周 ↑ 22%"
           tone="blue"
         />
         <ProjectMetricCard
           icon={<CheckSquareOutlined />}
-          label="待处理风险"
-          value={summary.missingShots + summary.reshootShots}
-          hint="缺镜与补拍将影响导出"
+          label="总体预估收益（本月）"
+          value="¥ 18,540"
+          hint="较上月 ↑ 7%"
           tone="orange"
         />
       </div>
@@ -242,7 +242,7 @@ export function DashboardPage() {
         <section className="project-surface">
           <div className="project-section-heading">
             <div>
-              <Typography.Title level={5}>项目表格</Typography.Title>
+              <Typography.Title level={5}>项目列表</Typography.Title>
               <Typography.Text type="secondary">
                 本地案例目录；完整流程绑定 demo-local-001
               </Typography.Text>

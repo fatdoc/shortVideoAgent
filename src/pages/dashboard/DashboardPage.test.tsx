@@ -36,12 +36,12 @@ describe('DashboardPage', () => {
     renderPage();
     expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
     expect(screen.getByText('海底捞火锅·北京三里屯店探店视频')).toBeInTheDocument();
-    expect(screen.getByText('素材库')).toBeInTheDocument();
+    expect(screen.getByText('本周导出视频')).toBeInTheDocument();
     expect(screen.getByText('本周数据概览')).toBeInTheDocument();
     expect(screen.getAllByAltText(/项目缩略图/)).toHaveLength(5);
     expect(screen.getByTestId('dashboard-insights')).toBeInTheDocument();
     expect(screen.getAllByTestId('dashboard-project-row')).toHaveLength(5);
-    expect(screen.getByText(/4 个本地预览/)).toBeInTheDocument();
+    expect(screen.getByText('总体预估收益（本月）')).toBeInTheDocument();
     const workflow = screen.getByTestId('workflow-progress');
     expect(workflow).toHaveTextContent('Brief');
     expect(workflow).toHaveTextContent('脚本');

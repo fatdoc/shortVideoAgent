@@ -16,8 +16,8 @@ export function WorkflowProgress({ progress }: { progress: number }) {
     <div className="workflow-progress" data-testid="workflow-progress">
       <div className="project-section-heading">
         <div>
-          <Typography.Title level={5}>生产流程</Typography.Title>
-          <Typography.Text type="secondary">Brief、脚本到审核导出的当前推进位置</Typography.Text>
+          <Typography.Title level={5}>流程状态（全局）</Typography.Title>
+          <Typography.Text type="secondary">从 Brief 到审核导出的当前推进位置</Typography.Text>
         </div>
         <Typography.Text strong>{progress}%</Typography.Text>
       </div>

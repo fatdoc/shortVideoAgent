@@ -1,8 +1,8 @@
 # SHARED MEMORY · 权威共同记忆
 
 > 仅 C0 可修改。C1—C7 只读。  
-> 更新时间：2026-07-26（Gate 2 验收后）
-> 当前 Gate：Gate 2（已通过）；当前阶段：Wave 2.5 UI 纠偏 + C5/C6 并行
+> 更新时间：2026-07-26（Wave 2.5 六页终验后）
+> 当前 Gate：Gate 2（已通过并完成 UI 复验）；当前阶段：可交互 Demo 收口
 
 ## 项目目标
 
@@ -93,8 +93,10 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 - Gate 2 集成加固 Commit：`4cfba82`
 - Gate 2 Chromium 主流程 Commit：`3226f27`
 - 报告：`docs/tasks/GATE_2_REPORT.md`
-- 当前：先修正 UI 参考图忠实度，同时并行 C5 / C6
+- Wave 2.5 六页 UI 纠偏已完成并合入 `integration`
+- C5 分镜、C6 初剪已完成；C0 主链路预验通过
 - UI 审计：`docs/audits/ui-alignment-2026-07-26/AUDIT.md`
+- 最终视觉报告：`design-qa.md`
 - 案例扩展：`docs/tasks/CASE_DATA_PLAN.md`
 
 ## 当前阻塞
@@ -124,6 +126,8 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 9. Gate 2：PASS，允许启动 C5/C6
 10. 用户反馈现有 UI 与原始参考图存在结构性偏差，插入 Wave 2.5 视觉纠偏
 11. 案例数据在 UI 容器稳定后，以 CaseCatalog + 多 DemoWorkspace 统一扩展
+12. 本轮先交付 5 个工作台案例预览；完整 CaseCatalog 数据迁移作为后续增强
+13. 六页参考图同尺寸复验 P0/P1/P2 清零，允许作为老板讲解 Demo
 
 ## 当前风险
 

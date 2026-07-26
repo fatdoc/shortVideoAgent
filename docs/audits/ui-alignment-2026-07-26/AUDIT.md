@@ -2,9 +2,9 @@
 
 - 日期：2026-07-26
 - 审计人：C0
-- 范围：Dashboard、Brief、品牌大脑、脚本编辑器
+- 范围：Dashboard、Brief、品牌大脑、脚本编辑器、分镜、初剪
 - 对照尺寸：原始参考图 `1672×941`
-- 结论：**结构性偏差，需在 Wave 3 前完成视觉基线纠偏**
+- 结论：**复验通过；Wave 2.5 P0/P1/P2 已清零**
 
 ## 1. 工作台
 
@@ -102,3 +102,13 @@ Wave 2.5 拆为六个互不越权的 Codex 任务：
 - 浏览器 console / page error 必须为 0。
 - C0 只按截图证据、实际交互和完整自动化结果批准合入。
 
+## 8. C0 最终复验（2026-07-26）
+
+- 六页 `1672×941` 实现截图与同画布对照已归档在本目录。
+- Dashboard / Brief / Brand / Script / Storyboard / Rough Cut 均已在 `integration` 实际打开核验。
+- 工作台新增 5 个案例数据；分镜与初剪均使用真实餐饮图片，不再使用蓝色文字占位。
+- 干净浏览器会话实走 Dashboard → Brief → Script → Storyboard → Rough Cut，console error = 0。
+- 全量结果：13 files / 61 tests、lint、build、governance 全部通过。
+- 最终权威报告：`design-qa.md`。
+
+**最终结论：PASS**

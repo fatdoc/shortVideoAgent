@@ -133,3 +133,14 @@ Security 观察：`npm audit` 为 7 high，其中 production 2 个来自 React R
 - C6 必须消费统一 storyboard / assets / timeline
 - C5 / C6 禁止复制项目、脚本、事实或素材主数据
 - Gate 3 必须验证脚本→分镜→初剪、素材状态与时间线一致
+
+## 11. Wave 2.5 视觉复验补充（2026-07-26）
+
+- C1—C6 的图 1—6 增量均已合入 `integration`。
+- 工作台 / Brief / 品牌 / 脚本 / 分镜 / 初剪完成 `1672×941` 同尺寸对照。
+- 干净浏览器会话实走 Dashboard → Brief → Script → Storyboard → Rough Cut，console error = 0。
+- 当前工程门禁：13 files / 61 tests、lint、build、governance 全部通过。
+- 工作台已补 5 个案例预览；正式 CaseCatalog 迁移继续按 `CASE_DATA_PLAN.md` 执行。
+- 权威终验：`design-qa.md`。
+
+Gate 2 保持：**PASS · APPROVE_MERGE**。

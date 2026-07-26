@@ -55,25 +55,25 @@
 **Gate 2 结论：PASS · APPROVE_MERGE（2026-07-26）**
 报告：`docs/tasks/GATE_2_REPORT.md`
 
-## Wave 2.5 · UI 忠实度纠偏（进行中）
+## Wave 2.5 · UI 忠实度纠偏
 
-- [ ] C1-UI 全局浅色壳层与视觉 token
-- [ ] C2-UI Dashboard / Brief 对齐图 1—2
-- [ ] C3-UI 品牌大脑对齐图 3
-- [ ] C4-UI 脚本编辑器对齐图 4
-- [ ] C0 1672×941 / 1440×900 视觉验收
+- [x] C1-UI 全局浅色壳层与视觉 token
+- [x] C2-UI Dashboard / Brief 对齐图 1—2
+- [x] C3-UI 品牌大脑对齐图 3
+- [x] C4-UI 脚本编辑器对齐图 4
+- [x] C0 1672×941 / 1440×900 视觉验收
 
 审计：`docs/audits/ui-alignment-2026-07-26/AUDIT.md`
 
 ## Wave 3 · C5 / C6 并行
 
-- [ ] C5 分镜
-- [ ] C6 初剪
+- [x] C5 分镜
+- [x] C6 初剪
 
 ## 案例数据扩展（Wave 2.5 后）
 
 - [ ] C0 冻结 CaseCatalog 协议
-- [ ] 收集并确认首批 3—5 个案例资料
+- [x] 首批 5 个工作台案例预览数据与图片
 - [ ] C0 / C1 实现 v1 → v2 Store 迁移
 - [ ] C2—C6 接入 activeCase
 - [ ] C7 补多案例隔离与持久化 E2E
@@ -95,6 +95,7 @@
 
 ## Wave 5 · C0 收口
 
-- [ ] 集成
-- [ ] 精修
-- [ ] 最终验收
+- [x] 集成到 `integration`
+- [x] 六页视觉精修
+- [x] C0 全量门禁与浏览器主链路验收
+- [ ] C7 专项 E2E / 无障碍 / 缩放测试（可选后续）

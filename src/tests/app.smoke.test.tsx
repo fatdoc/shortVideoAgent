@@ -43,13 +43,28 @@ describe('app smoke', () => {
     expect(await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /脚本/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        level: 3,
+        name: '海底捞火锅 · 北京三里屯店探店脚本',
+      }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '分镜 / 拍摄清单' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        level: 3,
+        name: '海底捞火锅·北京三里屯店探店视频',
+      }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /初剪预览/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '素材中心 / 初剪预览' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', {
+        level: 3,
+        name: '海南陵水鸡 · 北京三里屯店',
+      }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /工作台/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
@@ -78,7 +93,10 @@ describe('app smoke', () => {
     expect(await screen.findByText(nextCta)).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /脚本/ }));
-    await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' });
+    await screen.findByRole('heading', {
+      level: 3,
+      name: '海底捞火锅 · 北京三里屯店探店脚本',
+    });
     expect(
       screen.getByText((_, element) => element?.textContent === `CTA：${nextCta}`),
     ).toBeInTheDocument();
