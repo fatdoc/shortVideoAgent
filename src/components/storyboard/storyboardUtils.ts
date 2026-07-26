@@ -40,5 +40,8 @@ export function reorderByDrag(
     return shots;
   }
 
-  return arrayMove(shots, from, to);
+  return arrayMove(shots, from, to).map((shot, index) => ({
+    ...shot,
+    order: index + 1,
+  }));
 }

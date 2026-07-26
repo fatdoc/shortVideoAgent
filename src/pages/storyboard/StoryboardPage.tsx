@@ -76,12 +76,20 @@ const MATCH_STATUS_OPTIONS = [
   { value: 'ai_placeholder', label: MATCH_STATUS_LABEL.ai_placeholder },
 ];
 
-const SHOT_STATUS_OPTIONS = [
-  { value: 'planned', label: '计划中' },
-  { value: 'ready', label: '可拍' },
-  { value: 'shooting', label: '拍摄中' },
-  { value: 'done', label: '已完成' },
-  { value: 'missing', label: '缺镜' },
+const SHOT_STATUS_LABEL: Record<ShotStatus, string> = {
+  planned: '计划中',
+  ready: '可拍',
+  shooting: '拍摄中',
+  done: '已完成',
+  missing: '缺镜',
+};
+
+const SHOT_STATUS_OPTIONS: Array<{ value: ShotStatus; label: string }> = [
+  { value: 'planned', label: SHOT_STATUS_LABEL.planned },
+  { value: 'ready', label: SHOT_STATUS_LABEL.ready },
+  { value: 'shooting', label: SHOT_STATUS_LABEL.shooting },
+  { value: 'done', label: SHOT_STATUS_LABEL.done },
+  { value: 'missing', label: SHOT_STATUS_LABEL.missing },
 ];
 
 function formatOrder(order: number) {
@@ -118,7 +126,6 @@ function getScriptText(block: ScriptBlock | null) {
 
 function ShotRow({
   shot,
-  index,
   scriptBlock,
   thumbnail,
   expanded,
@@ -129,7 +136,6 @@ function ShotRow({
   onUpdateShotStatus,
 }: {
   shot: StoryboardShot;
-  index: number;
   scriptBlock: ScriptBlock | null;
   thumbnail: string;
   expanded: boolean;
@@ -154,8 +160,8 @@ function ShotRow({
       ref={setNodeRef}
       className={`storyboard-shot-row ${expanded ? 'is-expanded' : ''} ${isDragging ? 'is-dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      data-testid={`storyboard-shot-${formatOrder(index + 1)}`}
-      aria-label={`镜头 ${formatOrder(index + 1)}`}
+      data-testid={`storyboard-shot-${formatOrder(shot.order)}`}
+      aria-label={`镜头 ${formatOrder(shot.order)}`}
     >
       <div className="storyboard-shot-row-head">
         <Tooltip title={disabled ? '当前不可操作' : '拖拽排序'}>
@@ -166,7 +172,7 @@ function ShotRow({
             {...listeners}
             {...attributes}
             ref={setActivatorNodeRef}
-            aria-label={`拖拽镜头 ${formatOrder(index + 1)}`}
+            aria-label={`拖拽镜头 ${formatOrder(shot.order)}`}
           >
             <DragOutlined />
           </button>
@@ -177,7 +183,7 @@ function ShotRow({
         <div className="storyboard-shot-copy">
           <div className="storyboard-shot-title-line">
             <Space>
-              <Typography.Text strong>{formatOrder(index + 1)}</Typography.Text>
+              <Typography.Text strong>{formatOrder(shot.order)}</Typography.Text>
               <Tag color="blue">{shot.description}</Tag>
               <Tag color="processing">{shot.shotType}</Tag>
             </Space>
@@ -185,7 +191,7 @@ function ShotRow({
 
           <div className="storyboard-shot-meta-line">
             <StatusTag kind="match" value={shot.matchStatus} />
-            <Tag color={shotStatusTone(shot.status)}>{shot.status}</Tag>
+            <Tag color={shotStatusTone(shot.status)}>{SHOT_STATUS_LABEL[shot.status]}</Tag>
             <Tag color="default">{scriptBlockLabel(scriptBlock)}</Tag>
             {shot.assignee ? <Tag icon={<UserOutlined />}>{shot.assignee}</Tag> : <Tag>待分配</Tag>}
           </div>
@@ -505,13 +511,12 @@ export function StoryboardPage() {
     >
       <SortableContext items={shotItems.map(({ shot }) => shot.id)} strategy={verticalListSortingStrategy}>
         <div className="storyboard-shot-list">
-          {shotItems.map((item, index) => {
+          {shotItems.map((item) => {
             const assetThumb = item.shot.assetId ? assetById.get(item.shot.assetId) ?? ASSET_PLACEHOLDER : ASSET_PLACEHOLDER;
             return (
               <ShotRow
                 key={item.shot.id}
                 shot={item.shot}
-                index={index}
                 scriptBlock={item.scriptBlock}
                 thumbnail={assetThumb}
                 expanded={expandedShot === item.shot.id}
@@ -635,8 +640,7 @@ export function StoryboardPage() {
         <Alert
           type="warning"
           showIcon
-          message="缺镜 / 待补拍提醒"
-          description={`当前存在 ${missing} 镜缺镜、${reshoot} 镜待补拍，建议先完成拍摄补充后再进入初剪。`}
+          message={`缺镜 / 待补拍提醒：当前存在 ${missing} 镜缺镜、${reshoot} 镜待补拍，建议先完成拍摄补充后再进入初剪。`}
           icon={<ExclamationCircleOutlined />}
         />
       ) : null}
@@ -654,10 +658,10 @@ export function StoryboardPage() {
                   <div className="storyboard-section">
                     <div className="storyboard-section-head">
                       <div>
-                        <Typography.Title level={5} style={{ margin: 0 }}>
+                          <Typography.Title level={5} style={{ margin: 0 }}>
                             8 镜分镜（横向镜头）
                           </Typography.Title>
-                        <Typography.Text type="secondary">优先展示真实素材缩略图与脚本段映射</Typography.Text>
+                        <Typography.Text type="secondary">使用统一 workspace.assets 缩略图与脚本段映射</Typography.Text>
                       </div>
                       <div className="storyboard-shot-toolbar">
                         <Tag color="default">共 {shotItems.length} 镜</Tag>

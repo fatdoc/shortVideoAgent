@@ -121,6 +121,7 @@ describe('storyboardUtils', () => {
   it('reorders by drag id pair', () => {
     const next = reorderByDrag(shots, 'shot-a', 'shot-c');
     expect(next.map((item) => item.id)).toEqual(['shot-b', 'shot-c', 'shot-a']);
+    expect(next.map((item) => item.order)).toEqual([1, 2, 3]);
   });
 
   it('maps match status to shot status', () => {
