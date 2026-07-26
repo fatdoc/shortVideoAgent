@@ -4,7 +4,7 @@
 - 本轮复核起点：`2c8ab9e`
 - Wave 2.5 实现 Commit：`9874d91`
 - 第二轮视觉基线：`4e708d0`
-- 第二轮视觉 Commit：`待提交`
+- 第二轮视觉 Commit：`984331c`
 - Gate 2 原功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
 - 验收结论：`COMPLETED / REVERIFIED（视觉、行为、全量测试均可交 C0 验收）`
 - Merge Commit：`1fa270b`
