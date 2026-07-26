@@ -1,7 +1,7 @@
 # C5 HANDOFF
 
 - 当前分支：`(detached HEAD)`
-- 当前 Commit：待本轮提交后回填
+- 当前 Commit：`3fe4372`
 - 可运行页面：`/projects/demo-local-001/storyboard`
 - 关键文件：
   - `src/pages/storyboard/StoryboardPage.tsx`
