@@ -19,3 +19,5 @@ C0 决策：待定
 ## 当前请求
 
 无。
+
+说明：本线程评分/风险/Mock 生成均在 `src/components/script` 内前端派生，未改 `src/domain` / `src/mocks` / store API。
