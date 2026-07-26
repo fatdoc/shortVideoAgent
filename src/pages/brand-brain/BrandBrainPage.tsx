@@ -1,24 +1,17 @@
 import {
-  ArrowRightOutlined,
   AuditOutlined,
+  ArrowRightOutlined,
   ClockCircleOutlined,
   EditOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
   SafetyCertificateOutlined,
   SaveOutlined,
+  ShopOutlined,
+  TeamOutlined,
   TagsOutlined,
 } from '@ant-design/icons';
-import {
-  Alert,
-  App,
-  Button,
-  Divider,
-  Empty,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, App, Button, Select, Tabs, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -31,20 +24,16 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
 import { isDemoProject } from '../../domain/selectors';
-import type { BrandProfile, ClaimStatus } from '../../domain/types';
+import type { BrandProfile, ClaimStatus, ScriptVersion } from '../../domain/types';
 import { useProjectStore } from '../../stores/projectStore';
 
 function cloneBrand(brand: BrandProfile): BrandProfile {
   return structuredClone(brand);
 }
 
-const claimTypeLabels: Record<string, string> = {
-  fact: '基础事实',
-  price: '价格套餐',
-  service: '服务体验',
-  policy: '会员权益',
-  disclaimer: '免责声明',
-};
+function getLatestScriptCitations(scripts: ScriptVersion[], limit = 3) {
+  return [...scripts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+}
 
 export function BrandBrainPage() {
   const { message } = App.useApp();
@@ -57,6 +46,7 @@ export function BrandBrainPage() {
   const updateBrand = useProjectStore((state) => state.updateBrand);
   const hydrate = useProjectStore((state) => state.hydrate);
   const clearError = useProjectStore((state) => state.clearError);
+
   const [draft, setDraft] = useState(() => cloneBrand(workspace.brand));
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -76,18 +66,23 @@ export function BrandBrainPage() {
   );
   const averageConfidence = draft.facts.length
     ? Math.round(
-        (draft.facts.reduce((total, fact) => total + fact.confidence, 0) /
-          draft.facts.length) *
+        (draft.facts.reduce((total, fact) => total + fact.confidence, 0) / draft.facts.length) *
           100,
       )
     : 0;
+  const completenessRate = Math.round(
+    ((approvedCount + draft.packages.length) / (draft.facts.length + 2)) * 100,
+  );
 
-  const categoryCounts = useMemo(() => {
-    return draft.facts.reduce<Record<string, number>>((counts, fact) => {
-      counts[fact.type] = (counts[fact.type] ?? 0) + 1;
-      return counts;
-    }, {});
-  }, [draft.facts]);
+  const brandProjectOptions = useMemo(
+    () => [
+      {
+        value: workspace.project.id,
+        label: `${workspace.project.name} · ${workspace.project.id}`,
+      },
+    ],
+    [workspace.project.id, workspace.project.name],
+  );
 
   const markDraft = (next: BrandProfile) => {
     setDraft(next);
@@ -111,6 +106,11 @@ export function BrandBrainPage() {
       ...draft,
       facts: draft.facts.map((fact) => (fact.id === claimId ? { ...fact, status } : fact)),
     });
+  };
+
+  const handleProjectSwitch = (nextProjectId: string) => {
+    if (nextProjectId === workspace.project.id) return;
+    navigate(ROUTES.brand(nextProjectId));
   };
 
   const proceedToScript = async () => {
@@ -143,19 +143,250 @@ export function BrandBrainPage() {
     );
   }
 
+  const renderMerchantPanel = () => (
+    <section className="brand-panel brand-merchant-panel">
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>商家基本资料</Typography.Title>
+          <Typography.Text type="secondary">Brief 与品牌规则工作台</Typography.Text>
+        </div>
+        <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
+          编辑
+        </Button>
+      </div>
+      <div className="brand-identity">
+        <div className="brand-logo">
+          <ShopOutlined />
+        </div>
+        <div className="brand-identity-copy">
+          <Typography.Text strong>{draft.merchant}</Typography.Text>
+          <Typography.Text type="secondary">本地探店 · Demo ID 10086</Typography.Text>
+          <div className="brand-tone-row">
+            {draft.tone.map((tone) => (
+              <Tag color="blue" key={tone}>
+                {tone}
+              </Tag>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="brand-detail-grid">
+        <span className="brand-detail-label">门店地址</span>
+        <span>{workspace.brief.address}</span>
+        <span className="brand-detail-label">所在城市</span>
+        <span>{workspace.brief.city}</span>
+        <span className="brand-detail-label">目标平台</span>
+        <span>{workspace.brief.platforms.join(' / ')}</span>
+        <span className="brand-detail-label">目标受众</span>
+        <span>{workspace.brief.targetAudience.join('、')}</span>
+        <span className="brand-detail-label">转化动作</span>
+        <span>{workspace.brief.cta}</span>
+      </div>
+    </section>
+  );
+
+  const renderPackagesPanel = (className = '') => (
+    <section className={`brand-panel ${className}`}>
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>套餐 / 商品信息</Typography.Title>
+          <Typography.Text type="secondary">价格事实与套餐绑定</Typography.Text>
+        </div>
+        <Tag>{draft.packages.length} 个套餐</Tag>
+      </div>
+      <div className="brand-package-table">
+        <div className="brand-package-table-head">
+          <span>套餐 / 商品名称</span>
+          <span>类型</span>
+          <span>价格</span>
+          <span>事实绑定</span>
+        </div>
+        {draft.packages.map((item) => (
+          <div className="brand-package-row" key={item.id}>
+            <div className="brand-package-name">
+              <Typography.Text strong>{item.name}</Typography.Text>
+              <Typography.Text type="secondary" title={item.description}>
+                {item.description}
+              </Typography.Text>
+            </div>
+            <Typography.Text type="secondary">套餐</Typography.Text>
+            <span className="brand-package-price">¥{item.price}</span>
+            <div className="brand-package-claims">
+              {item.claimIds.map((claimId) => (
+                <Tag color="blue" key={claimId}>
+                  {claimId}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderProhibitedPanel = () => (
+    <section className="brand-panel">
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>品牌禁用词</Typography.Title>
+          <Typography.Text type="secondary">命中后提升风控级别</Typography.Text>
+        </div>
+      </div>
+      <div className="brand-prohibited-cloud">
+        {draft.prohibitedWords.map((word) => (
+          <Tag color="red" icon={<ExclamationCircleOutlined />} key={word}>
+            {word}
+          </Tag>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderPersonPanel = () => (
+    <section className="brand-panel">
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>人物 IP</Typography.Title>
+          <Typography.Text type="secondary">统一口播人设设定</Typography.Text>
+        </div>
+      </div>
+      <div className="brand-person">
+        <div className="brand-person-avatar">
+          <TeamOutlined />
+        </div>
+        <div className="brand-person-copy">
+          <Typography.Text strong>{draft.personProfile.name}</Typography.Text>
+          <Typography.Text type="secondary">{draft.personProfile.role}</Typography.Text>
+          <Typography.Text>{draft.personProfile.tone}</Typography.Text>
+        </div>
+      </div>
+      <Typography.Text type="secondary" className="brand-person-notes">
+        {draft.personProfile.notes}
+      </Typography.Text>
+    </section>
+  );
+
+  const renderCitationsPanel = () => (
+    <section className="brand-panel">
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>最近引用记录</Typography.Title>
+          <Typography.Text type="secondary">A/B/C 脚本反向统计</Typography.Text>
+        </div>
+      </div>
+      <div className="brand-reference-list">
+        {getLatestScriptCitations(workspace.scripts).map((script: ScriptVersion) => (
+          <div className="brand-reference-item" key={script.id}>
+            <span className="brand-reference-icon">
+              <AuditOutlined />
+            </span>
+            <span className="brand-reference-copy">
+              <Typography.Text strong>{script.name}</Typography.Text>
+              <Typography.Text type="secondary">
+                引用 {script.citations.length} 条 · {script.score} 分
+              </Typography.Text>
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderRiskPanel = () => (
+    <section className="brand-panel">
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>风险提醒</Typography.Title>
+          <Typography.Text type="secondary">低可信度或未确认事实需复核</Typography.Text>
+        </div>
+        <Tag color={reviewFacts.length ? 'orange' : 'success'}>{reviewFacts.length}</Tag>
+      </div>
+      {reviewFacts.length ? (
+        <div className="brand-risk-list">
+          {reviewFacts.map((fact) => (
+            <div className="brand-risk-item" key={fact.id}>
+              <span className="brand-risk-icon">
+                <ExclamationCircleOutlined />
+              </span>
+              <span className="brand-risk-copy">
+                <Typography.Text strong>{fact.id} · 建议复核</Typography.Text>
+                <Typography.Text type="secondary">{fact.text}</Typography.Text>
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <Typography.Text type="secondary" className="brand-empty-text">
+          暂无待复核事实
+        </Typography.Text>
+      )}
+    </section>
+  );
+
+  const renderTonePanel = () => (
+    <section className="brand-panel">
+      <div className="brand-panel-heading">
+        <div>
+          <Typography.Title level={5}>品牌表达规则</Typography.Title>
+          <Typography.Text type="secondary">脚本生成时统一执行</Typography.Text>
+        </div>
+      </div>
+      <div className="brand-rule-list">
+        <div className="brand-rule-row">
+          <span className="brand-detail-label">品牌语气</span>
+          <div className="brand-tone-row">
+            {draft.tone.map((tone) => (
+              <Tag color="blue" key={tone}>
+                {tone}
+              </Tag>
+            ))}
+          </div>
+        </div>
+        <div className="brand-rule-row">
+          <span className="brand-detail-label">引用原则</span>
+          <Typography.Text>C1—C8 为脚本生成的唯一事实来源</Typography.Text>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderFactsPanel = (className = '') => (
+    <BrandFactsTable
+      className={className}
+      facts={draft.facts}
+      scripts={workspace.scripts}
+      disabled={loading}
+      onStatusChange={changeFactStatus}
+    />
+  );
+
   return (
     <div className="brand-brain-page" data-testid="brand-brain-page">
-      <div className="brand-page-toolbar">
+      <Typography.Title level={3} className="brand-page-a11y-title">
+        品牌 / 商家大脑
+      </Typography.Title>
+      <section className="brand-page-toolbar">
         <div className="brand-page-title">
-          <Typography.Title level={3}>品牌 / 商家大脑</Typography.Title>
-          <Typography.Text type="secondary">
-            {workspace.project.name} · 管理事实、语气、套餐、人物 IP 与合规口径。
-          </Typography.Text>
+          <div className="brand-project-selector">
+            <Typography.Text type="secondary">品牌项目</Typography.Text>
+            <Select
+              className="brand-project-select"
+              value={workspace.project.id}
+              onChange={handleProjectSwitch}
+              options={brandProjectOptions}
+              popupMatchSelectWidth={false}
+              getPopupContainer={(node) => node.parentElement ?? node}
+            />
+          </div>
+          <div className="brand-page-meta">
+            <Typography.Text strong>{draft.merchant}</Typography.Text>
+            <Typography.Text type="secondary">
+              {workspace.project.name} · {workspace.brief.city} · {workspace.brief.platforms.join(' / ')}
+            </Typography.Text>
+          </div>
         </div>
         <div className="brand-toolbar-actions">
-          <Tag color={dirty ? 'orange' : saved ? 'success' : 'green'}>
-            {dirty ? '有未保存修改' : saved ? '已保存' : '资料正常'}
-          </Tag>
+          <Tag color={dirty ? 'orange' : saved ? 'success' : 'blue'}>{dirty ? '有未保存修改' : saved ? '已保存' : '资料正常'}</Tag>
           <Button icon={<EditOutlined />} onClick={() => setEditorOpen(true)} data-testid="brand-edit">
             编辑资料
           </Button>
@@ -177,7 +408,7 @@ export function BrandBrainPage() {
             进入脚本
           </Button>
         </div>
-      </div>
+      </section>
 
       {error ? (
         <Alert
@@ -199,7 +430,7 @@ export function BrandBrainPage() {
         <BrandMetricCard
           icon={<SafetyCertificateOutlined />}
           label="资料完整度"
-          value={`${Math.round(((approvedCount + draft.packages.length) / (draft.facts.length + 2)) * 100)}%`}
+          value={`${completenessRate}%`}
           hint={`${approvedCount} / ${draft.facts.length} 条事实已确认`}
         />
         <BrandMetricCard
@@ -225,165 +456,70 @@ export function BrandBrainPage() {
         />
       </div>
 
-      <div className="brand-overview-grid">
-        <div className="brand-main-column">
-          <section className="brand-panel">
-            <div className="brand-panel-heading">
-              <div>
-                <Typography.Title level={5}>商家基本资料</Typography.Title>
-                <Typography.Text type="secondary">Brief 与品牌规则的统一工作面</Typography.Text>
-              </div>
-              <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
-                编辑
-              </Button>
-            </div>
-            <div className="brand-identity">
-              <div className="brand-logo">Hi</div>
-              <div className="brand-identity-copy">
-                <Typography.Title level={4}>{draft.merchant}</Typography.Title>
-                <Typography.Text type="secondary">本地探店 · Demo ID 10086</Typography.Text>
-                <div className="brand-tone-row" style={{ marginTop: 8 }}>
-                  {draft.tone.map((tone) => <Tag color="blue" key={tone}>{tone}</Tag>)}
+      <Tabs
+        className="brand-brain-tabs"
+        defaultActiveKey="overview"
+        items={[
+          {
+            key: 'overview',
+            label: '商家资料',
+            children: (
+              <div className="brand-dashboard-grid">
+                <div className="brand-dashboard-column">
+                  {renderMerchantPanel()}
+                  {renderFactsPanel()}
                 </div>
-              </div>
-            </div>
-            <div className="brand-detail-grid">
-              <span className="brand-detail-label">门店地址</span><span>{workspace.brief.address}</span>
-              <span className="brand-detail-label">所在城市</span><span>{workspace.brief.city}</span>
-              <span className="brand-detail-label">目标平台</span><span>{workspace.brief.platforms.join(' / ')}</span>
-              <span className="brand-detail-label">目标受众</span><span>{workspace.brief.targetAudience.join('、')}</span>
-              <span className="brand-detail-label">转化动作</span><span>{workspace.brief.cta}</span>
-            </div>
-          </section>
-
-          <section className="brand-panel">
-            <div className="brand-panel-heading">
-              <div>
-                <Typography.Title level={5}>套餐 / 商品信息</Typography.Title>
-                <Typography.Text type="secondary">价格事实必须与 C3、C4 保持一致</Typography.Text>
-              </div>
-              <Tag>{draft.packages.length} 个套餐</Tag>
-            </div>
-            <div className="brand-package-grid">
-              {draft.packages.map((item) => (
-                <div className="brand-package-item" key={item.id}>
-                  <div className="brand-package-top">
-                    <Typography.Text strong>{item.name}</Typography.Text>
-                    <span className="brand-package-price">¥{item.price}</span>
+                <div className="brand-dashboard-column">
+                  {renderPackagesPanel()}
+                  <div className="brand-dashboard-split">
+                    {renderProhibitedPanel()}
+                    {renderPersonPanel()}
                   </div>
-                  <Typography.Text type="secondary" className="brand-package-description">
-                    {item.description}
-                  </Typography.Text>
-                  <Space size={6}>
-                    {item.claimIds.map((claimId) => <Tag color="blue" key={claimId}>{claimId}</Tag>)}
-                    <Typography.Text type="secondary">已绑定事实</Typography.Text>
-                  </Space>
                 </div>
-              ))}
-            </div>
-            <Divider />
-            <div className="brand-person">
-              <div className="brand-person-avatar">{draft.personProfile.name.slice(-1)}</div>
-              <div className="brand-person-copy">
-                <Typography.Text strong>{draft.personProfile.name} · {draft.personProfile.role}</Typography.Text>
-                <Typography.Text>{draft.personProfile.tone}</Typography.Text>
-                <Typography.Text type="secondary">{draft.personProfile.notes}</Typography.Text>
-              </div>
-              <Tag color="purple">人物 IP</Tag>
-            </div>
-          </section>
-        </div>
-
-        <aside className="brand-side-column">
-          <section className="brand-panel">
-            <div className="brand-panel-heading">
-              <div>
-                <Typography.Title level={5}>内容可引用事实</Typography.Title>
-                <Typography.Text type="secondary">已确认内容优先用于脚本</Typography.Text>
-              </div>
-              <Tag color="blue">{draft.facts.length}</Tag>
-            </div>
-            <div className="brand-category-grid">
-              {Object.entries(categoryCounts).map(([type, count]) => (
-                <div className="brand-category-item" key={type}>
-                  <span>{claimTypeLabels[type] ?? type}</span>
-                  <strong>{count}</strong>
+                <div className="brand-dashboard-column">
+                  {renderCitationsPanel()}
+                  {renderRiskPanel()}
                 </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="brand-panel">
-            <div className="brand-panel-heading">
-              <div>
-                <Typography.Title level={5}>最近引用记录</Typography.Title>
-                <Typography.Text type="secondary">A/B/C 脚本实时反向统计</Typography.Text>
               </div>
-            </div>
-            <div className="brand-reference-list">
-              {workspace.scripts.map((script) => (
-                <div className="brand-reference-item" key={script.id}>
-                  <span className="brand-reference-icon"><AuditOutlined /></span>
-                  <span className="brand-reference-copy">
-                    <Typography.Text strong>{script.name}</Typography.Text>
-                    <Typography.Text type="secondary">
-                      引用 {script.citations.length} 条 · {script.citations.join('、')}
-                    </Typography.Text>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="brand-panel">
-            <div className="brand-panel-heading">
-              <div>
-                <Typography.Title level={5}>风险提醒</Typography.Title>
-                <Typography.Text type="secondary">低可信度或非确认事实需复核</Typography.Text>
+            ),
+          },
+          {
+            key: 'rules',
+            label: '品牌规则',
+            children: (
+              <div className="brand-focus-grid">
+                {renderTonePanel()}
+                {renderProhibitedPanel()}
+                {renderRiskPanel()}
               </div>
-              <Tag color={reviewFacts.length ? 'orange' : 'green'}>{reviewFacts.length}</Tag>
-            </div>
-            {reviewFacts.length ? (
-              <div className="brand-risk-list">
-                {reviewFacts.slice(0, 3).map((fact) => (
-                  <div className="brand-risk-item" key={fact.id}>
-                    <span className="brand-risk-icon"><ExclamationCircleOutlined /></span>
-                    <span className="brand-risk-copy">
-                      <Typography.Text strong>{fact.id} · 建议复核</Typography.Text>
-                      <Typography.Text type="secondary">{fact.text}</Typography.Text>
-                    </span>
-                  </div>
-                ))}
+            ),
+          },
+          {
+            key: 'packages',
+            label: '商品套餐',
+            children: renderPackagesPanel('brand-panel-wide'),
+          },
+          {
+            key: 'person',
+            label: 'IP 人物记忆',
+            children: (
+              <div className="brand-two-panel-grid">
+                {renderPersonPanel()}
+                {renderTonePanel()}
               </div>
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无待复核事实" />
-            )}
-          </section>
-        </aside>
-      </div>
-
-      <section className="brand-panel">
-        <div className="brand-panel-heading">
-          <div>
-            <Typography.Title level={5}>品牌禁用词</Typography.Title>
-            <Typography.Text type="secondary">脚本生成与编辑时命中即提示风险</Typography.Text>
-          </div>
-          <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
-            编辑规则
-          </Button>
-        </div>
-        <div className="brand-prohibited-cloud">
-          {draft.prohibitedWords.map((word) => (
-            <Tag color="red" icon={<ExclamationCircleOutlined />} key={word}>{word}</Tag>
-          ))}
-        </div>
-      </section>
-
-      <BrandFactsTable
-        facts={draft.facts}
-        scripts={workspace.scripts}
-        disabled={loading}
-        onStatusChange={changeFactStatus}
+            ),
+          },
+          {
+            key: 'facts',
+            label: '事实库',
+            children: (
+              <div className="brand-facts-focus-grid">
+                {renderFactsPanel()}
+                {renderCitationsPanel()}
+              </div>
+            ),
+          },
+        ]}
       />
 
       <BrandEditorDrawer
