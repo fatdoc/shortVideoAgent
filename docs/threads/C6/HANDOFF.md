@@ -1,7 +1,7 @@
 # C6 HANDOFF
 
-- 当前分支：按当前 workspace 默认分支提交（未改动全局路由/壳层）
-- 当前 Commit：e3f8895
+- 当前分支：detached HEAD（基于 `39cff58` 增量提交，未改动全局路由/壳层）
+- 增量基线：`39cff58`
 - 可运行页面：
   - `/dashboard`
   - `/projects/${DEMO_PROJECT_ID}/rough-cut`（以页面交互为准）
@@ -13,14 +13,25 @@
   - `src/components/media/index.ts`
   - `src/pages/rough-cut/RoughCutPage.test.tsx`
   - `tests/e2e/smoke.spec.ts`
+  - `docs/threads/C6/screenshots/rough-cut-1672x941.png`
+  - `docs/threads/C6/screenshots/rough-cut-1440x900.png`
 - 已完成功能：
   - 统一素材中心/初剪预览页（筛选、匹配、封面、比例、QA、导出禁用规则）
   - 简化多轨时间线与时间轴播放/seek/playhead
   - 素材网格、片段入轨、片段选中与移除
   - loading/empty/error/invalid project 分支与统一 Demo 防护
   - e2e 与单测覆盖
+  - 图 6 P0 视觉复刻：三栏密度、9:16 成片舞台、播放控制、多轨时间线、编辑/质检/导出 Tab
+  - 参考图同源素材缩略图仅作为视图层映射，统一 `workspace.assets/storyboard/timeline` 仍是唯一主数据
+  - 编辑 Tab 展示字幕样式、统一 BGM 轨道状态、封面比例与 QA；质检 Tab 展示分镜匹配；导出 Tab 展示 disabled 规则
+  - 真浏览器逐项验证播放推进、Tab 内容替换、时间线片段选中、比例切换和导出禁用原因
   - 执行 `npm run lint && npm run build && npm run test && npm run validate:governance && npm run test:e2e` 全链路通过
 - 未完成功能：无（当前范围）
-- 已知问题：无新增阻塞问题；保留本地历史端口占用导致 e2e 指向旧实例的现场说明
+- 已知问题：案例文案仍沿用统一 Demo contract；视觉缩略图映射待 C0 后续统一真实案例资产时替换
 - 运行方式：`npm install && npm run dev`
 - 验证方式：`npm run lint && npm run build && npm run test && npm run validate:governance && npm run test:e2e`
+- 本次截图证据：
+  - `docs/threads/C6/screenshots/rough-cut-reference-comparison.png`
+  - `docs/threads/C6/screenshots/rough-cut-1672x941.png`
+  - `docs/threads/C6/screenshots/rough-cut-1440x900.png`
+- 提交排除：`.playwright-cli/**`、`/tmp/**` 与浏览器会话状态不进入版本库

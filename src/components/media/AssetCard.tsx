@@ -2,6 +2,7 @@ import { ClockCircleOutlined, FileTextOutlined, PlayCircleOutlined, SoundOutline
 import { Tag, Typography } from 'antd';
 import type { Asset, AssetType } from '../../domain/types';
 import { StatusTag } from '../common/StatusTag';
+import { resolveAssetVisual } from './assetVisuals';
 
 interface AssetCardProps {
   asset: Asset;
@@ -39,11 +40,17 @@ export function AssetCard({ asset, selected, onSelect }: AssetCardProps) {
       onClick={() => onSelect(asset)}
       data-testid={`rough-cut-asset-card-${asset.id}`}
     >
-      <img
-        className="media-asset-thumb"
-        src={asset.thumbnail}
-        alt={`${asset.name} 缩略图`}
-      />
+      <div className="media-asset-thumb-wrap">
+        <img
+          className="media-asset-thumb"
+          src={resolveAssetVisual(asset)}
+          alt={`${asset.name} 缩略图`}
+        />
+        <span className="media-asset-duration">
+          <ClockCircleOutlined />
+          {formatDuration(asset.duration)}
+        </span>
+      </div>
 
       <div className="media-asset-body">
         <Typography.Text strong className="media-asset-title" ellipsis>
@@ -54,18 +61,12 @@ export function AssetCard({ asset, selected, onSelect }: AssetCardProps) {
           <StatusTag kind="match" value={asset.status} />
           <Tag
             icon={resolveAssetIcon(asset.type)}
-            style={{ borderRadius: 10 }}
+            className="media-asset-type"
           >
             {resolveAssetLabel(asset.type)}
           </Tag>
-        </div>
-
-        <div className="media-asset-meta">
-          <Tag icon={<ClockCircleOutlined />} color="default">
-            {formatDuration(asset.duration)}
-          </Tag>
           <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>
-            {asset.tags.join(' / ') || '无标签'}
+            {asset.tags[0] || '无标签'}
           </Typography.Text>
         </div>
       </div>

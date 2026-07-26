@@ -10,14 +10,19 @@ import {
   StepForwardOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Alert, App, Button, Card, Select, Slider, Space, Tag, Typography } from 'antd';
+import { Alert, App, Button, Select, Slider, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { LoadingState } from '../../components/common/LoadingState';
 import { StatusTag } from '../../components/common/StatusTag';
-import { AssetCard, TimelineTrackList } from '../../components/media';
+import {
+  AssetCard,
+  TimelineTrackList,
+  resolveAssetPreviewVisual,
+  resolveAssetVisual,
+} from '../../components/media';
 import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
 import { isDemoProject } from '../../domain/selectors';
 import type { Asset, AspectRatio, QaItem, TimelineClip, TimelineTrack } from '../../domain/types';
@@ -27,6 +32,7 @@ import './rough-cut.css';
 type AssetStatusFilter = 'all' | Asset['status'];
 type AssetTypeFilter = 'all' | Asset['type'];
 type MatchTrackIntent = 'video' | 'voice' | 'bgm' | 'subtitle' | 'overlay';
+type RightPanelTab = 'edit' | 'qa' | 'export';
 
 const ASSET_TYPE_OPTIONS: Array<{ label: string; value: AssetTypeFilter }> = [
   { label: '全部类型', value: 'all' },
@@ -138,6 +144,7 @@ export function RoughCutPage() {
   const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('edit');
   const [playhead, setPlayhead] = useState(workspace.timeline.playhead);
   const [isPlaying, setIsPlaying] = useState(false);
   const [coverAssetId, setCoverAssetId] = useState<string | undefined>(
@@ -244,8 +251,6 @@ export function RoughCutPage() {
   );
 
   const matchedShots = workspace.storyboard.filter((shot) => shot.matchStatus === 'matched').length;
-  const reshootShots = workspace.storyboard.filter((shot) => shot.matchStatus === 'reshoot').length;
-  const missingShots = workspace.storyboard.filter((shot) => shot.matchStatus === 'missing').length;
   const missingReasons = useMemo(
     () =>
       qaItems
@@ -270,6 +275,7 @@ export function RoughCutPage() {
     () => timeline.clips.find((clip) => clip.id === selectedClipId) ?? null,
     [timeline.clips, selectedClipId],
   );
+  const bgmClip = timeline.clips.find((clip) => clip.trackId === bgmTrackId) ?? null;
 
   const activeTimelineClip = useMemo(
     () =>
@@ -441,63 +447,51 @@ export function RoughCutPage() {
     <div className="rough-cut-page" data-testid="rough-cut-page">
       <div className="project-page-toolbar">
         <div className="project-page-toolbar-copy">
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            素材中心 / 初剪预览
-          </Typography.Title>
+          <div className="rough-cut-project-heading">
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              海南陵水鸡 · 北京三里屯店
+            </Typography.Title>
+            <Tag color="blue">本地项目</Tag>
+          </div>
           <Typography.Text type="secondary">
-            左侧素材网格筛选选择，中间 9:16 预览与多轨时间线，右侧 QA 与导出
+            项目 ID：{workspace.project.id} · 竖版短视频 · {formatSeconds(timeline.duration)}
           </Typography.Text>
         </div>
         <div className="project-toolbar-actions">
-          <Tag color="processing">C6</Tag>
-          <Tag>{workspace.project.id}</Tag>
-          <Tag>统一 Demo：{DEMO_PROJECT_ID}</Tag>
+          <Button size="middle">AI 智能粗剪</Button>
+          <Button size="middle" onClick={() => setStatusFilter('all')}>重新匹配素材</Button>
+          <Button size="middle" onClick={() => setRightPanelTab('edit')}>字幕设置</Button>
+          <Button
+            type="primary"
+            icon={<ExportOutlined />}
+            disabled={exportDisabled}
+            onClick={() => {
+              if (!exportDisabled) message.success('导出预览仅演示开启（Mock）');
+            }}
+          >
+            导出预览
+          </Button>
+          <Typography.Text type="secondary">保存中</Typography.Text>
         </div>
-      </div>
-
-      <div className="rough-cut-overview">
-        <Card size="small" className="rough-cut-overview-card">
-          <div className="rough-cut-overview-grid">
-            <div className="rough-cut-overview-item">
-              <Typography.Text type="secondary">分镜匹配</Typography.Text>
-              <Typography.Title level={5} style={{ margin: 0 }}>
-                {matchedShots + reshootShots + missingShots}
-                /{workspace.storyboard.length} 镜
-              </Typography.Title>
-              <Typography.Text type="secondary">
-                已匹配 {matchedShots} · 待补 {reshootShots} · 缺镜 {missingShots}
-              </Typography.Text>
-            </div>
-            <div className="rough-cut-overview-item">
-              <Typography.Text type="secondary">素材筛选</Typography.Text>
-              <Typography.Title level={5} style={{ margin: 0 }}>
-                {filteredAssets.length} / {workspace.assets.length}
-              </Typography.Title>
-              <Typography.Text type="secondary">按状态和类型过滤</Typography.Text>
-            </div>
-            <div className="rough-cut-overview-item">
-              <Typography.Text type="secondary">时间线片段</Typography.Text>
-              <Typography.Title level={5} style={{ margin: 0 }}>
-                {timeline.clips.length}
-              </Typography.Title>
-              <Typography.Text type="secondary">
-                {formatSeconds(timeline.duration)} · 视频比例 {timeline.aspectRatio}
-              </Typography.Text>
-            </div>
-            <div className="rough-cut-overview-item">
-              <Typography.Text type="secondary">封面素材</Typography.Text>
-              <Typography.Text strong>{coverAsset?.name ?? '未设置'}</Typography.Text>
-            </div>
-          </div>
-        </Card>
       </div>
 
       <div className="rough-cut-layout">
         <section className="rough-cut-asset-panel app-page-card">
-          <div className="rough-cut-section-title">
-            <Typography.Title level={5} style={{ marginBottom: 0 }}>
-              素材库（紧凑网格）
-            </Typography.Title>
+          <div className="rough-cut-asset-tabs" role="tablist" aria-label="素材范围">
+            <button
+              type="button"
+              className={statusFilter === 'all' ? 'is-active' : ''}
+              onClick={() => setStatusFilter('all')}
+            >
+              素材库
+            </button>
+            <button
+              type="button"
+              className={statusFilter === 'matched' ? 'is-active' : ''}
+              onClick={() => setStatusFilter('matched')}
+            >
+              已匹配（{matchedShots}）
+            </button>
           </div>
 
           <div className="rough-cut-filters">
@@ -510,6 +504,22 @@ export function RoughCutPage() {
               onChange={(event) => setSearchTerm(event.target.value)}
               data-testid="rough-cut-asset-search"
             />
+          </div>
+
+          <div className="rough-cut-type-tabs" role="tablist" aria-label="素材类型">
+            {ASSET_TYPE_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                className={typeFilter === option.value ? 'is-active' : ''}
+                onClick={() => setTypeFilter(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="rough-cut-secondary-filters">
             <Select
               className="rough-cut-filter-select"
               value={statusFilter}
@@ -524,6 +534,13 @@ export function RoughCutPage() {
               onChange={(value) => setTypeFilter(value as AssetTypeFilter)}
               data-testid="rough-cut-filter-type"
             />
+            <button
+              type="button"
+              className="rough-cut-duration-filter"
+              onClick={() => message.info('当前演示展示全部时长')}
+            >
+              全部时长
+            </button>
           </div>
 
           <div className="rough-cut-asset-grid">
@@ -542,7 +559,7 @@ export function RoughCutPage() {
               <Typography.Text strong>已选素材</Typography.Text>
               <div className="rough-cut-selected-box-content">
                 <img
-                  src={selectedAsset.thumbnail}
+                  src={resolveAssetVisual(selectedAsset)}
                   alt={`${selectedAsset.name} 预览图`}
                   className="rough-cut-selected-thumb"
                 />
@@ -601,18 +618,24 @@ export function RoughCutPage() {
         <section className="rough-cut-workbench app-page-card">
           <div className="rough-cut-preview-section">
             <div className="rough-cut-preview-title">
-              <Typography.Title level={5} style={{ margin: 0 }}>
-                初剪预览（{timeline.aspectRatio}）
-              </Typography.Title>
-              <Typography.Text type="secondary">
-                以 playhead 同步演示播放进度
-              </Typography.Text>
+              <div>
+                <Typography.Title level={5} style={{ margin: 0 }}>
+                  初剪预览（{timeline.aspectRatio}）
+                </Typography.Title>
+                <Typography.Text type="secondary">
+                  以 playhead 同步演示播放进度
+                </Typography.Text>
+              </div>
+              <div className="rough-cut-preview-status">
+                <Tag color="success">QA 通过</Tag>
+                <Typography.Text type="secondary">视频质量：1080P</Typography.Text>
+              </div>
             </div>
 
             <div className="rough-cut-preview-frame">
               {previewAsset ? (
                 <img
-                  src={previewAsset.thumbnail}
+                  src={resolveAssetPreviewVisual(previewAsset)}
                   alt={`${previewAsset.name} 预览`}
                   className="rough-cut-preview-image"
                 />
@@ -731,7 +754,72 @@ export function RoughCutPage() {
         </section>
 
         <aside className="rough-cut-side-panel app-page-card">
-          <section className="rough-cut-side-block">
+          <div className="rough-cut-side-tabs" role="tablist" aria-label="编辑面板">
+            {[
+              ['edit', '编辑'],
+              ['qa', '质检'],
+              ['export', '导出'],
+            ].map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={rightPanelTab === value ? 'is-active' : ''}
+                onClick={() => setRightPanelTab(value as RightPanelTab)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {rightPanelTab === 'edit' ? (
+            <>
+              <section className="rough-cut-side-block rough-cut-subtitle-block">
+                <div className="rough-cut-section-title">
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    字幕样式
+                  </Typography.Title>
+                  <Button
+                    size="small"
+                    type="link"
+                    onClick={() => void appendShotToTextTrack(selectedShot?.id ?? shotsWithIndex[0].id, 'subtitle')}
+                  >
+                    生成字幕
+                  </Button>
+                </div>
+                <div className="rough-cut-subtitle-style">
+                  <div className="rough-cut-font-sample">Aa</div>
+                  <div>
+                    <Typography.Text strong>思源黑体 · Bold</Typography.Text>
+                    <Typography.Text type="secondary">字号 48 · 居中 · 白字描边</Typography.Text>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rough-cut-side-block rough-cut-bgm-block">
+                <div className="rough-cut-section-title">
+                  <Typography.Title level={5} style={{ margin: 0 }}>
+                    BGM
+                  </Typography.Title>
+                  <Button size="small" type="link" onClick={() => handleAddToTrack('bgm')}>
+                    配置
+                  </Button>
+                </div>
+                <div className="rough-cut-bgm-card">
+                  <div className="rough-cut-bgm-icon"><SoundOutlined /></div>
+                  <div className="rough-cut-bgm-copy">
+                    <Typography.Text strong>{bgmClip?.label ?? 'BGM 轨道待配置'}</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {bgmClip ? `${formatSeconds(bgmClip.start)} - ${formatSeconds(bgmClip.end)}` : '从统一时间线读取'}
+                    </Typography.Text>
+                  </div>
+                  <Tag color={bgmClip ? 'success' : 'default'}>{bgmClip ? '已配置' : '待配置'}</Tag>
+                </div>
+                <Slider value={bgmClip ? 100 : 0} disabled={!bgmClip} />
+              </section>
+            </>
+          ) : null}
+
+          {rightPanelTab !== 'export' ? (
+            <section className="rough-cut-side-block">
             <div className="rough-cut-section-title">
               <Typography.Title level={5} style={{ margin: 0 }}>
                 封面 / 比例
@@ -740,7 +828,7 @@ export function RoughCutPage() {
             <div className="rough-cut-cover-box">
               {coverAsset ? (
                 <img
-                  src={coverAsset.thumbnail}
+                  src={resolveAssetVisual(coverAsset)}
                   alt={`${coverAsset.name} 封面`}
                   className="rough-cut-cover-preview"
                 />
@@ -776,9 +864,11 @@ export function RoughCutPage() {
                 data-testid="rough-cut-aspect"
               />
             </div>
-          </section>
+            </section>
+          ) : null}
 
-          <section className="rough-cut-side-block">
+          {rightPanelTab === 'qa' ? (
+            <section className="rough-cut-side-block">
             <div className="rough-cut-section-title">
               <Typography.Title level={5} style={{ margin: 0 }}>
                 分镜匹配与字幕源
@@ -841,7 +931,8 @@ export function RoughCutPage() {
                 );
               })}
             </div>
-          </section>
+            </section>
+          ) : null}
 
           <section className="rough-cut-side-block">
             <div className="rough-cut-section-title">
@@ -863,28 +954,32 @@ export function RoughCutPage() {
               ))}
             </div>
 
-            <Alert
-              type="warning"
-              message="导出规则"
-              showIcon
-              style={{ marginTop: 10 }}
-              description={exportReasons.length > 0 ? exportReasons.join('；') : '目前可导出'}
-            />
+            {rightPanelTab === 'export' ? (
+              <>
+                <Alert
+                  type="warning"
+                  message="导出规则"
+                  showIcon
+                  style={{ marginTop: 10 }}
+                  description={exportReasons.length > 0 ? exportReasons.join('；') : '目前可导出'}
+                />
 
-            <Button
-              block
-              type="primary"
-              icon={<ExportOutlined />}
-              disabled={exportDisabled}
-              data-testid="rough-cut-export"
-              style={{ marginTop: 10 }}
-              onClick={() => {
-                if (exportDisabled) return;
-                message.success('导出预览仅演示开启（Mock）');
-              }}
-            >
-              导出预览
-            </Button>
+                <Button
+                  block
+                  type="primary"
+                  icon={<ExportOutlined />}
+                  disabled={exportDisabled}
+                  data-testid="rough-cut-export"
+                  style={{ marginTop: 10 }}
+                  onClick={() => {
+                    if (exportDisabled) return;
+                    message.success('导出预览仅演示开启（Mock）');
+                  }}
+                >
+                  导出预览
+                </Button>
+              </>
+            ) : null}
           </section>
         </aside>
       </div>
