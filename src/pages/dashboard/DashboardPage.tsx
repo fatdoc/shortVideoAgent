@@ -36,17 +36,45 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const summary = useMemo(() => summarizeWorkspace(workspace), [workspace]);
-  const visibleProject =
-    workspace.project.id &&
-    workspace.project.name.toLowerCase().includes(query.trim().toLowerCase()) &&
-    (statusFilter === 'all' || workspace.project.status === statusFilter);
-
   const dueDays = Math.max(
     0,
     Math.ceil(
       (new Date(workspace.project.dueDate).getTime() - Date.now()) /
         (1000 * 60 * 60 * 24),
     ),
+  );
+  const dashboardRows = useMemo(() => {
+    if (!workspace.project.id) {
+      return [];
+    }
+
+    return [
+      {
+        id: workspace.project.id,
+        name: workspace.project.name,
+        scope: `${workspace.brief.city} · ${workspace.brief.platforms.join(' / ')}`,
+        format: workspace.brief.aspectRatio,
+        duration: `${workspace.brief.duration}s`,
+        statusLabel: PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status,
+        progress: workspace.project.progress,
+        owner: workspace.project.owner,
+        dueDate: workspace.project.dueDate,
+        dueDays,
+        risks: summary.missingShots + summary.reshootShots,
+        todo: '会员权益镜待补拍 / 跨镜段缺失',
+        statusKey: workspace.project.status,
+      },
+    ];
+  }, [dueDays, summary.missingShots, summary.reshootShots, workspace]);
+
+  const visibleRows = useMemo(
+    () =>
+      dashboardRows.filter(
+        (project) =>
+          project.name.toLowerCase().includes(query.trim().toLowerCase()) &&
+          (statusFilter === 'all' || project.statusKey === statusFilter),
+      ),
+    [dashboardRows, query, statusFilter],
   );
 
   return (
@@ -119,8 +147,8 @@ export function DashboardPage() {
         <section className="project-surface">
           <div className="project-section-heading">
             <div>
-              <Typography.Title level={5}>项目列表</Typography.Title>
-              <Typography.Text type="secondary">当前工作区只使用统一 Demo 项目</Typography.Text>
+              <Typography.Title level={5}>项目表格</Typography.Title>
+              <Typography.Text type="secondary">当前工作区仅使用统一 Demo 主数据</Typography.Text>
             </div>
             <div className="project-list-tools">
               <Input
@@ -143,53 +171,77 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {visibleProject ? (
-            <div className="project-list-row" data-testid="dashboard-project-row">
-              <div className="project-list-main">
-                <div className="project-list-thumb">Hi</div>
-                <div className="project-list-copy">
-                  <Typography.Text strong className="project-list-title">
-                    {workspace.project.name}
-                  </Typography.Text>
-                  <div className="project-list-meta">
-                    <Typography.Text type="secondary">
-                      本地探店 · 抖音 · {workspace.brief.aspectRatio} · {workspace.brief.duration}s
-                    </Typography.Text>
-                    <Tag color="blue" style={{ width: 'fit-content', margin: 0 }}>
-                      demo-local-001
-                    </Tag>
+          {visibleRows.length > 0 ? (
+            <>
+              <div className="project-list-head">
+                <span>项目</span>
+                <span>进度</span>
+                <span>负责人 / 截止</span>
+                <span>待办与动作</span>
+              </div>
+              <div className="project-list-body">
+                {visibleRows.map((project) => (
+                  <div
+                    className="project-list-row"
+                    key={project.id}
+                    data-testid="dashboard-project-row"
+                  >
+                    <div className="project-list-main">
+                      <div className="project-list-thumb">Hi</div>
+                      <div className="project-list-copy">
+                        <Typography.Text strong className="project-list-title">
+                          {project.name}
+                        </Typography.Text>
+                        <div className="project-list-meta">
+                          <Typography.Text type="secondary">
+                            {project.scope} · {project.format} · {project.duration}
+                          </Typography.Text>
+                          <Tag color="blue" style={{ width: 'fit-content', margin: 0 }}>
+                            {project.id}
+                          </Tag>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="project-cell-stack">
+                      <Typography.Text type="secondary">当前进度</Typography.Text>
+                      <div className="project-list-progress">
+                        <Progress percent={project.progress} showInfo={false} />
+                        <Typography.Text strong>{project.progress}%</Typography.Text>
+                      </div>
+                      <Tag color="processing" style={{ width: 'fit-content', margin: 0 }}>
+                        {project.statusLabel}
+                      </Tag>
+                    </div>
+                    <div className="project-cell-stack project-cell-due">
+                      <Typography.Text type="secondary">负责人</Typography.Text>
+                      <Typography.Text>{project.owner}</Typography.Text>
+                      <Typography.Text type={project.dueDays <= 3 ? 'danger' : 'secondary'}>
+                        {project.dueDate} · 约 {project.dueDays} 天
+                      </Typography.Text>
+                    </div>
+                    <div className="project-row-actions">
+                      <Tag color={project.risks > 0 ? 'orange' : 'success'}>待办 {project.risks}</Tag>
+                      <Button size="small" onClick={() => navigate(ROUTES.projectNew)}>
+                        编辑 Brief
+                      </Button>
+                      <Button
+                        size="small"
+                        type="primary"
+                        icon={<ArrowRightOutlined />}
+                        onClick={() => navigate(ROUTES.script(DEMO_PROJECT_ID))}
+                        data-testid="dashboard-open-project"
+                      >
+                        继续制作
+                      </Button>
+                    </div>
+                    <div className="project-cell-micro">
+                      <Typography.Text type="secondary">聚焦项：</Typography.Text>
+                      <Typography.Text type="secondary">{project.todo}</Typography.Text>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-              <div className="project-cell-stack">
-                <Typography.Text type="secondary">当前进度</Typography.Text>
-                <div className="project-list-progress">
-                  <Progress percent={workspace.project.progress} showInfo={false} />
-                  <Typography.Text strong>{workspace.project.progress}%</Typography.Text>
-                </div>
-                <Tag color="processing" style={{ width: 'fit-content', margin: 0 }}>
-                  {PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status}
-                </Tag>
-              </div>
-              <div className="project-cell-stack project-cell-due">
-                <Typography.Text type="secondary">负责人 / 截止</Typography.Text>
-                <Typography.Text>{workspace.project.owner}</Typography.Text>
-                <Typography.Text type={dueDays <= 3 ? 'danger' : 'secondary'}>
-                  {workspace.project.dueDate} · {dueDays} 天
-                </Typography.Text>
-              </div>
-              <div className="project-row-actions">
-                <Button onClick={() => navigate(ROUTES.projectNew)}>编辑 Brief</Button>
-                <Button
-                  type="primary"
-                  icon={<ArrowRightOutlined />}
-                  onClick={() => navigate(ROUTES.script(DEMO_PROJECT_ID))}
-                  data-testid="dashboard-open-project"
-                >
-                  继续制作
-                </Button>
-              </div>
-            </div>
+            </>
           ) : (
             <Empty description="没有匹配的项目" image={Empty.PRESENTED_IMAGE_SIMPLE}>
               <Button onClick={() => {

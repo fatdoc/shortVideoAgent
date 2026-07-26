@@ -1,17 +1,14 @@
 # C2 STATUS
 
-- 当前状态：`COMPLETED / MERGED`
-- 当前任务：C2 已通过 Gate 2 验收并合入 `integration`
+- 当前状态：`COMPLETED / READY_FOR_REVIEW`
+- 当前任务：Wave 2.5 Dashboard 与 Brief 视觉对齐（C2 纠偏）
 - 已完成：
-  - 工作台 KPI、统一 Demo 项目行、搜索/状态筛选、待办与生产流程
-  - 项目进入 Brief / 脚本
-  - Brief 业务类型、商家、平台、规格、受众、CTA、素材与限制编辑
-  - Mock 素材上传、AI 建议、完整度/缺失项提醒
-  - 保存到 store / LocalStorage，进入品牌大脑或脚本
-  - loading / empty / error / disabled 状态
-  - 页面定向测试与 1440×900 真机检查
+  - Dashboard：紧凑化 KPI、项目表格化行、待办与流程状态布局，保留统一 Demo 并为未来多项目列表留出行数据结构
+  - Brief：顶部步骤条、双列表单、平台/比例与素材缩略图区域，右侧实时摘要/缺失项/AI 建议与底部主 CTA
+  - 保留并验证 Gate 2 交互：保存草稿、Mock 素材上传、AI 建议、品牌大脑/脚本跳转
+  - 执行 `npm run lint`、`npm run build`、Dashboard/Brief 定向测试、`npm run validate:governance`
 - 正在进行：无
 - 尚未开始：无（角色范围内）
 - 阻塞：无
-- 下一步：C5 / C6 以 Gate 2 基线继续；C2 仅响应回归问题
-- 最近更新时间：2026-07-26T09:00:00+08:00
+- 下一步：交由 C0 做视觉复核与合并
+- 最近更新时间：2026-07-26T09:35:00+08:00

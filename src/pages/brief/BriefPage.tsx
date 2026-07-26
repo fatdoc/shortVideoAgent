@@ -1,5 +1,6 @@
 import {
   ArrowRightOutlined,
+  CloseCircleOutlined,
   CloudUploadOutlined,
   RobotOutlined,
   SaveOutlined,
@@ -11,6 +12,7 @@ import {
   InputNumber,
   Select,
   Space,
+  Steps,
   Tag,
   Typography,
 } from 'antd';
@@ -19,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { BriefReadinessPanel } from '../../components/project';
 import '../../components/project/project-workflow.css';
 import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
-import type { AspectRatio, BusinessType, ProjectBrief } from '../../domain/types';
+import type { AspectRatio, Asset, BusinessType, ProjectBrief } from '../../domain/types';
 import { useProjectStore } from '../../stores/projectStore';
 
 const businessOptions: Array<{
@@ -30,6 +32,15 @@ const businessOptions: Array<{
   { value: 'local_store', title: '本地探店', description: '线下门店、体验种草、团购转化' },
   { value: 'brand', title: '品牌内容', description: '品牌心智、活动传播与口碑' },
   { value: 'product', title: '电商素材', description: '商品卖点、场景展示与转化' },
+];
+
+const aspectRatioOptions: AspectRatio[] = ['9:16', '16:9', '1:1'];
+const platformOptions = ['抖音', '快手', '视频号', '小红书', 'B站'];
+const briefSteps = [
+  { title: '基础信息', description: '商家、受众与目标' },
+  { title: '资源配置', description: '平台与素材预备' },
+  { title: '品牌与脚本', description: '核验与补齐' },
+  { title: '完成', description: '继续往后' },
 ];
 
 function cloneBrief(brief: ProjectBrief): ProjectBrief {
@@ -49,6 +60,22 @@ export function BriefPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const formTopRef = useRef<HTMLDivElement>(null);
+
+  const assetLookup = useMemo(
+    () => new Map(workspace.assets.map((asset) => [asset.id, asset] as const)),
+    [workspace.assets],
+  );
+  const selectedAssets = useMemo(
+    () =>
+      draft.assetIds
+        .map((assetId) => assetLookup.get(assetId))
+        .filter((asset): asset is Asset => Boolean(asset)),
+    [assetLookup, draft.assetIds],
+  );
+  const remainingAssets = useMemo(
+    () => workspace.assets.filter((asset) => !draft.assetIds.includes(asset.id)),
+    [workspace.assets, draft.assetIds],
+  );
 
   useEffect(() => {
     if (!dirty && lastAction === 'reset') {
@@ -111,10 +138,11 @@ export function BriefPage() {
   };
 
   const simulateUpload = () => {
-    const nextId = `brief-upload-${draft.assetIds.length + 1}`;
-    if (!draft.assetIds.includes(nextId)) {
-      patch('assetIds', [...draft.assetIds, nextId]);
+    const nextAsset = remainingAssets[0];
+    if (!nextAsset) {
+      return;
     }
+    patch('assetIds', [...draft.assetIds, nextAsset.id]);
   };
 
   return (
@@ -151,6 +179,10 @@ export function BriefPage() {
         </div>
       </div>
 
+      <div className="brief-step-bar">
+        <Steps className="brief-steps" size="small" current={1} items={briefSteps} />
+      </div>
+
       {error ? (
         <Alert
           type="warning"
@@ -166,7 +198,9 @@ export function BriefPage() {
         <div className="brief-form-column">
           <section className="brief-form-section">
             <div className="brief-form-section-title">
-              <Typography.Title level={5} style={{ margin: 0 }}>业务类型</Typography.Title>
+              <Typography.Title level={5} style={{ margin: 0 }}>
+                业务类型
+              </Typography.Title>
               <Typography.Text type="secondary">选择内容生产的主要业务场景</Typography.Text>
             </div>
             <div className="brief-business-options">
@@ -192,7 +226,9 @@ export function BriefPage() {
 
           <section className="brief-form-section">
             <div className="brief-form-section-title">
-              <Typography.Title level={5} style={{ margin: 0 }}>商家与项目</Typography.Title>
+              <Typography.Title level={5} style={{ margin: 0 }}>
+                商家与项目
+              </Typography.Title>
               <Typography.Text type="secondary">这些字段会传递到品牌大脑与脚本</Typography.Text>
             </div>
             <div className="brief-form-grid">
@@ -217,7 +253,9 @@ export function BriefPage() {
 
           <section className="brief-form-section">
             <div className="brief-form-section-title">
-              <Typography.Title level={5} style={{ margin: 0 }}>目标与渠道</Typography.Title>
+              <Typography.Title level={5} style={{ margin: 0 }}>
+                目标与渠道
+              </Typography.Title>
               <Typography.Text type="secondary">约束画面规格、时长、受众与转化动作</Typography.Text>
             </div>
             <div className="brief-form-grid">
@@ -227,7 +265,7 @@ export function BriefPage() {
                   mode="multiple"
                   value={draft.platforms}
                   onChange={(value) => patch('platforms', value)}
-                  options={['抖音', '快手', '视频号', '小红书', 'B站'].map((value) => ({
+                  options={platformOptions.map((value) => ({
                     value,
                     label: value,
                   }))}
@@ -239,17 +277,19 @@ export function BriefPage() {
                   <Select
                     value={draft.aspectRatio}
                     onChange={(value: AspectRatio) => patch('aspectRatio', value)}
-                    options={['9:16', '16:9', '1:1'].map((value) => ({ value, label: value }))}
-                    style={{ width: '50%' }}
+                    options={aspectRatioOptions.map((value) => ({ value, label: value }))}
+                    style={{ width: '45%' }}
                   />
                   <InputNumber
                     min={15}
                     max={60}
                     value={draft.duration}
                     onChange={(value) => patch('duration', value ?? 30)}
-                    style={{ width: 'calc(50% - 40px)' }}
+                    style={{ width: 'calc(55% - 40px)' }}
                   />
-                  <Button disabled style={{ width: 40, paddingInline: 0 }}>秒</Button>
+                  <Button size="small" disabled style={{ width: 40, paddingInline: 0 }}>
+                    秒
+                  </Button>
                 </Space.Compact>
               </label>
               <label className="brief-field is-span-2">
@@ -275,29 +315,45 @@ export function BriefPage() {
 
           <section className="brief-form-section">
             <div className="brief-form-section-title">
-              <Typography.Title level={5} style={{ margin: 0 }}>素材与内容约束</Typography.Title>
+              <Typography.Title level={5} style={{ margin: 0 }}>
+                素材与内容约束
+              </Typography.Title>
               <Typography.Text type="secondary">素材上传为前端 Mock，不读取真实文件</Typography.Text>
             </div>
             <div className="brief-upload-zone">
               <div>
                 <Typography.Text strong>已有 {draft.assetIds.length} 个素材引用</Typography.Text>
                 <br />
-                <Typography.Text type="secondary">建议包含门头、服务、菜品、环境与夜景</Typography.Text>
+                <Typography.Text type="secondary">
+                  建议包含门头、服务、菜品、环境与夜景
+                </Typography.Text>
               </div>
               <Button icon={<CloudUploadOutlined />} onClick={simulateUpload} data-testid="brief-upload">
                 模拟上传
               </Button>
             </div>
-            <div className="brief-asset-list">
-              {draft.assetIds.map((assetId, index) => (
-                <Tag
-                  key={assetId}
-                  closable={assetId.startsWith('brief-upload-')}
-                  onClose={() => patch('assetIds', draft.assetIds.filter((id) => id !== assetId))}
-                >
-                  素材 {String(index + 1).padStart(2, '0')}
-                </Tag>
-              ))}
+            <div className="brief-asset-grid">
+              {selectedAssets.length === 0 ? (
+                <div className="brief-asset-empty">暂无素材；点击“模拟上传”补齐示例</div>
+              ) : (
+                selectedAssets.map((asset, index) => (
+                  <div className="brief-asset-card" key={asset.id}>
+                    <img className="brief-asset-thumb" src={asset.thumbnail} alt={asset.name} />
+                    <div className="brief-asset-card-meta">
+                      <Typography.Text strong>{String(index + 1).padStart(2, '0')} · {asset.name}</Typography.Text>
+                      <CloseCircleOutlined
+                        className="brief-asset-remove"
+                        role="button"
+                        aria-label={`remove-${asset.id}`}
+                        onClick={() => patch('assetIds', draft.assetIds.filter((id) => id !== asset.id))}
+                      />
+                    </div>
+                    <Typography.Text type="secondary" className="brief-asset-meta">
+                      类型 {asset.type} · 标签 {asset.tags.join(' / ')}
+                    </Typography.Text>
+                  </div>
+                ))
+              )}
             </div>
             <div className="brief-form-grid" style={{ marginTop: 14 }}>
               <label className="brief-field is-span-2">
@@ -323,18 +379,29 @@ export function BriefPage() {
 
         <aside className="brief-side-column">
           <section className="brief-side-panel">
-            <div className="brief-side-title" style={{ color: '#1677ff' }}>
+            <div className="brief-side-title">
               <Typography.Text strong>实时摘要</Typography.Text>
-              <Tag color="blue" style={{ marginLeft: 'auto' }}>预览</Tag>
+              <Tag color="blue" style={{ marginLeft: 'auto' }}>
+                预览
+              </Tag>
             </div>
             <div className="brief-summary-list">
-              <span className="brief-summary-label">业务类型</span><span>本地探店</span>
-              <span className="brief-summary-label">商家</span><span>{draft.merchantName || '待填写'}</span>
-              <span className="brief-summary-label">目标平台</span><span>{draft.platforms.join(' / ') || '待选择'}</span>
-              <span className="brief-summary-label">画面规格</span><span>{draft.aspectRatio} · {draft.duration}s</span>
-              <span className="brief-summary-label">目标受众</span><span>{draft.targetAudience.slice(0, 2).join('、') || '待填写'}</span>
-              <span className="brief-summary-label">CTA</span><span>{draft.cta || '待填写'}</span>
-              <span className="brief-summary-label">素材</span><span>{draft.assetIds.length} 个引用</span>
+              <span className="brief-summary-label">业务类型</span>
+              <span>本地探店</span>
+              <span className="brief-summary-label">商家</span>
+              <span>{draft.merchantName || '待填写'}</span>
+              <span className="brief-summary-label">目标平台</span>
+              <span>{draft.platforms.join(' / ') || '待选择'}</span>
+              <span className="brief-summary-label">画面规格</span>
+              <span>
+                {draft.aspectRatio} · {draft.duration}s
+              </span>
+              <span className="brief-summary-label">目标受众</span>
+              <span>{draft.targetAudience.slice(0, 2).join('、') || '待填写'}</span>
+              <span className="brief-summary-label">CTA</span>
+              <span>{draft.cta || '待填写'}</span>
+              <span className="brief-summary-label">素材</span>
+              <span>{draft.assetIds.length} 个引用</span>
             </div>
           </section>
 
@@ -344,7 +411,7 @@ export function BriefPage() {
           />
 
           <section className="brief-side-panel">
-            <div className="brief-side-title" style={{ color: '#722ed1' }}>
+            <div className="brief-side-title brief-side-title-ai">
               <RobotOutlined />
               <Typography.Text strong>AI 建议（Mock）</Typography.Text>
             </div>
@@ -371,6 +438,7 @@ export function BriefPage() {
             icon={<ArrowRightOutlined />}
             disabled={missing.length > 0}
             onClick={() => void proceed('script')}
+            className="brief-primary-cta"
           >
             保存并进入脚本
           </Button>
