@@ -1,16 +1,23 @@
 # C1 STATUS
 
 - 当前状态：`COMPLETED`
-- 当前任务：Gate 1 前端基座交付完成，待 C0 验收
+- 当前任务：Wave 2.5 全局视觉基线纠偏（Shell / Token / Header）
 - 已完成：
-  - AppShell / Sidebar / Topbar 强化
-  - Design tokens / theme / global css
-  - Zustand + LocalStorage + mockApi 读写闭环
-  - 六路由占位与统一 Demo 打通
-  - Loading / Empty / Error / ErrorBoundary / StatusTag
-  - 基座单测补齐
+  - 保留 Gate 2 的 AppShell、路由、Store、LocalStorage 与业务页实现
+  - 侧栏改为 208px 浅色基线，补齐参考图式品牌区与选中态
+  - 顶栏改为 68px，收敛为全局搜索、团队、重置、帮助、通知、用户区
+  - Design tokens / theme / global css 对齐紧凑 B 端字号、间距、边框、圆角与阴影
+  - Dashboard / Brief / Brand / Script 完成 1672×941 与 1440×900 真浏览器截图复核
+  - 1440×900 四页 `document.scrollWidth === clientWidth`，无横向裁切
+  - 浏览器控制台 0 error / warning
+  - 老板演示主流程：六个主路由导航 smoke 通过，四个关键页面无空白、无崩溃
+  - `npm run lint`：PASS
+  - `npm run build`：PASS（保留已知 1.29MB chunk warning）
+  - `npm run test -- --maxWorkers=1`：PASS（10 files / 43 tests）
+  - `npm run validate:governance`：PASS
 - 正在进行：无
 - 尚未开始：无（业务页实现归属 C2—C6）
 - 阻塞：无
-- 下一步：C0 Gate 1 Review；通过后并行启动 C2 / C3 / C4
-- 最近更新时间：2026-07-26T01:08:29+08:00
+- 说明：默认并行 `npm run test` 曾出现 5 个既有 5s/15s 资源抖动超时；单 worker 全量复跑 43/43 通过
+- 下一步：C0 按截图与提交哈希复核；C1 不再扩张基础设施或非关键边角
+- 最近更新时间：2026-07-26T09:54:00+08:00

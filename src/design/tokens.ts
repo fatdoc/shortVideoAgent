@@ -6,16 +6,18 @@ export const colors = {
   warning: '#FA8C16',
   error: '#FF4D4F',
   info: '#13C2C2',
-  text: '#1F1F1F',
-  textSecondary: '#595959',
-  textTertiary: '#8C8C8C',
-  border: '#F0F0F0',
-  borderStrong: '#D9D9D9',
+  text: '#101828',
+  textSecondary: '#475467',
+  textTertiary: '#667085',
+  border: '#E5E7EB',
+  borderStrong: '#D0D5DD',
   bg: '#F5F7FA',
   bgElevated: '#FFFFFF',
-  sidebar: '#001529',
-  sidebarText: 'rgba(255,255,255,0.85)',
-  sidebarMuted: 'rgba(255,255,255,0.45)',
+  sidebar: '#FFFFFF',
+  sidebarText: '#1D2939',
+  sidebarMuted: '#667085',
+  sidebarHover: '#EEF2FF',
+  sidebarActive: '#E8F1FF',
 } as const;
 
 export const statusColors = {
@@ -46,22 +48,22 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  sm: 4,
+  sm: 6,
   md: 8,
-  lg: 12,
+  lg: 10,
 } as const;
 
 export const shadows = {
-  card: '0 1px 2px 0 rgba(0,0,0,0.03), 0 1px 6px -1px rgba(0,0,0,0.02), 0 2px 4px 0 rgba(0,0,0,0.02)',
-  elevated: '0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12)',
+  card: '0 2px 8px rgba(16, 24, 40, 0.05)',
+  elevated: '0 10px 28px rgba(16, 24, 40, 0.09)',
 } as const;
 
 export const layout = {
-  sidebarWidth: 220,
-  topbarHeight: 56,
-  contentMaxWidth: 1440,
-  contentMinHeight: 'calc(100vh - 56px - 48px)',
-  pagePadding: 24,
+  sidebarWidth: 208,
+  topbarHeight: 68,
+  contentMaxWidth: 1432,
+  contentMinHeight: 'calc(100vh - 68px - 32px)',
+  pagePadding: 16,
 } as const;
 
 export const zIndex = {

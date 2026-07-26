@@ -21,9 +21,9 @@ export function AppShell() {
   }, [hydrate]);
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="app-shell-root" style={{ minHeight: '100vh' }}>
       <Sidebar />
-      <Layout style={{ marginLeft: layout.sidebarWidth }}>
+      <Layout className="app-shell-main" style={{ marginLeft: layout.sidebarWidth }}>
         <Topbar />
         <Content className="app-shell-content">
           <div className="app-page">

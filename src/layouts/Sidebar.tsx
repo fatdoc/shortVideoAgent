@@ -3,6 +3,7 @@ import {
   ClusterOutlined,
   FileTextOutlined,
   FundViewOutlined,
+  PlayCircleFilled,
   PlusSquareOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
@@ -41,8 +42,9 @@ export function Sidebar() {
 
   return (
     <Sider
+      className="app-shell-sidebar"
       width={layout.sidebarWidth}
-      theme="dark"
+      theme="light"
       style={{
         overflow: 'hidden',
         height: '100vh',
@@ -55,22 +57,28 @@ export function Sidebar() {
       }}
     >
       <div className="sidebar-brand">
-        <div className="sidebar-brand-title">短视频 Agent</div>
-        <div className="sidebar-brand-sub">营销生产工作台</div>
+        <PlayCircleFilled className="sidebar-brand-icon" />
+        <Typography.Text className="sidebar-brand-title">短视频营销 Agent</Typography.Text>
+        <span className="sr-only">短视频 Agent</span>
       </div>
       <Menu
-        theme="dark"
+        className="app-sidebar-menu"
+        theme="light"
         mode="inline"
         selectedKeys={[selected]}
         items={items}
         onClick={({ key }) => navigate(key)}
-        style={{ borderInlineEnd: 0, marginTop: 8, paddingBottom: 88 }}
+        style={{ borderInlineEnd: 0, marginTop: 8, paddingBottom: 12 }}
       />
       <div className="sidebar-footer">
-        <Typography.Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12 }}>
-          Demo · {project.id}
+        <Typography.Text className="sidebar-footer-label">Demo 项目</Typography.Text>
+        <Typography.Text className="sidebar-footer-id" strong>
+          #{project.id}
         </Typography.Text>
-        <div style={{ marginTop: 4 }}>进度 {project.progress}%</div>
+        <div className="sidebar-footer-progress">
+          <Typography.Text className="sidebar-footer-label">进度</Typography.Text>
+          <Typography.Text strong>{project.progress}%</Typography.Text>
+        </div>
       </div>
     </Sider>
   );
