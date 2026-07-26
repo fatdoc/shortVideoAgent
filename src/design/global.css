@@ -147,12 +147,14 @@ button,
 .app-sidebar-menu {
   border-inline-end: 0;
   background: transparent;
-  padding: 10px 8px;
+  padding: 10px 8px 150px;
 }
 
 .app-sidebar-menu .ant-menu-item {
   border-radius: 8px;
-  margin: 3px 0;
+  height: 44px;
+  line-height: 44px;
+  margin: 2px 0;
 }
 
 .app-sidebar-menu .ant-menu-item-selected {
@@ -168,29 +170,50 @@ button,
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 14px 16px 16px;
-  border-top: 1px solid var(--va-color-border);
+  margin: 0 10px 12px;
+  padding: 13px 12px 10px;
+  border: 1px solid var(--va-color-border);
+  border-radius: 8px;
+  background: #fff;
   color: #667085;
   font-size: 12px;
+}
+
+.sidebar-plan-row,
+.sidebar-storage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sidebar-plan-row {
+  margin-bottom: 12px;
+}
+
+.sidebar-plan-row .ant-typography,
+.sidebar-storage-row .ant-typography {
+  font-size: 11px;
+}
+
+.sidebar-storage-row {
+  margin-bottom: 4px;
 }
 
 .sidebar-footer-label {
   font-size: 11px;
   color: #667085;
-  display: block;
   line-height: 1.2;
 }
 
-.sidebar-footer-id {
-  color: #101828;
-  font-size: 13px;
+.sidebar-footer .ant-progress {
+  margin: 0;
 }
 
-.sidebar-footer-progress {
-  margin-top: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.sidebar-footer .ant-btn {
+  height: 26px;
+  padding: 0;
+  font-size: 12px;
 }
 
 .topbar-search {
@@ -221,6 +244,10 @@ button,
   height: 36px;
   color: #344054;
   background: #fff;
+}
+
+.topbar-reset {
+  display: none;
 }
 
 .topbar-divider {

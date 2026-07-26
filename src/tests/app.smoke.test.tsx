@@ -36,19 +36,19 @@ describe('app smoke', () => {
 
     await screen.findByRole('heading', { level: 3, name: '工作台' });
 
-    await user.click(screen.getByRole('menuitem', { name: /新建 \/ Brief/ }));
+    await user.click(screen.getByRole('menuitem', { name: /Brief/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
+    await user.click(screen.getByRole('menuitem', { name: /品牌\/商家大脑/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
+    await user.click(screen.getByRole('menuitem', { name: /脚本/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /分镜清单/ }));
+    await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '分镜 / 拍摄清单' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /素材 \/ 初剪/ }));
+    await user.click(screen.getByRole('menuitem', { name: /初剪预览/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '素材中心 / 初剪预览' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /工作台/ }));
@@ -73,11 +73,11 @@ describe('app smoke', () => {
       expect(state.workspace.brief.cta).toBe(nextCta);
     });
 
-    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
+    await user.click(screen.getByRole('menuitem', { name: /品牌\/商家大脑/ }));
     await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' });
     expect(await screen.findByText(nextCta)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
+    await user.click(screen.getByRole('menuitem', { name: /脚本/ }));
     await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' });
     expect(
       screen.getByText((_, element) => element?.textContent === `CTA：${nextCta}`),
@@ -88,7 +88,7 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
     await screen.findByRole('heading', { level: 3, name: '工作台' });
-    expect(screen.getByRole('button', { name: /重置 Demo/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /通知/ })).toBeInTheDocument();
     expect(screen.getByText(/Demo：海底捞/)).toBeInTheDocument();
     // sidebar footer id
     const sider = document.querySelector('.ant-layout-sider');

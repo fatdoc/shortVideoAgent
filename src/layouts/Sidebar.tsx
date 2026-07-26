@@ -1,13 +1,17 @@
 import {
   AppstoreOutlined,
+  BarChartOutlined,
+  CheckSquareOutlined,
   ClusterOutlined,
   FileTextOutlined,
-  FundViewOutlined,
+  FolderOutlined,
+  PictureOutlined,
   PlayCircleFilled,
-  PlusSquareOutlined,
+  PlaySquareOutlined,
+  SettingOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { Layout, Menu, Typography } from 'antd';
+import { Button, Layout, Menu, Progress, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DEMO_PROJECT_ID, ROUTES } from '../domain/constants';
 import { colors, layout, zIndex } from '../design/tokens';
@@ -17,11 +21,16 @@ const { Sider } = Layout;
 
 const items = [
   { key: ROUTES.dashboard, icon: <AppstoreOutlined />, label: '工作台' },
-  { key: ROUTES.projectNew, icon: <PlusSquareOutlined />, label: '新建 / Brief' },
-  { key: ROUTES.brand(DEMO_PROJECT_ID), icon: <ClusterOutlined />, label: '品牌大脑' },
-  { key: ROUTES.script(DEMO_PROJECT_ID), icon: <FileTextOutlined />, label: '脚本编辑' },
-  { key: ROUTES.storyboard(DEMO_PROJECT_ID), icon: <VideoCameraOutlined />, label: '分镜清单' },
-  { key: ROUTES.roughCut(DEMO_PROJECT_ID), icon: <FundViewOutlined />, label: '素材 / 初剪' },
+  { key: 'demo-projects', icon: <FolderOutlined />, label: '项目' },
+  { key: ROUTES.projectNew, icon: <FileTextOutlined />, label: 'Brief' },
+  { key: ROUTES.brand(DEMO_PROJECT_ID), icon: <ClusterOutlined />, label: '品牌/商家大脑' },
+  { key: ROUTES.script(DEMO_PROJECT_ID), icon: <FileTextOutlined />, label: '脚本' },
+  { key: ROUTES.storyboard(DEMO_PROJECT_ID), icon: <VideoCameraOutlined />, label: '分镜' },
+  { key: 'demo-assets', icon: <PictureOutlined />, label: '素材中心' },
+  { key: ROUTES.roughCut(DEMO_PROJECT_ID), icon: <PlaySquareOutlined />, label: '初剪预览' },
+  { key: 'demo-review', icon: <CheckSquareOutlined />, label: '审核导出' },
+  { key: 'demo-growth', icon: <BarChartOutlined />, label: '数据洞察' },
+  { key: 'demo-settings', icon: <SettingOutlined />, label: '设置' },
 ];
 
 function resolveSelectedKey(pathname: string): string {
@@ -67,18 +76,37 @@ export function Sidebar() {
         mode="inline"
         selectedKeys={[selected]}
         items={items}
-        onClick={({ key }) => navigate(key)}
+        onClick={({ key }) => {
+          if (key === 'demo-projects') {
+            navigate(ROUTES.dashboard);
+            return;
+          }
+          if (key === 'demo-assets') {
+            navigate(ROUTES.roughCut(DEMO_PROJECT_ID));
+            return;
+          }
+          if (key.startsWith('/')) {
+            navigate(key);
+          }
+        }}
         style={{ borderInlineEnd: 0, marginTop: 8, paddingBottom: 12 }}
       />
       <div className="sidebar-footer">
-        <Typography.Text className="sidebar-footer-label">Demo 项目</Typography.Text>
-        <Typography.Text className="sidebar-footer-id" strong>
-          #{project.id}
-        </Typography.Text>
-        <div className="sidebar-footer-progress">
-          <Typography.Text className="sidebar-footer-label">进度</Typography.Text>
-          <Typography.Text strong>{project.progress}%</Typography.Text>
+        <div className="sidebar-plan-row">
+          <Typography.Text strong>企业版</Typography.Text>
+          <Typography.Text type="secondary">2026-06-01 到期</Typography.Text>
         </div>
+        <div className="sidebar-storage-row">
+          <Typography.Text className="sidebar-footer-label">存储空间</Typography.Text>
+          <Typography.Text type="secondary">320 GB / 1 TB</Typography.Text>
+        </div>
+        <Progress percent={32} size="small" showInfo={false} />
+        <Button type="link" size="small" block>
+          升级套餐
+        </Button>
+        <span className="sr-only">
+          当前演示项目 #{project.id}，进度 {project.progress}%
+        </span>
       </div>
     </Sider>
   );

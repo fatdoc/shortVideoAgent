@@ -48,27 +48,33 @@ export function Topbar() {
 
       <Space size={8} className="topbar-meta">
         <Button className="topbar-team" icon={<TeamOutlined />}>
-          团队空间
+          星火本地生活团队
           <DownOutlined style={{ color: '#98A2B3', fontSize: 10 }} />
         </Button>
         <Tooltip title="重置 Demo">
           <Button
             type="text"
+            className="topbar-reset"
             icon={<ReloadOutlined />}
             aria-label="重置 Demo"
             loading={loading}
             onClick={() => void handleReset()}
           />
         </Tooltip>
+        <Badge count={12} size="small" offset={[-2, 5]}>
+          <Button type="text" icon={<BellOutlined />} aria-label="通知" />
+        </Badge>
         <Tooltip title="帮助">
           <Button type="text" icon={<QuestionCircleOutlined />} aria-label="帮助" />
         </Tooltip>
-        <Badge dot>
-          <Button type="text" icon={<BellOutlined />} aria-label="通知" />
-        </Badge>
         <div className="topbar-divider" />
         <Space size={8} className="topbar-user">
-          <Avatar size={30} icon={<UserOutlined />} style={{ background: '#1677FF' }} />
+          <Avatar
+            size={30}
+            src="/placeholders/member.svg"
+            icon={<UserOutlined />}
+            style={{ background: '#EAF2FF' }}
+          />
           <Typography.Text strong style={{ fontSize: 13 }}>
             {project.owner}
           </Typography.Text>
