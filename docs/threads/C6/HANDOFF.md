@@ -1,12 +1,26 @@
 # C6 HANDOFF
 
-- 当前分支：`main`（待创建 `feat/c6-*`）
-- 当前 Commit：待线程首次提交后填写
-- 可运行页面：Gate 0 占位路由（见 ROUTES）
-- 关键文件：无业务交付
-- 已完成功能：无
-- 未完成功能：见 ROLE 负责范围
-- 已知问题：线程尚未启动
-- 接手后的第一步：阅读 `docs/prompts/C6_START.md` 与 ROLE
+- 当前分支：按当前 workspace 默认分支提交（未改动全局路由/壳层）
+- 当前 Commit：待提交（验收通过后更新为正式 hash）
+- 可运行页面：
+  - `/dashboard`
+  - `/projects/${DEMO_PROJECT_ID}/rough-cut`（以页面交互为准）
+- 关键文件：
+  - `src/pages/rough-cut/RoughCutPage.tsx`
+  - `src/pages/rough-cut/rough-cut.css`
+  - `src/components/media/AssetCard.tsx`
+  - `src/components/media/TimelineTrackList.tsx`
+  - `src/components/media/index.ts`
+  - `src/pages/rough-cut/RoughCutPage.test.tsx`
+  - `tests/e2e/smoke.spec.ts`
+- 已完成功能：
+  - 统一素材中心/初剪预览页（筛选、匹配、封面、比例、QA、导出禁用规则）
+  - 简化多轨时间线与时间轴播放/seek/playhead
+  - 素材网格、片段入轨、片段选中与移除
+  - loading/empty/error/invalid project 分支与统一 Demo 防护
+  - e2e 与单测覆盖
+  - 执行 `npm run lint && npm run build && npm run test && npm run validate:governance && npm run test:e2e` 全链路通过
+- 未完成功能：无（当前范围）
+- 已知问题：无新增阻塞问题；保留本地历史端口占用导致 e2e 指向旧实例的现场说明
 - 运行方式：`npm install && npm run dev`
-- 验证方式：`npm run lint && npm run build && npm run test`
+- 验证方式：`npm run lint && npm run build && npm run test && npm run validate:governance && npm run test:e2e`

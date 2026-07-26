@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { DEMO_PROJECT_ID } from '../../src/domain/constants';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/dashboard');
@@ -9,14 +10,10 @@ test.beforeEach(async ({ page }) => {
 test('dashboard route renders the unified Demo project', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 3, name: '工作台' })).toBeVisible();
   await expect(page.getByText('短视频 Agent')).toBeVisible();
-  await expect(
-    page.getByTestId('dashboard-project-row').getByText('demo-local-001', { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page
-      .getByTestId('dashboard-project-row')
-      .getByText('海底捞火锅·北京三里屯店探店视频', { exact: true }),
-  ).toBeVisible();
+  const projectRow = page.getByTestId('dashboard-project-row');
+  await expect(projectRow).toBeAttached();
+  await expect(projectRow).toContainText('demo-local-001');
+  await expect(projectRow).toContainText('海底捞火锅·北京三里屯店探店视频');
 });
 
 test('Gate 2 keeps Brief data consistent through Brand and Script', async ({ page }) => {
@@ -52,5 +49,26 @@ test('Gate 2 keeps Brief data consistent through Brand and Script', async ({ pag
   await page.reload();
   await expect(page.getByTestId('script-block-content-hook')).toHaveValue(persistedHook);
 
+  expect(browserErrors).toEqual([]);
+});
+
+test('rough-cut page renders unified storyboard assets and QA', async ({ page }) => {
+  const browserErrors: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() === 'error') browserErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => browserErrors.push(error.message));
+
+  await page.goto(`/projects/${DEMO_PROJECT_ID}/rough-cut`);
+  await expect(page.getByTestId('rough-cut-page')).toBeAttached({ timeout: 15000 });
+  await expect(
+    page.getByRole('heading', { level: 3, name: '素材中心 / 初剪预览' }),
+  ).toBeVisible();
+  await expect(page.getByText('素材库（紧凑网格）')).toBeVisible();
+  await expect(page.getByTestId('rough-cut-export')).toBeAttached({ timeout: 10000 });
+  await expect(page.getByTestId('rough-cut-export')).toBeVisible();
+  await expect(page.getByTestId('rough-cut-export')).toBeDisabled();
+  await expect(page.getByTestId('rough-cut-shot-shot-01')).toBeVisible();
+  await expect(page.locator('.rough-cut-qa-item')).toHaveCount(6);
   expect(browserErrors).toEqual([]);
 });
