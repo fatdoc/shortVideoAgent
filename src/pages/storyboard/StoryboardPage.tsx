@@ -2,8 +2,9 @@ import {
   Alert,
   App,
   Button,
+  Dropdown,
+  Progress,
   Select,
-  Space,
   Tabs,
   Tag,
   Tooltip,
@@ -11,11 +12,17 @@ import {
 } from 'antd';
 import {
   ArrowRightOutlined,
+  CameraOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   DragOutlined,
+  EditOutlined,
   ExclamationCircleOutlined,
+  FileTextOutlined,
   LoadingOutlined,
+  MoreOutlined,
+  PictureOutlined,
+  PlusOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,10 +31,10 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Cell, Pie, PieChart } from 'recharts';
 import {
   DEMO_PROJECT_ID,
   MATCH_STATUS_LABEL,
-  PROJECT_STATUS_LABEL,
   ROUTES,
   RISK_LEVEL_LABEL,
 } from '../../domain/constants';
@@ -45,13 +52,37 @@ import {
 } from '../../components/storyboard/storyboardUtils';
 import '../../components/storyboard/storyboard.css';
 import { useProjectStore } from '../../stores/projectStore';
+import shot01Visual from '../../components/storyboard/assets/shot-01.png';
+import shot02Visual from '../../components/storyboard/assets/shot-02.png';
+import shot03Visual from '../../components/storyboard/assets/shot-03.png';
+import shot04Visual from '../../components/storyboard/assets/shot-04.png';
+import shot05Visual from '../../components/storyboard/assets/shot-05.png';
+import shot06Visual from '../../components/storyboard/assets/shot-06.png';
+import shot07Visual from '../../components/storyboard/assets/shot-07.png';
+import shot08Visual from '../../components/storyboard/assets/shot-08.png';
 
 interface ShotForRender {
   shot: StoryboardShot;
   scriptBlock: ScriptBlock | null;
 }
 
+interface DonutItem {
+  color: string;
+  value: number;
+}
+
 const ASSET_PLACEHOLDER = '/placeholders/storefront.svg';
+
+const SHOT_VISUALS: Record<string, string> = {
+  'shot-01': shot02Visual,
+  'shot-02': shot03Visual,
+  'shot-03': shot01Visual,
+  'shot-04': shot05Visual,
+  'shot-05': shot07Visual,
+  'shot-06': shot04Visual,
+  'shot-07': shot06Visual,
+  'shot-08': shot08Visual,
+};
 
 const BUILD_INSTRUCTION: Record<string, string> = {
   hook: 'Hook',
@@ -96,16 +127,66 @@ function formatOrder(order: number) {
   return `#${String(order).padStart(2, '0')}`;
 }
 
-function isBlocking(status: AssetMatchStatus) {
-  return status === 'reshoot' || status === 'missing';
+function formatDuration(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function shotStatusTone(status: ShotStatus) {
-  if (status === 'done') return 'success';
-  if (status === 'shooting') return 'processing';
-  if (status === 'ready') return 'blue';
-  if (status === 'missing') return 'error';
-  return 'default';
+function formatUpdatedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day} ${hours}:${minutes}`;
+}
+
+function DonutStat({
+  items,
+  label,
+  total,
+  size = 86,
+}: {
+  items: DonutItem[];
+  label: string;
+  total: number;
+  size?: number;
+}) {
+  const data = items.filter((item) => item.value > 0);
+
+  return (
+    <div
+      className="storyboard-donut"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`${label} ${total}`}
+    >
+      <PieChart width={size} height={size}>
+        <Pie
+          data={data.length ? data : [{ value: 1, color: '#E7EBF1' }]}
+          dataKey="value"
+          innerRadius={Math.round(size * 0.34)}
+          outerRadius={Math.round(size * 0.47)}
+          paddingAngle={1}
+          stroke="none"
+        >
+          {(data.length ? data : [{ value: 1, color: '#E7EBF1' }]).map((item, index) => (
+            <Cell key={`${item.color}-${index}`} fill={item.color} />
+          ))}
+        </Pie>
+      </PieChart>
+      <span className="storyboard-progress-label">
+        <small>{label}</small>
+        <strong>{total}</strong>
+      </span>
+    </div>
+  );
+}
+
+function isBlocking(status: AssetMatchStatus) {
+  return status === 'reshoot' || status === 'missing';
 }
 
 function scriptBlockLabel(block: ScriptBlock | null) {
@@ -178,72 +259,83 @@ function ShotRow({
           </button>
         </Tooltip>
 
-        <img src={thumbnail} alt={shot.description} className="storyboard-shot-thumbnail" />
+        <span className="storyboard-order-badge">{String(shot.order).padStart(2, '0')}</span>
 
-        <div className="storyboard-shot-copy">
-          <div className="storyboard-shot-title-line">
-            <Space>
-              <Typography.Text strong>{formatOrder(shot.order)}</Typography.Text>
-              <Tag color="blue">{shot.description}</Tag>
-              <Tag color="processing">{shot.shotType}</Tag>
-            </Space>
-          </div>
+        <div className="storyboard-shot-thumbnail-wrap">
+          <img src={thumbnail} alt={shot.description} className="storyboard-shot-thumbnail" />
+          <span>{formatDuration(shot.duration)}</span>
+        </div>
 
-          <div className="storyboard-shot-meta-line">
-            <StatusTag kind="match" value={shot.matchStatus} />
-            <Tag color={shotStatusTone(shot.status)}>{SHOT_STATUS_LABEL[shot.status]}</Tag>
-            <Tag color="default">{scriptBlockLabel(scriptBlock)}</Tag>
-            {shot.assignee ? <Tag icon={<UserOutlined />}>{shot.assignee}</Tag> : <Tag>待分配</Tag>}
-          </div>
+        <div className="storyboard-shot-cell storyboard-shot-description">
+          <Typography.Text type="secondary">画面说明</Typography.Text>
+          <Typography.Text strong>{shot.description}</Typography.Text>
+        </div>
 
-          <Typography.Text type="secondary" className="storyboard-shot-script-preview">
-            {getScriptText(scriptBlock)}
-          </Typography.Text>
+        <div className="storyboard-shot-cell storyboard-shot-position">
+          <Typography.Text type="secondary">景别/机位</Typography.Text>
+          <Typography.Text>{shot.shotType} / {shot.cameraPosition}</Typography.Text>
+        </div>
+
+        <div className="storyboard-shot-cell storyboard-shot-dialogue">
+          <Typography.Text type="secondary">台词/旁白</Typography.Text>
+          <Typography.Text>{getScriptText(scriptBlock)}</Typography.Text>
+        </div>
+
+        <div className="storyboard-shot-cell storyboard-shot-screen">
+          <Typography.Text type="secondary">屏幕文字</Typography.Text>
+          <Typography.Text>{shot.screenText || '—'}</Typography.Text>
+        </div>
+
+        <div className="storyboard-shot-cell storyboard-shot-source">
+          <Typography.Text type="secondary">素材来源</Typography.Text>
+          <Typography.Text>{shot.assetId ? '原创拍摄' : '待补素材'}</Typography.Text>
+        </div>
+
+        <div className="storyboard-shot-cell storyboard-shot-risk">
+          <Typography.Text type="secondary">风险标签</Typography.Text>
+          <Tag color={isBlocking(shot.matchStatus) ? 'orange' : 'green'}>
+            {isBlocking(shot.matchStatus)
+              ? MATCH_STATUS_LABEL[shot.matchStatus]
+              : RISK_LEVEL_LABEL[shot.riskLevel] ?? '低风险'}
+          </Tag>
         </div>
 
         <div className="storyboard-shot-head-actions">
-          <Tag color={isBlocking(shot.matchStatus) ? 'error' : 'success'}>
-            {isBlocking(shot.matchStatus) ? '待补拍或缺镜' : '素材可用'}
-          </Tag>
           <Button
             size="small"
-            type={expanded ? 'primary' : 'default'}
+            type="text"
+            icon={<MoreOutlined />}
+            aria-label="展开编辑"
             onClick={() => {
               onToggleExpand(shot.id);
             }}
             disabled={disabled}
-          >
-            {expanded ? '收起编辑' : '展开编辑'}
-          </Button>
+          />
+          {expanded ? (
+            <Typography.Text type="secondary" className="storyboard-expanded-indicator">
+              已展开
+            </Typography.Text>
+          ) : null}
         </div>
       </div>
 
       {expanded ? (
         <div className="storyboard-shot-details" aria-expanded>
-          <div className="storyboard-shot-detail-grid">
-            <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                拍摄时长
-              </Typography.Text>
-              <Typography.Text strong>{shot.duration}s</Typography.Text>
-            </div>
-            <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                摄像机位
-              </Typography.Text>
-              <Typography.Text>{shot.cameraPosition}</Typography.Text>
-            </div>
-            <div>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                风险
-              </Typography.Text>
-              <Typography.Text>{RISK_LEVEL_LABEL[shot.riskLevel] ?? shot.riskLevel}</Typography.Text>
-            </div>
+          <div className="storyboard-shot-detail-item is-wide">
+            <Typography.Text type="secondary">拍摄建议</Typography.Text>
+            <Typography.Text>{shot.narration}</Typography.Text>
           </div>
-
-          <div className="storyboard-shot-detail-grid" style={{ marginTop: 10 }}>
+          <div className="storyboard-shot-detail-item">
+            <Typography.Text type="secondary">拍摄时段</Typography.Text>
+            <Typography.Text>{shot.order >= 8 ? '夜间 20:00-22:00' : '晚间 18:00-20:00'}</Typography.Text>
+          </div>
+          <div className="storyboard-shot-detail-item">
+            <Typography.Text type="secondary">所需设备</Typography.Text>
+            <Typography.Text>{shot.shotType.includes('close') ? '微距镜头 / 稳定器' : '稳定器 / 广角镜头'}</Typography.Text>
+          </div>
+          <div className="storyboard-shot-detail-item">
+            <Typography.Text type="secondary">指派人员</Typography.Text>
             <Select
-              style={{ width: 140 }}
               size="small"
               options={ASSIGNEE_OPTIONS}
               value={shot.assignee ?? ''}
@@ -253,21 +345,10 @@ function ShotRow({
               data-testid={`storyboard-assignee-${shot.id}`}
               disabled={disabled}
             />
-
+          </div>
+          <div className="storyboard-shot-detail-item">
+            <Typography.Text type="secondary">拍摄状态</Typography.Text>
             <Select
-              style={{ width: 110 }}
-              size="small"
-              options={MATCH_STATUS_OPTIONS}
-              value={shot.matchStatus}
-              onChange={(value) => {
-                void onUpdateMatchStatus(shot.id, value);
-              }}
-              data-testid={`storyboard-match-${shot.id}`}
-              disabled={disabled}
-            />
-
-            <Select
-              style={{ width: 100 }}
               size="small"
               options={SHOT_STATUS_OPTIONS}
               value={shot.status}
@@ -278,15 +359,18 @@ function ShotRow({
               disabled={disabled}
             />
           </div>
-
-          <div className="storyboard-shot-narration">
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              镜头字幕：
-            </Typography.Text>
-            <Typography.Text>{shot.screenText}</Typography.Text>
-            <Typography.Text type="secondary" style={{ marginLeft: 4 }}>
-              · {shot.narration}
-            </Typography.Text>
+          <div className="storyboard-shot-detail-item">
+            <Typography.Text type="secondary">素材匹配</Typography.Text>
+            <Select
+              size="small"
+              options={MATCH_STATUS_OPTIONS}
+              value={shot.matchStatus}
+              onChange={(value) => {
+                void onUpdateMatchStatus(shot.id, value);
+              }}
+              data-testid={`storyboard-match-${shot.id}`}
+              disabled={disabled}
+            />
           </div>
         </div>
       ) : null}
@@ -309,8 +393,9 @@ export function StoryboardPage() {
 
   const activeScript = useMemo(() => getActiveScript(workspace), [workspace]);
   const [shots, setShots] = useState(workspace.storyboard);
-  const [expandedShot, setExpandedShot] = useState<string | null>(null);
+  const [expandedShot, setExpandedShot] = useState<string | null>('shot-02');
   const [batchAssignee, setBatchAssignee] = useState('拍摄组 A');
+  const [activeTab, setActiveTab] = useState('shots');
   const [persisting, setPersisting] = useState(false);
 
   useEffect(() => {
@@ -364,15 +449,24 @@ export function StoryboardPage() {
     () => shotItems.filter((item) => item.shot.matchStatus === 'reshoot').length,
     [shotItems],
   );
-
-  const pendingByAssignee = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const item of shotItems) {
-      const assignee = item.shot.assignee || '待分配';
-      map.set(assignee, (map.get(assignee) ?? 0) + 1);
-    }
-    return map;
-  }, [shotItems]);
+  const totalDuration = useMemo(
+    () => shotItems.reduce((sum, item) => sum + item.shot.duration, 0),
+    [shotItems],
+  );
+  const completedTasks = useMemo(
+    () => shotItems.filter((item) => item.shot.status === 'done').length,
+    [shotItems],
+  );
+  const shootingTasks = useMemo(
+    () => shotItems.filter((item) => item.shot.status === 'shooting').length,
+    [shotItems],
+  );
+  const pendingTasks = shotItems.filter((item) =>
+    item.shot.status === 'planned' || item.shot.status === 'ready'
+  ).length;
+  const completionPercent = shotItems.length
+    ? Math.round((completedTasks / shotItems.length) * 100)
+    : 0;
 
   const readyForCut = matched === shotItems.length && shotItems.length > 0;
 
@@ -452,12 +546,13 @@ export function StoryboardPage() {
     [isBusy, persist, shots],
   );
 
-  const handleBatchAssign = useCallback(async () => {
+  const handleBatchAssign = useCallback(async (assignee = batchAssignee) => {
+    setBatchAssignee(assignee);
     const nextShots = shots.map((shot) => ({
       ...shot,
-      assignee: batchAssignee,
+      assignee,
     }));
-    await persist(nextShots, `已为全部镜头指派：${batchAssignee}`);
+    await persist(nextShots, `已为全部镜头指派：${assignee}`);
   }, [batchAssignee, persist, shots]);
 
   const handleBatchStartCapture = useCallback(async () => {
@@ -512,7 +607,8 @@ export function StoryboardPage() {
       <SortableContext items={shotItems.map(({ shot }) => shot.id)} strategy={verticalListSortingStrategy}>
         <div className="storyboard-shot-list">
           {shotItems.map((item) => {
-            const assetThumb = item.shot.assetId ? assetById.get(item.shot.assetId) ?? ASSET_PLACEHOLDER : ASSET_PLACEHOLDER;
+            const assetThumb = SHOT_VISUALS[item.shot.id]
+              ?? (item.shot.assetId ? assetById.get(item.shot.assetId) ?? ASSET_PLACEHOLDER : ASSET_PLACEHOLDER);
             return (
               <ShotRow
                 key={item.shot.id}
@@ -561,64 +657,81 @@ export function StoryboardPage() {
   return (
     <section className="storyboard-page" data-testid="storyboard-page">
       <div className="storyboard-toolbar">
-        <div className="storyboard-title-wrap">
-          <Typography.Title level={3} style={{ marginBottom: 0 }}>
-            分镜 / 拍摄清单
-          </Typography.Title>
-          <Space size="small" wrap>
-            <Tag color="processing">{PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status}</Tag>
-            <Tag>{`脚本：${activeScript?.name ?? '未加载'}`}</Tag>
-            <Tag>{`素材：${workspace.assets.length} / 已匹配 ${matched}`}</Tag>
-          </Space>
+        <div className="storyboard-breadcrumb">
+          <span>项目</span>
+          <i>/</i>
+          <span>{workspace.brief.merchantName}</span>
+          <i>/</i>
+          <strong>分镜</strong>
         </div>
 
-        <div className="storyboard-top-actions">
-          <Button
-            icon={<LoadingOutlined />}
-            type="default"
-            size="small"
-            onClick={() => void hydrate()}
-            loading={loading}
-            disabled={isBusy}
-          >
-            重新同步
-          </Button>
+        <div className="storyboard-project-header">
+          <div className="storyboard-title-wrap">
+            <div className="storyboard-project-title">
+              <Typography.Title level={3} style={{ margin: 0 }}>
+                {workspace.project.name}
+              </Typography.Title>
+              <EditOutlined />
+            </div>
+            <div className="storyboard-project-meta">
+              <Tag color="success">执行中</Tag>
+              <span>时长预估 {formatDuration(totalDuration)}</span>
+              <i />
+              <span>画面数 {shotItems.length}</span>
+              <i />
+              <span>版本 {activeScript?.name.replace(/^版本\s*/, '') ?? '未加载'}</span>
+              <i />
+              <span>更新于 {formatUpdatedAt(workspace.project.updatedAt)}</span>
+            </div>
+          </div>
 
-          <Select
-            size="small"
-            style={{ width: 130 }}
-            value={batchAssignee}
-            onChange={setBatchAssignee}
-            options={ASSIGNEE_OPTIONS.filter((item) => item.value !== '')}
-            disabled={isBusy}
-            data-testid="storyboard-batch-assignee"
-          />
-
-          <Button size="small" disabled={isBusy} onClick={() => void handleBatchAssign()}>
-            批量指派
-          </Button>
-
-          <Button
-            size="small"
-            icon={<ClockCircleOutlined />}
-            disabled={isBusy || blocking.length === 0}
-            onClick={() => void handleBatchStartCapture()}
-          >
-            待补拍转拍摄中
-          </Button>
-
-          <Tooltip title={readyForCut ? '进入初剪' : '缺镜/待补拍未完成，禁止进入初剪'}>
+          <div className="storyboard-top-actions">
             <Button
-              type="primary"
-              icon={<ArrowRightOutlined />}
-              onClick={() => navigate(ROUTES.roughCut(DEMO_PROJECT_ID))}
-              loading={loading}
-              disabled={!readyForCut || isBusy}
-              data-testid="storyboard-enter-rough-cut"
+              icon={<DragOutlined />}
+              onClick={() => message.info('拖拽每行左侧手柄即可调整镜头顺序。')}
+              disabled={isBusy}
             >
-              进入初剪
+              拖拽排序
             </Button>
-          </Tooltip>
+
+            <Dropdown
+              menu={{
+                items: ASSIGNEE_OPTIONS.filter((item) => item.value !== '').map((item) => ({
+                  key: item.value,
+                  label: item.label,
+                })),
+                onClick: ({ key }) => {
+                  void handleBatchAssign(key);
+                },
+              }}
+              trigger={['click']}
+            >
+              <Button icon={<UserOutlined />} disabled={isBusy}>
+                批量指派
+              </Button>
+            </Dropdown>
+
+            <Button
+              icon={<FileTextOutlined />}
+              onClick={() => setActiveTab('list')}
+              disabled={isBusy}
+            >
+              生成拍摄清单
+            </Button>
+
+            <Tooltip title={readyForCut ? '进入初剪' : '缺镜/待补拍未完成，禁止进入初剪'}>
+              <Button
+                type="primary"
+                icon={<ArrowRightOutlined />}
+                onClick={() => navigate(ROUTES.roughCut(DEMO_PROJECT_ID))}
+                loading={loading}
+                disabled={!readyForCut || isBusy}
+                data-testid="storyboard-enter-rough-cut"
+              >
+                进入初剪
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -636,20 +749,12 @@ export function StoryboardPage() {
         />
       ) : null}
 
-      {!isBusy && blocking.length > 0 ? (
-        <Alert
-          type="warning"
-          showIcon
-          message={`缺镜 / 待补拍提醒：当前存在 ${missing} 镜缺镜、${reshoot} 镜待补拍，建议先完成拍摄补充后再进入初剪。`}
-          icon={<ExclamationCircleOutlined />}
-        />
-      ) : null}
-
       <div className="storyboard-layout">
-        <main className="storyboard-main app-page-card">
+        <main className="storyboard-main">
           <Tabs
             className="storyboard-tabs"
-            defaultActiveKey="shots"
+            activeKey={activeTab}
+            onChange={setActiveTab}
             items={[
               {
                 key: 'shots',
@@ -658,10 +763,9 @@ export function StoryboardPage() {
                   <div className="storyboard-section">
                     <div className="storyboard-section-head">
                       <div>
-                          <Typography.Title level={5} style={{ margin: 0 }}>
-                            8 镜分镜（横向镜头）
-                          </Typography.Title>
-                        <Typography.Text type="secondary">使用统一 workspace.assets 缩略图与脚本段映射</Typography.Text>
+                        <Typography.Text type="secondary">
+                          脚本已拆解为可执行的分镜头，支持调整镜头顺序、指派与生成拍摄清单。
+                        </Typography.Text>
                       </div>
                       <div className="storyboard-shot-toolbar">
                         <Tag color="default">共 {shotItems.length} 镜</Tag>
@@ -672,6 +776,16 @@ export function StoryboardPage() {
                     </div>
 
                     {renderShotRows()}
+                    <div className="storyboard-list-footer">
+                      <Button type="link" size="small" icon={<PlusOutlined />}>
+                        添加镜头
+                      </Button>
+                      <span>
+                        共 {shotItems.length} 个镜头
+                        <i />
+                        时长预估 {formatDuration(totalDuration)}
+                      </span>
+                    </div>
                   </div>
                 ),
               },
@@ -689,15 +803,25 @@ export function StoryboardPage() {
                           按镜头、脚本片段和状态快速分发拍摄
                         </Typography.Text>
                       </div>
-                      <Button
-                        size="small"
-                        type="text"
-                        icon={<UserOutlined />}
-                        disabled={isBusy}
-                        onClick={() => setExpandedShot(null)}
-                      >
-                        收起全部编辑
-                      </Button>
+                      <div className="storyboard-shooting-actions">
+                        <Button
+                          size="small"
+                          icon={<ClockCircleOutlined />}
+                          disabled={isBusy || blocking.length === 0}
+                          onClick={() => void handleBatchStartCapture()}
+                        >
+                          待补拍转拍摄中
+                        </Button>
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={<UserOutlined />}
+                          disabled={isBusy}
+                          onClick={() => setExpandedShot(null)}
+                        >
+                          收起全部编辑
+                        </Button>
+                      </div>
                     </div>
                     {renderShootList()}
                   </div>
@@ -707,66 +831,80 @@ export function StoryboardPage() {
           />
         </main>
 
-        <aside className="storyboard-right app-page-card">
-          <div className="storyboard-side-head">
-            <Typography.Title level={5} style={{ margin: 0 }}>
-              拍摄任务 / 素材统计
-            </Typography.Title>
-            <Typography.Text type="secondary">右侧汇总拍摄指派与匹配状态风险</Typography.Text>
-          </div>
+        <aside className="storyboard-right">
+          <section className="storyboard-side-card app-page-card">
+            <div className="storyboard-side-card-head">
+              <Typography.Title level={5}><CameraOutlined /> 拍摄任务</Typography.Title>
+              <Button type="link" size="small">全部查看</Button>
+            </div>
+            <div className="storyboard-task-overview">
+              <DonutStat
+                size={86}
+                label="总任务"
+                total={shotItems.length}
+                items={[
+                  { value: pendingTasks, color: '#4F8DF7' },
+                  { value: shootingTasks, color: '#FAAD14' },
+                  { value: completedTasks, color: '#35BE7A' },
+                  { value: missing, color: '#FF5D66' },
+                ]}
+              />
+              <div className="storyboard-task-legend">
+                <span><i className="is-blue" />待拍摄 <strong>{pendingTasks}</strong></span>
+                <span><i className="is-orange" />拍摄中 <strong>{shootingTasks}</strong></span>
+                <span><i className="is-green" />已完成 <strong>{completedTasks}</strong></span>
+                <span><i className="is-red" />已逾期 <strong>{missing}</strong></span>
+              </div>
+            </div>
+            <div className="storyboard-side-progress">
+              <span>今日计划拍摄 <strong>{completedTasks}/{Math.max(shotItems.length - missing, 1)}</strong></span>
+              <Progress percent={completionPercent} showInfo={false} size="small" />
+            </div>
+          </section>
 
-          <div className="storyboard-stat-grid">
-            <div className="storyboard-stat-card">
-              <Typography.Text type="secondary">项目阶段</Typography.Text>
-              <Typography.Text strong>{PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status}</Typography.Text>
+          <section className="storyboard-side-card app-page-card">
+            <div className="storyboard-side-card-head">
+              <Typography.Title level={5}><ExclamationCircleOutlined /> 漏拍提醒</Typography.Title>
+              <Button type="link" size="small">全部查看</Button>
             </div>
-            <div className="storyboard-stat-card">
-              <Typography.Text type="secondary">当前项目</Typography.Text>
-              <Typography.Text strong>{workspace.project.name}</Typography.Text>
+            <div className="storyboard-missing-list">
+              <div><ExclamationCircleOutlined /><span>缺少服务别镜头</span><strong>{missing}</strong></div>
+              <div><ExclamationCircleOutlined /><span>缺少特写镜头</span><strong>{reshoot}</strong></div>
+              <div><ExclamationCircleOutlined /><span>缺少收尾镜头</span><strong>0</strong></div>
+              <div><ExclamationCircleOutlined /><span>时长不足风险</span><strong>{totalDuration < 30 ? 1 : 0}</strong></div>
             </div>
-            <div className="storyboard-stat-card">
-              <Typography.Text type="secondary">已匹配镜头</Typography.Text>
-              <Typography.Text strong>
-                {matched} / {shotItems.length}
-              </Typography.Text>
-            </div>
-            <div className="storyboard-stat-card">
-              <Typography.Text type="secondary">阻塞镜头</Typography.Text>
-              <Typography.Text strong style={{ color: '#FA8C16' }}>
-                {missing + reshoot}
-              </Typography.Text>
-            </div>
-          </div>
+          </section>
 
-          <div className="storyboard-side-section">
-            <Typography.Text strong>拍摄指派（按人员）</Typography.Text>
-            <div className="storyboard-side-list">
-              {Array.from(pendingByAssignee.entries()).map(([assignee, count]) => (
-                <div key={assignee} className="storyboard-side-list-item">
-                  <Typography.Text>{assignee}</Typography.Text>
-                  <Tag color="blue">{count} 镜</Tag>
-                </div>
-              ))}
+          <section className="storyboard-side-card app-page-card">
+            <div className="storyboard-side-card-head">
+              <Typography.Title level={5}><PictureOutlined /> 素材状态</Typography.Title>
+              <Button type="link" size="small">全部查看</Button>
             </div>
-          </div>
-
-          <div className="storyboard-side-section">
-            <Typography.Text strong>漏拍与补拍（右侧红色提醒）</Typography.Text>
-            <div className="storyboard-side-list">
-              {blocking.length > 0 ? (
-                blocking.map((item) => (
-                  <div key={item.shot.id} className="storyboard-side-list-item is-warning">
-                    <Typography.Text>
-                      {formatOrder(item.shot.order)} · {item.shot.description}
-                    </Typography.Text>
-                    <Tag color="red">{MATCH_STATUS_LABEL[item.shot.matchStatus]}</Tag>
-                  </div>
-                ))
-              ) : (
-                <Typography.Text type="secondary">当前无阻塞镜头。</Typography.Text>
-              )}
+            <div className="storyboard-task-overview">
+              <DonutStat
+                size={82}
+                label="素材总数"
+                total={workspace.assets.length}
+                items={[
+                  { value: matched, color: '#73A5FF' },
+                  { value: reshoot, color: '#9CC0FF' },
+                  { value: missing, color: '#FAAD14' },
+                ]}
+              />
+              <div className="storyboard-task-legend">
+                <span><i className="is-blue" />已拍摄 <strong>{matched}</strong></span>
+                <span><i className="is-orange" />待补拍 <strong>{reshoot}</strong></span>
+                <span><i className="is-red" />缺镜头 <strong>{missing}</strong></span>
+              </div>
             </div>
-          </div>
+            <div className="storyboard-side-progress">
+              <span>素材占用 <strong>{workspace.assets.length * 3} GB / 1 TB</strong></span>
+              <Progress percent={62} showInfo={false} size="small" strokeColor="#73a5ff" />
+            </div>
+            <Button type="link" size="small" onClick={() => navigate(ROUTES.roughCut(DEMO_PROJECT_ID))}>
+              前往素材中心
+            </Button>
+          </section>
         </aside>
       </div>
     </section>

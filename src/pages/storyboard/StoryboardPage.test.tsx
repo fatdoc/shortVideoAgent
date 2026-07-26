@@ -41,7 +41,10 @@ describe('StoryboardPage', () => {
 
     const page = await screen.findByTestId('storyboard-page');
     expect(page).toBeInTheDocument();
-    expect(screen.getByText('分镜 / 拍摄清单')).toBeInTheDocument();
+    expect(screen.getAllByText('海底捞火锅·北京三里屯店探店视频').length).toBeGreaterThan(0);
+    expect(screen.getByText('拍摄任务')).toBeInTheDocument();
+    expect(screen.getByText('漏拍提醒')).toBeInTheDocument();
+    expect(screen.getByText('素材状态')).toBeInTheDocument();
     expect(within(page).getAllByTestId(/^storyboard-shot-#/)).toHaveLength(8);
     expect(screen.getByRole('tab', { name: '分镜视图' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '拍摄清单' })).toBeInTheDocument();
@@ -71,21 +74,18 @@ describe('StoryboardPage', () => {
     });
   });
 
-  it('marks blocking shots as shooting with batch action', async () => {
+  it('opens the shooting list from the primary toolbar action', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByTestId('storyboard-page');
-    await user.click(screen.getByRole('button', { name: /待补拍转拍摄中/ }));
+    await user.click(screen.getByRole('button', { name: /生成拍摄清单/ }));
 
     await waitFor(() => {
-      const workspace = useProjectStore.getState().workspace;
-      const byId: Record<string, string> = {};
-      for (const shot of workspace.storyboard) {
-        byId[shot.id] = shot.status;
-      }
-      expect(byId['shot-05']).toBe('shooting');
-      expect(byId['shot-07']).toBe('shooting');
+      expect(screen.getByRole('tab', { name: '拍摄清单' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
     });
   });
 

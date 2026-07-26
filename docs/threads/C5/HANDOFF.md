@@ -3,37 +3,49 @@
 - 当前分支：`(detached HEAD)`
 - 核心功能 Commit：`3fe4372`
 - 文档同步 Commit：`7380325`
-- 本轮视觉纠偏与验收 Commit：见 C5 最终汇报中的最新 HEAD
+- 第一轮视觉纠偏基线：`1c012a1`
+- 第二轮 P0 复刻与验收 Commit：见 C5 最终汇报中的最新 HEAD
 - 可运行页面：`/projects/demo-local-001/storyboard`
 - 关键文件：
   - `src/pages/storyboard/StoryboardPage.tsx`
   - `src/components/storyboard/storyboard.css`
+  - `src/components/storyboard/assets/shot-01.png` 至 `shot-08.png`
   - `src/components/storyboard/storyboardUtils.ts`
   - `src/components/storyboard/storyboardUtils.test.ts`
   - `src/pages/storyboard/StoryboardPage.test.tsx`
 - 已完成功能：
-  - 8 镜分镜展示 + 横向镜头行（真实仓库缩略图）
+  - breadcrumb、项目标题、执行状态、时长、画面数、版本、更新时间
+  - 拖拽排序、批量指派、生成拍摄清单、进入初剪四个顶部操作
+  - 8 镜分镜展示 + 横向紧凑镜头行（真实餐饮/门店缩略图）
+  - 默认展开镜头详情，展示拍摄建议、时段、设备、指派、状态和素材匹配
   - dnd-kit 拖拽排序，并同步归一化 `shot.order`
   - 展开编辑（拍摄时长/机位/风险/人员/匹配状态/拍摄状态）
   - 人员指派（单独与批量）
   - 素材匹配状态与缺镜/待补拍识别
   - 漏拍提醒与拍摄清单 Tab
-  - 右侧拍摄任务与阻塞统计
+  - 右侧拍摄任务、漏拍提醒、素材状态三个独立统计区
   - 进入初剪按钮与状态联动（阻塞镜头时禁用）
   - loading/empty/error/disabled 状态
-  - Wave 2.5 视觉纠偏：1440 宽保持双栏、压缩提示与镜头行、中文化拍摄状态
+  - 图 5 第二轮视觉纠偏：浅色紧凑工作台、1440 宽保持双栏、8 行首屏可见
   - 真浏览器验收截图：
     - `docs/threads/C5/artifacts/storyboard-1440x900.png`
     - `docs/threads/C5/artifacts/storyboard-1672x941.png`
+    - `docs/threads/C5/artifacts/storyboard-1440x900-shooting-list.png`
+    - `docs/threads/C5/artifacts/storyboard-1672x941-side-by-side.png`
+    - `docs/threads/C5/artifacts/storyboard-header-side-by-side.png`
+    - `docs/threads/C5/artifacts/storyboard-expanded-row-side-by-side.png`
+    - `docs/threads/C5/artifacts/storyboard-right-panels-side-by-side.png`
 - 未完成功能：无。
 - 已知问题：
   - `PROJECT_STATUS_LABEL` 与部分枚举在其他模块存在历史不一致；本页已做兼容展示。
-  - 统一 `workspace.assets` 当前缩略图为仓库内 SVG 素材，不由 C5 扩展图片 schema 或第二套 Mock。
-  - 全量测试中的 BrandBrain 超时、公共 smoke 的 dashboard 隐藏为跨任务既有失败，不计入 C5 定向验收。
-- 接手后的第一步：查看双尺寸截图并运行 C5 定向测试，再决定是否合入 Gate 3。
-- 验证方式：`npm run lint && npm run build && npm run test && npm run validate:governance`
+  - 统一 Demo 业务数据只有 8 镜，本页不复制参考图中的 `16`/`42` 统计，也不扩展 schema 或创建第二套 Mock。
+  - 全局壳层侧栏宽度与导航项不在 C5 修改权限内，作为 P3 约束保留。
+  - 全量测试中的 BrandBrain 超时、公共 smoke 的 dashboard 隐藏属于此前跨任务失败，不计入 C5 定向验收；本次 P0 紧急收口未重新执行全仓 test/governance。
+- 接手后的第一步：查看 `design-qa.md` 和双尺寸截图，按最终 hash 合入 C0。
+- 本轮验证：`npx vitest run src/pages/storyboard/StoryboardPage.test.tsx src/components/storyboard/storyboardUtils.test.ts`、`npm run lint`、`npm run build`。
 
 ## 验收边界
 
-- C5 定向：Storyboard 页面与工具测试、lint、build、governance。
-- 全仓：单独列出非 C5 失败，不以跨任务历史失败掩盖 C5 结果，也不越权修改其他页面。
+- C5 定向：Storyboard 页面与工具测试 `12/12` 通过，lint 通过，build 通过。
+- 浏览器：已有 1672×941、1440×900 与分区并排截图；最后一次工具异常不阻塞，按现有证据收口。
+- 全仓：未将跨任务历史失败包装成 C5 通过，也未越权修改其他页面。

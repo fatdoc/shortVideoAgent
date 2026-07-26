@@ -18,4 +18,4 @@ C0 决策：待定
 
 ## 当前请求
 
-无。2026-07-26 复核确认：C5 可直接消费现有 `activeScript`、`workspace.storyboard/assets`，无需扩展公共 API、schema 或第二套 Mock。
+无。2026-07-26 第二轮收口确认：C5 可直接消费现有 `activeScript`、script blocks、`workspace.storyboard/assets`，无需扩展公共 API、schema 或第二套 Mock；全局壳层差异作为权限边界内 P3 记录，不发起跨模块阻塞请求。
