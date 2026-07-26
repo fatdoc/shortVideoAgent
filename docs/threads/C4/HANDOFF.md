@@ -1,7 +1,7 @@
 # C4 HANDOFF
 
 - 当前分支：`detached-HEAD`
-- 当前 Commit：`(待提交)`
+- 当前 Commit：`9874d91`
 - 功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
 - 验收结论：`COMPLETED（视觉对齐完成，等待 C0 接口复核）`
 - Merge Commit：`1fa270b`
@@ -37,4 +37,4 @@
 
 ## Commit Hash
 
-- `(待提交)`（C4-UI Wave2.5 本轮）
+- `9874d91`（C4-UI Wave2.5 本轮）
