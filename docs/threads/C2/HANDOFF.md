@@ -1,8 +1,8 @@
 # C2 HANDOFF
 
 - 当前分支：`codex/c2-visual-polish-dashboard-brief`
-- 当前 Commit：`TBD`（待提交）
-- 功能 Commit：`TBD`（待提交）
+- 当前 Commit：`15ccceeb6dec69d8460af34af85b3120671c3c9d`
+- 功能 Commit：`15ccceeb6dec69d8460af34af85b3120671c3c9d`
 - 验收结论：`READY_FOR_C0_REVIEW`
 - Merge Commit：待入`integration`后补充
 - 可运行页面：
@@ -33,4 +33,4 @@
 
 ## Commit Hash
 
-- `TBD`
+- `15ccceeb6dec69d8460af34af85b3120671c3c9d`
