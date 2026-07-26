@@ -1,9 +1,10 @@
 # C4 HANDOFF
 
-- 当前分支：`detached-HEAD`
-- 当前 Commit：`9874d91`
-- 功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
-- 验收结论：`COMPLETED（视觉对齐完成，等待 C0 接口复核）`
+- 当前工作树：`detached-HEAD`
+- 本轮复核起点：`2c8ab9e`
+- Wave 2.5 实现 Commit：`9874d91`
+- Gate 2 原功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
+- 验收结论：`COMPLETED / REVERIFIED（视觉、行为、全量测试均可交 C0 验收）`
 - Merge Commit：`1fa270b`
 - C0 加固 Commit：`4cfba82`
 - 可运行页面：
@@ -28,13 +29,30 @@
 - 已知问题：
   - 可说性评分 / 风险为前端启发式，非后端合规引擎
   - 切换版本时若有未保存修改会 `window.confirm` 丢弃草稿（行为由 C4 设计）
+  - 历史记录中的 `BrandBrainPage` 全量测试超时本轮未复现：单文件 4/4、全量 43/43 均通过；且 `src/pages/brand-brain/**` 不在本轮 diff，判定为跨任务历史偶发，不是当前 C4 回归或阻塞
 - 接手后的第一步：
-  1. 从 Gate 2 后 `main` / `integration` 打开 `/projects/demo-local-001/script`
-  2. `npm run lint && npm run build && npm run test && npm run validate:governance`
-  3. 重点确认 1440×900 无横向裁切与布局稳定性，再转给 C0 复核
+  1. C0 在 Gate 2 后 `main` / `integration` 打开 `/projects/demo-local-001/script`
+  2. 对照 UI 图 4 确认顶部摘要、左侧版本、中部文档行、右侧事实/规则/风险/评分结构
+  3. 按下方证据复核行为与命令结果；无需处理 BrandBrain 超时
 - 运行方式：`npm install && npm run dev`
 - 验证方式：`npm run lint && npm run build && npm run test && npm run validate:governance`
 
+## C0 验收证据
+
+| 验收项 | 结果 |
+|---|---|
+| 1672×941 对照 UI 图 4 | 通过；三栏高密度编辑器结构与信息层级一致 |
+| 1440×900 横向裁切 | 通过；`scrollWidth = clientWidth = 1440` |
+| A/B/C、五段脚本、事实引用、评论、Mock 生成、评分/风险 | 保留；C4 定向测试覆盖关键行为 |
+| 保存失败不跳转、外部 reset 同步、Store / LocalStorage | 保留；页面测试与全量测试通过 |
+| C4 定向测试 | 2 files / 13 tests passed |
+| 全量测试 | 10 files / 43 tests passed；含 BrandBrain 4/4 |
+| lint | passed |
+| build | passed；仅保留项目既有的 chunk size warning |
+| governance | passed |
+| 修改范围 | 仅 C4 允许目录；未改 shell、domain、mock、其他业务页、UI 图片 |
+
 ## Commit Hash
 
-- `9874d91`（C4-UI Wave2.5 本轮）
+- `9874d91`（C4-UI Wave 2.5 视觉实现）
+- `2c8ab9e`（Wave 2.5 交接引用记录；本轮复核起点）
