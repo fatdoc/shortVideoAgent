@@ -54,6 +54,7 @@ export function ScriptEditorPage() {
   const loading = useProjectStore((s) => s.loading);
   const error = useProjectStore((s) => s.error);
   const hydrated = useProjectStore((s) => s.hydrated);
+  const lastAction = useProjectStore((s) => s.lastAction);
   const hydrate = useProjectStore((s) => s.hydrate);
   const setActiveScript = useProjectStore((s) => s.setActiveScript);
   const updateScript = useProjectStore((s) => s.updateScript);
@@ -81,7 +82,8 @@ export function ScriptEditorPage() {
       setDirty(false);
       return;
     }
-    if (dirty && draft && draft.id === activeFromStore.id) {
+    const forceResync = lastAction === 'hydrate' || lastAction === 'reset';
+    if (!forceResync && dirty && draft && draft.id === activeFromStore.id) {
       return;
     }
     const next = cloneScript(activeFromStore);
@@ -92,7 +94,7 @@ export function ScriptEditorPage() {
     });
     setDirty(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only resync when store script identity/content stamp changes
-  }, [activeFromStore?.id, activeFromStore?.createdAt, workspace.activeScriptId, hydrated]);
+  }, [activeFromStore, workspace.activeScriptId, hydrated, lastAction]);
 
   const focusedBlock = useMemo(
     () => draft?.blocks.find((b) => b.id === focusedBlockId) ?? draft?.blocks[0],
@@ -153,8 +155,8 @@ export function ScriptEditorPage() {
     }
   };
 
-  const handleSave = async () => {
-    if (!draft) return;
+  const handleSave = async (): Promise<boolean> => {
+    if (!draft) return false;
     setSaving(true);
     setLocalError(null);
     try {
@@ -163,10 +165,12 @@ export function ScriptEditorPage() {
       setDraft(cloneScript(scored));
       setDirty(false);
       message.success('脚本已保存到工作区');
+      return true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : '保存失败';
       setLocalError(msg);
       message.error(msg);
+      return false;
     } finally {
       setSaving(false);
     }
@@ -210,7 +214,8 @@ export function ScriptEditorPage() {
   const handleEnterStoryboard = async () => {
     if (!draft) return;
     if (dirty) {
-      await handleSave();
+      const saved = await handleSave();
+      if (!saved) return;
     }
     navigate(ROUTES.storyboard(DEMO_PROJECT_ID));
   };

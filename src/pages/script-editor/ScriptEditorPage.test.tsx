@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -8,6 +8,8 @@ import { useProjectStore } from '../../stores/projectStore';
 import { clearWorkspace } from '../../services/storage';
 import { cloneDemoWorkspace } from '../../mocks/demoWorkspace';
 import { DEMO_PROJECT_ID } from '../../domain/constants';
+
+const updateScriptAction = useProjectStore.getState().updateScript;
 
 function renderPage(path = `/projects/${DEMO_PROJECT_ID}/script`) {
   return render(
@@ -32,6 +34,7 @@ describe('ScriptEditorPage', () => {
       error: null,
       hydrated: true,
       lastAction: null,
+      updateScript: updateScriptAction,
     });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
@@ -121,5 +124,44 @@ describe('ScriptEditorPage', () => {
     await screen.findByTestId('script-editor-page');
     await user.click(screen.getByTestId('script-to-storyboard-btn'));
     expect(await screen.findByText('分镜页占位')).toBeInTheDocument();
+  });
+
+  it('stays in the editor when a dirty draft cannot be saved before navigation', async () => {
+    const user = userEvent.setup();
+    useProjectStore.setState({
+      updateScript: vi.fn().mockRejectedValue(new Error('模拟保存失败')),
+    });
+    renderPage();
+    await screen.findByTestId('script-editor-page');
+
+    const hookInput = screen.getByTestId('script-block-content-hook');
+    await user.clear(hookInput);
+    await user.type(hookInput, '这条脏稿不应在保存失败后进入分镜');
+    await user.click(screen.getByTestId('script-to-storyboard-btn'));
+
+    expect((await screen.findAllByText('模拟保存失败')).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('script-editor-page')).toBeInTheDocument();
+    expect(screen.queryByText('分镜页占位')).not.toBeInTheDocument();
+  });
+
+  it('resyncs the draft when the shared workspace is reset externally', async () => {
+    const user = userEvent.setup();
+    const initialHook = cloneDemoWorkspace().scripts[0].blocks.find(
+      (block) => block.type === 'hook',
+    )?.content;
+    renderPage();
+    await screen.findByTestId('script-editor-page');
+
+    const hookInput = screen.getByTestId('script-block-content-hook');
+    await user.clear(hookInput);
+    await user.type(hookInput, '等待外部重置的本地脏稿');
+    expect(screen.getByText('未保存')).toBeInTheDocument();
+
+    await act(async () => {
+      await useProjectStore.getState().reset();
+    });
+
+    expect(await screen.findByDisplayValue(initialHook ?? '')).toBeInTheDocument();
+    expect(screen.getByText('已同步')).toBeInTheDocument();
   });
 });
