@@ -3,6 +3,8 @@
 - 当前工作树：`detached-HEAD`
 - 本轮复核起点：`2c8ab9e`
 - Wave 2.5 实现 Commit：`9874d91`
+- 第二轮视觉基线：`4e708d0`
+- 第二轮视觉 Commit：`待提交`
 - Gate 2 原功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
 - 验收结论：`COMPLETED / REVERIFIED（视觉、行为、全量测试均可交 C0 验收）`
 - Merge Commit：`1fa270b`
@@ -51,6 +53,17 @@
 | build | passed；仅保留项目既有的 chunk size warning |
 | governance | passed |
 | 修改范围 | 仅 C4 允许目录；未改 shell、domain、mock、其他业务页、UI 图片 |
+
+## 图 4 第二轮收口
+
+- 顶部：合并为参考图式项目标题、状态、六组元数据与紧凑操作区；保留重新生成、口语化、精简、生成分镜、保存版本、还原草稿的老板演示动作。
+- 左侧：A/B/C 版本信息收回同一栏，展示评分、特征、字数、时长和当前态；移除重复版本摘要大卡。
+- 中部：五段脚本改为紧凑文档行，评论入口置于行头；事实说明保留为可访问隐藏语义，不再重复占据画面。
+- 右侧：事实引用改为五行首屏摘要，品牌规则改为正向适用规则，风险与评分压缩为参考图比例。
+- 同尺寸：最终 1672×941 三栏为 276 / 688 / 420px，主布局位于 y=196—909；全部关键区首屏可见。
+- 响应式：1440×900 实测 `scrollWidth = clientWidth = 1440`，无横向裁切。
+- 检查：C4 定向 2 files / 13 tests passed；lint passed；build passed（仅既有 chunk size warning）。
+- 设计验收：[DESIGN_QA.md](./DESIGN_QA.md)，`final result: passed`。
 
 ## Commit Hash
 

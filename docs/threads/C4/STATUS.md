@@ -1,6 +1,6 @@
 # C4 STATUS
 
-- 当前状态：`COMPLETED / REVERIFIED`
+- 当前状态：`COMPLETED / ROUND 2 VISUAL PASSED`
 - 当前任务：Wave 2.5 视觉纠偏（脚本生成与编辑）
 - 已完成：
   - 保留并验证 A/B/C 脚本版本切换（`store.setActiveScript`）
@@ -12,9 +12,13 @@
   - 以 1672×941 对照 UI 图 4 完成实页复核；1440×900 实测页面 `scrollWidth = clientWidth = 1440`，无横向裁切
   - C4 定向测试 13/13、全量测试 43/43 通过；`BrandBrainPage` 单文件 4/4 通过
   - 重新执行 `lint / build / test / validate:governance`，全部通过
+  - 第二轮以 `4e708d0` 为基线重做图 4 首屏：单一项目头、A/B/C 完整版本卡、五段文档行、紧凑事实/品牌规则/风险/评分
+  - 去除 Mock/Store 说明条、独立版本摘要大卡、脚本块重复事实说明和空评论文案
+  - 1672×941 同尺寸最终对照无 P0/P1/P2；1440×900 实测 `scrollWidth = 1440`
+  - 第二轮 C4 定向测试 13/13、lint、build 通过
   - 提交并向 C0 回传
 - 尚未开始：无（范围内）
 - 阻塞：无
-- 下一步：等待 C0 按 HANDOFF 验收清单确认 Wave 2.5
+- 下一步：等待 C0 集成第二轮视觉提交
 - 跨任务说明：此前全量测试中的 `BrandBrainPage` 超时本轮未复现；该文件不在 C4 改动范围，当前单文件与全量测试均通过，不构成 C4 阻塞或回归
 - 最近更新时间：2026-07-26（gpt-5.6-sol / xhigh 复核）

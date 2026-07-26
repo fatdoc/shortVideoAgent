@@ -1,4 +1,5 @@
-import { Progress, Space, Tag, Typography } from 'antd';
+import { Button, Switch, Tag, Typography } from 'antd';
+import { CheckCircleFilled, PlusOutlined } from '@ant-design/icons';
 import type { ScriptVersion } from '../../domain/types';
 import { VERSION_ACCENT } from './scriptHelpers';
 
@@ -7,6 +8,16 @@ interface ScriptVersionTabsProps {
   activeScriptId: string;
   loading?: boolean;
   onChange: (scriptId: string) => void;
+}
+
+const VERSION_TRAITS: Record<string, string[]> = {
+  'script-a': ['情绪吸引强', '信息完整', '转化引导好'],
+  'script-b': ['亮点突出', '节奏紧凑', 'CTA 稍弱'],
+  'script-c': ['信息完整', '钩子较弱', '互动性一般'],
+};
+
+function countCharacters(script: ScriptVersion): number {
+  return script.blocks.reduce((sum, block) => sum + block.content.length, 0);
 }
 
 export function ScriptVersionTabs({
@@ -18,13 +29,15 @@ export function ScriptVersionTabs({
   return (
     <div className="script-panel-card">
       <div className="script-panel-title">
-        <Typography.Text strong>脚本版本 A / B / C</Typography.Text>
-        <Tag color="default">{scripts.length} 版</Tag>
+        <Typography.Text strong>脚本版本</Typography.Text>
+        <span className="script-quick-compare">快速对比 <Switch size="small" /></span>
       </div>
       <div className="script-version-list" role="listbox" aria-label="脚本版本列表">
         {scripts.map((script) => {
           const active = script.id === activeScriptId;
           const accent = VERSION_ACCENT[script.id] ?? '#1677FF';
+          const letter = script.id.slice(-1).toUpperCase();
+          const traits = VERSION_TRAITS[script.id] ?? [];
           return (
             <button
               key={script.id}
@@ -39,39 +52,36 @@ export function ScriptVersionTabs({
               data-testid={`script-version-${script.id}`}
             >
               <div className="script-version-item-head">
-                <span className="script-version-name" style={{ color: active ? accent : undefined }}>
-                  {script.name}
+                <span className="script-version-identity">
+                  <span className="script-version-letter">{letter}</span>
+                  {active ? <Tag color="blue">当前版本</Tag> : null}
                 </span>
-                <Tag color={active ? 'processing' : 'default'}>{script.score} 分</Tag>
+                {active ? (
+                  <CheckCircleFilled style={{ color: accent }} />
+                ) : (
+                  <span className="script-version-radio" />
+                )}
+              </div>
+              <div className="script-version-score">
+                <span>综合评分</span>
+                <strong>{script.score}<small>分</small></strong>
+                <Tag color={script.score >= 85 ? 'success' : script.score >= 80 ? 'warning' : 'default'}>
+                  {script.score >= 85 ? '优秀' : script.score >= 80 ? '良好' : '一般'}
+                </Tag>
+              </div>
+              <div className="script-version-traits">
+                {traits.map((trait) => <Tag key={trait}>{trait}</Tag>)}
               </div>
               <div className="script-version-meta">
-                预估 {script.estimatedDuration}s · 引用 {script.citations.length} 条
+                字数：{countCharacters(script)}字 · 预计时长：00:{String(script.estimatedDuration).padStart(2, '0')}
               </div>
-              <Progress
-                percent={script.score}
-                size="small"
-                showInfo={false}
-                strokeColor={accent}
-                style={{ marginTop: 8, marginBottom: 0 }}
-              />
-              <Space size={4} className="script-version-citations" wrap>
-                {script.citations.length > 0 ? (
-                  script.citations.map((id) => (
-                    <Tag key={id} color={active ? 'blue' : 'default'}>
-                      {id}
-                    </Tag>
-                  ))
-                ) : (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    暂无事实引用
-                  </Typography.Text>
-                )}
-              </Space>
-              {active ? <Tag color="blue">当前编辑</Tag> : null}
             </button>
           );
         })}
       </div>
+      <Button block size="small" icon={<PlusOutlined />} className="script-new-version">
+        新建版本
+      </Button>
     </div>
   );
 }

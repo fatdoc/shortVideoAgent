@@ -9,14 +9,13 @@ import {
 } from 'antd';
 import {
   CommentOutlined,
+  HolderOutlined,
   LinkOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import type { Claim, ScriptBlock } from '../../domain/types';
-import { StatusTag } from '../common/StatusTag';
 import {
-  BLOCK_TYPE_HINT,
   BLOCK_TYPE_LABEL,
   detectProhibitedHits,
   formatShortTime,
@@ -50,7 +49,7 @@ export function ScriptBlockEditor({
   const [commentDraft, setCommentDraft] = useState('');
   const [showComments, setShowComments] = useState(block.comments.length > 0);
   const hits = detectProhibitedHits(block.content, prohibitedWords);
-  const factMap = new Map(facts.map((f) => [f.id, f]));
+  const factMap = new Map(facts.map((fact) => [fact.id, fact]));
 
   const riskClass =
     block.riskLevel === 'high'
@@ -73,10 +72,10 @@ export function ScriptBlockEditor({
       onClick={onFocus}
     >
       <div className="script-block-head">
-        <div>
-          <div className="script-block-type">
+        <div className="script-block-type">
+          <HolderOutlined className="script-block-drag" />
+          <div>
             <span className="script-block-type-label">{BLOCK_TYPE_LABEL[block.type]}</span>
-            <StatusTag kind="risk" value={block.riskLevel} />
             {hits.length > 0 ? (
               <Tooltip title={`禁用词：${hits.join('、')}`}>
                 <Tag icon={<WarningOutlined />} color="error">
@@ -85,11 +84,8 @@ export function ScriptBlockEditor({
               </Tooltip>
             ) : null}
           </div>
-          <Typography.Text type="secondary" className="script-block-hint">
-            {BLOCK_TYPE_HINT[block.type]}
-          </Typography.Text>
         </div>
-        <Space.Compact size="small" onClick={(event) => event.stopPropagation()}>
+        <div className="script-block-tools" onClick={(event) => event.stopPropagation()}>
           <InputNumber
             min={1}
             max={30}
@@ -98,16 +94,26 @@ export function ScriptBlockEditor({
             disabled={disabled}
             onChange={(value) => onDurationChange(Number(value) || 1)}
             className="script-duration-input"
+            formatter={(value) => `00:${String(value ?? 0).padStart(2, '0')}`}
+            parser={(value) => Number(value?.replace('00:', '') || 1)}
           />
-          <span className="script-duration-label">s</span>
-        </Space.Compact>
+          <Button
+            size="small"
+            type="text"
+            icon={<CommentOutlined />}
+            onClick={() => setShowComments((value) => !value)}
+            aria-label={`评论 ${block.comments.length}`}
+          >
+            {block.comments.length || ''}
+          </Button>
+        </div>
       </div>
 
       <Input.TextArea
         className="script-block-textarea"
         value={block.content}
         disabled={disabled}
-        autoSize={{ minRows: 2, maxRows: 5 }}
+        autoSize={{ minRows: 1, maxRows: 3 }}
         placeholder={`填写 ${BLOCK_TYPE_LABEL[block.type]} 文案`}
         onFocus={onFocus}
         onChange={(event) => onContentChange(event.target.value)}
@@ -115,63 +121,35 @@ export function ScriptBlockEditor({
       />
 
       <div className="script-block-meta-row" onClick={(event) => event.stopPropagation()}>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              <LinkOutlined /> 事实引用
-            </Typography.Text>
-            {block.claimIds.length > 0 ? (
-              <Space size={6} wrap>
-                {block.claimIds.map((id) => (
-                  <Tag.CheckableTag
-                    key={id}
-                    checked
-                    className="script-claim-chip"
-                    onChange={() => {
-                      if (!disabled) onToggleClaim(id);
-                    }}
-                    data-testid={`script-block-${block.type}-claim-${id}`}
-                  >
-                    {id}
-                  </Tag.CheckableTag>
-                ))}
-              </Space>
-            ) : (
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            当前未绑定事实
-          </Typography.Text>
+        <LinkOutlined />
+        {block.claimIds.length > 0 ? (
+          <Space size={4} wrap>
+            {block.claimIds.map((id) => (
+              <Tag.CheckableTag
+                key={id}
+                checked
+                className="script-claim-chip"
+                onChange={() => {
+                  if (!disabled) onToggleClaim(id);
+                }}
+                data-testid={`script-block-${block.type}-claim-${id}`}
+              >
+                {id}
+              </Tag.CheckableTag>
+            ))}
+          </Space>
+        ) : (
+          <Typography.Text type="secondary">未引用事实</Typography.Text>
         )}
+        {block.claimIds.length > 0 ? (
+          <span className="script-sr-only">
+            {block.claimIds.map((id) => factMap.get(id)?.text ?? '').join(' ')}
+          </span>
+        ) : null}
       </div>
 
-      {block.claimIds.length > 0 ? (
-        <div className="script-claim-descriptions">
-          {block.claimIds.map((id) => {
-            const fact = factMap.get(id);
-            return (
-              <Typography.Paragraph key={id} type="secondary" style={{ marginBottom: 2, fontSize: 12 }}>
-                <Tag color="blue" style={{ marginRight: 6 }}>
-                  {id}
-                </Tag>
-                {fact?.text ?? '（事实不存在）'}
-              </Typography.Paragraph>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className="script-comment-block" onClick={(event) => event.stopPropagation()}>
-        <Space wrap>
-          <Button
-            size="small"
-            type="text"
-            icon={<CommentOutlined />}
-            onClick={() => setShowComments((v) => !v)}
-          >
-            评论 {block.comments.length > 0 ? `(${block.comments.length})` : ''}
-          </Button>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            {block.comments.length ? `${block.comments.length} 条评论` : '暂无评论'}
-          </Typography.Text>
-        </Space>
-        {showComments ? (
+      {showComments ? (
+        <div className="script-comment-block" onClick={(event) => event.stopPropagation()}>
           <div className="script-comment-list">
             {block.comments.map((comment) => (
               <div key={comment.id} className="script-comment-item">
@@ -195,8 +173,8 @@ export function ScriptBlockEditor({
               </Button>
             </Space.Compact>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -23,50 +23,42 @@ function scoreColor(value: number): string {
 }
 
 export function ScriptScorePanel({ score, breakdown, versionName }: ScriptScorePanelProps) {
-  const color = scoreColor(score);
   return (
     <div className="script-panel-card" data-testid="script-score-panel">
       <div className="script-panel-title">
         <Typography.Text strong>可说性评分</Typography.Text>
       </div>
-      <div className="script-score-ring">
+      <div className="script-score-body" aria-label={`${versionName} 可说性 ${score}`}>
         <Progress
-          type="dashboard"
+          type="circle"
           percent={score}
-          size={108}
-          strokeColor={color}
+          size={104}
+          strokeColor={{ '0%': '#1677ff', '100%': '#20c77a' }}
           format={(percent) => (
-            <div style={{ lineHeight: 1.2 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color }}>{percent}</div>
-              <div style={{ fontSize: 12, color: '#8c8c8c' }}>分</div>
+            <div className="script-score-value">
+              <small>综合评分</small>
+              <strong>{percent}</strong>
+              <em>{Number(percent) >= 85 ? '优秀' : Number(percent) >= 70 ? '良好' : '一般'}</em>
             </div>
           )}
         />
-        <div>
-          <Typography.Text strong style={{ display: 'block' }}>
-            {versionName}
-          </Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            综合结构、引用、风险、时长与 Disclaimer
-          </Typography.Text>
+        <div className="script-score-metrics">
+          {METRICS.map((item) => {
+            const value = breakdown[item.key];
+            return (
+              <div key={item.key} className="script-score-metric-row">
+                <span>{item.label}</span>
+                <Progress
+                  percent={value}
+                  size="small"
+                  showInfo={false}
+                  strokeColor={scoreColor(value)}
+                />
+                <span>{value}</span>
+              </div>
+            );
+          })}
         </div>
-      </div>
-      <div className="script-score-metrics">
-        {METRICS.map((item) => {
-          const value = breakdown[item.key];
-          return (
-            <div key={item.key} className="script-score-metric-row">
-              <span>{item.label}</span>
-              <Progress
-                percent={value}
-                size="small"
-                showInfo={false}
-                strokeColor={scoreColor(value)}
-              />
-              <span style={{ textAlign: 'right', fontWeight: 600 }}>{value}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );

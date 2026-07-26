@@ -2,15 +2,19 @@ import {
   Alert,
   App,
   Button,
-  Space,
   Tag,
   Typography,
 } from 'antd';
 import {
-  ArrowRightOutlined,
+  CheckCircleFilled,
+  EllipsisOutlined,
+  LeftOutlined,
+  MessageOutlined,
   ReloadOutlined,
   SaveOutlined,
   ThunderboltOutlined,
+  UnorderedListOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -29,6 +33,7 @@ import {
   buildRiskItems,
   cloneScript,
   computeSayability,
+  formatShortTime,
   mockGenerateScript,
   sortBlocks,
   toggleClaimOnBlock,
@@ -44,6 +49,12 @@ import { useProjectStore } from '../../stores/projectStore';
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const BRAND_RULES = [
+  '禁止与其他火锅品牌直接对比',
+  '不得夸大或虚假承诺服务效果',
+  '需体现服务特色与顾客体验',
+];
 
 export function ScriptEditorPage() {
   const { message } = App.useApp();
@@ -222,12 +233,21 @@ export function ScriptEditorPage() {
     navigate(ROUTES.storyboard(DEMO_PROJECT_ID));
   };
 
-  const summaryItems = [
-    `平台 ${brief.platforms.join(' / ') || '未选平台'}`,
-    `比例 ${brief.aspectRatio}`,
-    `目标 ${brief.duration}s`,
-    `CTA：${brief.cta}`,
+  const handleQuickAdjust = (mode: 'spoken' | 'concise') => {
+    if (!draft) return;
+    setDirty(true);
+    message.success(mode === 'spoken' ? '已应用更口语化建议（Mock）' : '已应用精简建议（Mock）');
+  };
+
+  const projectMeta = [
+    ['项目', '海底捞探店系列'],
+    ['场景', '到店探店'],
+    ['受众', '18-35 岁 本地人群'],
+    ['时长', `15-${brief.duration}s`],
+    ['脚本语言', '中文'],
+    ['更新时间', draft ? formatShortTime(draft.createdAt) : '--'],
   ];
+  const totalCharacters = draft?.blocks.reduce((sum, block) => sum + block.content.length, 0) ?? 0;
 
   const busy = loading || generating || saving || switching;
 
@@ -270,67 +290,80 @@ export function ScriptEditorPage() {
 
   return (
     <div className="script-editor-page" data-testid="script-editor-page">
-      <div className="script-editor-toolbar">
-        <div className="script-editor-toolbar-main">
-          <div className="script-editor-title-line">
-            <Typography.Title level={3} style={{ margin: 0 }}>
-              脚本生成与编辑
-            </Typography.Title>
-            {dirty ? <Tag color="orange">未保存</Tag> : <Tag color="success">已同步</Tag>}
+      <header className="script-project-header">
+        <Button
+          type="link"
+          size="small"
+          icon={<LeftOutlined />}
+          className="script-project-back"
+          onClick={() => navigate('/dashboard')}
+        >
+          返回脚本列表
+        </Button>
+        <div className="script-project-main">
+          <div className="script-project-summary">
+            <div className="script-project-title-line">
+              <Typography.Title level={3}>海底捞火锅 · 北京三里屯店探店脚本</Typography.Title>
+              <Tag>本地项目</Tag>
+              {dirty ? <Tag color="orange">未保存</Tag> : <Tag color="success">已同步</Tag>}
+            </div>
+            <div className="script-project-meta">
+              {projectMeta.map(([label, value]) => (
+                <span key={label}>
+                  <b>{label}：</b>{value}
+                </span>
+              ))}
+            </div>
           </div>
-          <Typography.Text type="secondary" className="script-editor-brief-line">
-            {workspace.project.name} · Hook / Body / Proof / CTA / Disclaimer · 事实引用 C1—C8
-          </Typography.Text>
-          <div className="script-brief-strip">
-            {summaryItems.map((item) => (
-              <span key={item} className="script-summary-item">
-                {item}
-              </span>
-            ))}
+          <div className="script-project-actions">
+            <Button
+              size="small"
+              icon={<ThunderboltOutlined />}
+              loading={generating}
+              disabled={busy && !generating}
+              onClick={() => void handleGenerate()}
+              data-testid="script-generate-btn"
+            >
+              重新生成
+            </Button>
+            <Button size="small" icon={<MessageOutlined />} disabled={busy} onClick={() => handleQuickAdjust('spoken')}>
+              更口语化
+            </Button>
+            <Button size="small" icon={<UnorderedListOutlined />} disabled={busy} onClick={() => handleQuickAdjust('concise')}>
+              精简
+            </Button>
+            <Button
+              size="small"
+              icon={<VideoCameraOutlined />}
+              loading={saving}
+              disabled={busy}
+              onClick={() => void handleEnterStoryboard()}
+              data-testid="script-to-storyboard-btn"
+            >
+              生成分镜
+            </Button>
+            <Button
+              size="small"
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={saving}
+              disabled={busy}
+              onClick={() => void handleSave()}
+              data-testid="script-save-btn"
+            >
+              保存版本
+            </Button>
+            <Button
+              size="small"
+              icon={dirty ? <ReloadOutlined /> : <EllipsisOutlined />}
+              disabled={busy}
+              aria-label="还原草稿"
+              title="还原草稿"
+              onClick={handleResetDraft}
+            />
           </div>
         </div>
-        <div className="script-editor-toolbar-actions">
-          <Button
-            size="small"
-            icon={<ThunderboltOutlined />}
-            loading={generating}
-            disabled={busy && !generating}
-            onClick={() => void handleGenerate()}
-            data-testid="script-generate-btn"
-          >
-            Mock 生成
-          </Button>
-          <Button
-            size="small"
-            icon={<ReloadOutlined />}
-            disabled={!dirty || busy}
-            onClick={handleResetDraft}
-          >
-            还原草稿
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            icon={<SaveOutlined />}
-            loading={saving}
-            disabled={!dirty || busy}
-            onClick={() => void handleSave()}
-            data-testid="script-save-btn"
-          >
-            保存脚本
-          </Button>
-          <Button
-            size="small"
-            icon={<ArrowRightOutlined />}
-            loading={saving}
-            disabled={busy}
-            onClick={() => void handleEnterStoryboard()}
-            data-testid="script-to-storyboard-btn"
-          >
-            进入分镜
-          </Button>
-        </div>
-      </div>
+      </header>
 
       {error || localError ? (
         <Alert
@@ -351,13 +384,6 @@ export function ScriptEditorPage() {
         />
       ) : null}
 
-      <div className="script-editor-subtitle">
-        <Typography.Text type="secondary">
-          生成、评分与风险为当前页面 mock 逻辑；保存与重置写入统一 Store / LocalStorage，供分镜页读取
-          activeScript。
-        </Typography.Text>
-      </div>
-
       <div className="script-editor-layout">
         <aside className="script-editor-left">
           <ScriptVersionTabs
@@ -366,64 +392,14 @@ export function ScriptEditorPage() {
             loading={busy}
             onChange={(id) => void handleSwitchVersion(id)}
           />
-          <div style={{ height: 12 }} />
-          <div className="script-panel-card">
-            <div className="script-panel-title">
-              <Typography.Text strong>版本卡</Typography.Text>
-            </div>
-            <div className="script-summary-grid">
-              <div className="script-summary-cell">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  当前版本
-                </Typography.Text>
-                <Typography.Text strong>{draft.name}</Typography.Text>
-              </div>
-              <div className="script-summary-cell">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  块数
-                </Typography.Text>
-                <Typography.Text strong>{draft.blocks.length}</Typography.Text>
-              </div>
-              <div className="script-summary-cell">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  估计时长
-                </Typography.Text>
-                <Typography.Text strong>{draft.estimatedDuration}s</Typography.Text>
-              </div>
-              <div className="script-summary-cell">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  引用
-                </Typography.Text>
-                <Typography.Text strong>{draft.citations.length}</Typography.Text>
-              </div>
-              <div className="script-summary-cell">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  风险项
-                </Typography.Text>
-                <Typography.Text strong>{riskItems.filter((i) => i.level !== 'none').length}</Typography.Text>
-              </div>
-              <div className="script-summary-cell">
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  可说性
-                </Typography.Text>
-                <Typography.Text strong>{sayability.overall}</Typography.Text>
-              </div>
-            </div>
-          </div>
         </aside>
 
         <section className="script-editor-center">
-          <div className="script-sticky-actions">
-            <Typography.Text strong>脚本文档（可编辑）</Typography.Text>
-            {focusedBlock ? (
-              <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
-                焦点：{BLOCK_TYPE_LABEL[focusedBlock.type]}
-              </Typography.Text>
-            ) : null}
-            <Space size={8} wrap>
-              <Tag color="blue">可说性 {sayability.overall}</Tag>
-              <Tag>风险项 {riskItems.filter((i) => i.level !== 'none').length}</Tag>
-            </Space>
+          <div className="script-document-tabs">
+            <button type="button" className="is-active">脚本编辑</button>
+            <button type="button" onClick={() => message.info('版本历史为演示视图')}>
+              版本历史 <span>8</span>
+            </button>
           </div>
           {generating ? (
             <LoadingState tip="正在 Mock 生成脚本版本..." minHeight={320} bordered={false} />
@@ -462,6 +438,12 @@ export function ScriptEditorPage() {
               ))}
             </div>
           )}
+          <div className="script-document-footer">
+            <Button type="text" size="small" onClick={() => message.info('已添加空白区块（Mock）')}>
+              + 添加区块
+            </Button>
+            <span>总时长预估：{draft.estimatedDuration}s · 字数：{totalCharacters}</span>
+          </div>
         </section>
 
         <aside className="script-editor-right">
@@ -482,34 +464,26 @@ export function ScriptEditorPage() {
               );
             }}
           />
-          <div style={{ height: 12 }} />
           <div className="script-panel-card">
             <div className="script-panel-title">
               <Typography.Text strong>品牌规则</Typography.Text>
-            </div>
-            {prohibitedWords.length === 0 ? (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                暂无禁用词规则
+              <Typography.Text type="secondary" className="script-panel-count">
+                {BRAND_RULES.length} 条适用中
               </Typography.Text>
-            ) : (
-              <div className="script-brand-grid">
-                {prohibitedWords.map((word) => (
-                  <Tag key={word} className="script-brand-tag">
-                    {word}
-                  </Tag>
-                ))}
-              </div>
-            )}
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              规则用于禁用词检测与实时风险提示
-            </Typography.Text>
+            </div>
+            <div className="script-brand-rules">
+              {BRAND_RULES.map((rule) => (
+                <div key={rule}>
+                  <CheckCircleFilled />
+                  <span>{rule}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{ height: 12 }} />
           <ScriptRiskPanel
             items={riskItems}
             onFocusBlock={(blockId) => setFocusedBlockId(blockId)}
           />
-          <div style={{ height: 12 }} />
           <ScriptScorePanel
             score={sayability.overall}
             breakdown={sayability}
