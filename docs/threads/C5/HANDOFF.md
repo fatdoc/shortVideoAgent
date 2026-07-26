@@ -1,12 +1,25 @@
 # C5 HANDOFF
 
-- 当前分支：`main`（待创建 `feat/c5-*`）
-- 当前 Commit：待线程首次提交后填写
-- 可运行页面：Gate 0 占位路由（见 ROUTES）
-- 关键文件：无业务交付
-- 已完成功能：无
-- 未完成功能：见 ROLE 负责范围
-- 已知问题：线程尚未启动
-- 接手后的第一步：阅读 `docs/prompts/C5_START.md` 与 ROLE
-- 运行方式：`npm install && npm run dev`
-- 验证方式：`npm run lint && npm run build && npm run test`
+- 当前分支：`(detached HEAD)`
+- 当前 Commit：待本轮提交后回填
+- 可运行页面：`/projects/demo-local-001/storyboard`
+- 关键文件：
+  - `src/pages/storyboard/StoryboardPage.tsx`
+  - `src/components/storyboard/storyboard.css`
+  - `src/components/storyboard/storyboardUtils.ts`
+  - `src/components/storyboard/storyboardUtils.test.ts`
+  - `src/pages/storyboard/StoryboardPage.test.tsx`
+- 已完成功能：
+  - 8 镜分镜展示 + 横向镜头行（真实仓库缩略图）
+  - dnd-kit 拖拽排序
+  - 展开编辑（拍摄时长/机位/风险/人员/匹配状态/拍摄状态）
+  - 人员指派（单独与批量）
+  - 素材匹配状态与缺镜/待补拍识别
+  - 漏拍提醒与拍摄清单 Tab
+  - 右侧拍摄任务与阻塞统计
+  - 进入初剪按钮与状态联动（阻塞镜头时禁用）
+  - loading/empty/error/disabled 状态
+- 未完成功能：无。
+- 已知问题：`PROJECT_STATUS_LABEL` 与部分枚举在其他模块存在历史不一致；本页已做兼容展示。
+- 接手后的第一步：`npm run lint && npm run build && npm run test && npm run validate:governance`（并完成视觉核验）
+- 验证方式：`npm run lint && npm run build && npm run test && npm run validate:governance`
