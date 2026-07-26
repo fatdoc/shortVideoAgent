@@ -1,27 +1,27 @@
 # C3 STATUS
 
 - 当前状态：`COMPLETED / READY_FOR_C0_REVIEW`
-- 当前任务：Wave 2.5 品牌 / 商家大脑视觉纠偏
-- 基线 Commit：`1b06bf8`
-- 功能 Commit：`1dd1db8a70e8b4f4cc934b3e7a24ac86eea40b48`
+- 当前任务：Wave 2.5 品牌 / 商家大脑第二轮视觉与业务纠偏
+- 基线 Commit：`78c0a7f75717600ad7ec8a65c868553612737291`
+- 第二轮 Commit：见本次最终交付 hash
 - 已完成：
-  - 保留 Gate 2 的 C1—C8、套餐、人物 IP、禁用词、引用、风险与 Store / LocalStorage 交互
-  - 顶部品牌选择 / 操作区与紧凑四指标
-  - 对齐图 3 的五 Tab 信息架构：商家资料、品牌规则、商品套餐、IP 人物记忆、事实库
-  - 默认商家资料页改为高密度三列：商家 + 事实、套餐 + 禁用词 + IP、引用 + 风险
-  - 事实表改为紧凑固定布局，修复窄列逐字竖排与 4797px 超高页面
-  - 轻边框、浅底、紧凑表格、状态色与 1440 响应式
-  - 恢复 `品牌 / 商家大脑` 三级标题语义，修复 smoke
-  - 修复商家编辑持久化测试超时
-- 验证：
-  - 1672×941 同尺寸对照：C3 页面结构与密度通过
-  - 1440×900：`scrollWidth = clientWidth = 1440`，无横向裁切
-  - 浏览器：五 Tab、编辑保存、默认页恢复通过，最终刷新 0 console error
-  - 定向测试：2 files / 8 tests PASS
-  - lint / build / 10 files 43 tests / governance：PASS
-- 正在进行：无
-- 尚未开始：无（C3 范围内）
+  - 严格按图 3 重构顶部标题 / 品牌选择 / 操作区、四指标、五 Tab 与首屏三列
+  - 三列实测约 `416 / 550 / 416px`，商家资料与事实区起点对齐参考图
+  - 同屏呈现三里屯门店资料、5 条套餐、C1—C8 事实、23 个禁用词、张勇老板 IP、引用记录与风险提醒
+  - 从仓库只读 UI 参考图裁取海底捞 Logo 与张勇头像，未手绘或生成占位
+  - 保留 Store / LocalStorage、事实状态保存、资料编辑、更多菜单与进入脚本流程
+  - 保留 Brief CTA 跨页业务记忆，并放在首屏以下以避免破坏图 3 密度
+- 视觉验收：
+  - `1672×941`：`scrollWidth = clientWidth = 1672`，同尺寸并排 C3 范围 P0 / P1 / P2 清零
+  - 首屏三列：`416 / 550 / 416px`；商家卡 `431px`；事实区 `y=745`
+  - `1440×900`：`scrollWidth = clientWidth = 1440`，无横向裁切
+  - 浏览器：五 Tab selected 状态全部通过；编辑保存与 Store 更新完成
+- 门禁：
+  - 定向：`1 file / 4 tests` PASS
+  - lint：PASS
+  - build：PASS（仅既有 chunk warning）
+  - 全量：`10 files / 43 tests` PASS
+  - governance：PASS
 - 阻塞：无
-- 非阻塞请求：`REQ-C3-002` 公共 shell/token 对齐；`REQ-C3-003` 品牌 Logo / 人物头像资产
-- 下一步：C0 对照图 3 复核并决定公共 shell / token / 资产请求
+- 外部范围：`REQ-C3-002` 公共 shell / token 对齐仍由 C0 决策
 - 最近更新时间：2026-07-26
