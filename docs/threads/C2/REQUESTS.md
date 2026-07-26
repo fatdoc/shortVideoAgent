@@ -29,3 +29,5 @@ C0 决策：待定
 - 临时方案：C2 分支保留原公共测试不越权修改
 - C0 决策：批准；C2 合入 integration 后由 C0 更新为正式 Dashboard / Brief / Brand / Script 导航与持久化断言
 - 决策日期：2026-07-26
+- 完成状态：`CLOSED`
+- 完成证据：`331bc7e`；Gate 2 跨页 smoke 由 `4cfba82` 进一步加固

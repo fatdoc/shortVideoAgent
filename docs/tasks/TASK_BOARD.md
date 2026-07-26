@@ -1,6 +1,6 @@
 # 任务看板 · TASK BOARD
 
-## Wave 0 · C0 Bootstrap（当前）
+## Wave 0 · C0 Bootstrap
 
 - [x] 范围冻结
 - [x] 共同记忆
@@ -40,17 +40,20 @@
 
 ## Wave 2 · C2 / C3 / C4 并行
 
-- [ ] C2 工作台 + Brief
-- [ ] C3 品牌大脑
-- [ ] C4 脚本编辑器
+- [x] C2 工作台 + Brief
+- [x] C3 品牌大脑
+- [x] C4 脚本编辑器
 
 ### Gate 2
 
-- 工作台可进 Brief
-- Brief 可保存
-- 品牌使用统一事实
-- 脚本读取统一项目
-- UI 基本一致
+- [x] 工作台可进 Brief
+- [x] Brief 可保存
+- [x] 品牌使用统一事实
+- [x] 脚本读取统一项目
+- [x] UI 基本一致
+
+**Gate 2 结论：PASS · APPROVE_MERGE（2026-07-26）**
+报告：`docs/tasks/GATE_2_REPORT.md`
 
 ## Wave 3 · C5 / C6 并行
 

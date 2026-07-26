@@ -3,6 +3,8 @@
 - 当前分支：`feat/c2-dashboard-brief`
 - 当前 Commit：`7360286e4a3282d721dc23b0c2cd462d657b24f6`
 - 功能 Commit：`7360286e4a3282d721dc23b0c2cd462d657b24f6`
+- 验收结论：`APPROVE_MERGE`
+- Merge Commit：`c61de87`
 - 可运行页面：
   - `/dashboard`
   - `/projects/new`
@@ -17,16 +19,14 @@
   - Mock 素材上传 + AI 建议 + 缺失项实时提醒
   - 保存走 `setBrief`，写入 LocalStorage；可进入品牌大脑或脚本
   - loading / empty / error / disabled 与保存失败不跳页
-- 未完成功能：
+- 不在本阶段范围：
   - 多项目真实列表与真实素材上传（明确不做）
-  - 公共 `src/tests/app.smoke.test.tsx` 升级由 C0 在 integration 处理（REQ-C2-001）
+  - 公共 `src/tests/app.smoke.test.tsx` 已由 C0 升级（REQ-C2-001 已关闭）
 - 已知问题：
-  - 全量测试中的 4 个 Gate1 placeholder smoke 断言需随业务页升级；C2 自有 4 项测试通过
-  - 主包约 1.06MB，延续 R-006，不阻塞 Gate2
+  - 主包约 1.29MB，延续 R-006，不阻塞 Gate 2
 - 接手后的第一步：
-  1. 打开 `/dashboard` 检查项目行、筛选、待办和生产流程
-  2. 打开 `/projects/new` 编辑 CTA / 素材 / AI 建议并保存
-  3. C0 合入 integration 后更新公共 smoke，再执行 Gate2 全量
+  1. 以 `main` / `integration` Gate 2 基线复测 `/dashboard` 与 `/projects/new`
+  2. 若后续数据协议变化，回归 Brief→Brand→Script smoke
 - 运行方式：`npm install && npm run dev`
 - 验证方式：`npm run lint && npm run build && npm run test -- src/pages/dashboard/DashboardPage.test.tsx src/pages/brief/BriefPage.test.tsx`
 

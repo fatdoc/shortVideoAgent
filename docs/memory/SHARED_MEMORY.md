@@ -1,8 +1,8 @@
 # SHARED MEMORY · 权威共同记忆
 
 > 仅 C0 可修改。C1—C7 只读。  
-> 更新时间：2026-07-26（Gate1 验收后）  
-> 当前 Gate：Gate 1（已通过，可启动 C2/C3/C4）
+> 更新时间：2026-07-26（Gate 2 验收后）
+> 当前 Gate：Gate 2（已通过，可启动 C5/C6）
 
 ## 项目目标
 
@@ -86,12 +86,14 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 
 ## 当前 Gate
 
-**Gate 1：PASS（APPROVE_MERGE）**
+**Gate 2：PASS（APPROVE_MERGE）**
 
-- C1 基座已验收：六路由、Store、LocalStorage、公共三态可用
-- 功能 Commit：`8432b6b0c71cb2b7746e5b5c544e8aa1aebcac14`
-- 报告：`docs/tasks/GATE_1_REPORT.md`
-- 下一波：并行 C2 / C3 / C4（Wave 2）
+- C2 工作台 / Brief、C3 品牌大脑、C4 脚本编辑器已验收并合入
+- Brief CTA 等统一数据可贯通 Brand 与 Script；脚本版本、编辑、保存与刷新持久化可用
+- Gate 2 集成加固 Commit：`4cfba82`
+- Gate 2 Chromium 主流程 Commit：`3226f27`
+- 报告：`docs/tasks/GATE_2_REPORT.md`
+- 下一波：并行 C5 / C6（Wave 3）
 
 ## 当前阻塞
 
@@ -109,16 +111,19 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 
 ## 最新决策
 
-7. 2026-07-26 Gate1：C1 基座 APPROVE_MERGE，允许启动 C2/C3/C4。
-
 1. 使用 npm + Vite React TS
 2. 统一 Demo 项目 ID = `demo-local-001`
 3. 业务页 Gate 0 仅占位，不提前做完整交互
 4. LocalStorage key = `videoagent:mvp:v1`
 5. UI 参考图保留在 `UI/`，不改名不修改像素
+6. Gate 1：C1 基座 APPROVE_MERGE，允许启动 C2/C3/C4
+7. C4 P0→P1：APPROVE_WITH_FOLLOWUPS；合入后由 C0 完成失败导航与外部重置加固
+8. C2 / C3：APPROVE_MERGE；公共 smoke / jsdom 适配由 C0 完成
+9. Gate 2：PASS，允许启动 C5/C6
 
 ## 当前风险
 
 - UI 参考图文件名含空格与特殊字符，引用时需注意路径编码
-- Playwright 浏览器二进制可能未预装，e2e 可能需额外 `npx playwright install`
-- 多线程并行前需 C1 先交付基座
+- CI / 新机器运行 e2e 前仍需执行 `npx playwright install chromium`
+- 生产构建主包约 1.29MB，后续需路由级拆包
+- `npm audit` 当前有 7 个 high（其中 production 2 个，React Router RSC advisory）；本 MVP 未使用 RSC，仍需依赖专项升级

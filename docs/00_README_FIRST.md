@@ -11,10 +11,10 @@
 
 ## 2. 当前 Gate
 
-**Gate 0（Bootstrap）**
+**Gate 2：PASS（2026-07-26）**
 
-目标：建立治理系统、共同记忆、数据协议、路由冻结、前端可运行骨架。  
-**不要在 Gate 0 开发六个完整业务页面。**
+C2 工作台 / Brief、C3 品牌大脑、C4 脚本编辑器已完成验收并合入；统一 Demo 数据可从 Brief 贯通品牌与脚本。
+下一阶段为 Wave 3：并行推进 C5 分镜与 C6 素材 / 初剪，并准备 Gate 3。
 
 ## 3. 新线程开始前必须阅读
 
@@ -78,9 +78,10 @@
 
 ## 9. 当前下一步
 
-1. Gate 0 通过后启动 **C1**
-2. 复制 `docs/prompts/C1_START.md` 到新 Codex 窗口
-3. C1 完成前端基座后再并行 C2 / C3 / C4
+1. 以 Gate 2 后的 `main` / `integration` 为统一基线
+2. 并行启动 C5 与 C6；C5 消费 `activeScript`，C6 消费统一 storyboard / assets / timeline
+3. 完成脚本→分镜→初剪数据闭环后执行 Gate 3
+4. 验收结论见 `docs/tasks/GATE_2_REPORT.md`
 
 ## 10. C0 如何验收
 

@@ -3,6 +3,9 @@
 - 当前分支：`feat/c4-script-editor`
 - 当前 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
 - 功能 Commit：`6f1cf3e0b5a68f328ef137896f15680a865e654a`
+- 验收结论：`APPROVE_WITH_FOLLOWUPS`（follow-ups 已关闭）
+- Merge Commit：`1fa270b`
+- C0 加固 Commit：`4cfba82`
 - 可运行页面：
   - `/projects/demo-local-001/script`（完整脚本编辑器）
 - 关键文件：
@@ -23,11 +26,11 @@
 - 已知问题：
   - 可说性评分 / 风险为前端启发式，非后端合规引擎
   - 切换版本时若有未保存修改会 `window.confirm` 丢弃草稿
-  - 并行线程若共享同一工作区目录，可能互相覆盖未提交文件（已只提交 C4 目录）
+  - 主包约 1.29MB，延续 R-006
 - 接手后的第一步：
-  1. `git checkout feat/c4-script-editor && npm install && npm run dev`
-  2. 打开 `/projects/demo-local-001/script`，切换 A/B/C，编辑并保存，Mock 生成，点进入分镜
-  3. C0 做 Gate Review 后合入 `integration`
+  1. 从 Gate 2 后 `main` / `integration` 打开 `/projects/demo-local-001/script`
+  2. C5 读取 `activeScript` 与五段 block，不复制脚本主数据
+  3. 回归保存失败不跳转、外部重置同步本地草稿
 - 运行方式：`npm install && npm run dev`
 - 验证方式：`npm run lint && npm run build && npm run test && npm run validate:governance`
 
