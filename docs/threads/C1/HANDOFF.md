@@ -1,7 +1,7 @@
 # C1 HANDOFF
 
 - 当前分支：`HEAD (detached)`，Gate 2 基线 `1b06bf8`
-- 实现 Commit：`待生成（提交后由文档闭环提交回填）`
+- 实现 Commit：`2f8976d`
 - 可运行页面：
   - `/dashboard`
   - `/projects/new`
@@ -64,4 +64,4 @@
 
 ## Commit Hash
 
-- 实现 Commit：`待生成（提交后由文档闭环提交回填）`
+- 实现 Commit：`2f8976d`
