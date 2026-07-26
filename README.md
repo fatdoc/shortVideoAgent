@@ -9,6 +9,12 @@
 
 ➡️ [docs/00_README_FIRST.md](./docs/00_README_FIRST.md)
 
+## 智能体总控交接
+
+若需把整个项目交接给新的编码智能体，复制：
+
+➡️ [docs/HANDOFF_TO_NEXT_AGENT.md](./docs/HANDOFF_TO_NEXT_AGENT.md)
+
 ## 快速启动
 
 ```bash
