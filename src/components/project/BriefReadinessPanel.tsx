@@ -16,12 +16,12 @@ export function BriefReadinessPanel({
     <div className={`brief-side-panel brief-readiness ${ready ? 'is-ready' : ''}`}>
       <div className="brief-side-title">
         <span>{ready ? <CheckCircleFilled /> : <ExclamationCircleFilled />}</span>
-        <Typography.Text strong>{ready ? 'Brief 已完整' : '缺失项提醒'}</Typography.Text>
+        <Typography.Text strong>缺失项检查</Typography.Text>
         <span className="brief-side-count">{missing.length}</span>
       </div>
       {ready ? (
         <Typography.Paragraph type="secondary">
-          项目、渠道、受众、CTA 与素材均已具备，可继续进入品牌大脑或脚本。
+          当前无缺失项。项目、渠道、受众、CTA 与素材均已具备，可继续生成脚本。
         </Typography.Paragraph>
       ) : (
         <ul className="brief-missing-list">

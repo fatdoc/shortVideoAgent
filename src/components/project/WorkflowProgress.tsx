@@ -3,11 +3,11 @@ import { Progress, Typography } from 'antd';
 
 const steps = [
   { label: 'Brief', threshold: 20 },
-  { label: '脚本', threshold: 38 },
+  { label: '脚本', threshold: 48 },
   { label: '分镜', threshold: 60 },
   { label: '素材', threshold: 70 },
   { label: '初剪', threshold: 85 },
-  { label: '审核', threshold: 94 },
+  { label: '审核', threshold: 92 },
   { label: '导出', threshold: 100 },
 ];
 
@@ -16,8 +16,8 @@ export function WorkflowProgress({ progress }: { progress: number }) {
     <div className="workflow-progress" data-testid="workflow-progress">
       <div className="project-section-heading">
         <div>
-          <Typography.Title level={5}>流程状态（全局）</Typography.Title>
-          <Typography.Text type="secondary">全部项目从 Brief 到审核导出的推进位置</Typography.Text>
+          <Typography.Title level={5}>生产流程</Typography.Title>
+          <Typography.Text type="secondary">Brief、脚本到审核导出的当前推进位置</Typography.Text>
         </div>
         <Typography.Text strong>{progress}%</Typography.Text>
       </div>

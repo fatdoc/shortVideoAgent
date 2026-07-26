@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>C2 1440x900 Evidence Harness</title>
+    <style>
+      html,
+      body {
+        width: 1440px;
+        height: 900px;
+        margin: 0;
+        overflow: hidden;
+        background: #f5f7fb;
+      }
+
+      iframe {
+        display: block;
+        width: 1440px;
+        height: 900px;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe id="viewport" title="1440x900 responsive evidence"></iframe>
+    <script>
+      const route = new URLSearchParams(window.location.search).get('route');
+      const viewport = document.querySelector('#viewport');
+      viewport.src =
+        route === 'brief' ? '/projects/new?evidence=1440x900' : '/dashboard?evidence=1440x900';
+      viewport.addEventListener('load', () => {
+        window.setTimeout(() => {
+          const doc = viewport.contentDocument;
+          document.documentElement.dataset.viewportWidth = String(viewport.contentWindow.innerWidth);
+          document.documentElement.dataset.viewportHeight = String(viewport.contentWindow.innerHeight);
+          document.documentElement.dataset.clientWidth = String(doc.documentElement.clientWidth);
+          document.documentElement.dataset.scrollWidth = String(doc.documentElement.scrollWidth);
+          document.documentElement.dataset.scrollHeight = String(doc.documentElement.scrollHeight);
+        }, 250);
+      });
+    </script>
+  </body>
+</html>

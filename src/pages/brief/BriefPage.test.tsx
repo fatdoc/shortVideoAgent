@@ -14,7 +14,7 @@ function renderPage() {
       <MemoryRouter initialEntries={['/projects/new']}>
         <Routes>
           <Route path="/projects/new" element={<BriefPage />} />
-          <Route path="/projects/:projectId/brand" element={<div>Brand route</div>} />
+          <Route path="/projects/:projectId/script" element={<div>Script route</div>} />
         </Routes>
       </MemoryRouter>
     </AppProviders>,
@@ -57,5 +57,24 @@ describe('BriefPage', () => {
     expect(screen.getByText('已有 7 个素材引用')).toBeInTheDocument();
     await user.click(screen.getByTestId('brief-ai-suggest'));
     expect(await screen.findByDisplayValue(/前 3 秒用三里屯深夜火锅场景/)).toBeInTheDocument();
+  });
+
+  it('exposes the five-step creation flow and routes both primary CTAs to script', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    expect(screen.getByText('Brief 填写')).toBeInTheDocument();
+    expect(screen.getByText('生成脚本')).toBeInTheDocument();
+    expect(screen.getByText('分镜与排期')).toBeInTheDocument();
+    expect(screen.getByText('素材与预算确认')).toBeInTheDocument();
+    expect(screen.getByText('完成创建')).toBeInTheDocument();
+    expect(screen.queryByText('品牌核验')).not.toBeInTheDocument();
+    const kuaishou = screen.getByRole('button', { name: '快手' });
+    expect(kuaishou).toHaveAttribute('aria-pressed', 'false');
+    await user.click(kuaishou);
+    expect(kuaishou).toHaveAttribute('aria-pressed', 'true');
+    const scriptButtons = screen.getAllByRole('button', { name: /下一步：生成脚本/ });
+    expect(scriptButtons).toHaveLength(2);
+    await user.click(scriptButtons[0]);
+    expect(await screen.findByText('Script route')).toBeInTheDocument();
   });
 });
