@@ -1,7 +1,7 @@
 # C6 HANDOFF
 
 - 当前分支：按当前 workspace 默认分支提交（未改动全局路由/壳层）
-- 当前 Commit：388bb72
+- 当前 Commit：e3f8895
 - 可运行页面：
   - `/dashboard`
   - `/projects/${DEMO_PROJECT_ID}/rough-cut`（以页面交互为准）
