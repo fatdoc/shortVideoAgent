@@ -8,7 +8,6 @@ import {
 } from 'antd';
 import {
   ArrowRightOutlined,
-  ExperimentOutlined,
   ReloadOutlined,
   SaveOutlined,
   ThunderboltOutlined,
@@ -189,7 +188,10 @@ export function ScriptEditorPage() {
         prohibitedWords,
         'refresh',
       );
-      const scored = applyScoreToScript(generated, computeSayability(generated, facts, prohibitedWords, brief.duration || 30));
+      const scored = applyScoreToScript(
+        generated,
+        computeSayability(generated, facts, prohibitedWords, brief.duration || 30),
+      );
       setDraft(scored);
       setDirty(true);
       setFocusedBlockId(scored.blocks[0]?.id ?? null);
@@ -219,6 +221,13 @@ export function ScriptEditorPage() {
     }
     navigate(ROUTES.storyboard(DEMO_PROJECT_ID));
   };
+
+  const summaryItems = [
+    `平台 ${brief.platforms.join(' / ') || '未选平台'}`,
+    `比例 ${brief.aspectRatio}`,
+    `目标 ${brief.duration}s`,
+    `CTA：${brief.cta}`,
+  ];
 
   const busy = loading || generating || saving || switching;
 
@@ -263,22 +272,26 @@ export function ScriptEditorPage() {
     <div className="script-editor-page" data-testid="script-editor-page">
       <div className="script-editor-toolbar">
         <div className="script-editor-toolbar-main">
-          <Typography.Title level={3} style={{ margin: 0 }}>
-            脚本生成与编辑
-          </Typography.Title>
-          <Typography.Text type="secondary">
+          <div className="script-editor-title-line">
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              脚本生成与编辑
+            </Typography.Title>
+            {dirty ? <Tag color="orange">未保存</Tag> : <Tag color="success">已同步</Tag>}
+          </div>
+          <Typography.Text type="secondary" className="script-editor-brief-line">
             {workspace.project.name} · Hook / Body / Proof / CTA / Disclaimer · 事实引用 C1—C8
           </Typography.Text>
           <div className="script-brief-strip">
-            <Tag color="blue">{brief.platforms.join(' / ') || '未选平台'}</Tag>
-            <Tag>{brief.aspectRatio}</Tag>
-            <Tag>目标 {brief.duration}s</Tag>
-            <Tag color="processing">CTA：{brief.cta}</Tag>
-            {dirty ? <Tag color="orange">未保存</Tag> : <Tag color="success">已同步</Tag>}
+            {summaryItems.map((item) => (
+              <span key={item} className="script-summary-item">
+                {item}
+              </span>
+            ))}
           </div>
         </div>
         <div className="script-editor-toolbar-actions">
           <Button
+            size="small"
             icon={<ThunderboltOutlined />}
             loading={generating}
             disabled={busy && !generating}
@@ -288,6 +301,7 @@ export function ScriptEditorPage() {
             Mock 生成
           </Button>
           <Button
+            size="small"
             icon={<ReloadOutlined />}
             disabled={!dirty || busy}
             onClick={handleResetDraft}
@@ -295,6 +309,7 @@ export function ScriptEditorPage() {
             还原草稿
           </Button>
           <Button
+            size="small"
             type="primary"
             icon={<SaveOutlined />}
             loading={saving}
@@ -305,7 +320,7 @@ export function ScriptEditorPage() {
             保存脚本
           </Button>
           <Button
-            type="default"
+            size="small"
             icon={<ArrowRightOutlined />}
             loading={saving}
             disabled={busy}
@@ -336,13 +351,12 @@ export function ScriptEditorPage() {
         />
       ) : null}
 
-      <Alert
-        type="info"
-        showIcon
-        icon={<ExperimentOutlined />}
-        message="演示说明"
-        description="生成、评分与风险均为前端 Mock 逻辑；保存后写入统一 store / LocalStorage，供分镜页读取 activeScript。"
-      />
+      <div className="script-editor-subtitle">
+        <Typography.Text type="secondary">
+          生成、评分与风险为当前页面 mock 逻辑；保存与重置写入统一 Store / LocalStorage，供分镜页读取
+          activeScript。
+        </Typography.Text>
+      </div>
 
       <div className="script-editor-layout">
         <aside className="script-editor-left">
@@ -352,36 +366,60 @@ export function ScriptEditorPage() {
             loading={busy}
             onChange={(id) => void handleSwitchVersion(id)}
           />
-          <div style={{ height: 16 }} />
+          <div style={{ height: 12 }} />
           <div className="script-panel-card">
             <div className="script-panel-title">
-              <Typography.Text strong>版本摘要</Typography.Text>
+              <Typography.Text strong>版本卡</Typography.Text>
             </div>
-            <Space direction="vertical" size={6} style={{ width: '100%' }}>
-              <Typography.Text>
-                当前：<Typography.Text strong>{draft.name}</Typography.Text>
-              </Typography.Text>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                块数 {draft.blocks.length} · 预估 {draft.estimatedDuration}s · 引用{' '}
-                {draft.citations.join('、') || '无'}
-              </Typography.Text>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                禁用词库 {prohibitedWords.length} 条 · 品牌事实 {facts.length} 条
-              </Typography.Text>
-            </Space>
+            <div className="script-summary-grid">
+              <div className="script-summary-cell">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  当前版本
+                </Typography.Text>
+                <Typography.Text strong>{draft.name}</Typography.Text>
+              </div>
+              <div className="script-summary-cell">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  块数
+                </Typography.Text>
+                <Typography.Text strong>{draft.blocks.length}</Typography.Text>
+              </div>
+              <div className="script-summary-cell">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  估计时长
+                </Typography.Text>
+                <Typography.Text strong>{draft.estimatedDuration}s</Typography.Text>
+              </div>
+              <div className="script-summary-cell">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  引用
+                </Typography.Text>
+                <Typography.Text strong>{draft.citations.length}</Typography.Text>
+              </div>
+              <div className="script-summary-cell">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  风险项
+                </Typography.Text>
+                <Typography.Text strong>{riskItems.filter((i) => i.level !== 'none').length}</Typography.Text>
+              </div>
+              <div className="script-summary-cell">
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  可说性
+                </Typography.Text>
+                <Typography.Text strong>{sayability.overall}</Typography.Text>
+              </div>
+            </div>
           </div>
         </aside>
 
-        <section className="script-editor-center script-panel-card" style={{ paddingTop: 0 }}>
+        <section className="script-editor-center">
           <div className="script-sticky-actions">
-            <Typography.Text strong>
-              段落编辑
-              {focusedBlock ? (
-                <Typography.Text type="secondary" style={{ fontWeight: 400, marginLeft: 8 }}>
-                  焦点：{BLOCK_TYPE_LABEL[focusedBlock.type]}
-                </Typography.Text>
-              ) : null}
-            </Typography.Text>
+            <Typography.Text strong>脚本文档（可编辑）</Typography.Text>
+            {focusedBlock ? (
+              <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
+                焦点：{BLOCK_TYPE_LABEL[focusedBlock.type]}
+              </Typography.Text>
+            ) : null}
             <Space size={8} wrap>
               <Tag color="blue">可说性 {sayability.overall}</Tag>
               <Tag>风险项 {riskItems.filter((i) => i.level !== 'none').length}</Tag>
@@ -427,17 +465,6 @@ export function ScriptEditorPage() {
         </section>
 
         <aside className="script-editor-right">
-          <ScriptScorePanel
-            score={sayability.overall}
-            breakdown={sayability}
-            versionName={draft.name}
-          />
-          <div style={{ height: 16 }} />
-          <ScriptRiskPanel
-            items={riskItems}
-            onFocusBlock={(blockId) => setFocusedBlockId(blockId)}
-          />
-          <div style={{ height: 16 }} />
           <ScriptClaimPanel
             facts={facts}
             activeClaimIds={focusedBlock?.claimIds ?? []}
@@ -454,6 +481,39 @@ export function ScriptEditorPage() {
                 toggleClaimOnBlock(current, focusedBlock.id, claimId, prohibitedWords),
               );
             }}
+          />
+          <div style={{ height: 12 }} />
+          <div className="script-panel-card">
+            <div className="script-panel-title">
+              <Typography.Text strong>品牌规则</Typography.Text>
+            </div>
+            {prohibitedWords.length === 0 ? (
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                暂无禁用词规则
+              </Typography.Text>
+            ) : (
+              <div className="script-brand-grid">
+                {prohibitedWords.map((word) => (
+                  <Tag key={word} className="script-brand-tag">
+                    {word}
+                  </Tag>
+                ))}
+              </div>
+            )}
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              规则用于禁用词检测与实时风险提示
+            </Typography.Text>
+          </div>
+          <div style={{ height: 12 }} />
+          <ScriptRiskPanel
+            items={riskItems}
+            onFocusBlock={(blockId) => setFocusedBlockId(blockId)}
+          />
+          <div style={{ height: 12 }} />
+          <ScriptScorePanel
+            score={sayability.overall}
+            breakdown={sayability}
+            versionName={draft.name}
           />
         </aside>
       </div>

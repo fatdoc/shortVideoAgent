@@ -85,33 +85,29 @@ export function ScriptBlockEditor({
               </Tooltip>
             ) : null}
           </div>
-          <div className="script-block-hint">{BLOCK_TYPE_HINT[block.type]}</div>
-        </div>
-        <Space size={8}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            时长
+          <Typography.Text type="secondary" className="script-block-hint">
+            {BLOCK_TYPE_HINT[block.type]}
           </Typography.Text>
-          <Space.Compact size="small" onClick={(event) => event.stopPropagation()}>
-            <InputNumber
-              min={1}
-              max={30}
-              size="small"
-              value={block.duration}
-              disabled={disabled}
-              onChange={(value) => onDurationChange(Number(value) || 1)}
-              style={{ width: 72 }}
-            />
-            <Button size="small" disabled>
-              s
-            </Button>
-          </Space.Compact>
-        </Space>
+        </div>
+        <Space.Compact size="small" onClick={(event) => event.stopPropagation()}>
+          <InputNumber
+            min={1}
+            max={30}
+            size="small"
+            value={block.duration}
+            disabled={disabled}
+            onChange={(value) => onDurationChange(Number(value) || 1)}
+            className="script-duration-input"
+          />
+          <span className="script-duration-label">s</span>
+        </Space.Compact>
       </div>
 
       <Input.TextArea
+        className="script-block-textarea"
         value={block.content}
         disabled={disabled}
-        autoSize={{ minRows: 2, maxRows: 6 }}
+        autoSize={{ minRows: 2, maxRows: 5 }}
         placeholder={`填写 ${BLOCK_TYPE_LABEL[block.type]} 文案`}
         onFocus={onFocus}
         onChange={(event) => onContentChange(event.target.value)}
@@ -119,50 +115,49 @@ export function ScriptBlockEditor({
       />
 
       <div className="script-block-meta-row" onClick={(event) => event.stopPropagation()}>
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          <LinkOutlined /> 事实引用
-        </Typography.Text>
-        {facts.map((fact) => {
-          const active = block.claimIds.includes(fact.id);
-          return (
-            <Tag.CheckableTag
-              key={fact.id}
-              checked={active}
-              className="script-claim-chip"
-              onChange={() => {
-                if (!disabled) onToggleClaim(fact.id);
-              }}
-              data-testid={`script-block-${block.type}-claim-${fact.id}`}
-            >
-              {fact.id}
-            </Tag.CheckableTag>
-          );
-        })}
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              <LinkOutlined /> 事实引用
+            </Typography.Text>
+            {block.claimIds.length > 0 ? (
+              <Space size={6} wrap>
+                {block.claimIds.map((id) => (
+                  <Tag.CheckableTag
+                    key={id}
+                    checked
+                    className="script-claim-chip"
+                    onChange={() => {
+                      if (!disabled) onToggleClaim(id);
+                    }}
+                    data-testid={`script-block-${block.type}-claim-${id}`}
+                  >
+                    {id}
+                  </Tag.CheckableTag>
+                ))}
+              </Space>
+            ) : (
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            当前未绑定事实
+          </Typography.Text>
+        )}
       </div>
 
       {block.claimIds.length > 0 ? (
-        <div style={{ marginTop: 4 }}>
+        <div className="script-claim-descriptions">
           {block.claimIds.map((id) => {
             const fact = factMap.get(id);
             return (
-              <Typography.Paragraph
-                key={id}
-                type="secondary"
-                style={{ marginBottom: 2, fontSize: 12 }}
-              >
-                <Tag color="blue">{id}</Tag>
+              <Typography.Paragraph key={id} type="secondary" style={{ marginBottom: 2, fontSize: 12 }}>
+                <Tag color="blue" style={{ marginRight: 6 }}>
+                  {id}
+                </Tag>
                 {fact?.text ?? '（事实不存在）'}
               </Typography.Paragraph>
             );
           })}
         </div>
-      ) : (
-        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          点击上方编号，或右侧事实库，将 C1—C8 绑定到本段
-        </Typography.Text>
-      )}
+      ) : null}
 
-      <div style={{ marginTop: 10 }} onClick={(event) => event.stopPropagation()}>
+      <div className="script-comment-block" onClick={(event) => event.stopPropagation()}>
         <Space wrap>
           <Button
             size="small"
@@ -172,6 +167,9 @@ export function ScriptBlockEditor({
           >
             评论 {block.comments.length > 0 ? `(${block.comments.length})` : ''}
           </Button>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {block.comments.length ? `${block.comments.length} 条评论` : '暂无评论'}
+          </Typography.Text>
         </Space>
         {showComments ? (
           <div className="script-comment-list">

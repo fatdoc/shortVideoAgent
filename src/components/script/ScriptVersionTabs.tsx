@@ -19,7 +19,7 @@ export function ScriptVersionTabs({
     <div className="script-panel-card">
       <div className="script-panel-title">
         <Typography.Text strong>脚本版本 A / B / C</Typography.Text>
-        <Tag color="blue">{scripts.length} 版</Tag>
+        <Tag color="default">{scripts.length} 版</Tag>
       </div>
       <div className="script-version-list" role="listbox" aria-label="脚本版本列表">
         {scripts.map((script) => {
@@ -32,6 +32,7 @@ export function ScriptVersionTabs({
               className={`script-version-item${active ? ' is-active' : ''}`}
               aria-selected={active}
               disabled={loading}
+              style={active ? { borderLeftColor: accent } : undefined}
               onClick={() => {
                 if (!active) onChange(script.id);
               }}
@@ -53,7 +54,7 @@ export function ScriptVersionTabs({
                 strokeColor={accent}
                 style={{ marginTop: 8, marginBottom: 0 }}
               />
-              <div className="script-version-citations">
+              <Space size={4} className="script-version-citations" wrap>
                 {script.citations.length > 0 ? (
                   script.citations.map((id) => (
                     <Tag key={id} color={active ? 'blue' : 'default'}>
@@ -65,12 +66,8 @@ export function ScriptVersionTabs({
                     暂无事实引用
                   </Typography.Text>
                 )}
-              </div>
-              {active ? (
-                <Space size={4} style={{ marginTop: 8 }}>
-                  <Tag color="blue">当前编辑</Tag>
-                </Space>
-              ) : null}
+              </Space>
+              {active ? <Tag color="blue">当前编辑</Tag> : null}
             </button>
           );
         })}
