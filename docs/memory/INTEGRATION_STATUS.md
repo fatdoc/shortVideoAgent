@@ -18,8 +18,8 @@
 
 | 分支 | 状态 |
 |---|---|
-| `main` | 待 Gate 2 报告提交后晋级 |
-| `integration` | C2/C3/C4 已合入，Gate 2 自动化通过 |
+| `main` | Gate 2 已晋级基线 |
+| `integration` | 与 `main` 同步 Gate 2 |
 | `feat/c1-foundation` | 已验收，已合并 |
 | `feat/c2-dashboard-brief` | 已验收，已合并 |
 | `feat/c3-brand-brain` | 已验收，已合并 |
