@@ -19,11 +19,11 @@ describe('app smoke', () => {
     });
   });
 
-  it('renders dashboard placeholder through router with demo data', async () => {
+  it('renders dashboard through router with unified demo data', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 3, name: '工作台 / 项目列表' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
     expect(screen.getByText('短视频 Agent')).toBeInTheDocument();
     expect(await screen.findByText('demo-local-001')).toBeInTheDocument();
     expect(screen.getByText('品牌事实')).toBeInTheDocument();
@@ -34,7 +34,7 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '工作台 / 项目列表' });
+    await screen.findByRole('heading', { level: 3, name: '工作台' });
 
     await user.click(screen.getByRole('menuitem', { name: /新建 \/ Brief/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' })).toBeInTheDocument();
@@ -52,30 +52,31 @@ describe('app smoke', () => {
     expect(await screen.findByRole('heading', { level: 3, name: '素材中心 / 初剪预览' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /工作台/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '工作台 / 项目列表' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
   });
 
-  it('supports store action from placeholder button', async () => {
+  it('persists Brief edits through the shared store', async () => {
     const user = userEvent.setup();
-    window.history.pushState({}, '', '/dashboard');
+    window.history.pushState({}, '', '/projects/new');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '工作台 / 项目列表' });
-    const switchBtn = await screen.findByRole('button', { name: /切换脚本版本/ });
-    const before = useProjectStore.getState().workspace.activeScriptId;
-    await user.click(switchBtn);
+    await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' });
+    const cta = screen.getByTestId('brief-cta');
+    await user.clear(cta);
+    await user.type(cta, '领取团购券并到店核销');
+    await user.click(screen.getByTestId('brief-save'));
 
     await waitFor(() => {
       const state = useProjectStore.getState();
-      expect(state.lastAction).toBe('setActiveScript');
-      expect(state.workspace.activeScriptId).not.toBe(before);
+      expect(state.lastAction).toBe('setBrief');
+      expect(state.workspace.brief.cta).toBe('领取团购券并到店核销');
     });
   });
 
   it('shows shell chrome and demo project chip', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
-    await screen.findByRole('heading', { level: 3, name: '工作台 / 项目列表' });
+    await screen.findByRole('heading', { level: 3, name: '工作台' });
     expect(screen.getByRole('button', { name: /重置 Demo/ })).toBeInTheDocument();
     expect(screen.getByText(/Demo：海底捞/)).toBeInTheDocument();
     // sidebar footer id
