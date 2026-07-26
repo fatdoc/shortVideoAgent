@@ -18,10 +18,18 @@ const statusLabels: Record<ClaimStatus, string> = {
   rejected: '已驳回',
 };
 
+const statusColors: Record<ClaimStatus, string> = {
+  approved: 'green',
+  pending: 'orange',
+  expired: 'magenta',
+  rejected: 'red',
+};
+
 interface BrandFactsTableProps {
   facts: Claim[];
   scripts: ScriptVersion[];
   disabled?: boolean;
+  className?: string;
   onStatusChange: (claimId: string, status: ClaimStatus) => void;
 }
 
@@ -29,6 +37,7 @@ export function BrandFactsTable({
   facts,
   scripts,
   disabled,
+  className,
   onStatusChange,
 }: BrandFactsTableProps) {
   const [query, setQuery] = useState('');
@@ -46,8 +55,8 @@ export function BrandFactsTable({
   );
 
   return (
-    <div className="brand-facts-panel" data-testid="brand-facts-panel">
-      <div className="brand-panel-heading">
+    <div className={`brand-facts-panel ${className ?? ''}`} data-testid="brand-facts-panel">
+      <div className="brand-panel-heading brand-facts-heading">
         <div>
           <Typography.Title level={5}>事实语料与口吻</Typography.Title>
           <Typography.Text type="secondary">C1—C8 是脚本引用的唯一事实来源</Typography.Text>
@@ -59,12 +68,12 @@ export function BrandFactsTable({
             placeholder="搜索编号 / 文案 / 来源"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            style={{ width: 220 }}
+            className="brand-fact-search"
           />
           <Select
             value={type}
             onChange={setType}
-            style={{ width: 110 }}
+            className="brand-fact-type-select"
             options={[
               { value: 'all', label: '全部类型' },
               ...Object.entries(typeLabels).map(([value, label]) => ({ value, label })),
@@ -72,77 +81,86 @@ export function BrandFactsTable({
           />
         </div>
       </div>
-      <Table<Claim>
-        rowKey="id"
-        size="small"
-        pagination={false}
-        dataSource={rows}
-        locale={{
-          emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的事实" />,
-        }}
-        columns={[
-          {
-            title: '编号',
-            dataIndex: 'id',
-            width: 66,
-            render: (value: string) => <Tag color="blue">{value}</Tag>,
-          },
-          {
-            title: '事实内容',
-            dataIndex: 'text',
-            render: (value: string, record) => (
-              <div className="brand-fact-content">
-                <Typography.Text>{value}</Typography.Text>
-                <Typography.Text type="secondary">
-                  {typeLabels[record.type]} · 来源 {record.source}
-                </Typography.Text>
-              </div>
-            ),
-          },
-          {
-            title: '可信度',
-            dataIndex: 'confidence',
-            width: 150,
-            render: (value: number) => (
-              <div className="brand-confidence-cell">
-                <Progress
-                  percent={Math.round(value * 100)}
-                  size="small"
-                  showInfo={false}
-                  strokeColor={value >= 0.9 ? '#52c41a' : '#faad14'}
-                />
-                <span>{Math.round(value * 100)}%</span>
-              </div>
-            ),
-          },
-          {
-            title: '脚本引用',
-            width: 92,
-            render: (_, record) => {
-              const count = scripts.filter((script) => script.citations.includes(record.id)).length;
-              return <Typography.Text>{count} 个版本</Typography.Text>;
+        <Table<Claim>
+          className="brand-facts-table"
+          rowKey="id"
+          size="small"
+          tableLayout="fixed"
+          pagination={false}
+          dataSource={rows}
+          locale={{
+            emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的事实" />,
+          }}
+          columns={[
+            {
+              title: '编号',
+              dataIndex: 'id',
+              width: 46,
+              render: (value: string) => (
+                <Tag color="blue" className="brand-fact-id-tag">
+                  {value}
+                </Tag>
+              ),
             },
-          },
-          {
-            title: '状态',
-            dataIndex: 'status',
-            width: 112,
-            render: (value: ClaimStatus, record) => (
-              <Select
-                size="small"
-                value={value}
-                disabled={disabled}
-                onChange={(next: ClaimStatus) => onStatusChange(record.id, next)}
-                options={Object.entries(statusLabels).map(([optionValue, label]) => ({
-                  value: optionValue,
-                  label,
-                }))}
-                aria-label={`${record.id} 状态`}
-              />
-            ),
-          },
-        ]}
-      />
+            {
+              title: '事实内容',
+              dataIndex: 'text',
+              render: (value: string, record) => {
+                const citationCount = scripts.filter((script) =>
+                  script.citations.includes(record.id),
+                ).length;
+                return (
+                  <div className="brand-fact-content">
+                    <Typography.Text className="brand-fact-text" title={value}>
+                      {value}
+                    </Typography.Text>
+                    <Typography.Text type="secondary" className="brand-fact-source">
+                      {typeLabels[record.type]} · {record.source} · 引用 {citationCount}
+                    </Typography.Text>
+                  </div>
+                );
+              },
+            },
+            {
+              title: '可信度',
+              dataIndex: 'confidence',
+              width: 58,
+              render: (value: number) => (
+                <div className="brand-confidence-cell">
+                  <span>{Math.round(value * 100)}%</span>
+                  <Progress
+                    percent={Math.round(value * 100)}
+                    size="small"
+                    showInfo={false}
+                    strokeColor={value >= 0.9 ? '#52c41a' : '#faad14'}
+                  />
+                </div>
+              ),
+            },
+            {
+              title: '状态',
+              dataIndex: 'status',
+              width: 88,
+              render: (value: ClaimStatus, record) => (
+                <Select
+                  size="small"
+                  className={`brand-fact-status-select brand-fact-status-${value}`}
+                  value={value}
+                  disabled={disabled}
+                  onChange={(next: ClaimStatus) => onStatusChange(record.id, next)}
+                  options={Object.entries(statusLabels).map(([optionValue, label]) => ({
+                    value: optionValue,
+                    label,
+                  }))}
+                  optionRender={(option) => (
+                    <Tag color={statusColors[option.value as ClaimStatus]}>{option.label}</Tag>
+                  )}
+                  aria-label={`${record.id} 状态`}
+                />
+              ),
+            },
+          ]}
+        />
     </div>
   );
 }

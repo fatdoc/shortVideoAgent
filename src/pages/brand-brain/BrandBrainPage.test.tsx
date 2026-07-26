@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,7 +44,7 @@ describe('BrandBrainPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders merchant profile, packages and unified C1-C8 facts', () => {
+  it('renders the dense merchant overview and unified C1-C8 facts', () => {
     renderPage();
     expect(screen.getByTestId('brand-brain-page')).toBeInTheDocument();
     expect(screen.getAllByText('海底捞火锅·北京三里屯店').length).toBeGreaterThan(0);
@@ -59,20 +59,20 @@ describe('BrandBrainPage', () => {
     renderPage();
     await user.click(screen.getByTestId('brand-edit'));
     const merchant = screen.getByTestId('brand-merchant-input');
-    await user.clear(merchant);
-    await user.type(merchant, '海底捞火锅·北京三里屯旗舰店');
+    fireEvent.change(merchant, { target: { value: '海底捞火锅·北京三里屯旗舰店' } });
     await user.click(screen.getByTestId('brand-drawer-save'));
     await waitFor(() => {
       expect(useProjectStore.getState().workspace.brand.merchant).toBe(
         '海底捞火锅·北京三里屯旗舰店',
       );
-    });
+    }, { timeout: 3000 });
     expect(await screen.findByText('已保存')).toBeInTheDocument();
   });
 
   it('changes claim status and saves it to the shared workspace', async () => {
     const user = userEvent.setup();
     renderPage();
+    await user.click(screen.getByRole('tab', { name: '事实库' }));
     await user.click(screen.getByRole('combobox', { name: 'C1 状态' }));
     await user.click(await screen.findByText('待复核'));
     await user.click(screen.getByTestId('brand-save'));

@@ -27,8 +27,16 @@ export function BrandEditorDrawer({
       destroyOnClose={false}
       extra={
         <Space>
-          <Button onClick={onClose}>取消</Button>
-          <Button type="primary" loading={saving} onClick={onSave} data-testid="brand-drawer-save">
+          <Button onClick={onClose} size="middle">
+            取消
+          </Button>
+          <Button
+            type="primary"
+            size="middle"
+            loading={saving}
+            onClick={onSave}
+            data-testid="brand-drawer-save"
+          >
             保存资料
           </Button>
         </Space>
