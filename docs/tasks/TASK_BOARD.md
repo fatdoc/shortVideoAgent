@@ -55,10 +55,30 @@
 **Gate 2 结论：PASS · APPROVE_MERGE（2026-07-26）**
 报告：`docs/tasks/GATE_2_REPORT.md`
 
+## Wave 2.5 · UI 忠实度纠偏（进行中）
+
+- [ ] C1-UI 全局浅色壳层与视觉 token
+- [ ] C2-UI Dashboard / Brief 对齐图 1—2
+- [ ] C3-UI 品牌大脑对齐图 3
+- [ ] C4-UI 脚本编辑器对齐图 4
+- [ ] C0 1672×941 / 1440×900 视觉验收
+
+审计：`docs/audits/ui-alignment-2026-07-26/AUDIT.md`
+
 ## Wave 3 · C5 / C6 并行
 
 - [ ] C5 分镜
 - [ ] C6 初剪
+
+## 案例数据扩展（Wave 2.5 后）
+
+- [ ] C0 冻结 CaseCatalog 协议
+- [ ] 收集并确认首批 3—5 个案例资料
+- [ ] C0 / C1 实现 v1 → v2 Store 迁移
+- [ ] C2—C6 接入 activeCase
+- [ ] C7 补多案例隔离与持久化 E2E
+
+计划：`docs/tasks/CASE_DATA_PLAN.md`
 
 ### Gate 3
 

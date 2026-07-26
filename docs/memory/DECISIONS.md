@@ -74,3 +74,19 @@
 - 影响：允许并行启动 C5 / C6，进入 Wave 3
 - 决策人：C0
 - 证据：`docs/tasks/GATE_2_REPORT.md`
+
+## D-011 · 2026-07-26 · 插入 Wave 2.5 UI 忠实度纠偏
+
+- 决策：Gate 3 前先完成 C1—C4 视觉纠偏，C5/C6 从一开始按原始图 5—6 实现
+- 原因：用户指出现有 UI 与原始参考图不相符；C0 同尺寸审计确认是壳层、信息架构、密度和素材的结构性偏差
+- 影响：C1-UI、C2-UI、C3-UI、C4-UI 六个独立 Codex 工作树任务；Gate 3 增加参考图对照验收
+- 决策人：C0
+- 证据：`docs/audits/ui-alignment-2026-07-26/AUDIT.md`
+
+## D-012 · 2026-07-26 · 案例数据扩展顺序
+
+- 决策：先冻结案例 / 项目视觉容器，再由 C0/C1 以 `CaseCatalog + DemoWorkspace` 扩展多案例数据
+- 原因：避免 UI 结构和 Store 协议同时重构；业务页面不得各自创建案例 Mock
+- 影响：后续 Dashboard、Brief、Brand、Script、Storyboard、Rough Cut 全部读取统一 activeCase
+- 决策人：C0
+- 证据：`docs/tasks/CASE_DATA_PLAN.md`

@@ -14,7 +14,7 @@
 **Gate 2：PASS（2026-07-26）**
 
 C2 工作台 / Brief、C3 品牌大脑、C4 脚本编辑器已完成验收并合入；统一 Demo 数据可从 Brief 贯通品牌与脚本。
-下一阶段为 Wave 3：并行推进 C5 分镜与 C6 素材 / 初剪，并准备 Gate 3。
+当前先执行 Wave 2.5 UI 忠实度纠偏，同时并行推进 C5 分镜与 C6 素材 / 初剪，再准备 Gate 3。
 
 ## 3. 新线程开始前必须阅读
 
@@ -79,9 +79,10 @@ C2 工作台 / Brief、C3 品牌大脑、C4 脚本编辑器已完成验收并合
 ## 9. 当前下一步
 
 1. 以 Gate 2 后的 `main` / `integration` 为统一基线
-2. 并行启动 C5 与 C6；C5 消费 `activeScript`，C6 消费统一 storyboard / assets / timeline
-3. 完成脚本→分镜→初剪数据闭环后执行 Gate 3
-4. 验收结论见 `docs/tasks/GATE_2_REPORT.md`
+2. C1—C4 按 `docs/audits/ui-alignment-2026-07-26/AUDIT.md` 完成 Wave 2.5
+3. 并行推进 C5 与 C6；C5 消费 `activeScript`，C6 消费统一 storyboard / assets / timeline
+4. UI 稳定后按 `docs/tasks/CASE_DATA_PLAN.md` 扩展案例目录
+5. 完成脚本→分镜→初剪数据闭环后执行 Gate 3
 
 ## 10. C0 如何验收
 

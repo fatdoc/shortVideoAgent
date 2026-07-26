@@ -2,7 +2,7 @@
 
 > 仅 C0 可修改。C1—C7 只读。  
 > 更新时间：2026-07-26（Gate 2 验收后）
-> 当前 Gate：Gate 2（已通过，可启动 C5/C6）
+> 当前 Gate：Gate 2（已通过）；当前阶段：Wave 2.5 UI 纠偏 + C5/C6 并行
 
 ## 项目目标
 
@@ -93,7 +93,9 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 - Gate 2 集成加固 Commit：`4cfba82`
 - Gate 2 Chromium 主流程 Commit：`3226f27`
 - 报告：`docs/tasks/GATE_2_REPORT.md`
-- 下一波：并行 C5 / C6（Wave 3）
+- 当前：先修正 UI 参考图忠实度，同时并行 C5 / C6
+- UI 审计：`docs/audits/ui-alignment-2026-07-26/AUDIT.md`
+- 案例扩展：`docs/tasks/CASE_DATA_PLAN.md`
 
 ## 当前阻塞
 
@@ -120,6 +122,8 @@ Brief → Script → Storyboard → Assets → Rough Cut → QA
 7. C4 P0→P1：APPROVE_WITH_FOLLOWUPS；合入后由 C0 完成失败导航与外部重置加固
 8. C2 / C3：APPROVE_MERGE；公共 smoke / jsdom 适配由 C0 完成
 9. Gate 2：PASS，允许启动 C5/C6
+10. 用户反馈现有 UI 与原始参考图存在结构性偏差，插入 Wave 2.5 视觉纠偏
+11. 案例数据在 UI 容器稳定后，以 CaseCatalog + 多 DemoWorkspace 统一扩展
 
 ## 当前风险
 

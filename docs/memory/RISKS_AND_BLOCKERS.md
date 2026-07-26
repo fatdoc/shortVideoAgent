@@ -18,6 +18,7 @@
 | R-006 | 中 | 生产构建主 JS 约 1.29MB（gzip 约 406kB），超过 Vite 500kB 提示线 | Gate 3 / Final 评估路由懒加载与 manualChunks |
 | R-008 | 低 | `PROJECT_STATUS_LABEL` 与 `ProjectStatus` 枚举未完全对齐 | C1 后续小修；不阻塞业务并行 |
 | R-009 | 中 | `npm audit` 有 7 个 high；production 2 个来自 React Router RSC advisory | 当前 SPA Mock 未使用 RSC action，Gate 2 不阻塞；升级依赖前单列回归 |
+| R-010 | 高 | Gate 2 功能通过，但 C1—C4 与原始 UI 图存在结构性视觉偏差 | 插入 Wave 2.5；1672×941 同尺寸对照 + 1440×900 复核后再进入 Gate 3 |
 
 ## 观察项
 

@@ -10,8 +10,10 @@
 | 工作台/Brief | C2 | **DONE / MERGED** | Gate 2 APPROVE_MERGE |
 | 品牌大脑 | C3 | **DONE / MERGED** | Gate 2 APPROVE_MERGE |
 | 脚本编辑 | C4 | **DONE / MERGED** | Gate 2 APPROVE_WITH_FOLLOWUPS；follow-ups 已关闭 |
-| 分镜 | C5 | NOT_STARTED | 已解锁，可消费 activeScript |
-| 初剪 | C6 | NOT_STARTED | 已解锁；与 C5 对齐 storyboard 状态 |
+| UI 忠实度纠偏 | C1—C4 | **IN_PROGRESS** | Wave 2.5，按图 1—4 分目录并行 |
+| 分镜 | C5 | **DISPATCHED** | 独立 Codex 工作树；消费 activeScript |
+| 初剪 | C6 | **DISPATCHED** | 独立 Codex 工作树；与 C5 对齐 storyboard 状态 |
+| 案例目录 | C0 / C1 | PLANNED | UI 容器稳定后扩展 CaseCatalog |
 | 测试集成 | C7 | NOT_STARTED | 依赖 C2—C6 |
 
 ## 分支
