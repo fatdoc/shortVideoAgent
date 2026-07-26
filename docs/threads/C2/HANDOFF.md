@@ -1,8 +1,8 @@
 # C2 HANDOFF
 
 - 当前分支：`codex/c2-visual-polish-dashboard-brief`
-- 当前 Commit：本轮提交后回填
-- 功能 Commit：本轮提交后回填
+- 当前 Commit：`4eddb7b39f11d346f87d1bac680ad010c8b09183`
+- 功能 Commit：`4eddb7b39f11d346f87d1bac680ad010c8b09183`
 - 验收结论：`QA_PASSED / READY_FOR_C0_REVIEW`
 - Merge Commit：待入`integration`后补充
 - 可运行页面：
@@ -37,4 +37,4 @@
 
 ## Commit Hash
 
-- 本轮提交后回填
+- `4eddb7b39f11d346f87d1bac680ad010c8b09183`
