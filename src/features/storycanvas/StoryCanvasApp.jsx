@@ -35,6 +35,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { createMvpClient } from "./mvpApi";
+import "./storycanvas.css";
 
 const mvpApi = createMvpClient();
 
@@ -1680,7 +1681,7 @@ function StatusBar({ shots, activeTask, batchState, exporting }) {
   );
 }
 
-export function App() {
+export function StoryCanvasApp({ grant: embeddedGrant = null }) {
   const [shots, setShots] = useState(initialShots);
   const [selectedId, setSelectedId] = useState(0);
   const nextShotId = useRef(Math.max(...initialShots.map((shot) => shot.id)) + 1);
@@ -1720,14 +1721,10 @@ export function App() {
     const messageTarget = window.opener || (window.parent !== window ? window.parent : null);
     const targetOrigin = window.location.protocol === "file:" ? "*" : controlPlaneOrigin;
 
-    async function handleGrantMessage(event) {
-      if (bootstrapping || cancelled || event.data?.type !== "storycanvas:d1-grant") return;
-      if (event.source !== messageTarget || (window.location.protocol !== "file:" && event.origin !== controlPlaneOrigin)) {
-        setServiceState("error");
-        setTaskError(`GRANT_BRIDGE_ORIGIN_REJECTED：拒绝 ${event.origin || "unknown"} 的授权消息`);
-        return;
-      }
-      const { grant, projectId, packageId } = event.data;
+    async function bootstrapWithGrant(grant, readyTarget = null) {
+      if (bootstrapping || cancelled) return;
+      const projectId = grant?.projectId;
+      const packageId = grant?.packageId;
       if (
         projectId !== "demo-local-001"
         || packageId !== "package-demo-local-001-v1"
@@ -1781,11 +1778,14 @@ export function App() {
             || tasks[0];
           return visibleTask ? applyTaskToShots([shot], visibleTask)[0] : shot;
         }));
-        event.source?.postMessage({
-          type: "storycanvas:d1-ready",
-          projectId: "demo-local-001",
-          packageId: "package-demo-local-001-v1",
-        }, window.location.protocol === "file:" ? "*" : event.origin);
+        readyTarget?.source?.postMessage(
+          {
+            type: "storycanvas:d1-ready",
+            projectId: "demo-local-001",
+            packageId: "package-demo-local-001-v1",
+          },
+          readyTarget.origin,
+        );
       } catch (error) {
         if (cancelled) return;
         mvpApi.clearProductionGrant();
@@ -1793,6 +1793,33 @@ export function App() {
         setTaskError(error.message);
         bootstrapping = false;
       }
+    }
+
+    async function handleGrantMessage(event) {
+      if (bootstrapping || cancelled || event.data?.type !== "storycanvas:d1-grant") return;
+      if (event.source !== messageTarget || (window.location.protocol !== "file:" && event.origin !== controlPlaneOrigin)) {
+        setServiceState("error");
+        setTaskError(`GRANT_BRIDGE_ORIGIN_REJECTED：拒绝 ${event.origin || "unknown"} 的授权消息`);
+        return;
+      }
+      const { grant, projectId, packageId } = event.data;
+      if (grant?.projectId !== projectId || grant?.packageId !== packageId) {
+        setServiceState("error");
+        setTaskError("GRANT_BRIDGE_SCOPE_MISMATCH：消息身份与 grant 不一致");
+        return;
+      }
+      await bootstrapWithGrant(grant, {
+        source: event.source,
+        origin: window.location.protocol === "file:" ? "*" : event.origin,
+      });
+    }
+
+    if (embeddedGrant) {
+      void bootstrapWithGrant(embeddedGrant);
+      return () => {
+        cancelled = true;
+        mvpApi.clearProductionGrant();
+      };
     }
 
     window.addEventListener("message", handleGrantMessage);
@@ -1812,7 +1839,7 @@ export function App() {
       mvpApi.clearProductionGrant();
       window.removeEventListener("message", handleGrantMessage);
     };
-  }, []);
+  }, [embeddedGrant]);
 
   useEffect(() => {
     if (batchState?.running || !activeTask?.id || !["queued", "running"].includes(activeTask.status)) return undefined;
@@ -2121,7 +2148,7 @@ export function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="storycanvas-app">
       <AppHeader
         activeView={activeNav}
         zoom={zoom}

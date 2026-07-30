@@ -44,18 +44,18 @@ npm run storycanvas:install
 npm run dev
 ```
 
-另开两个终端启动 StoryCanvas：
+另开一个终端启动 StoryCanvas 内部 API：
 
 ```bash
 npm run storycanvas:api
-npm run storycanvas:web
 ```
 
 默认访问：
 
 ```text
-SaaS：http://127.0.0.1:5173/
-StoryCanvas Web：http://localhost:50188/
+唯一用户前端：http://127.0.0.1:5173/
+画布路由：http://127.0.0.1:5173/production/canvas/demo-local-001
+内部 API：http://localhost:10588/api/
 ```
 
 媒体生产演示账号：
@@ -119,12 +119,12 @@ StoryCanvas Web：http://localhost:50188/
 
 ## 7. StoryCanvas 说明
 
-StoryCanvas 完整源码已经并入当前仓库的 `apps/storycanvas/`。它承担画布和媒体生产执行，不承担商业控制平面。
+StoryCanvas 画布已经作为 `src/features/storycanvas/` 模块并入唯一 SaaS 前端；`apps/storycanvas/src/` 保留媒体生产 API 与引擎。它承担画布和媒体生产执行，不承担商业控制平面。
 
 接入时必须遵守：
 
 - 只经 `src/services/storyCanvasBridge.ts` 和 v0.1 合同交接。
-- StoryCanvas 内部修改限定在 `apps/storycanvas/`，不得把其 Store、SQLite 或依赖直接搬到根应用。
+- 画布 UI 修改限定在 `src/features/storycanvas/`，媒体生产后端修改限定在 `apps/storycanvas/src/`；不得把 SQLite 或后端 Store 搬到浏览器。
 - grant 只保存在内存中，不进入 URL 或浏览器持久化。
 - production API 依靠显式 project-scoped grant。
 - 旧 StoryCanvas API 可能仍使用本地 JWT，两者不得混为生产安全结论。

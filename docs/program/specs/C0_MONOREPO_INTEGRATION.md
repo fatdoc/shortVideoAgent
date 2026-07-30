@@ -1,4 +1,4 @@
-# C0 单仓双应用整合决策
+# C0 单仓单前端双平面整合决策
 
 > 状态：ACTIVE
 > 日期：2026-07-30
@@ -6,13 +6,13 @@
 
 ## 决策
 
-项目从“双工作区、双仓候选”调整为“单 Git 仓库、双应用、双平面”：
+项目从“双工作区、双仓候选”调整为“单 Git 仓库、单一用户前端、双平面”：
 
 ```text
 /
-├── src/                    SaaS 控制平面前端
+├── src/                    唯一 SaaS 前端（含 StoryCanvas 画布模块）
 ├── docs/program/           项目共同记忆与公共合同
-└── apps/storycanvas/       StoryCanvas 画布与媒体生产平面
+└── apps/storycanvas/src/   StoryCanvas 媒体生产 API 与引擎
 ```
 
 StoryCanvas 来源固定为提交：
@@ -25,7 +25,8 @@ StoryCanvas 来源固定为提交：
 
 - 控制平面拥有身份、租户、渠道、产品、价格、额度和品牌事实。
 - StoryCanvas 拥有画布、任务、媒体资产、时间线和导出。
-- 两个应用继续通过 `ProjectProductionPackage v0.1`、project-scoped grant 和 receipts 连接。
+- 两个平面继续通过 `ProjectProductionPackage v0.1`、project-scoped grant 和 receipts 连接。
+- 用户只访问根前端 `5173`；`10588` 仅提供内部 API，不再托管独立 Web。
 - 物理合并不允许跨平面直接读写数据库或复制主数据。
 
 ## 合并收益
@@ -41,7 +42,7 @@ StoryCanvas 来源固定为提交：
 - 仓库包含约 130 MB StoryCanvas 跟踪资产。
 - FireRed-OpenStoryline 继续作为固定提交的 Git submodule，克隆时需使用 `--recurse-submodules`。
 - Toonflow 商业授权、标识和 NOTICE 仍是对外商业化硬 Gate。
-- 不允许把根目录与 `apps/storycanvas/` 的依赖、Store 或数据库直接混合。
+- 不允许把浏览器前端与 `apps/storycanvas/src/` 的后端 Store 或数据库直接混合。
 
 ## 开发规则
 

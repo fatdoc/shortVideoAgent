@@ -76,9 +76,10 @@
 - `src/pages/rough-cut/`
 - `src/pages/production/`
 - `src/components/production/`
+- `src/features/storycanvas/`
 - `src/services/storyCanvasBridge.ts`
 - 与上述页面一一对应的测试文件
-- `apps/storycanvas/` 中经授权允许修改的画布与生产模块
+- `apps/storycanvas/src/` 中经授权允许修改的媒体生产 API 与引擎模块
 
 ### 禁止修改
 

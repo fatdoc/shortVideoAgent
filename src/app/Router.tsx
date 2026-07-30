@@ -25,6 +25,7 @@ import {
 } from '../pages/workbench/WorkbenchHomePage';
 import { ProductCatalogPage } from '../pages/commercial/ProductCatalogPage';
 import { ProductionWorkbenchPage } from '../pages/production/ProductionWorkbenchPage';
+import { IntegratedStoryCanvasPage } from '../pages/production/IntegratedStoryCanvasPage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import {
   canAccessDemoWorkbench,
@@ -234,7 +235,7 @@ export function AppRouter() {
           />
           <Route
             path="production/canvas/:projectId"
-            element={<WorkbenchAccessGuard workbench="production"><ProductionWorkbenchPage view="inbox" /></WorkbenchAccessGuard>}
+            element={<WorkbenchAccessGuard workbench="production"><IntegratedStoryCanvasPage /></WorkbenchAccessGuard>}
           />
           <Route
             path="production/tasks/:projectId"

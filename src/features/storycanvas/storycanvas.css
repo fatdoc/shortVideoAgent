@@ -1,4 +1,7 @@
-:root {
+.storycanvas-host { width: 100%; height: calc(100vh - 140px); min-height: 720px; overflow: hidden; border: 1px solid #e4e5e2; border-radius: 8px; background: #f8f8f6; }
+
+@scope (.storycanvas-host) {
+:scope {
   font-family: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: #17191d;
   background: #f7f7f5;
@@ -16,9 +19,8 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root { width: 100%; height: 100%; }
 
-body {
+:scope {
   margin: 0;
   min-width: 1100px;
   min-height: 720px;
@@ -30,9 +32,9 @@ body {
 button, textarea, select { font: inherit; }
 button { color: inherit; }
 
-.app-shell {
-  width: 100vw;
-  height: 100vh;
+.storycanvas-app {
+  width: 100%;
+  height: 100%;
   min-height: 720px;
   display: grid;
   grid-template-rows: 58px minmax(0, 1fr) 48px;
@@ -608,4 +610,5 @@ kbd { border: 0; background: transparent; color: #a1a4a9; font-family: inherit; 
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
 }

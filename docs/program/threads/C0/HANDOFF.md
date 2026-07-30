@@ -1,5 +1,9 @@
 # C0 HANDOFF
 
+## 单前端集成交接（2026-07-30）
+
+StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直接渲染。控制平面通过 React prop 将当前 project-scoped grant 保留在内存中注入画布；`apps/storycanvas/src/` 继续提供 `/api/*`、任务、资产、回执和媒体生产能力，不再托管用户 UI。后续画布 UI 修改进入 `src/features/storycanvas/`，后端修改进入 `apps/storycanvas/src/`。
+
 - 状态：D1 内部 Demo 已闭环；D2 规格就绪、实现待开发
 - 基线：SaaS `98b07e9`
 - D1 门禁：`GO_FOR_INTERNAL_DEMO`

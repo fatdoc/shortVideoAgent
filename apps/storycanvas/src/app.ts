@@ -144,14 +144,13 @@ export default async function startServe(randomPort: Boolean = false) {
   console.log("文件目录:", assetsDir);
   app.use("/assets", express.static(assetsDir, { acceptRanges: false }));
 
-  // data/web 静态网站
-  const webDir = u.getPath("web");
-  if (fs.existsSync(webDir)) {
-    console.log("静态网站目录:", webDir);
-    app.use(express.static(webDir, { acceptRanges: false }));
-  } else {
-    console.warn("静态网站目录不存在:", webDir);
-  }
+  // StoryCanvas UI is integrated into the root SaaS application. This process
+  // intentionally exposes API and media routes only.
+  app.get("/", (_req, res) =>
+    res.status(404).send({
+      message: "StoryCanvas is an internal API. Open the SaaS application on port 5173.",
+    }),
+  );
   app.get("/favicon.ico", (_req, res) => res.status(204).end());
 
   app.use(async (req, res, next) => {

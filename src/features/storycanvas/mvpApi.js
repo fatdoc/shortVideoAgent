@@ -20,8 +20,8 @@ export function createMvpClient() {
 
   function projectIdFromDeepLink() {
     if (window.location.protocol === "file:") return "demo-local-001";
-    const match = window.location.pathname.match(/^\/storycanvas\/([^/]+)\/?$/);
-    if (!match) throw new Error("D1 StoryCanvas 必须使用 /storycanvas/demo-local-001 深链");
+    const match = window.location.pathname.match(/^\/(?:storycanvas|production\/canvas)\/([^/]+)\/?$/);
+    if (!match) throw new Error("D1 StoryCanvas 必须使用 /production/canvas/demo-local-001 深链");
     const projectId = decodeURIComponent(match[1]);
     if (projectId !== "demo-local-001") {
       throw new Error(`PROJECT_SCOPE_MISMATCH：拒绝非 canonical 深链 ${projectId}`);

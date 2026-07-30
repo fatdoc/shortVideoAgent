@@ -16,3 +16,11 @@
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
 - 阻塞：D2 业务代码尚未实施；D2 定向测试、视觉证据和验收 Gate 尚未执行
 - 最近更新：2026-07-30
+
+## 2026-07-30 单前端收口
+
+- 用户唯一入口：`http://127.0.0.1:5173/`
+- StoryCanvas 画布入口：`/production/canvas/demo-local-001`
+- 画布前端位置：`src/features/storycanvas/`
+- 媒体生产 API：`apps/storycanvas/src/`，`10588` 仅作内部 API
+- 已移除独立 `50188` 前端和 `apps/storycanvas/data/web/` 编译副本

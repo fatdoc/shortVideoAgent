@@ -35,14 +35,16 @@ FireRed-OpenStoryline 04297707e7607dd398e906262235d0797068e7b4
 
 ## 架构边界
 
-物理上采用单仓，逻辑上继续保持双平面：
+物理上采用单仓、单一用户前端，逻辑上继续保持双平面：
 
 ```text
-根目录 SaaS 控制平面
+根目录 SaaS 前端（内嵌 StoryCanvas 画布）
         |
         | ProjectProductionPackage v0.1 + project-scoped grant
         v
-apps/storycanvas 媒体生产平面
+apps/storycanvas/src 媒体生产 API 与引擎
 ```
 
 StoryCanvas 不写客户钱包、不定义客户价格、不创建 Tenant 或渠道组织。SaaS 不直接读取 StoryCanvas SQLite。
+
+原独立 `apps/storycanvas/frontend/` 与编译副本 `apps/storycanvas/data/web/` 已在单前端整合时删除。画布 UI 的维护位置为 `src/features/storycanvas/`，用户入口为 `/production/canvas/:projectId`。
