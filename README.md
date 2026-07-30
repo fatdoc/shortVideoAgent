@@ -27,6 +27,13 @@
 
 ## 快速启动
 
+克隆完整仓库及 FireRed 子模块：
+
+```bash
+git clone --recurse-submodules https://github.com/fatdoc/shortVideoAgent.git
+cd shortVideoAgent
+```
+
 安装和启动 SaaS：
 
 ```bash

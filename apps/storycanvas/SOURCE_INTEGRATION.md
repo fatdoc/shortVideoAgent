@@ -18,6 +18,14 @@
 - 来源工作树中未提交的构建伴生改动
 - 本地环境变量和真实 Provider Key
 
+来源提交中的 FireRed gitlink 已在根 `.gitmodules` 重新注册，固定为：
+
+```text
+FireRed-OpenStoryline 04297707e7607dd398e906262235d0797068e7b4
+```
+
+原工作区当时未初始化该 submodule，因此没有伪装成已导入的普通源码；克隆时使用 `--recurse-submodules` 获取。
+
 ## 完整性与许可证
 
 - `LICENSE`、`NOTICES.txt`、上游标识和第三方声明原样保留。
@@ -38,4 +46,3 @@ apps/storycanvas 媒体生产平面
 ```
 
 StoryCanvas 不写客户钱包、不定义客户价格、不创建 Tenant 或渠道组织。SaaS 不直接读取 StoryCanvas SQLite。
-

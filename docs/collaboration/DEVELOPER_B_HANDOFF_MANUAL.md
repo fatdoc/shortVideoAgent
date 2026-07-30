@@ -37,7 +37,7 @@
 ## 3. 启动项目
 
 ```bash
-git clone https://github.com/fatdoc/shortVideoAgent.git
+git clone --recurse-submodules https://github.com/fatdoc/shortVideoAgent.git
 cd shortVideoAgent
 npm install
 npm run storycanvas:install

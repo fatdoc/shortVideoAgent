@@ -1,0 +1,3 @@
+[submodule "apps/storycanvas/upstream/FireRed-OpenStoryline"]
+	path = apps/storycanvas/upstream/FireRed-OpenStoryline
+	url = https://github.com/FireRedTeam/FireRed-OpenStoryline.git

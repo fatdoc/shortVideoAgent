@@ -39,6 +39,7 @@ StoryCanvas 来源固定为提交：
 
 - StoryCanvas 依赖较重，首次安装和构建时间明显增加。
 - 仓库包含约 130 MB StoryCanvas 跟踪资产。
+- FireRed-OpenStoryline 继续作为固定提交的 Git submodule，克隆时需使用 `--recurse-submodules`。
 - Toonflow 商业授权、标识和 NOTICE 仍是对外商业化硬 Gate。
 - 不允许把根目录与 `apps/storycanvas/` 的依赖、Store 或数据库直接混合。
 
