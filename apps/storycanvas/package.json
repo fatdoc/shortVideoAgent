@@ -14,9 +14,6 @@
   },
   "scripts": {
     "dev": "nodemon --inspect --exec tsx src/app.ts",
-    "dev:gui": "yarn frontend:build && yarn sanitize:web && electron -r tsx scripts/main.ts",
-    "dev:gui:watch": "yarn sanitize:web && electronmon -r tsx scripts/main.ts",
-    "dev:gui-vite": "cross-env VITE_DEV=1 electronmon -r tsx scripts/main.ts",
     "start": "cross-env NODE_ENV=prod node data/serve/app.js",
     "lint": "tsc --noEmit",
     "test": "cross-env ELECTRON_RUN_AS_NODE=1 electron node_modules/tsx/dist/cli.mjs --test src/config/*.test.ts src/domain/storycanvas/*.test.ts src/integrations/openstoryline/*.test.ts src/lib/*.test.ts src/services/storycanvas/*.test.ts",
@@ -25,18 +22,10 @@
     "db:migrate": "tsx scripts/db-migrate.ts up",
     "db:rollback": "tsx scripts/db-migrate.ts down",
     "db:status": "tsx scripts/db-migrate.ts status",
-    "frontend:dev": "npm --prefix frontend run dev -- --port 50188 --strictPort",
-    "frontend:build": "npm --prefix frontend run build",
-    "build": "yarn frontend:build && yarn sanitize:web && cross-env NODE_ENV=prod tsx scripts/build.ts",
-    "pack": "electron-builder --dir",
-    "dist": "yarn build && electron-builder",
-    "dist:win": "yarn build && electron-builder --win",
-    "dist:mac": "yarn build && electron-builder --mac",
-    "dist:linux": "yarn build && electron-builder --linux",
+    "build": "cross-env NODE_ENV=prod tsx scripts/build.ts",
     "debug:ai": "npx @ai-sdk/devtools",
     "license": "node scripts/license.ts",
-    "vendor2json": "node scripts/vendor2json.ts",
-    "sanitize:web": "tsx scripts/sanitize-web.ts"
+    "vendor2json": "node scripts/vendor2json.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.35",

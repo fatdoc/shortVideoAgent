@@ -9,7 +9,7 @@
 ### 工作内容
 
 - 克隆并启动 `fatdoc/shortVideoAgent`。
-- 执行 `npm run storycanvas:install`，分别启动 StoryCanvas API 和 Web。
+- 执行 `npm run storycanvas:install`，启动根 SaaS 与 StoryCanvas 内部 API。
 - 使用 `production / Demo@123456` 登录。
 - 走通生产概览、生产包、StoryCanvas、任务、资产和导出。
 - 阅读 v0.1 合同和 D1 runtime evidence。
@@ -47,16 +47,16 @@
 
 - `src/services/storyCanvasBridge.ts`
 - `src/pages/production/`
-- `apps/storycanvas/frontend/src/`
+- `src/features/storycanvas/`
 - `apps/storycanvas/src/routes/production/v0.1/`
 - `apps/storycanvas/src/services/storycanvas/`
 - 对应测试
 
 ### 目标
 
-- 父窗只向正确 origin 和 project/package 发送 grant。
-- 子窗未 ready 时可重试请求，成功后立即停止。
-- timeout、popup blocked、origin mismatch、scope mismatch 全部 fail closed。
+- 根应用只向正确 project/package 的内嵌画布注入内存 grant。
+- 画布在 package accepted 且 grant 已签发后启动。
+- API offline、package rejected、scope mismatch 全部 fail closed。
 - URL、LocalStorage 和 sessionStorage 中不得出现 grant。
 
 ### 验收

@@ -30,8 +30,8 @@ const activeDatabase = db as Knex;
 const EXTERNAL_SYSTEM = "saas-control-plane";
 const D1_PROJECT_TYPE = "storycanvas-d1-production";
 const REQUIRED_CAPABILITY = "cap-production-base-generation";
-const STORYCANVAS_PATH = `/storycanvas/${D1_FIXTURE_ID}`;
-const CONTROL_PLANE_RETURN_PATH = `/enterprise/projects/${D1_FIXTURE_ID}`;
+const STORYCANVAS_PATH = `/production/canvas/${D1_FIXTURE_ID}`;
+const CONTROL_PLANE_RETURN_PATH = "/production/overview";
 const FALLBACK_MEDIA_PATH = "/media/d1/demo-local-001-fallback-synthetic-v1.mp4";
 const FALLBACK_MEDIA_SHA256 = "55370297920ad6f957a3bbcdb4cbdc2ff088ba7594062a07c589b7a6db3727ef";
 const FALLBACK_MEDIA_BYTE_SIZE = 2_155_679;
@@ -40,12 +40,20 @@ const FALLBACK_MEDIA_WIDTH = 540;
 const FALLBACK_MEDIA_HEIGHT = 960;
 
 function storycanvasDeepLink() {
-  const base = (process.env.STORYCANVAS_FRONTEND_URL || "http://localhost:50188").replace(/\/$/, "");
+  const base = (
+    process.env.SAAS_FRONTEND_URL
+    || process.env.STORYCANVAS_FRONTEND_URL
+    || "http://127.0.0.1:5173"
+  ).replace(/\/$/, "");
   return `${base}${STORYCANVAS_PATH}`;
 }
 
 function storycanvasMediaUrl(path: string) {
-  const base = (process.env.STORYCANVAS_FRONTEND_URL || "http://localhost:50188").replace(/\/$/, "");
+  const base = (
+    process.env.SAAS_FRONTEND_URL
+    || process.env.STORYCANVAS_FRONTEND_URL
+    || "http://127.0.0.1:5173"
+  ).replace(/\/$/, "");
   return `${base}${path}`;
 }
 
