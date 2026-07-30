@@ -1,29 +1,35 @@
-# REPOSITORY MAP · 双仓地图
+# REPOSITORY MAP · 单仓双应用地图
 
-## 仓库 A：商业 SaaS 控制平面
+## GitHub 仓库
 
-- 路径：当前 `videoagent` 仓库。
-- 现状：前端 Demo Gate 2 已完成，保留既有页面、Mock、Store、LocalStorage 和测试。
-- 负责领域：租户、渠道、产品、品牌、场景 Agent、钱包、订单、结算、老板演示入口。
-- 主要员工：C1、C2、C3、C4、C6、C7。
+- 地址：`https://github.com/fatdoc/shortVideoAgent`
+- 权威分支：`main`
+- 权威治理资料：`docs/program/`
 
-## 仓库 B：StoryCanvas 媒体生产平面
+## 应用 A：商业 SaaS 控制平面
 
-- 路径：`/Users/docfat/Desktop/个人/智能体社区/项目/短视频agent`。
-- 当前分支基线：`feat/storycanvas-phase0`，已有成果不得 reset、checkout 丢弃或整体重建。
+- 路径：仓库根目录。
+- 源码：`src/`
+- 负责领域：身份、租户、渠道、产品、品牌、场景 Agent、钱包、订单、结算和老板演示入口。
+- 主要负责人：A / C0、C1、C2、C3、C4、C6、C7。
+
+## 应用 B：StoryCanvas 媒体生产平面
+
+- 路径：`apps/storycanvas/`
+- 来源提交：`46fc8d02197e639dbf5bc73f8d0b97210fcbd25d`
 - 负责领域：脚本、分镜、画布、引用、连续性、生成任务、素材、时间线和导出。
-- 主要员工：C5。
+- 主要负责人：B / C5。
+- 来源和许可证记录：`apps/storycanvas/SOURCE_INTEGRATION.md`
 
-## 项目级治理资料库
+## 单仓策略
 
-- 权威位置：仓库 A 的 `docs/program/`。
-- C0 维护共同记忆和公共合同。
-- C5 在仓库 B 开发时，通过 HANDOFF/REQUEST 向 C0 提交变更提案；C0 将批准结果写回权威资料库。
-- 任何跨仓接口先更新 `INTEGRATION_CONTRACT.md`，再分别实现。
+- 物理上在同一个 Git 仓库中版本管理。
+- 逻辑上保持控制平面与生产平面隔离。
+- 不把 StoryCanvas 源码塞进根 `src/`。
+- 不把商业钱包、租户或客户价格塞进 StoryCanvas。
+- 跨应用接口先更新 `docs/program/INTEGRATION_CONTRACT.md` 和 fixtures。
+- 一个 commit 可以固定两端版本，但测试、构建和运行证据仍按应用分别记录。
 
-## 仓库策略
+## 历史资料
 
-- 现在不做代码仓库物理合并。
-- 不把 StoryCanvas 复制进 SaaS 的 `src`。
-- 不把商业钱包和租户逻辑塞进 StoryCanvas。
-- 是否最终使用单体仓库、子模块、独立服务或桌面端，由商业 MVP 架构评审决定。
+D1 运行验收时使用两个独立工作树，因此历史报告中的“双仓”“版本对”和旧绝对路径代表当时真实证据，不做追溯性篡改。D2 之后的新任务和交接统一使用当前单仓路径。

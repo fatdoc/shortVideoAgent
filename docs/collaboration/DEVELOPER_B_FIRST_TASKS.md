@@ -9,6 +9,7 @@
 ### 工作内容
 
 - 克隆并启动 `fatdoc/shortVideoAgent`。
+- 执行 `npm run storycanvas:install`，分别启动 StoryCanvas API 和 Web。
 - 使用 `production / Demo@123456` 登录。
 - 走通生产概览、生产包、StoryCanvas、任务、资产和导出。
 - 阅读 v0.1 合同和 D1 runtime evidence。
@@ -46,6 +47,9 @@
 
 - `src/services/storyCanvasBridge.ts`
 - `src/pages/production/`
+- `apps/storycanvas/frontend/src/`
+- `apps/storycanvas/src/routes/production/v0.1/`
+- `apps/storycanvas/src/services/storycanvas/`
 - 对应测试
 
 ### 目标
@@ -112,5 +116,5 @@ npm run validate:governance
 - 不开发充值、支付、发票或提现。
 - 不修改代理层级和客户价格。
 - 不购买或接入真实模型额度。
-- 不把 StoryCanvas 代码整体复制进当前仓库。
+- 不把 `apps/storycanvas/` 拆回独立长期分叉，也不把其源码复制进根 `src/`。
 - 不宣称真实 AI、正式品牌批准或生产发布。

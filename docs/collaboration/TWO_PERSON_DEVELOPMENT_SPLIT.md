@@ -78,7 +78,7 @@
 - `src/components/production/`
 - `src/services/storyCanvasBridge.ts`
 - 与上述页面一一对应的测试文件
-- StoryCanvas 独立工作区中经授权允许修改的生产模块
+- `apps/storycanvas/` 中经授权允许修改的画布与生产模块
 
 ### 禁止修改
 
@@ -130,6 +130,7 @@ main
 - 禁止 `git reset --hard`、强推和覆盖他人未合并成果。
 - 合同修改必须附 fixture、兼容性说明和双方确认。
 - 合并顺序默认是合同、控制平面、生产平面、集成测试。
+- 两人都从同一仓库克隆，不再维护私有的长期分叉副本。
 
 ## 6. 两人交互协议
 

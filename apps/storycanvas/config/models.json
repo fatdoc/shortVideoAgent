@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "llm": {
+    "vendor": "openai",
+    "model": "gpt-5.2",
+    "baseUrlEnv": "LLM_BASE_URL",
+    "apiKeyEnv": "LLM_API_KEY"
+  },
+  "image": {
+    "primary": {
+      "vendor": "openai",
+      "model": "gpt-image-2",
+      "baseUrlEnv": "OPENAI_BASE_URL",
+      "apiKeyEnv": "OPENAI_API_KEY"
+    },
+    "fallback": {
+      "vendor": "volcengine",
+      "model": "seedream-4-5-251128",
+      "baseUrlEnv": "ARK_BASE_URL",
+      "apiKeyEnv": "ARK_API_KEY"
+    }
+  },
+  "video": {
+    "vendor": "byteplus",
+    "model": "dreamina-seedance-2-0-260128",
+    "baseUrlEnv": "ARK_BASE_URL",
+    "apiKeyEnv": "ARK_API_KEY"
+  }
+}

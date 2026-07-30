@@ -5,6 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:saas": "vite",
+    "storycanvas:install": "npm --prefix apps/storycanvas install && npm --prefix apps/storycanvas/frontend install",
+    "storycanvas:api": "npm --prefix apps/storycanvas run dev",
+    "storycanvas:web": "npm --prefix apps/storycanvas/frontend run dev -- --port 50188 --strictPort",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",

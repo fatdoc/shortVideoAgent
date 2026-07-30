@@ -1,0 +1,18 @@
+{
+  "sourceDirectory": "/Users/docfat/.codex/worktrees/4506/videoagent/docs/program/contracts/v0.1",
+  "sourceSuiteDigest": "sha256:ecb4856cbceb568b931360335822e3beb590b6a8feefa07e773f3813d2552823",
+  "contractVersion": "0.1",
+  "fixtureId": "demo-local-001",
+  "copiedFiles": [
+    "project-production-package.json",
+    "demo-project-grant.json",
+    "success-task-receipt.json",
+    "success-asset-receipt.json",
+    "failure-task-receipt.json",
+    "capability-truth-manifest.json"
+  ],
+  "excludedFiles": [
+    "commercial-credit-fixture.json"
+  ],
+  "exclusionReason": "Production plane must not consume or copy commercial wallet/rate-card fixtures."
+}

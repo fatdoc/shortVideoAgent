@@ -1,6 +1,6 @@
 # C5 HANDOFF
 
-- 仓库与工作树：`/Users/docfat/.codex/worktrees/19f7/短视频agent`
+- 仓库目录：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 分支与基线：detached HEAD `b4295471825427fab248c10dd41884fdea31993d`；对应主工作树 `feat/storycanvas-phase0`
 - Commit：无；本轮未提交
 - 合同版本：已评审权威 `INTEGRATION_CONTRACT.md` v0.1，未修改
@@ -12,4 +12,3 @@
 - 验证证据：Git/源码/历史报告静态审查；本轮按任务要求未运行测试
 - 风险与 Request：见 `docs/program/threads/C5/REQUESTS.md`，重点为 Toonflow 商业授权、统一 Package、计量握手、FireRed 资源/凭证和 Demo 主数据
 - 下游接手第一步：C0 审阅评估和 `REQ-C5-001` 至 `REQ-C5-005`；批准后由 C4/C5 先冻结 Adapter，再允许 C5 进入 Demo 数据接线
-

@@ -3,7 +3,7 @@
 - 状态：`STATIC_GATE_GO / RUNTIME_EVIDENCE_PENDING`
 - 运行配置：`gpt-5.6-sol / high / 1.5x`
 - SaaS：`/Users/docfat/.codex/worktrees/4506/videoagent`
-- StoryCanvas：`/Users/docfat/.codex/worktrees/19f7/短视频agent`
+- StoryCanvas：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 报告：`docs/program/specs/C7_D1_STATIC_GATE_REVIEW.md`
 
 ## Gate

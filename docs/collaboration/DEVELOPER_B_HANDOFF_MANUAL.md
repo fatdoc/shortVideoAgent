@@ -40,13 +40,22 @@
 git clone https://github.com/fatdoc/shortVideoAgent.git
 cd shortVideoAgent
 npm install
+npm run storycanvas:install
 npm run dev
+```
+
+另开两个终端启动 StoryCanvas：
+
+```bash
+npm run storycanvas:api
+npm run storycanvas:web
 ```
 
 默认访问：
 
 ```text
-http://127.0.0.1:5173/
+SaaS：http://127.0.0.1:5173/
+StoryCanvas Web：http://localhost:50188/
 ```
 
 媒体生产演示账号：
@@ -110,15 +119,17 @@ http://127.0.0.1:5173/
 
 ## 7. StoryCanvas 说明
 
-StoryCanvas 当前是独立工作区，不包含在本 GitHub 首次推送中。它承担画布和媒体生产执行，不承担商业控制平面。
+StoryCanvas 完整源码已经并入当前仓库的 `apps/storycanvas/`。它承担画布和媒体生产执行，不承担商业控制平面。
 
 接入时必须遵守：
 
 - 只经 `src/services/storyCanvasBridge.ts` 和 v0.1 合同交接。
+- StoryCanvas 内部修改限定在 `apps/storycanvas/`，不得把其 Store、SQLite 或依赖直接搬到根应用。
 - grant 只保存在内存中，不进入 URL 或浏览器持久化。
 - production API 依靠显式 project-scoped grant。
 - 旧 StoryCanvas API 可能仍使用本地 JWT，两者不得混为生产安全结论。
 - 未确认 Toonflow 商业授权和标识条款前，不得对外分发 StoryCanvas 基座或宣称商业上线。
+- 必须保留 `apps/storycanvas/LICENSE`、`NOTICES.txt` 和上游标识。
 
 ## 8. UI 要求
 

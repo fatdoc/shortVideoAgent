@@ -4,7 +4,7 @@
 |---|---|---|---|
 | 原始 PRD v1.0 | `/Users/docfat/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_a813aw2j6e1922_b9b6/msg/file/2026-07/短视频营销Agent产品需求文档_PRD_v1.0.docx` | 战略、场景和能力需求来源 | 原始输入，不代表全部已冻结 |
 | SaaS 前端 Demo | 当前 `videoagent` 仓库 | 老板演示控制平面与既有 Gate 2 成果 | 当前实现事实 |
-| StoryCanvas | `/Users/docfat/Desktop/个人/智能体社区/项目/短视频agent` | 媒体生产引擎与画布基础 | 当前源码和最新设计 QA 优先 |
+| StoryCanvas | `apps/storycanvas/`，来源提交 `46fc8d0` | 媒体生产引擎与画布基础 | 当前单仓源码和最新设计 QA 优先；许可证见应用目录 |
 | UI 参考图 | `UI/**` | 页面视觉对照 | 只读原始资产 |
 | 项目级共同记忆 | `docs/program/COMMON_MEMORY.md` | C0 批准后的统一事实 | 最高项目内权威 |
 

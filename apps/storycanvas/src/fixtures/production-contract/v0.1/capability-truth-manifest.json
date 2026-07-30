@@ -1,0 +1,105 @@
+{
+  "manifestVersion": "D1.0",
+  "releaseId": "D1-FOUNDATION-MOCK",
+  "fixtureId": "demo-local-001",
+  "fixtureDigest": "sha256:ecb4856cbceb568b931360335822e3beb590b6a8feefa07e773f3813d2552823",
+  "disclaimer": "演示数据 · 非正式报价",
+  "entries": [
+    {
+      "capabilityId": "control.demo-workspace-ui",
+      "displayName": "现有企业项目与品牌/脚本页面",
+      "mode": "REAL-UI",
+      "ui": "REAL-UI",
+      "execution": "MOCK",
+      "transport": "LOCAL",
+      "persistence": "LOCAL_DEMO",
+      "provider": "NONE",
+      "billing": "NOT_APPLICABLE",
+      "projectIntegrated": true,
+      "fallbackLabel": null,
+      "knownLimitations": [
+        "LocalStorage 不是生产权限或账本事实源"
+      ]
+    },
+    {
+      "capabilityId": "production.storycanvas-foundation",
+      "displayName": "StoryCanvas 画布与连续性基础",
+      "mode": "REAL-CAP",
+      "ui": "NOT_IMPLEMENTED",
+      "execution": "REAL-CAP",
+      "transport": "HTTP_NOT_CONNECTED",
+      "persistence": "SQLITE",
+      "provider": "StoryCanvas",
+      "billing": "NOT_APPLICABLE",
+      "projectIntegrated": false,
+      "fallbackLabel": null,
+      "knownLimitations": [
+        "D1 海底捞跨仓适配尚由 C5 接入"
+      ]
+    },
+    {
+      "capabilityId": "control.production-contract-adapter",
+      "displayName": "生产包、Grant 与回执 Adapter",
+      "mode": "MOCK-CONTRACT",
+      "ui": "NOT_IMPLEMENTED",
+      "execution": "MOCK",
+      "transport": "MOCK-CONTRACT",
+      "persistence": "LOCAL_DEMO",
+      "provider": "DemoGenerator",
+      "billing": "MOCK-CONTRACT",
+      "projectIntegrated": true,
+      "fallbackLabel": null,
+      "knownLimitations": [
+        "进程内 Mock，不是签名令牌或真实后端"
+      ]
+    },
+    {
+      "capabilityId": "demo.local-life-golden-path",
+      "displayName": "海底捞本地生活双平面演示",
+      "mode": "HYBRID",
+      "ui": "REAL-UI",
+      "execution": "MOCK",
+      "transport": "MOCK-CONTRACT",
+      "persistence": "LOCAL_DEMO",
+      "provider": "DemoGenerator",
+      "billing": "MOCK-CONTRACT",
+      "projectIntegrated": true,
+      "fallbackLabel": "同一项目确定性 Demo 生成",
+      "knownLimitations": [
+        "控制平面 UI 既有，媒体接线和账本为 Mock"
+      ]
+    },
+    {
+      "capabilityId": "cap-addon-digital-human",
+      "displayName": "数字人 Add-on",
+      "mode": "LOCKED",
+      "ui": "NOT_IMPLEMENTED",
+      "execution": "LOCKED",
+      "transport": "MOCK-CONTRACT",
+      "persistence": "NOT_APPLICABLE",
+      "provider": "NONE",
+      "billing": "NOT_APPLICABLE",
+      "projectIntegrated": false,
+      "fallbackLabel": null,
+      "knownLimitations": [
+        "未购买 / 待授权，不允许执行"
+      ]
+    },
+    {
+      "capabilityId": "production.basic-ffmpeg-merge",
+      "displayName": "基础合并导出",
+      "mode": "FALLBACK",
+      "ui": "NOT_IMPLEMENTED",
+      "execution": "FALLBACK",
+      "transport": "HTTP_NOT_CONNECTED",
+      "persistence": "SQLITE",
+      "provider": "FFmpeg",
+      "billing": "NOT_APPLICABLE",
+      "projectIntegrated": false,
+      "fallbackLabel": "基础合并导出",
+      "knownLimitations": [
+        "不包含完整 FireRed AI 剪辑"
+      ]
+    }
+  ]
+}

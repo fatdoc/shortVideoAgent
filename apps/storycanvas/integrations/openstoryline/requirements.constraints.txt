@@ -1,0 +1,4 @@
+# FireRed-OpenStoryline 04297707e7607dd398e906262235d0797068e7b4
+# 1.0.9 and 1.0.10 import ExecutionInfo, which is absent from langgraph 1.0.10.
+langgraph-prebuilt==1.0.8
+

@@ -46,10 +46,11 @@ StoryCanvas 媒体生产平面
 - SaaS 不直接读 StoryCanvas SQLite。
 - 前端不持有上游模型密钥。
 - Agent 不绕过项目和任务直接扣减额度。
-- 两个仓库不通过复制对象形成两套事实源。
+- 两个应用不通过复制对象形成两套事实源。
 
 ## 当前实现策略
 
-- Demo：使用 Mock Adapter 串联两个平面，可通过路由跳转或轻量 API 模拟。
+- 代码组织：单仓双应用；根目录是 SaaS，`apps/storycanvas/` 是画布与媒体生产平面。
+- Demo：使用 Mock Adapter、v0.1 package、显式 grant 和 receipts 串联两个平面。
 - 商业 MVP：增加项目授权、用量计量和额度预冻结。
 - 完整生产：引入可靠任务队列、供应商路由、对象存储和可观测性。

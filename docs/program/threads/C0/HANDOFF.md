@@ -13,7 +13,7 @@
 - D2 验收重点：四身份默认落点、刷新恢复、退出失效、过期/损坏会话、直接 URL 越权、跨租户拒绝、两档视口和 D1 主链回归。
 - D2 后端边界：真实 IdP、安全 Session、Membership/Role/Permission 数据模型、API 服务端授权、租户数据隔离、代理继承/分佣权限、审计和安全评审均为后续独立阶段。
 - 权威 SaaS：`/Users/docfat/.codex/worktrees/4506/videoagent`
-- 权威 StoryCanvas：`/Users/docfat/.codex/worktrees/19f7/短视频agent`
+- 权威 StoryCanvas：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 权威静态报告：`docs/program/specs/C7_D1_STATIC_GATE_REVIEW.md`
 - 主持材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
 - 未完成：D2 前端实现、定向测试、lint/build/governance、四身份与越权视觉证据、D2 Demo Pack 增补和最终 Gate。

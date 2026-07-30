@@ -2,7 +2,7 @@
 
 - 状态：D1 Demo Pack v0.1 已完成，等待 C0 审阅
 - 基线：C7 `C7_D1_STATIC_GATE_REVIEW.md` Round 3.1，`P0/P1/P2=0/0/0`，`D1 STATIC GATE=GO`
-- 生产侧基线：`/Users/docfat/.codex/worktrees/19f7/短视频agent/docs/program/threads/C5/HANDOFF.md`
+- 生产侧基线：`apps/storycanvas/docs/program/threads/C5/HANDOFF.md`，来源提交 `46fc8d0`
 - 仓库/工作树：权威资料库位于 `/Users/docfat/.codex/worktrees/4506/videoagent/docs/program`
 - 分支/提交：权威资料库工作树为 detached HEAD；本轮未提交、未合并
 - 已完成：11 分 30 秒/16 步主持人脚本；角色与工作台、商业逻辑、双仓证据链、FALLBACK 声明、现场应急、Gate 状态六张一页材料
