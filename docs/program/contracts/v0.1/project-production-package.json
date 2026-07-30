@@ -1,0 +1,372 @@
+{
+  "packageId": "package-demo-local-001-v1",
+  "packageVersion": 1,
+  "contractVersion": "0.1",
+  "tenantId": "tenant-demo-hdl",
+  "organizationId": "tenant-demo-hdl",
+  "organizationType": "TENANT",
+  "projectId": "demo-local-001",
+  "brandId": "brand-demo-hdl",
+  "storeId": "store-demo-hdl-sanlitun",
+  "campaignId": "campaign-demo-hdl-douyin",
+  "agentTemplateCode": "local_life",
+  "creativeBriefSnapshot": {
+    "projectId": "demo-local-001",
+    "businessType": "local_store",
+    "merchantName": "海底捞火锅·北京三里屯店",
+    "city": "北京",
+    "address": "北京市朝阳区三里屯商圈",
+    "platforms": [
+      "抖音"
+    ],
+    "aspectRatio": "9:16",
+    "duration": 30,
+    "targetAudience": [
+      "18—30 岁",
+      "女性为主",
+      "美食兴趣人群",
+      "北京本地及旅游人群"
+    ],
+    "cta": "领取团购券 / 到店核销",
+    "assetIds": [
+      "asset-storefront",
+      "asset-welcome",
+      "asset-hotpot",
+      "asset-tripe",
+      "asset-dining",
+      "asset-night"
+    ],
+    "notes": "突出门店环境、服务体验、招牌菜、会员权益、地址与团购引导。",
+    "restrictions": [
+      "不得承诺绝对最低价",
+      "权益以门店实际规则为准",
+      "避免使用绝对化用语"
+    ]
+  },
+  "brandFactsSnapshot": [
+    {
+      "id": "C1",
+      "text": "地址位于北京市朝阳区三里屯商圈。",
+      "type": "fact",
+      "source": "门店资料",
+      "status": "approved",
+      "confidence": 0.98
+    },
+    {
+      "id": "C2",
+      "text": "营业时间为每日 10:00 至次日 07:00。",
+      "type": "fact",
+      "source": "门店资料",
+      "status": "approved",
+      "confidence": 0.95
+    },
+    {
+      "id": "C3",
+      "text": "四宫格锅底价格为 68 元。",
+      "type": "price",
+      "source": "菜单",
+      "status": "approved",
+      "confidence": 0.92
+    },
+    {
+      "id": "C4",
+      "text": "甄选双人餐价格为 258 元。",
+      "type": "price",
+      "source": "菜单",
+      "status": "approved",
+      "confidence": 0.92
+    },
+    {
+      "id": "C5",
+      "text": "提供等位零食、饮料等服务。",
+      "type": "service",
+      "source": "服务手册",
+      "status": "approved",
+      "confidence": 0.9
+    },
+    {
+      "id": "C6",
+      "text": "会员积分可以兑换部分菜品或权益。",
+      "type": "policy",
+      "source": "会员规则",
+      "status": "approved",
+      "confidence": 0.88
+    },
+    {
+      "id": "C7",
+      "text": "生日用户具有门店生日礼遇。",
+      "type": "policy",
+      "source": "会员规则",
+      "status": "approved",
+      "confidence": 0.86
+    },
+    {
+      "id": "C8",
+      "text": "具体套餐、价格和权益以门店实际规则为准。",
+      "type": "disclaimer",
+      "source": "法务口径",
+      "status": "approved",
+      "confidence": 1
+    }
+  ],
+  "riskRulesSnapshot": {
+    "prohibitedWords": [
+      "全网最低",
+      "第一",
+      "保证赚钱",
+      "永久有效",
+      "国家级"
+    ],
+    "restrictions": [
+      "不得承诺绝对最低价",
+      "权益以门店实际规则为准",
+      "避免使用绝对化用语"
+    ],
+    "requiredClaimIds": [
+      "C1",
+      "C2",
+      "C3",
+      "C4",
+      "C5",
+      "C6",
+      "C7",
+      "C8"
+    ]
+  },
+  "approvedScriptVersion": {
+    "id": "script-a",
+    "name": "版本 A · 服务体验向",
+    "score": 86,
+    "estimatedDuration": 30,
+    "createdAt": "2026-07-24T10:00:00.000Z",
+    "citations": [
+      "C1",
+      "C3",
+      "C5",
+      "C8"
+    ],
+    "blocks": [
+      {
+        "id": "blk-a-hook",
+        "type": "hook",
+        "content": "三里屯深夜还能吃到热气腾腾的火锅？这家店等位都给零食。",
+        "duration": 4,
+        "claimIds": [
+          "C1",
+          "C5"
+        ],
+        "comments": [],
+        "riskLevel": "low"
+      },
+      {
+        "id": "blk-a-body",
+        "type": "body",
+        "content": "进店先看四宫格锅底 68 元，招牌毛肚和虾滑是必点。",
+        "duration": 12,
+        "claimIds": [
+          "C3"
+        ],
+        "comments": [],
+        "riskLevel": "none"
+      },
+      {
+        "id": "blk-a-proof",
+        "type": "proof",
+        "content": "环境适合聚餐打卡，服务节奏清楚，适合本地和游客。",
+        "duration": 8,
+        "claimIds": [],
+        "comments": [],
+        "riskLevel": "none"
+      },
+      {
+        "id": "blk-a-cta",
+        "type": "cta",
+        "content": "点击领取团购券，到店核销更方便。",
+        "duration": 4,
+        "claimIds": [],
+        "comments": [],
+        "riskLevel": "none"
+      },
+      {
+        "id": "blk-a-disclaimer",
+        "type": "disclaimer",
+        "content": "具体套餐、价格和权益以门店实际规则为准。",
+        "duration": 2,
+        "claimIds": [
+          "C8"
+        ],
+        "comments": [],
+        "riskLevel": "none"
+      }
+    ],
+    "approvalStatus": "approved",
+    "approvedAt": "2026-07-30T00:02:00.000Z",
+    "approvedBy": "principal-demo-owner"
+  },
+  "shotDrafts": [
+    {
+      "id": "shot-01",
+      "order": 1,
+      "duration": 3,
+      "description": "门店外景",
+      "shotType": "wide",
+      "cameraPosition": "street exterior",
+      "narration": "三里屯这家火锅店先从外景认识。",
+      "screenText": "北京三里屯",
+      "sourceType": "upload",
+      "riskLevel": "none",
+      "status": "done",
+      "assignee": "拍摄组 A",
+      "assetId": "asset-storefront",
+      "matchStatus": "matched"
+    },
+    {
+      "id": "shot-02",
+      "order": 2,
+      "duration": 3,
+      "description": "进店服务",
+      "shotType": "medium",
+      "cameraPosition": "entrance",
+      "narration": "进店就有服务人员迎接。",
+      "screenText": "热情迎接",
+      "sourceType": "upload",
+      "riskLevel": "none",
+      "status": "done",
+      "assignee": "拍摄组 A",
+      "assetId": "asset-welcome",
+      "matchStatus": "matched"
+    },
+    {
+      "id": "shot-03",
+      "order": 3,
+      "duration": 4,
+      "description": "锅底特写",
+      "shotType": "close-up",
+      "cameraPosition": "table top",
+      "narration": "四宫格锅底 68 元。",
+      "screenText": "四宫格锅底 ¥68",
+      "sourceType": "upload",
+      "riskLevel": "low",
+      "status": "done",
+      "assignee": "拍摄组 B",
+      "assetId": "asset-hotpot",
+      "matchStatus": "matched"
+    },
+    {
+      "id": "shot-04",
+      "order": 4,
+      "duration": 4,
+      "description": "毛肚特写",
+      "shotType": "close-up",
+      "cameraPosition": "food detail",
+      "narration": "招牌毛肚新鲜下锅。",
+      "screenText": "招牌毛肚",
+      "sourceType": "upload",
+      "riskLevel": "none",
+      "status": "done",
+      "assignee": "拍摄组 B",
+      "assetId": "asset-tripe",
+      "matchStatus": "matched"
+    },
+    {
+      "id": "shot-05",
+      "order": 5,
+      "duration": 4,
+      "description": "虾滑制作",
+      "shotType": "detail",
+      "cameraPosition": "chef hands",
+      "narration": "现做虾滑更有仪式感。",
+      "screenText": "现做虾滑",
+      "sourceType": "shoot",
+      "riskLevel": "none",
+      "status": "shooting",
+      "assignee": "拍摄组 C",
+      "matchStatus": "reshoot"
+    },
+    {
+      "id": "shot-06",
+      "order": 6,
+      "duration": 4,
+      "description": "用餐环境",
+      "shotType": "wide",
+      "cameraPosition": "dining area",
+      "narration": "环境适合聚餐和打卡。",
+      "screenText": "舒适用餐环境",
+      "sourceType": "upload",
+      "riskLevel": "none",
+      "status": "done",
+      "assignee": "拍摄组 A",
+      "assetId": "asset-dining",
+      "matchStatus": "matched"
+    },
+    {
+      "id": "shot-07",
+      "order": 7,
+      "duration": 4,
+      "description": "会员权益",
+      "shotType": "insert",
+      "cameraPosition": "screen / card",
+      "narration": "会员积分与生日礼遇可按规则使用。",
+      "screenText": "会员权益",
+      "sourceType": "ai",
+      "riskLevel": "medium",
+      "status": "missing",
+      "assignee": "内容组",
+      "matchStatus": "missing"
+    },
+    {
+      "id": "shot-08",
+      "order": 8,
+      "duration": 4,
+      "description": "门店夜景与 CTA",
+      "shotType": "wide",
+      "cameraPosition": "night exterior",
+      "narration": "领取团购券，到店核销。",
+      "screenText": "领券到店",
+      "sourceType": "upload",
+      "riskLevel": "none",
+      "status": "done",
+      "assignee": "拍摄组 A",
+      "assetId": "asset-night",
+      "matchStatus": "matched"
+    }
+  ],
+  "target": {
+    "platform": "抖音",
+    "aspectRatio": "9:16",
+    "durationSeconds": 30
+  },
+  "capabilityGrants": [
+    {
+      "capabilityId": "cap-production-base-generation",
+      "entitlementId": "ent-demo-base-generation-active",
+      "constraints": {
+        "projectId": "demo-local-001",
+        "maxDurationSeconds": 30,
+        "aspectRatio": "9:16"
+      }
+    },
+    {
+      "capabilityId": "cap-agent-local-life",
+      "entitlementId": "ent-demo-local-life-active",
+      "constraints": {
+        "projectId": "demo-local-001",
+        "maxDurationSeconds": 30,
+        "aspectRatio": "9:16"
+      }
+    }
+  ],
+  "sourceVersions": {
+    "demoWorkspace": "videoagent:mvp:v1",
+    "project": 1,
+    "brief": 1,
+    "brand": 1,
+    "script": 1,
+    "storyboard": 1
+  },
+  "idempotencyKey": "package-create-demo-local-001-v1",
+  "createdAt": "2026-07-30T00:03:00.000Z",
+  "expiresAt": "2026-08-06T00:03:00.000Z",
+  "truthMode": "MOCK-CONTRACT",
+  "digest": "sha256:113bf8ae7b01c5b6328a59afd4d9d0b3c20b8f8978901b1ab2c74e3a2b75d645"
+}

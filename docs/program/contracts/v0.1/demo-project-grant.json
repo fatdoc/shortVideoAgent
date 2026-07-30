@@ -1,0 +1,23 @@
+{
+  "grantId": "grant-demo-local-001-v1",
+  "grantType": "DEMO_PROJECT_GRANT",
+  "mock": true,
+  "truthMode": "MOCK-CONTRACT",
+  "tenantId": "tenant-demo-hdl",
+  "organizationId": "tenant-demo-hdl",
+  "organizationType": "TENANT",
+  "projectId": "demo-local-001",
+  "packageId": "package-demo-local-001-v1",
+  "packageVersion": 1,
+  "capabilityIds": [
+    "cap-production-base-generation"
+  ],
+  "scopes": [
+    "production.package.read",
+    "production.receipt.write"
+  ],
+  "issuedAt": "2026-07-30T00:04:00.000Z",
+  "expiresAt": "2026-07-30T00:19:00.000Z",
+  "mockHandle": "mock-handle:grant-demo-local-001-v1",
+  "warning": "DEMO ONLY · NOT A SIGNED TOKEN · DO NOT USE AS CREDENTIAL"
+}

@@ -25,7 +25,7 @@ describe('app smoke', () => {
 
     expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
     expect(screen.getByText('短视频 Agent')).toBeInTheDocument();
-    expect(await screen.findByText('demo-local-001')).toBeInTheDocument();
+    expect((await screen.findAllByText('demo-local-001')).length).toBeGreaterThan(0);
     expect(screen.getByText('品牌事实')).toBeInTheDocument();
   });
 
@@ -45,13 +45,17 @@ describe('app smoke', () => {
     await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /分镜清单/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '分镜 / 拍摄清单' })).toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/demo-local-001/storyboard');
+    });
 
-    await user.click(screen.getByRole('menuitem', { name: /素材 \/ 初剪/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '素材中心 / 初剪预览' })).toBeInTheDocument();
+    await user.click(screen.getByRole('menuitem', { name: /任务.*交付/ }));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/demo-local-001/rough-cut');
+    });
 
-    await user.click(screen.getByRole('menuitem', { name: /工作台/ }));
+    await user.click(screen.getByRole('menuitem', { name: /企业工作台/ }));
     expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
   }, 15_000);
 
@@ -89,10 +93,10 @@ describe('app smoke', () => {
     render(<App />);
     await screen.findByRole('heading', { level: 3, name: '工作台' });
     expect(screen.getByRole('button', { name: /重置 Demo/ })).toBeInTheDocument();
-    expect(screen.getByText(/Demo：海底捞/)).toBeInTheDocument();
+    expect(screen.getAllByText(/海底捞/).length).toBeGreaterThan(0);
     // sidebar footer id
     const sider = document.querySelector('.ant-layout-sider');
     expect(sider).toBeTruthy();
-    expect(within(sider as HTMLElement).getByText(/demo-local-001/)).toBeInTheDocument();
+    expect(within(sider as HTMLElement).getByText('DEMO_READY')).toBeInTheDocument();
   });
 });

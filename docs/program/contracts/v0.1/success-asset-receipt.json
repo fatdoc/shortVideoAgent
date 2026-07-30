@@ -1,0 +1,26 @@
+{
+  "contractVersion": "0.1",
+  "assetId": "asset-demo-generated-shot-07",
+  "tenantId": "tenant-demo-hdl",
+  "projectId": "demo-local-001",
+  "shotId": "shot-07",
+  "type": "image",
+  "mimeType": "image/png",
+  "dimensions": {
+    "width": 720,
+    "height": 1280
+  },
+  "durationSeconds": 0,
+  "checksum": "sha256:6eaef6e91ab70fc139c551a6749ee297430cbf7eb1401013362ad1e37173fefd",
+  "source": "DemoGenerator",
+  "model": "deterministic-demo-v1",
+  "generationTaskId": "task-demo-success",
+  "promptDigest": "sha256:2481e992c84b7a7a23544f0a5c618f2e1cedbc9c6129d4dd017ad1862c5f4b4d",
+  "storageReference": "demo://assets/asset-demo-generated-shot-07.png",
+  "rightsNote": "D1 确定性 Demo 生成资产，仅用于内部演示。",
+  "reviewStatus": "registered",
+  "version": 1,
+  "idempotencyKey": "receipt-asset-demo-success-v1",
+  "createdAt": "2026-07-30T00:05:06.000Z",
+  "truthMode": "MOCK-CONTRACT"
+}

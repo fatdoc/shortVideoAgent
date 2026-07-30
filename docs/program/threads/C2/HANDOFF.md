@@ -1,0 +1,23 @@
+# C2 HANDOFF
+
+- 状态：FIRST_MISSION_DELIVERED / PENDING_REVIEW
+- 基线：Program Gate T0；历史前端 Demo Gate 2
+- 分支：detached HEAD（权威资料库工作树）
+- 提交：无；遵循首轮“不提交/不合并”
+- 已完成：
+  - 场景产品与能力目录 v0.1
+  - 三层能力模型与六个能力包
+  - Product/Capability/SKU/Entitlement 关系提案
+  - 海底捞三里屯端到端案例
+  - Demo / 商业 MVP / 后续范围
+  - 4 个跨域 Request
+- 产物：`docs/program/specs/C2_PRODUCT_AGENT_CATALOG_V0_1.md`
+- 合同版本：引用 `INTEGRATION_CONTRACT v0.1`，未修改公共合同
+- 影响范围：产品语义和场景流程提案；无代码、测试、账本或公共合同变更
+- 未完成：
+  - C3/C6 会签
+  - C1/C4/C5 依赖评审
+  - C0 最终批准
+- 风险：数字人授权合规、API 过早扩张、Entitlement 与额度模型冲突
+- 验证证据：原 PRD 结构化抽取；历史 Gate 2/C2 HANDOFF/统一 Demo 对照；文档差异检查
+- 下游第一步：C3 先处理 `REQ-C2-001`，C6 处理 `REQ-C2-004`；C0 汇总会签后决定是否冻结 v0.1

@@ -3,11 +3,27 @@ export const STORAGE_KEY = 'videoagent:mvp:v1';
 
 export const ROUTES = {
   dashboard: '/dashboard',
+  platformOverview: '/platform/overview',
+  platformCatalog: '/platform/catalog',
+  platformOrganizations: '/platform/organizations',
+  platformReceipts: '/platform/production-receipts',
+  channelOverview: '/channel/overview',
+  channelProducts: '/channel/products',
+  channelCustomers: '/channel/customers',
+  enterpriseProducts: '/enterprise/products',
+  productionOverview: '/production/overview',
   projectNew: '/projects/new',
   brand: (projectId: string) => `/projects/${projectId}/brand`,
   script: (projectId: string) => `/projects/${projectId}/script`,
   storyboard: (projectId: string) => `/projects/${projectId}/storyboard`,
   roughCut: (projectId: string) => `/projects/${projectId}/rough-cut`,
+  usage: (projectId: string) => `/projects/${projectId}/usage`,
+  delivery: (projectId: string) => `/projects/${projectId}/delivery`,
+  productionInbox: (projectId: string) => `/production/inbox/${projectId}`,
+  productionCanvas: (projectId: string) => `/production/canvas/${projectId}`,
+  productionTasks: (projectId: string) => `/production/tasks/${projectId}`,
+  productionAssets: (projectId: string) => `/production/assets/${projectId}`,
+  productionExport: (projectId: string) => `/production/export/${projectId}`,
 } as const;
 
 export const PROJECT_STATUS_LABEL: Record<string, string> = {

@@ -1,0 +1,673 @@
+{
+  "fixtureId": "demo-local-001",
+  "fixtureDigest": "sha256:ecb4856cbceb568b931360335822e3beb590b6a8feefa07e773f3813d2552823",
+  "stateName": "DEMO_READY",
+  "disclaimer": "演示数据 · 非正式报价",
+  "commercial": {
+    "platform": {
+      "platformId": "platform-videoagent",
+      "displayName": "短视频营销 Agent 平台",
+      "status": "active",
+      "contextType": "PLATFORM"
+    },
+    "channels": [
+      {
+        "channelOrganizationId": "channel-demo-master",
+        "displayName": "总代理演示组织",
+        "contextType": "CHANNEL",
+        "tier": "MASTER",
+        "depth": 1,
+        "parentChannelOrganizationId": null,
+        "status": "active",
+        "whiteLabelMode": false
+      },
+      {
+        "channelOrganizationId": "channel-demo-level-1",
+        "displayName": "一级代理演示组织",
+        "contextType": "CHANNEL",
+        "tier": "LEVEL_1",
+        "depth": 2,
+        "parentChannelOrganizationId": "channel-demo-master",
+        "status": "active",
+        "whiteLabelMode": false
+      },
+      {
+        "channelOrganizationId": "channel-demo-level-2",
+        "displayName": "二级代理演示组织",
+        "contextType": "CHANNEL",
+        "tier": "LEVEL_2",
+        "depth": 3,
+        "parentChannelOrganizationId": "channel-demo-level-1",
+        "status": "active",
+        "whiteLabelMode": false
+      }
+    ],
+    "tenant": {
+      "tenantId": "tenant-demo-hdl",
+      "displayName": "海底捞演示企业",
+      "contextType": "TENANT",
+      "status": "active",
+      "acquisitionMode": "CHANNEL",
+      "currentServiceChannelOrganizationId": "channel-demo-level-1",
+      "dataBoundary": "PRODUCTION_CONTENT"
+    },
+    "memberships": [
+      {
+        "membershipId": "membership-demo-platform-admin",
+        "principalId": "principal-demo-owner",
+        "organizationType": "PLATFORM",
+        "organizationId": "platform-videoagent",
+        "roleCodes": [
+          "platform.admin"
+        ],
+        "dataScopes": [
+          {
+            "kind": "PLATFORM_GLOBAL"
+          }
+        ],
+        "status": "active",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": null
+      },
+      {
+        "membershipId": "membership-demo-channel-level-1",
+        "principalId": "principal-demo-owner",
+        "organizationType": "CHANNEL",
+        "organizationId": "channel-demo-level-1",
+        "roleCodes": [
+          "channel.admin"
+        ],
+        "dataScopes": [
+          {
+            "kind": "CHANNEL_SUBTREE_COMMERCIAL"
+          }
+        ],
+        "status": "active",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": null
+      },
+      {
+        "membershipId": "membership-demo-tenant-owner",
+        "principalId": "principal-demo-owner",
+        "organizationType": "TENANT",
+        "organizationId": "tenant-demo-hdl",
+        "roleCodes": [
+          "tenant.owner",
+          "production.operator"
+        ],
+        "dataScopes": [
+          {
+            "kind": "TENANT_WIDE",
+            "tenantId": "tenant-demo-hdl"
+          },
+          {
+            "kind": "PROJECT_SET",
+            "tenantId": "tenant-demo-hdl",
+            "projectIds": [
+              "demo-local-001"
+            ]
+          }
+        ],
+        "status": "active",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": null
+      }
+    ],
+    "capabilities": [
+      {
+        "capabilityId": "cap-production-base-generation",
+        "code": "production.base_generation",
+        "displayName": "AI 视频基础生成",
+        "description": "Brief、脚本、分镜、生成、资产、QA 与导出的共享生产能力。",
+        "category": "production",
+        "availability": "active",
+        "dependencyCapabilityIds": []
+      },
+      {
+        "capabilityId": "cap-agent-local-life",
+        "code": "agent.local_life",
+        "displayName": "本地生活 Agent",
+        "description": "门店事实、镜头规划、团购 CTA 与本地生活生产流程。",
+        "category": "agent",
+        "availability": "active",
+        "dependencyCapabilityIds": [
+          "cap-production-base-generation"
+        ]
+      },
+      {
+        "capabilityId": "cap-agent-owner-ip",
+        "code": "agent.owner_ip",
+        "displayName": "老板 IP Agent",
+        "description": "D1 仅展示产品说明，不进入可执行黄金路径。",
+        "category": "agent",
+        "availability": "explanation_only",
+        "dependencyCapabilityIds": [
+          "cap-production-base-generation"
+        ]
+      },
+      {
+        "capabilityId": "cap-agent-ecommerce",
+        "code": "agent.ecommerce",
+        "displayName": "电商素材 Agent",
+        "description": "D1 仅展示产品说明，不进入可执行黄金路径。",
+        "category": "agent",
+        "availability": "explanation_only",
+        "dependencyCapabilityIds": [
+          "cap-production-base-generation"
+        ]
+      },
+      {
+        "capabilityId": "cap-addon-digital-human",
+        "code": "addon.digital_human",
+        "displayName": "数字人 Add-on",
+        "description": "D1 未购买且待授权，执行端点必须拒绝。",
+        "category": "addon",
+        "availability": "locked",
+        "dependencyCapabilityIds": [
+          "cap-production-base-generation",
+          "cap-agent-local-life"
+        ]
+      },
+      {
+        "capabilityId": "cap-access-api",
+        "code": "access.api",
+        "displayName": "API Add-on",
+        "description": "D1 未购买且待授权，不代表已开放真实 API。",
+        "category": "access",
+        "availability": "locked",
+        "dependencyCapabilityIds": [
+          "cap-production-base-generation"
+        ]
+      }
+    ],
+    "products": [
+      {
+        "productId": "product-demo-base-generation",
+        "code": "product.base_generation",
+        "displayName": "AI 视频基础生成包",
+        "description": "共享媒体生产能力与演示 AI 视频额度。",
+        "productType": "base",
+        "capabilityIds": [
+          "cap-production-base-generation"
+        ],
+        "availability": "active",
+        "demoAction": "usable"
+      },
+      {
+        "productId": "product-demo-local-life",
+        "code": "product.local_life_agent",
+        "displayName": "本地生活 Agent 包",
+        "description": "海底捞三里屯 D1 黄金路径主场景。",
+        "productType": "agent",
+        "capabilityIds": [
+          "cap-agent-local-life"
+        ],
+        "availability": "active",
+        "demoAction": "usable"
+      },
+      {
+        "productId": "product-demo-owner-ip",
+        "code": "product.owner_ip_agent",
+        "displayName": "老板 IP Agent 包",
+        "description": "说明态产品卡，不进入黄金路径。",
+        "productType": "agent",
+        "capabilityIds": [
+          "cap-agent-owner-ip"
+        ],
+        "availability": "explanation_only",
+        "demoAction": "explain"
+      },
+      {
+        "productId": "product-demo-ecommerce",
+        "code": "product.ecommerce_agent",
+        "displayName": "电商素材 Agent 包",
+        "description": "说明态产品卡，不进入黄金路径。",
+        "productType": "agent",
+        "capabilityIds": [
+          "cap-agent-ecommerce"
+        ],
+        "availability": "explanation_only",
+        "demoAction": "explain"
+      },
+      {
+        "productId": "product-demo-digital-human",
+        "code": "product.digital_human_addon",
+        "displayName": "数字人 Add-on",
+        "description": "未购买 / 待授权。",
+        "productType": "addon",
+        "capabilityIds": [
+          "cap-addon-digital-human"
+        ],
+        "availability": "locked",
+        "demoAction": "locked"
+      },
+      {
+        "productId": "product-demo-api",
+        "code": "product.api_addon",
+        "displayName": "API Add-on",
+        "description": "未购买 / 待授权。",
+        "productType": "addon",
+        "capabilityIds": [
+          "cap-access-api"
+        ],
+        "availability": "locked",
+        "demoAction": "locked"
+      }
+    ],
+    "skus": [
+      {
+        "skuId": "sku-demo-1",
+        "productId": "product-demo-base-generation",
+        "code": "product.base_generation.demo",
+        "displayName": "AI 视频基础生成包 · D1 演示规格",
+        "status": "active",
+        "entitlementCapabilityIds": [
+          "cap-production-base-generation"
+        ],
+        "includedCredits": {
+          "value": 1000,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "validityDays": 365
+      },
+      {
+        "skuId": "sku-demo-2",
+        "productId": "product-demo-local-life",
+        "code": "product.local_life_agent.demo",
+        "displayName": "本地生活 Agent 包 · D1 演示规格",
+        "status": "active",
+        "entitlementCapabilityIds": [
+          "cap-agent-local-life"
+        ],
+        "includedCredits": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "validityDays": 365
+      },
+      {
+        "skuId": "sku-demo-3",
+        "productId": "product-demo-owner-ip",
+        "code": "product.owner_ip_agent.demo",
+        "displayName": "老板 IP Agent 包 · D1 演示规格",
+        "status": "explanation_only",
+        "entitlementCapabilityIds": [
+          "cap-agent-owner-ip"
+        ],
+        "includedCredits": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "validityDays": 365
+      },
+      {
+        "skuId": "sku-demo-4",
+        "productId": "product-demo-ecommerce",
+        "code": "product.ecommerce_agent.demo",
+        "displayName": "电商素材 Agent 包 · D1 演示规格",
+        "status": "explanation_only",
+        "entitlementCapabilityIds": [
+          "cap-agent-ecommerce"
+        ],
+        "includedCredits": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "validityDays": 365
+      },
+      {
+        "skuId": "sku-demo-5",
+        "productId": "product-demo-digital-human",
+        "code": "product.digital_human_addon.demo",
+        "displayName": "数字人 Add-on · D1 演示规格",
+        "status": "locked",
+        "entitlementCapabilityIds": [
+          "cap-addon-digital-human"
+        ],
+        "includedCredits": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "validityDays": 365
+      },
+      {
+        "skuId": "sku-demo-6",
+        "productId": "product-demo-api",
+        "code": "product.api_addon.demo",
+        "displayName": "API Add-on · D1 演示规格",
+        "status": "locked",
+        "entitlementCapabilityIds": [
+          "cap-access-api"
+        ],
+        "includedCredits": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "validityDays": 365
+      }
+    ],
+    "entitlements": [
+      {
+        "entitlementId": "ent-demo-base-generation-active",
+        "tenantId": "tenant-demo-hdl",
+        "capabilityId": "cap-production-base-generation",
+        "sourceType": "DEMO_SKU",
+        "sourceId": "sku-demo-1",
+        "scope": {
+          "kind": "TENANT_WIDE",
+          "tenantId": "tenant-demo-hdl"
+        },
+        "status": "active",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": "2027-07-30T00:00:00.000Z",
+        "demo": {
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        }
+      },
+      {
+        "entitlementId": "ent-demo-local-life-active",
+        "tenantId": "tenant-demo-hdl",
+        "capabilityId": "cap-agent-local-life",
+        "sourceType": "DEMO_SKU",
+        "sourceId": "sku-demo-2",
+        "scope": {
+          "kind": "TENANT_WIDE",
+          "tenantId": "tenant-demo-hdl"
+        },
+        "status": "active",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": "2027-07-30T00:00:00.000Z",
+        "demo": {
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        }
+      },
+      {
+        "entitlementId": "ent-demo-digital-human-locked",
+        "tenantId": "tenant-demo-hdl",
+        "capabilityId": "cap-addon-digital-human",
+        "sourceType": "DEMO_LOCK",
+        "sourceId": "sku-demo-5",
+        "scope": {
+          "kind": "TENANT_WIDE",
+          "tenantId": "tenant-demo-hdl"
+        },
+        "status": "locked",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": "2027-07-30T00:00:00.000Z",
+        "demo": {
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        }
+      },
+      {
+        "entitlementId": "ent-demo-api-locked",
+        "tenantId": "tenant-demo-hdl",
+        "capabilityId": "cap-access-api",
+        "sourceType": "DEMO_LOCK",
+        "sourceId": "sku-demo-6",
+        "scope": {
+          "kind": "TENANT_WIDE",
+          "tenantId": "tenant-demo-hdl"
+        },
+        "status": "locked",
+        "validFrom": "2026-07-30T00:00:00.000Z",
+        "validTo": "2027-07-30T00:00:00.000Z",
+        "demo": {
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        }
+      }
+    ],
+    "rateCard": {
+      "rateCardId": "ratecard-demo-standard-video",
+      "version": "demo-v1",
+      "capabilityId": "cap-production-base-generation",
+      "meterCode": "STANDARD_5S_720P_VIDEO",
+      "meteringRule": "PER_DELIVERABLE_ASSET",
+      "inputBand": {
+        "durationSeconds": 5,
+        "resolution": "720p"
+      },
+      "estimatedCredits": {
+        "value": 100,
+        "unit": "AI_VIDEO_CREDIT",
+        "dataMode": "DEMO",
+        "quoteStatus": "NON_QUOTE",
+        "label": "演示数据 · 非正式报价"
+      },
+      "maxReservedCredits": {
+        "value": 120,
+        "unit": "AI_VIDEO_CREDIT",
+        "dataMode": "DEMO",
+        "quoteStatus": "NON_QUOTE",
+        "label": "演示数据 · 非正式报价"
+      },
+      "minimumChargeCredits": {
+        "value": 0,
+        "unit": "AI_VIDEO_CREDIT",
+        "dataMode": "DEMO",
+        "quoteStatus": "NON_QUOTE",
+        "label": "演示数据 · 非正式报价"
+      },
+      "billableOutcome": "SUCCEEDED_WITH_REGISTERED_DELIVERABLE_ASSET",
+      "effectiveFrom": "2026-07-30T00:00:00.000Z",
+      "effectiveTo": "2027-07-30T00:00:00.000Z",
+      "disclaimer": "演示数据 · 非正式报价"
+    },
+    "creditScenarios": [
+      {
+        "scenarioId": "canonical_success",
+        "taskId": "task-demo-success",
+        "reservationId": "reservation-demo-success-120",
+        "outcome": "succeeded_with_deliverable",
+        "maxReservedCredits": {
+          "value": 120,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "consumedCredits": {
+          "value": 100,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "releasedCredits": {
+          "value": 20,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "expectedSequence": [
+          "requested",
+          "reserved",
+          "consumed",
+          "released_remainder"
+        ],
+        "disclaimer": "演示数据 · 非正式报价"
+      },
+      {
+        "scenarioId": "canonical_failure",
+        "taskId": "task-demo-failure",
+        "reservationId": "reservation-demo-failure-80",
+        "outcome": "failed_without_deliverable",
+        "maxReservedCredits": {
+          "value": 80,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "consumedCredits": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "releasedCredits": {
+          "value": 80,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "expectedSequence": [
+          "requested",
+          "reserved",
+          "released"
+        ],
+        "disclaimer": "演示数据 · 非正式报价"
+      }
+    ],
+    "creditState": {
+      "wallet": {
+        "walletId": "wallet-demo-hdl-credit",
+        "tenantId": "tenant-demo-hdl",
+        "ownerContextType": "TENANT",
+        "creditType": "AI_VIDEO_CREDIT",
+        "status": "active",
+        "available": {
+          "value": 1000,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "reserved": {
+          "value": 0,
+          "unit": "AI_VIDEO_CREDIT",
+          "dataMode": "DEMO",
+          "quoteStatus": "NON_QUOTE",
+          "label": "演示数据 · 非正式报价"
+        },
+        "createdAt": "2026-07-30T00:00:00.000Z",
+        "disclaimer": "演示数据 · 非正式报价"
+      },
+      "lots": [
+        {
+          "lotId": "lot-demo-foundation-1000",
+          "walletId": "wallet-demo-hdl-credit",
+          "sourceType": "DEMO_ISSUANCE",
+          "sourceId": "DEMO_READY",
+          "originalCredits": {
+            "value": 1000,
+            "unit": "AI_VIDEO_CREDIT",
+            "dataMode": "DEMO",
+            "quoteStatus": "NON_QUOTE",
+            "label": "演示数据 · 非正式报价"
+          },
+          "remainingAvailable": {
+            "value": 1000,
+            "unit": "AI_VIDEO_CREDIT",
+            "dataMode": "DEMO",
+            "quoteStatus": "NON_QUOTE",
+            "label": "演示数据 · 非正式报价"
+          },
+          "remainingReserved": {
+            "value": 0,
+            "unit": "AI_VIDEO_CREDIT",
+            "dataMode": "DEMO",
+            "quoteStatus": "NON_QUOTE",
+            "label": "演示数据 · 非正式报价"
+          },
+          "issuedAt": "2026-07-30T00:00:00.000Z",
+          "expiresAt": "2027-07-30T00:00:00.000Z",
+          "transferPolicy": "NON_TRANSFERABLE_DEMO",
+          "refundPolicy": "NON_REFUNDABLE_DEMO",
+          "disclaimer": "演示数据 · 非正式报价"
+        }
+      ],
+      "ledger": [
+        {
+          "entryId": "ledger-demo-issue-wallet",
+          "postingGroupId": "posting-demo-reset-001",
+          "accountId": "wallet-demo-hdl-credit",
+          "walletId": "wallet-demo-hdl-credit",
+          "bucket": "available",
+          "delta": {
+            "value": 1000,
+            "unit": "AI_VIDEO_CREDIT",
+            "dataMode": "DEMO",
+            "quoteStatus": "NON_QUOTE",
+            "label": "演示数据 · 非正式报价"
+          },
+          "operation": "DEMO_ISSUE_CREDIT",
+          "lotId": "lot-demo-foundation-1000",
+          "referenceType": "DEMO_RESET",
+          "referenceId": "DEMO_READY",
+          "reservationId": null,
+          "idempotencyKey": "demo-ready-credit-issuance-v1",
+          "occurredAt": "2026-07-30T00:00:00.000Z",
+          "reasonCode": "DEMO_FOUNDATION_SEED",
+          "actorType": "DEMO_SYSTEM",
+          "actorId": "control-plane-mock-adapter",
+          "disclaimer": "演示数据 · 非正式报价"
+        },
+        {
+          "entryId": "ledger-demo-issue-counterparty",
+          "postingGroupId": "posting-demo-reset-001",
+          "accountId": "system:PURCHASE_ISSUANCE",
+          "walletId": "wallet-demo-hdl-credit",
+          "bucket": "PURCHASE_ISSUANCE",
+          "delta": {
+            "value": -1000,
+            "unit": "AI_VIDEO_CREDIT",
+            "dataMode": "DEMO",
+            "quoteStatus": "NON_QUOTE",
+            "label": "演示数据 · 非正式报价"
+          },
+          "operation": "DEMO_ISSUE_CREDIT",
+          "lotId": "lot-demo-foundation-1000",
+          "referenceType": "DEMO_RESET",
+          "referenceId": "DEMO_READY",
+          "reservationId": null,
+          "idempotencyKey": "demo-ready-credit-issuance-v1",
+          "occurredAt": "2026-07-30T00:00:00.000Z",
+          "reasonCode": "DEMO_FOUNDATION_SEED",
+          "actorType": "DEMO_SYSTEM",
+          "actorId": "control-plane-mock-adapter",
+          "disclaimer": "演示数据 · 非正式报价"
+        }
+      ],
+      "reservations": [],
+      "processedCommands": [
+        {
+          "idempotencyKey": "demo-ready-credit-issuance-v1",
+          "payloadDigest": "sha256:2d7c6acda9c864af4df07c9e2e4bf4bc3d5e43ec3769fffcaf249259a5ca1b5c",
+          "postingGroupIds": [
+            "posting-demo-reset-001"
+          ],
+          "processedAt": "2026-07-30T00:00:00.000Z"
+        }
+      ]
+    }
+  }
+}

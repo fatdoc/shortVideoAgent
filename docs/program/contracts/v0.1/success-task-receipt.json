@@ -1,0 +1,32 @@
+{
+  "contractVersion": "0.1",
+  "generationTaskId": "task-demo-success",
+  "tenantId": "tenant-demo-hdl",
+  "projectId": "demo-local-001",
+  "shotId": "shot-07",
+  "taskType": "image.generate",
+  "capabilityId": "cap-production-base-generation",
+  "provider": "DemoGenerator",
+  "model": "deterministic-demo-v1",
+  "status": "succeeded",
+  "progress": 100,
+  "inputDigest": "sha256:1ee4bcba363698a4a6852c21be85520b5b7ee7e4804557e07f5be828d4acdfc6",
+  "referenceAssetIds": [],
+  "reservationReference": "reservation-demo-success-120",
+  "actualCredits": {
+    "value": 100,
+    "unit": "AI_VIDEO_CREDIT",
+    "dataMode": "DEMO",
+    "quoteStatus": "NON_QUOTE",
+    "label": "演示数据 · 非正式报价"
+  },
+  "outputAssetIds": [
+    "asset-demo-generated-shot-07"
+  ],
+  "error": null,
+  "createdAt": "2026-07-30T00:05:00.000Z",
+  "startedAt": "2026-07-30T00:05:01.000Z",
+  "completedAt": "2026-07-30T00:05:05.000Z",
+  "idempotencyKey": "receipt-task-demo-success-v1",
+  "truthMode": "MOCK-CONTRACT"
+}

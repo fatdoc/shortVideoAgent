@@ -82,7 +82,10 @@ export function ScriptEditorPage() {
       setDirty(false);
       return;
     }
-    const forceResync = lastAction === 'hydrate' || lastAction === 'reset';
+    const forceResync =
+      lastAction === 'hydrate' ||
+      lastAction === 'reset' ||
+      lastAction?.startsWith('resetDemoExperience');
     if (!forceResync && dirty && draft && draft.id === activeFromStore.id) {
       return;
     }

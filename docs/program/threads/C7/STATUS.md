@@ -1,0 +1,25 @@
+# C7 STATUS
+
+- 岗位：集成、质量与交付负责人
+- 运行配置：`gpt-5.6-sol / high / 1.5x`
+- 当前阶段：D1 Runtime Gate Closeout
+- 当前状态：`STATIC_GATE_GO / RUNTIME_GO_FOR_INTERNAL_DEMO`
+- 权威报告：`docs/program/specs/C7_D1_RUNTIME_GATE_REPORT.md`
+- Static Gate：`GO`
+- 静态缺陷：`P0=0 / P1=0 / P2=0`
+- Round 3.1：
+  - `REQ-C7-013 CLOSED_STATIC`
+  - `REQ-C7-014 CLOSED_STATIC`
+- REQ-C7-013 证据：
+  - request/grant/ready 均携带并双向校验 canonical projectId/packageId
+  - 缺失/错值不 ready
+  - trusted origin/source 与内存 grant 边界保留
+- REQ-C7-014 证据：
+  - Export payload 补齐 C4 Schema/preflight 字段
+  - `businessId=exportId`
+  - digest 基于最终 payload
+  - QA/rights/DEMO_ONLY 扩展保留
+- Runtime：package、handoff、success/failure、4 ACK、额度、wrong project、FALLBACK 播放和 reset 均已取得运行证据
+- Visual：1672×941、1440×900、1280×720 无页面横向溢出
+- 边界：仅 `GO_FOR_INTERNAL_DEMO`，不代表生产发布、真实 AI、正式报价或品牌批准
+- 最近更新：2026-07-30

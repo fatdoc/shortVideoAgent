@@ -1,0 +1,33 @@
+# C4 STATUS
+
+- 岗位：SaaS 平台与数据架构负责人
+- 当前阶段：D1 P0 Fix Wave Round 3
+- 当前状态：`IMPLEMENTED / READY_FOR_C0_STATIC_REVIEW`
+- 当前工作树：`/Users/docfat/.codex/worktrees/ddad/videoagent`
+- 基线：detached `8d847adaa4f25b3531f882c7c3a9453e58dff8ba`
+- 已完成：
+  - D1 控制平面类型与无依赖运行时 Schema
+  - 独立 Platform / ChannelOrganization / TenantContext 和 Membership/DataScope
+  - 唯一海底捞商业、能力、RateCard、Wallet/Lot/Ledger fixture
+  - append-only 额度纯函数、幂等重放和 `DEMO_READY` 重置
+  - canonical ProjectProductionPackage、Mock grant、Task/Asset Receipt
+  - 内存 Mock Adapter、关键错误和来源链
+  - Capability Truth Manifest 六类真实性状态
+  - 可持久 `ScriptApproval` 与 approve/revoke/block；旧批准变更会使旧生产制品失效
+  - 单一 `resetDemoExperience()` 原子重置与失败回滚
+  - 可配置 StoryCanvas HTTP Bridge：发包、accepted/duplicate/rejected、重试与 deepLink
+  - pending Receipt Outbox 轮询、来源链校验、Task/Asset/Export 幂等接收与 ack
+  - canonical tenant/project 路由安全拒绝；不做错误 ID 自动映射
+  - 明确 `ready/offline/error/retry` bootstrap/transport 状态与动态 Truth 来源
+  - 对齐 C5 `{code,data,message}`、Package `data.result` 与标准错误
+  - current grant 按调用时刻签发，严格 15 分钟 TTL，过期禁止生产重试
+  - Receipt 适配 C5 delivered/retry Outbox 与单一 base64url grant header
+  - Receipt 时序改为完整预演 → C5 ACK → 本地 Adapter/CreditLedger 提交
+  - accepted/duplicate 后可启动内存 grant handoff；限定 `localhost:50188` origin 与子窗 source
+  - 独立持久 `activeOrganizationId`、组织切换与工作台/菜单执行上下文
+  - `projectStore.reset()` 返回完整 `DemoExperienceResetResult`
+  - REQ-C7-013：grant-request/grant/ready 三类消息冻结同一 canonical project/package identity
+- 裁决落实：废止“Organization 必须属于 Tenant”；grant `organizationId` 仅为当前操作主体，`tenantId` 始终是生产内容隔离边界
+- 阻塞：C4 静态可修项已关闭；C5 当前 public Outbox 缺少显式 package 字段时由已授权 accepted package 上下文补齐，仍需 C7 集成态确认
+- 验证：按 C0 指令未运行测试、构建、lint、类型检查或治理验证
+- 最近更新：2026-07-30

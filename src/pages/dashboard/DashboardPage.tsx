@@ -6,6 +6,7 @@ import {
   PlusOutlined,
   SearchOutlined,
   VideoCameraOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -20,9 +21,11 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProjectMetricCard, WorkflowProgress } from '../../components/project';
+import { TruthBadge } from '../../components/workbench/TruthBadge';
 import '../../components/project/project-workflow.css';
 import { DEMO_PROJECT_ID, PROJECT_STATUS_LABEL, ROUTES } from '../../domain/constants';
 import { summarizeWorkspace } from '../../domain/selectors';
+import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { useProjectStore } from '../../stores/projectStore';
 
 export function DashboardPage() {
@@ -32,6 +35,7 @@ export function DashboardPage() {
   const loading = useProjectStore((state) => state.loading);
   const hydrate = useProjectStore((state) => state.hydrate);
   const clearError = useProjectStore((state) => state.clearError);
+  const controlPlane = useControlPlaneStore((state) => state.snapshot);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -68,6 +72,49 @@ export function DashboardPage() {
           新建项目
         </Button>
       </div>
+
+      <section className="d1-enterprise-context">
+        <div className="d1-enterprise-context-main">
+          <span className="d1-enterprise-context-icon">
+            <WalletOutlined />
+          </span>
+          <div>
+            <Typography.Text type="secondary">当前企业</Typography.Text>
+            <Typography.Text strong>
+              {controlPlane.commercial.tenant.displayName}
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">可用额度</Typography.Text>
+            <Typography.Text strong>
+              {controlPlane.commercial.creditState.wallet.available.value}
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">冻结额度</Typography.Text>
+            <Typography.Text strong>
+              {controlPlane.commercial.creditState.wallet.reserved.value}
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">已购能力</Typography.Text>
+            <Typography.Text strong>
+              {
+                controlPlane.commercial.entitlements.filter(
+                  (entitlement) => entitlement.status === 'active',
+                ).length
+              }
+            </Typography.Text>
+          </div>
+        </div>
+        <div className="d1-enterprise-context-actions">
+          <TruthBadge capabilityId="demo.local-life-golden-path" compact />
+          <Tag>{controlPlane.truthManifest.disclaimer}</Tag>
+          <Button onClick={() => navigate('/enterprise/products')}>
+            查看已购 / 未购买
+          </Button>
+        </div>
+      </section>
 
       {error ? (
         <Alert

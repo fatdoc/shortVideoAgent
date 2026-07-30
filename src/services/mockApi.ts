@@ -31,6 +31,11 @@ export const mockApi = {
     return persist(ensureWorkspace());
   },
 
+  async resetWorkspace(): Promise<DemoWorkspace> {
+    await delay();
+    return persist(cloneDemoWorkspace());
+  },
+
   async saveBrief(brief: ProjectBrief): Promise<DemoWorkspace> {
     await delay();
     const workspace = ensureWorkspace();
@@ -92,10 +97,5 @@ export const mockApi = {
     workspace.project.status = 'production';
     workspace.project.progress = Math.max(workspace.project.progress, 75);
     return persist(touch(workspace));
-  },
-
-  async resetWorkspace(): Promise<DemoWorkspace> {
-    await delay(120);
-    return persist(cloneDemoWorkspace());
   },
 };

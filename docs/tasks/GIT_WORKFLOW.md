@@ -1,64 +1,36 @@
 # Git 工作流 · GIT WORKFLOW
 
-## 分支
+## 基本原则
 
-| 分支 | 用途 |
-|---|---|
-| `main` | 稳定基线 |
-| `integration` | 集成验证 |
-| `feat/c1-foundation` | C1 |
-| `feat/c2-dashboard-brief` | C2 |
-| `feat/c3-brand-brain` | C3 |
-| `feat/c4-script-editor` | C4 |
-| `feat/c5-storyboard` | C5 |
-| `feat/c6-rough-cut` | C6 |
-| `feat/c7-integration-tests` | C7 |
+- 两个仓库分别管理历史和发布，不直接拼接提交记录。
+- 一名员工一个任务分支/Worktree。
+- 稳定 `main` 只接收通过 C0 Gate 的提交。
+- C5 不得重置 StoryCanvas 当前 `feat/storycanvas-phase0` 成果。
 
-## 推荐 Worktree
+## 推荐分支
 
-```
-worktrees/c1-foundation
-worktrees/c2-dashboard-brief
-worktrees/c3-brand-brain
-worktrees/c4-script-editor
-worktrees/c5-storyboard
-worktrees/c6-rough-cut
-worktrees/c7-tests
+```text
+codex/c1-tenant-channel
+codex/c2-product-agents
+codex/c3-credit-settlement
+codex/c4-saas-platform
+codex/c5-storycanvas-engine
+codex/c6-demo-experience
+codex/c7-integration-quality
+codex/c8-product-materials
 ```
 
-## 建议命令（Gate0 后由人执行）
+## 提交流程
 
-```bash
-git init
-git add .
-git commit -m "chore: gate0 bootstrap governance and app skeleton"
-git branch integration
-git branch feat/c1-foundation
-```
+1. 开工前报告仓库、分支、状态和范围。
+2. 只提交本员工所有权内变更。
+3. 更新项目级 STATUS/HANDOFF/CHANGELOG/REQUESTS。
+4. C7 检查所需证据。
+5. C0 决定合并顺序和目标分支。
+6. 跨仓发布记录必须注明两个 commit/version 的对应关系。
 
-Worktree 示例：
+## 禁止
 
-```bash
-git worktree add ../worktrees/c1-foundation feat/c1-foundation
-```
-
-## 提交规范
-
-- `feat(c2): ...`
-- `fix(c5): ...`
-- `docs(c0): ...`
-- `test(c7): ...`
-- `chore: ...`
-
-## 合并规则
-
-1. 线程自检 lint/build/test
-2. 更新 HANDOFF + Commit Hash
-3. C0 Gate Review
-4. 合入 `integration`
-5. Gate 通过后合入 `main`
-
-## 当前阶段说明
-
-Gate 0 将初始化 git 仓库并提交基线（若环境允许）。  
-不批量创建 worktree，除非仓库干净且 C0 明确需要。
+- 未经批准直接修改稳定 `main`。
+- `git reset --hard`、覆盖式 checkout 或删除他人分支成果。
+- 将两个仓库未审核地变成子模块或单体仓库。

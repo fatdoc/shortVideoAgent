@@ -9,7 +9,10 @@ import type {
 } from '../domain/types';
 import { cloneDemoWorkspace } from '../mocks/demoWorkspace';
 import { mockApi } from '../services/mockApi';
-import { loadWorkspace, saveWorkspace } from '../services/storage';
+import { loadWorkspace } from '../services/storage';
+import type { ControlPlaneErrorShape } from '../domain/controlPlane';
+import type { DemoExperienceResetResult } from '../services/demoExperienceReset';
+import { controlPlaneMockAdapter } from '../services/controlPlaneMockAdapter';
 
 interface ProjectState {
   workspace: DemoWorkspace;
@@ -24,7 +27,13 @@ interface ProjectState {
   updateScript: (script: ScriptVersion) => Promise<void>;
   updateStoryboard: (storyboard: StoryboardShot[]) => Promise<void>;
   updateTimeline: (timeline: Timeline) => Promise<void>;
-  reset: () => Promise<void>;
+  reset: () => Promise<DemoExperienceResetResult>;
+  setResetPending: () => void;
+  applyResetSnapshot: (workspace: DemoWorkspace) => void;
+  applyResetFailure: (
+    workspace: DemoWorkspace | null,
+    error: ControlPlaneErrorShape,
+  ) => void;
   clearError: () => void;
 }
 
@@ -53,7 +62,7 @@ async function runAction(
   }
 }
 
-export const useProjectStore = create<ProjectState>((set) => ({
+export const useProjectStore = create<ProjectState>((set, get) => ({
   workspace: initial,
   loading: false,
   error: null,
@@ -89,22 +98,55 @@ export const useProjectStore = create<ProjectState>((set) => ({
   },
 
   reset: async () => {
-    set({ loading: true, error: null, lastAction: 'reset' });
     try {
-      const workspace = await mockApi.resetWorkspace();
-      set({ workspace, loading: false, hydrated: true, lastAction: 'reset' });
+      const { resetDemoExperience } = await import('./demoExperienceStore');
+      return await resetDemoExperience();
     } catch (error) {
-      const workspace = cloneDemoWorkspace();
-      saveWorkspace(workspace);
+      const resetError: ControlPlaneErrorShape = {
+        code: 'CONTRACT_VALIDATION_FAILED',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Demo 原子重置入口加载失败',
+        retryable: true,
+        details: {},
+      };
       set({
-        workspace,
         loading: false,
-        error: error instanceof Error ? error.message : '重置失败',
+        error: resetError.message,
         hydrated: true,
         lastAction: 'reset',
       });
+      return {
+        ok: false,
+        stateName: 'RESET_FAILED',
+        workspace: structuredClone(get().workspace),
+        controlPlane: controlPlaneMockAdapter.getState(),
+        error: resetError,
+      };
     }
   },
+
+  setResetPending: () =>
+    set({ loading: true, error: null, lastAction: 'resetDemoExperience' }),
+
+  applyResetSnapshot: (workspace) =>
+    set({
+      workspace,
+      loading: false,
+      error: null,
+      hydrated: true,
+      lastAction: 'resetDemoExperience',
+    }),
+
+  applyResetFailure: (workspace, error) =>
+    set((state) => ({
+      workspace: workspace ?? state.workspace,
+      loading: false,
+      error: error.message,
+      hydrated: true,
+      lastAction: 'resetDemoExperience:failed',
+    })),
 
   clearError: () => set({ error: null }),
 }));

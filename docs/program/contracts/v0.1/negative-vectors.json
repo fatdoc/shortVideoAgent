@@ -1,0 +1,141 @@
+{
+  "contractVersion": "0.1",
+  "fixtureId": "demo-local-001",
+  "fixtureDigest": "sha256:ecb4856cbceb568b931360335822e3beb590b6a8feefa07e773f3813d2552823",
+  "disclaimer": "演示数据 · 非正式报价",
+  "vectors": [
+    {
+      "caseId": "ERR-SCOPE-001",
+      "expectedCode": "ACTION_SCOPE_DENIED",
+      "operation": "createProjectProductionPackage",
+      "inputHint": "使用 channelTenantContentSpoofAuthorization 模拟渠道绕过 Tenant Membership",
+      "request": {
+        "authorization": {
+          "principalId": "principal-demo-owner",
+          "membershipId": "membership-demo-channel-level-1",
+          "organizationType": "CHANNEL",
+          "organizationId": "channel-demo-level-1",
+          "tenantId": "tenant-demo-hdl",
+          "projectId": "demo-local-001"
+        },
+        "projectId": "demo-local-001",
+        "capabilityIds": [
+          "cap-production-base-generation",
+          "cap-agent-local-life"
+        ],
+        "idempotencyKey": "negative-scope-001"
+      }
+    },
+    {
+      "caseId": "ERR-TENANT-001",
+      "expectedCode": "TENANT_SCOPE_MISMATCH",
+      "operation": "createProjectProductionPackage",
+      "inputHint": "复制 tenantDemoAuthorization 并将 tenantId 改为其他 Tenant",
+      "request": {
+        "authorization": {
+          "principalId": "principal-demo-owner",
+          "membershipId": "membership-demo-tenant-owner",
+          "organizationType": "TENANT",
+          "organizationId": "tenant-demo-hdl",
+          "tenantId": "tenant-negative-other",
+          "projectId": "demo-local-001"
+        },
+        "projectId": "demo-local-001",
+        "capabilityIds": [
+          "cap-production-base-generation",
+          "cap-agent-local-life"
+        ],
+        "idempotencyKey": "negative-tenant-001"
+      }
+    },
+    {
+      "caseId": "ERR-IDEMPOTENCY-001",
+      "expectedCode": "IDEMPOTENCY_CONFLICT",
+      "operation": "createProjectProductionPackage",
+      "inputHint": "先创建 canonical 包，再用同一 idempotencyKey 和不同 capabilityIds 重放",
+      "precondition": {
+        "operation": "createProjectProductionPackage",
+        "request": {
+          "authorization": {
+            "principalId": "principal-demo-owner",
+            "membershipId": "membership-demo-tenant-owner",
+            "organizationType": "TENANT",
+            "organizationId": "tenant-demo-hdl",
+            "tenantId": "tenant-demo-hdl",
+            "projectId": "demo-local-001"
+          },
+          "projectId": "demo-local-001",
+          "capabilityIds": [
+            "cap-production-base-generation",
+            "cap-agent-local-life"
+          ],
+          "idempotencyKey": "package-create-demo-local-001-v1"
+        }
+      },
+      "request": {
+        "authorization": {
+          "principalId": "principal-demo-owner",
+          "membershipId": "membership-demo-tenant-owner",
+          "organizationType": "TENANT",
+          "organizationId": "tenant-demo-hdl",
+          "tenantId": "tenant-demo-hdl",
+          "projectId": "demo-local-001"
+        },
+        "projectId": "demo-local-001",
+        "capabilityIds": [
+          "cap-production-base-generation"
+        ],
+        "idempotencyKey": "package-create-demo-local-001-v1"
+      }
+    },
+    {
+      "caseId": "ERR-LOCKED-001",
+      "expectedCode": "CAPABILITY_LOCKED",
+      "operation": "createProjectProductionPackage",
+      "inputHint": "请求 CAPABILITY_IDS.digitalHuman 或 CAPABILITY_IDS.apiAccess",
+      "request": {
+        "authorization": {
+          "principalId": "principal-demo-owner",
+          "membershipId": "membership-demo-tenant-owner",
+          "organizationType": "TENANT",
+          "organizationId": "tenant-demo-hdl",
+          "tenantId": "tenant-demo-hdl",
+          "projectId": "demo-local-001"
+        },
+        "projectId": "demo-local-001",
+        "capabilityIds": [
+          "cap-production-base-generation",
+          "cap-agent-local-life",
+          "cap-addon-digital-human"
+        ],
+        "idempotencyKey": "negative-locked-001"
+      }
+    },
+    {
+      "caseId": "ERR-CREDIT-001",
+      "expectedCode": "INSUFFICIENT_CREDITS",
+      "operation": "reserveGenerationTask",
+      "inputHint": "在 DEMO_READY 钱包请求冻结 1001 额度",
+      "precondition": {
+        "packageFixture": "project-production-package.json",
+        "grantFixture": "demo-project-grant.json"
+      },
+      "request": {
+        "authorization": {
+          "principalId": "principal-demo-owner",
+          "membershipId": "membership-demo-tenant-owner",
+          "organizationType": "TENANT",
+          "organizationId": "tenant-demo-hdl",
+          "tenantId": "tenant-demo-hdl",
+          "projectId": "demo-local-001"
+        },
+        "generationTaskId": "task-negative-insufficient",
+        "reservationId": "reservation-negative-insufficient",
+        "capabilityId": "cap-production-base-generation",
+        "maxReservedCredits": 1001,
+        "idempotencyKey": "negative-credit-001",
+        "occurredAt": "2026-07-30T00:07:00.000Z"
+      }
+    }
+  ]
+}

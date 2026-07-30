@@ -7,6 +7,8 @@ import { layout } from '../design/tokens';
 import { useProjectStore } from '../stores/projectStore';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
+import { DemoTruthBar } from '../components/workbench/WorkbenchChrome';
+import '../design/d1-experience.css';
 
 const { Content } = Layout;
 
@@ -25,6 +27,7 @@ export function AppShell() {
       <Sidebar />
       <Layout style={{ marginLeft: layout.sidebarWidth }}>
         <Topbar />
+        <DemoTruthBar />
         <Content className="app-shell-content">
           <div className="app-page">
             {!hydrated && loading ? (

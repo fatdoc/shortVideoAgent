@@ -1,0 +1,96 @@
+{
+  "startedAt": "2026-07-30T01:29:10.293Z",
+  "checks": {
+    "package": {
+      "status": 201,
+      "projectId": "demo-local-001",
+      "packageId": "package-demo-local-001-v1"
+    },
+    "handoff": {
+      "parent": "handoff_ready · handoff ready",
+      "childReady": true,
+      "childUrl": "http://localhost:50188/storycanvas/demo-local-001"
+    },
+    "storycanvas1440": {
+      "clientWidth": 1440,
+      "scrollWidth": 1440,
+      "clientHeight": 900,
+      "scrollHeight": 900
+    },
+    "successScenario": {
+      "registered": true,
+      "realGeneration": "真实生成：0"
+    },
+    "successCredit": {
+      "consumed": 100,
+      "released": 20,
+      "reserved": 120
+    },
+    "failureScenario": {
+      "registered": true,
+      "outputFabricated": false
+    },
+    "failureCredit": {
+      "consumed": 0,
+      "released": 80,
+      "reserved": 80
+    },
+    "fallbackPlayback": {
+      "readyState": 4,
+      "paused": false,
+      "duration": 6,
+      "videoWidth": 540,
+      "videoHeight": 960,
+      "src": "http://localhost:50188/media/d1/demo-local-001-fallback-synthetic-v1.mp4"
+    },
+    "storycanvas1280": {
+      "clientWidth": 1280,
+      "scrollWidth": 1280,
+      "clientHeight": 720,
+      "scrollHeight": 720
+    },
+    "http": {
+      "tasks": {
+        "status": 200,
+        "count": 2
+      },
+      "acknowledgedReceipts": {
+        "status": 200,
+        "count": 4,
+        "statuses": [
+          "acknowledged",
+          "acknowledged",
+          "acknowledged",
+          "acknowledged"
+        ]
+      },
+      "artifacts": {
+        "status": 200,
+        "count": 1,
+        "playable": true
+      },
+      "wrongProject": {
+        "status": 403,
+        "code": "PROJECT_SCOPE_MISMATCH"
+      },
+      "media": {
+        "status": 200,
+        "contentType": "video/mp4",
+        "bytes": 2155679,
+        "sha256": "55370297920ad6f957a3bbcdb4cbdc2ff088ba7594062a07c589b7a6db3727ef"
+      }
+    },
+    "reset": {
+      "progressReset": true,
+      "availableCredit": true,
+      "frozenCredit": true
+    }
+  },
+  "screenshots": [
+    "/Users/docfat/.codex/worktrees/4506/videoagent/docs/program/evidence/d1-production-handoff-1440x900.png",
+    "/Users/docfat/.codex/worktrees/4506/videoagent/docs/program/evidence/d1-storycanvas-1440x900.png",
+    "/Users/docfat/.codex/worktrees/4506/videoagent/docs/program/evidence/d1-storycanvas-project-1280x720.png",
+    "/Users/docfat/.codex/worktrees/4506/videoagent/docs/program/evidence/d1-production-settled-1440x900.png"
+  ],
+  "completedAt": "2026-07-30T01:29:14.571Z"
+}

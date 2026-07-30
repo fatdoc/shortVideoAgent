@@ -59,13 +59,15 @@ export const shadows = {
 export const layout = {
   sidebarWidth: 220,
   topbarHeight: 56,
+  truthBarHeight: 36,
   contentMaxWidth: 1440,
-  contentMinHeight: 'calc(100vh - 56px - 48px)',
+  contentMinHeight: 'calc(100vh - 92px - 48px)',
   pagePadding: 24,
 } as const;
 
 export const zIndex = {
   sidebar: 30,
   topbar: 20,
+  truthBar: 19,
   overlay: 1000,
 } as const;

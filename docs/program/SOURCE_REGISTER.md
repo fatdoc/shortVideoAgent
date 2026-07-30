@@ -1,0 +1,15 @@
+# SOURCE REGISTER · 资料来源登记
+
+| 来源 | 位置 | 用途 | 权威性 |
+|---|---|---|---|
+| 原始 PRD v1.0 | `/Users/docfat/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_a813aw2j6e1922_b9b6/msg/file/2026-07/短视频营销Agent产品需求文档_PRD_v1.0.docx` | 战略、场景和能力需求来源 | 原始输入，不代表全部已冻结 |
+| SaaS 前端 Demo | 当前 `videoagent` 仓库 | 老板演示控制平面与既有 Gate 2 成果 | 当前实现事实 |
+| StoryCanvas | `/Users/docfat/Desktop/个人/智能体社区/项目/短视频agent` | 媒体生产引擎与画布基础 | 当前源码和最新设计 QA 优先 |
+| UI 参考图 | `UI/**` | 页面视觉对照 | 只读原始资产 |
+| 项目级共同记忆 | `docs/program/COMMON_MEMORY.md` | C0 批准后的统一事实 | 最高项目内权威 |
+
+## 使用原则
+
+- 旧进度文档与当前源码冲突时，以当前源码、最新截图和 C0 决策为准。
+- 原 PRD 中标记 P0 不等于当前 Demo 必须实现。
+- 任何外部材料引用未冻结数字时必须标记“待确认”。

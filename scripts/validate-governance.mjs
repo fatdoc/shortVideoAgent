@@ -28,45 +28,47 @@ function nonEmpty(rel) {
 const requiredDocs = [
   'docs/00_README_FIRST.md',
   'README.md',
+  'docs/program/README.md',
+  'docs/program/PROJECT_CHARTER.md',
+  'docs/program/COMMON_MEMORY.md',
+  'docs/program/GLOSSARY.md',
+  'docs/program/ARCHITECTURE.md',
+  'docs/program/REPOSITORY_MAP.md',
+  'docs/program/INTEGRATION_CONTRACT.md',
+  'docs/program/ROLE_BOUNDARIES.md',
+  'docs/program/ROLE_WORKBENCHES.md',
+  'docs/program/DECISION_RIGHTS.md',
+  'docs/program/EMPLOYEE_RULES.md',
+  'docs/program/AUTONOMY_PROTOCOL.md',
+  'docs/program/ROADMAP_AND_GATES.md',
+  'docs/program/SOURCE_REGISTER.md',
+  'docs/program/templates/REQUEST_TEMPLATE.md',
+  'docs/program/templates/HANDOFF_TEMPLATE.md',
+  'docs/program/templates/ADR_TEMPLATE.md',
   'docs/memory/SHARED_MEMORY.md',
-  'docs/memory/PRODUCT_SCOPE.md',
-  'docs/memory/DEMO_STORY.md',
-  'docs/memory/ARCHITECTURE.md',
-  'docs/memory/ROUTES.md',
-  'docs/memory/DATA_CONTRACTS.md',
-  'docs/memory/INTERACTION_FLOW.md',
-  'docs/memory/MOCK_DATA.md',
-  'docs/memory/UI_REFERENCE_MAP.md',
   'docs/memory/DECISIONS.md',
-  'docs/memory/RISKS_AND_BLOCKERS.md',
-  'docs/memory/INTEGRATION_STATUS.md',
-  'docs/ui/README.md',
-  'docs/tasks/TASK_BOARD.md',
   'docs/tasks/DEPENDENCIES.md',
   'docs/tasks/ACCEPTANCE.md',
-  'docs/tasks/DEMO_CHECKLIST.md',
   'docs/tasks/FILE_OWNERSHIP.md',
   'docs/tasks/GIT_WORKFLOW.md',
-  'docs/tasks/GATE_0_REPORT.md',
-  'docs/prompts/C0_GATE_REVIEW.md',
   'src/domain/types.ts',
   'src/domain/constants.ts',
   'src/mocks/demoWorkspace.ts',
   'src/app/Router.tsx',
 ];
 
-for (const f of requiredDocs) nonEmpty(f);
+for (const file of requiredDocs) nonEmpty(file);
 
-for (let i = 0; i <= 7; i += 1) {
-  nonEmpty(`docs/agents/C${i}_ROLE.md`);
-}
-
-for (let i = 1; i <= 7; i += 1) {
-  nonEmpty(`docs/prompts/C${i}_START.md`);
-  for (const name of ['STATUS.md', 'HANDOFF.md', 'CHANGELOG.md', 'REQUESTS.md']) {
-    nonEmpty(`docs/threads/C${i}/${name}`);
+for (let i = 0; i <= 8; i += 1) {
+  nonEmpty(`docs/program/employees/C${i}_RECRUITMENT.md`);
+  nonEmpty(`docs/program/missions/C${i}_FIRST_MISSION.md`);
+  for (const name of ['STATUS.md', 'PLAN.md', 'HANDOFF.md', 'CHANGELOG.md', 'REQUESTS.md']) {
+    nonEmpty(`docs/program/threads/C${i}/${name}`);
   }
 }
+
+for (let i = 0; i <= 7; i += 1) nonEmpty(`docs/agents/C${i}_ROLE.md`);
+for (let i = 1; i <= 7; i += 1) nonEmpty(`docs/prompts/C${i}_START.md`);
 
 const pageDirs = [
   'src/pages/dashboard',
@@ -76,7 +78,6 @@ const pageDirs = [
   'src/pages/storyboard',
   'src/pages/rough-cut',
 ];
-
 for (const dir of pageDirs) {
   if (!exists(dir)) errors.push(`MISSING_DIR: ${dir}`);
   else nonEmpty(dir);
@@ -86,17 +87,15 @@ const uiDir = path.join(root, 'UI');
 if (!fs.existsSync(uiDir)) {
   errors.push('MISSING_DIR: UI (reference images)');
 } else {
-  const images = fs.readdirSync(uiDir).filter((f) => f.toLowerCase().endsWith('.png'));
-  if (images.length < 6) {
-    errors.push(`UI_IMAGES: expected >= 6 png, found ${images.length}`);
-  }
+  const images = fs.readdirSync(uiDir).filter((file) => file.toLowerCase().endsWith('.png'));
+  if (images.length < 6) errors.push(`UI_IMAGES: expected >= 6 png, found ${images.length}`);
 }
 
 if (errors.length) {
   console.error('Governance validation FAILED:\n');
-  for (const e of errors) console.error(` - ${e}`);
+  for (const error of errors) console.error(` - ${error}`);
   process.exit(1);
 }
 
 console.log('Governance validation PASSED');
-console.log(`Checked required docs, roles C0-C7, prompts C1-C7, thread memories, page dirs, data contracts, Gate0 report, UI refs.`);
+console.log('Checked program memory, employees C0-C8, first missions, thread memories, legacy roles, page dirs, contracts and UI refs.');

@@ -51,7 +51,7 @@ button,
 }
 
 .app-shell-content {
-  margin-top: var(--va-topbar-height);
+  margin-top: calc(var(--va-topbar-height) + 36px);
   margin-left: 0;
   padding: 24px;
   background: var(--va-color-bg);
@@ -59,7 +59,7 @@ button,
 }
 
 .app-page {
-  min-height: calc(100vh - var(--va-topbar-height) - 48px);
+  min-height: calc(100vh - var(--va-topbar-height) - 84px);
   max-width: var(--va-content-max-width);
   margin: 0 auto;
   width: 100%;
