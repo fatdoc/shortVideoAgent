@@ -9,6 +9,12 @@
 
 ➡️ [docs/00_README_FIRST.md](./docs/00_README_FIRST.md)
 
+## 两人协作入口
+
+- [两人开发拆分方案](./docs/collaboration/TWO_PERSON_DEVELOPMENT_SPLIT.md)
+- [媒体生产负责人交接手册](./docs/collaboration/DEVELOPER_B_HANDOFF_MANUAL.md)
+- [媒体生产负责人首轮任务书](./docs/collaboration/DEVELOPER_B_FIRST_TASKS.md)
+
 ## 智能体总控交接
 
 若需把整个项目交接给新的编码智能体，复制：
@@ -35,9 +41,9 @@ npm run validate:governance
 
 React · TypeScript · Vite · Ant Design · React Router · Zustand · Recharts · dnd-kit · react-dropzone · LocalStorage · Vitest · Playwright · ESLint · Prettier
 
-## 当前 Gate
+## 当前阶段
 
-Gate 0：治理系统、共同记忆、数据协议、前端骨架
+D2：内部 Demo 的登录、角色工作台、控制平面与媒体生产闭环。当前仍为前端 + Mock，不代表生产级认证、真实 AI 或正式结算。
 
 ## 统一 Demo 项目
 

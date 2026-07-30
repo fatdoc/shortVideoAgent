@@ -2,6 +2,7 @@ import { SafetyCertificateOutlined } from '@ant-design/icons';
 import { Select, Space, Tag, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
+import { useAuthStore } from '../../stores/authStore';
 import {
   resolveWorkbenchKind,
   WORKBENCH_OPTIONS,
@@ -11,48 +12,11 @@ import { TruthBadge } from './TruthBadge';
 export function WorkbenchSwitcher() {
   const navigate = useNavigate();
   const location = useLocation();
-  const snapshot = useControlPlaneStore((state) => state.snapshot);
-  const activeOrganization = useControlPlaneStore(
-    (state) => state.activeOrganization,
-  );
-  const switchActiveOrganization = useControlPlaneStore(
-    (state) => state.switchActiveOrganization,
-  );
+  const identity = useAuthStore((state) => state.identity);
   const kind = resolveWorkbenchKind(location.pathname);
-  const activeMembershipIds = new Set(
-    snapshot.commercial.memberships
-      .filter((membership) => membership.status === 'active')
-      .map((membership) => membership.organizationId),
+  const allowedOptions = WORKBENCH_OPTIONS.filter((option) =>
+    identity?.allowedWorkbenches.includes(option.kind),
   );
-  const organizationOptions = [
-    {
-      value: snapshot.commercial.platform.platformId,
-      label: `平台 actor · ${snapshot.commercial.platform.displayName} · ${snapshot.commercial.platform.platformId}`,
-      disabled: !activeMembershipIds.has(
-        snapshot.commercial.platform.platformId,
-      ),
-    },
-    ...snapshot.commercial.channels.map((channel) => ({
-      value: channel.channelOrganizationId,
-      label: `渠道 ${channel.tier} actor · ${channel.displayName} · ${channel.channelOrganizationId}`,
-      disabled: !activeMembershipIds.has(channel.channelOrganizationId),
-    })),
-    {
-      value: snapshot.commercial.tenant.tenantId,
-      label: `企业 / 媒体生产 actor · ${snapshot.commercial.tenant.displayName} · ${snapshot.commercial.tenant.tenantId}`,
-      disabled: !activeMembershipIds.has(snapshot.commercial.tenant.tenantId),
-    },
-  ];
-  const activeOrganizationName =
-    activeOrganization?.organizationType === 'PLATFORM'
-      ? snapshot.commercial.platform.displayName
-      : activeOrganization?.organizationType === 'CHANNEL'
-        ? snapshot.commercial.channels.find(
-            (channel) =>
-              channel.channelOrganizationId ===
-              activeOrganization.activeOrganizationId,
-          )?.displayName ?? '渠道组织不可用'
-        : snapshot.commercial.tenant.displayName;
 
   return (
     <div className="d1-context-switcher">
@@ -65,40 +29,35 @@ export function WorkbenchSwitcher() {
             const target = WORKBENCH_OPTIONS.find((item) => item.kind === nextKind);
             if (target) navigate(target.home);
           }}
-          options={WORKBENCH_OPTIONS.map((option) => ({
+          options={allowedOptions.map((option) => ({
             value: option.kind,
             label: option.label,
           }))}
+          disabled={allowedOptions.length <= 1}
         />
         <Select
-          aria-label="切换当前组织"
-          value={activeOrganization?.activeOrganizationId}
-          placeholder="选择 active organization"
+          aria-label="当前登录组织"
+          value={identity?.activeOrganization.organizationId}
           popupMatchSelectWidth={360}
-          onChange={(organizationId) => {
-            switchActiveOrganization(organizationId);
-          }}
-          options={organizationOptions}
+          options={identity ? [{
+            value: identity.activeOrganization.organizationId,
+            label: `${identity.activeOrganization.organizationName} · ${identity.activeOrganization.organizationId}`,
+          }] : []}
+          disabled
         />
       </div>
       <div className="d1-context-copy">
         <Typography.Text strong ellipsis>
-          Active · {activeOrganizationName}
+          Active · {identity?.activeOrganization.organizationName ?? '未登录'}
         </Typography.Text>
         <Typography.Text type="secondary" ellipsis>
-          Organization [{activeOrganization?.organizationType ?? 'UNRESOLVED'}]{' '}
-          {activeOrganization?.activeOrganizationId ?? 'unresolved'}
-          {' · '}Workbench {activeOrganization?.workbenchKind ?? 'unresolved'}
+          Organization [{identity?.activeOrganization.organizationType ?? 'UNRESOLVED'}]{' '}
+          {identity?.activeOrganization.organizationId ?? 'unresolved'}
+          {' · '}Workbench {kind}
         </Typography.Text>
-        <Typography.Text
-          type="secondary"
-          ellipsis
-          title={activeOrganization?.projectIds.join(' · ') ?? ''}
-        >
-          Tenant {activeOrganization?.tenantId ?? 'N/A'} · Project{' '}
-          {activeOrganization?.projectIds.join(', ') || 'N/A'}
-          {' · '}Role{' '}
-          {activeOrganization?.roleCodes.join(' · ') || '无有效角色'}
+        <Typography.Text type="secondary" ellipsis>
+          Membership {identity?.activeMembership.membershipId ?? 'N/A'}
+          {' · '}Role {identity?.activeMembership.roleCodes.join(' · ') || '无有效角色'}
         </Typography.Text>
       </div>
     </div>

@@ -5,11 +5,21 @@ import App from '../app/App';
 import { clearWorkspace } from '../services/storage';
 import { useProjectStore } from '../stores/projectStore';
 import { cloneDemoWorkspace } from '../mocks/demoWorkspace';
+import {
+  DEMO_AUTH_PASSWORD,
+  loginWithDemoAccount,
+} from '../services/demoAuth';
+import { useAuthStore } from '../stores/authStore';
 
 describe('app smoke', () => {
   beforeEach(() => {
     clearWorkspace();
     window.localStorage.clear();
+    loginWithDemoAccount({
+      loginName: 'tenant',
+      password: DEMO_AUTH_PASSWORD,
+    });
+    useAuthStore.getState().hydrate();
     useProjectStore.setState({
       workspace: cloneDemoWorkspace(),
       loading: false,
@@ -17,6 +27,24 @@ describe('app smoke', () => {
       hydrated: false,
       lastAction: null,
     });
+  });
+
+  it('redirects anonymous users to the role login page', async () => {
+    useAuthStore.getState().logout();
+    window.history.pushState({}, '', '/dashboard');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: '欢迎登录' })).toBeInTheDocument();
+    expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+  });
+
+  it('rejects a tenant identity from the platform workbench', async () => {
+    window.history.pushState({}, '', '/platform/overview');
+    render(<App />);
+
+    expect(await screen.findByText('WORKBENCH_SCOPE_DENIED')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '返回我的工作台' })).toBeInTheDocument();
   });
 
   it('renders dashboard through router with unified demo data', async () => {

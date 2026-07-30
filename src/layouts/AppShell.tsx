@@ -8,6 +8,8 @@ import { useProjectStore } from '../stores/projectStore';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
 import { DemoTruthBar } from '../components/workbench/WorkbenchChrome';
+import { useAuthStore } from '../stores/authStore';
+import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import '../design/d1-experience.css';
 
 const { Content } = Layout;
@@ -17,10 +19,24 @@ export function AppShell() {
   const hydrated = useProjectStore((s) => s.hydrated);
   const loading = useProjectStore((s) => s.loading);
   const error = useProjectStore((s) => s.error);
+  const identity = useAuthStore((state) => state.identity);
+  const activeOrganizationId = useControlPlaneStore(
+    (state) => state.activeOrganization?.activeOrganizationId,
+  );
+  const switchActiveOrganization = useControlPlaneStore(
+    (state) => state.switchActiveOrganization,
+  );
 
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    const organizationId = identity?.activeOrganization.organizationId;
+    if (organizationId && organizationId !== activeOrganizationId) {
+      switchActiveOrganization(organizationId);
+    }
+  }, [activeOrganizationId, identity, switchActiveOrganization]);
 
   return (
     <Layout style={{ minHeight: '100vh' }}>

@@ -1,4 +1,4 @@
-import { ReloadOutlined } from '@ant-design/icons';
+import { LogoutOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
 import { App, Breadcrumb, Button, Layout, Space, Tag, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkbenchSwitcher } from '../components/workbench/WorkbenchChrome';
@@ -10,6 +10,7 @@ import { layout, zIndex } from '../design/tokens';
 import { PROJECT_STATUS_LABEL } from '../domain/constants';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 
 const { Header } = Layout;
 
@@ -46,6 +47,8 @@ export function Topbar() {
   const loading = useProjectStore((state) => state.loading);
   const reset = useProjectStore((state) => state.reset);
   const controlLoading = useControlPlaneStore((state) => state.loading);
+  const identity = useAuthStore((state) => state.identity);
+  const logout = useAuthStore((state) => state.logout);
   const kind = resolveWorkbenchKind(location.pathname);
   const workbench = WORKBENCH_OPTIONS.find((item) => item.kind === kind)!;
   const title = pageTitle(location.pathname);
@@ -101,6 +104,9 @@ export function Topbar() {
 
       <Space size={12} className="d1-topbar-actions">
         <WorkbenchSwitcher />
+        <Tag icon={<UserOutlined />} color="cyan">
+          {identity?.displayName} · {identity?.roleLabel}
+        </Tag>
         <Tag color="blue">{statusLabel}</Tag>
         <Button
           size="small"
@@ -109,6 +115,16 @@ export function Topbar() {
           onClick={() => void handleReset()}
         >
           重置 Demo
+        </Button>
+        <Button
+          size="small"
+          icon={<LogoutOutlined />}
+          onClick={() => {
+            logout();
+            navigate('/login', { replace: true });
+          }}
+        >
+          退出
         </Button>
       </Space>
     </Header>
