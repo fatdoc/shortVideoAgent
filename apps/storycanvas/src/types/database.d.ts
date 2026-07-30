@@ -1,4 +1,4 @@
-// @db-hash 382cb3b6d89786f7aaaeac6b3ab6f6be
+// @db-hash 8c0a7051de193b1c625db30b9d60dce6
 //该文件由脚本自动生成，请勿手动修改
 
 export interface memories {
@@ -285,6 +285,22 @@ export interface sc_entity_versions {
   'stateJson'?: string;
   'version': number;
 }
+export interface sc_export_artifacts {
+  'assetId': string;
+  'checksum': string;
+  'createdAt': string;
+  'externalProjectId': string;
+  'id'?: string | null;
+  'mode': string;
+  'packageId': string;
+  'projectId': number;
+  'scriptVersionId': string;
+  'sourceChainJson': string;
+  'status': string;
+  'storageReference': string;
+  'taskId'?: string | null;
+  'timelineVersionId'?: string | null;
+}
 export interface sc_external_mappings {
   'createdAt': string;
   'entityType': string;
@@ -323,6 +339,42 @@ export interface sc_migrations {
   'checksum': string;
   'version'?: string | null;
 }
+export interface sc_production_package_attempts {
+  'contractVersion'?: string | null;
+  'createdAt': string;
+  'errorCode'?: string | null;
+  'errorJson'?: string | null;
+  'externalProjectId'?: string | null;
+  'id'?: string | null;
+  'idempotencyKey'?: string | null;
+  'packageId'?: string | null;
+  'packageRecordId'?: string | null;
+  'packageVersion'?: number | null;
+  'payloadDigest': string;
+  'snapshotJson': string;
+  'sourceSuiteDigest': string;
+  'status': string;
+  'tenantId'?: string | null;
+}
+export interface sc_production_packages {
+  'acceptedAt'?: string | null;
+  'capabilityIdsJson'?: string;
+  'contractVersion'?: string | null;
+  'createdAt': string;
+  'errorCode'?: string | null;
+  'errorJson'?: string | null;
+  'externalProjectId'?: string | null;
+  'id'?: string | null;
+  'idempotencyKey': string;
+  'internalProjectId'?: number | null;
+  'packageId'?: string | null;
+  'packageVersion'?: number | null;
+  'payloadDigest': string;
+  'snapshotJson': string;
+  'sourceSuiteDigest': string;
+  'status': string;
+  'tenantId'?: string | null;
+}
 export interface sc_project_profile {
   'briefJson'?: string | null;
   'category': string;
@@ -330,6 +382,26 @@ export interface sc_project_profile {
   'currentScriptVersionId'?: string | null;
   'currentTimelineVersionId'?: string | null;
   'projectId'?: number | null;
+  'status'?: string;
+  'updatedAt': string;
+}
+export interface sc_receipt_outbox {
+  'acknowledgedAt'?: string | null;
+  'businessId': string;
+  'createdAt': string;
+  'deliveredAt'?: string | null;
+  'deliveryId'?: string | null;
+  'externalProjectId': string;
+  'id'?: string | null;
+  'idempotencyKey': string;
+  'lastAttempt'?: string | null;
+  'lastErrorJson'?: string | null;
+  'packageId': string;
+  'payloadDigest': string;
+  'payloadJson': string;
+  'projectId': number;
+  'receiptType': string;
+  'retryCount'?: number;
   'status'?: string;
   'updatedAt': string;
 }
@@ -477,10 +549,14 @@ export interface DB {
   "sc_edit_sessions": sc_edit_sessions;
   "sc_entities": sc_entities;
   "sc_entity_versions": sc_entity_versions;
+  "sc_export_artifacts": sc_export_artifacts;
   "sc_external_mappings": sc_external_mappings;
   "sc_media_assets": sc_media_assets;
   "sc_migrations": sc_migrations;
+  "sc_production_package_attempts": sc_production_package_attempts;
+  "sc_production_packages": sc_production_packages;
   "sc_project_profile": sc_project_profile;
+  "sc_receipt_outbox": sc_receipt_outbox;
   "sc_reference_bindings": sc_reference_bindings;
   "sc_scenes": sc_scenes;
   "sc_script_versions": sc_script_versions;
