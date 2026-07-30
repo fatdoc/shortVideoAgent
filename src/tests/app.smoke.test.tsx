@@ -2,7 +2,9 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../app/App';
+import { DEMO_AUTH_PASSWORD, loginWithDemoAccount } from '../services/demoAuth';
 import { clearWorkspace } from '../services/storage';
+import { useAuthStore } from '../stores/authStore';
 import { useProjectStore } from '../stores/projectStore';
 import { cloneDemoWorkspace } from '../mocks/demoWorkspace';
 
@@ -10,6 +12,17 @@ describe('app smoke', () => {
   beforeEach(() => {
     clearWorkspace();
     window.localStorage.clear();
+    useAuthStore.setState({
+      status: 'idle',
+      identity: null,
+      currentIdentity: null,
+      activeOrganization: null,
+      activeMembership: null,
+      allowedWorkbenches: [],
+      defaultRoute: null,
+      error: null,
+      isAuthenticated: false,
+    });
     useProjectStore.setState({
       workspace: cloneDemoWorkspace(),
       loading: false,
@@ -19,7 +32,20 @@ describe('app smoke', () => {
     });
   });
 
+  function authenticateTenant() {
+    loginWithDemoAccount({ loginName: 'tenant', password: DEMO_AUTH_PASSWORD });
+  }
+
+  it('shows login before protected workspace routes', async () => {
+    window.history.pushState({}, '', '/dashboard');
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { level: 2, name: '登录工作台' })).toBeInTheDocument();
+    expect(screen.getByTestId('demo-identity-tenant')).toBeInTheDocument();
+  });
+
   it('renders dashboard through router with unified demo data', async () => {
+    authenticateTenant();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
@@ -31,6 +57,7 @@ describe('app smoke', () => {
 
   it('navigates across six primary routes from sidebar', async () => {
     const user = userEvent.setup();
+    authenticateTenant();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
@@ -73,6 +100,7 @@ describe('app smoke', () => {
   it('keeps Brief data consistent across Brand and Script pages', async () => {
     const user = userEvent.setup();
     const nextCta = '领取团购券并到店核销';
+    authenticateTenant();
     window.history.pushState({}, '', '/projects/new');
     render(<App />);
 
@@ -103,6 +131,7 @@ describe('app smoke', () => {
   }, 15_000);
 
   it('shows shell chrome and demo project chip', async () => {
+    authenticateTenant();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
     await screen.findByRole('heading', { level: 3, name: '工作台' });

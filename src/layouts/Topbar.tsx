@@ -1,6 +1,7 @@
 import {
   BellOutlined,
   DownOutlined,
+  LogoutOutlined,
   QuestionCircleOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -8,21 +9,34 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { App, Avatar, Badge, Button, Input, Layout, Space, Tooltip, Typography } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { layout, zIndex } from '../design/tokens';
 import { useProjectStore } from '../stores/projectStore';
+import { useAuthStore } from '../stores/authStore';
 
 const { Header } = Layout;
 
 export function Topbar() {
   const { message } = App.useApp();
+  const navigate = useNavigate();
   const project = useProjectStore((s) => s.workspace.project);
   const loading = useProjectStore((s) => s.loading);
   const reset = useProjectStore((s) => s.reset);
+  const identity = useAuthStore((s) => s.currentIdentity);
+  const logout = useAuthStore((s) => s.logout);
 
   const handleReset = async () => {
     await reset();
     message.success('已重置为统一 Demo 数据');
   };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  const displayName = identity?.displayName ?? project.owner;
+  const organizationName = identity?.activeOrganization.organizationName ?? '星火本地生活团队';
 
   return (
     <Header
@@ -48,7 +62,7 @@ export function Topbar() {
 
       <Space size={8} className="topbar-meta">
         <Button className="topbar-team" icon={<TeamOutlined />}>
-          星火本地生活团队
+          {organizationName}
           <DownOutlined style={{ color: '#98A2B3', fontSize: 10 }} />
         </Button>
         <Tooltip title="重置 Demo">
@@ -76,9 +90,22 @@ export function Topbar() {
             style={{ background: '#EAF2FF' }}
           />
           <Typography.Text strong style={{ fontSize: 13 }}>
-            {project.owner}
+            {displayName}
           </Typography.Text>
+          {identity ? (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {identity.roleLabel}
+            </Typography.Text>
+          ) : null}
           <DownOutlined style={{ color: '#8C8C8C', fontSize: 11 }} />
+          <Tooltip title="退出登录">
+            <Button
+              type="text"
+              icon={<LogoutOutlined />}
+              aria-label="退出登录"
+              onClick={handleLogout}
+            />
+          </Tooltip>
         </Space>
       </Space>
     </Header>
