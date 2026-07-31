@@ -2,17 +2,9 @@ import { DEMO_TENANT_ID } from './constants';
 
 export const DEMO_IDENTITY_CONTRACT_VERSION = '1.0' as const;
 
-export type DemoAccountKind =
-  | 'platform'
-  | 'channel'
-  | 'tenant'
-  | 'production';
+export type DemoAccountKind = 'platform' | 'channel' | 'tenant' | 'production';
 
-export type DemoWorkbench =
-  | 'platform'
-  | 'channel'
-  | 'tenant'
-  | 'production';
+export type DemoWorkbench = 'platform' | 'channel' | 'tenant' | 'production';
 
 export const DEMO_ROUTE_PERMISSIONS = [
   'platform.overview',
@@ -79,22 +71,11 @@ export type DemoOrganizationType = 'PLATFORM' | 'CHANNEL' | 'TENANT';
 
 export const DEMO_SESSION_VERSION = 1 as const;
 
-export type DemoRole =
-  | 'platform_admin'
-  | 'channel_agent'
-  | 'enterprise_admin'
-  | 'content_operator';
+export type DemoRole = 'platform_admin' | 'channel_agent' | 'enterprise_admin' | 'content_operator';
 
-export type DemoSessionOrganizationType =
-  | 'platform'
-  | 'channel'
-  | 'enterprise';
+export type DemoSessionOrganizationType = 'platform' | 'channel' | 'enterprise';
 
-export type DemoSessionWorkbench =
-  | 'platform'
-  | 'channel'
-  | 'enterprise'
-  | 'production';
+export type DemoSessionWorkbench = 'platform' | 'channel' | 'enterprise' | 'production';
 
 export interface DemoOrganizationIdentity {
   organizationId: string;
@@ -278,7 +259,7 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
       roleCodes: ['tenant.owner'],
       status: 'active',
     },
-    allowedWorkbenches: ['tenant'],
+    allowedWorkbenches: ['tenant', 'production'],
     permissions: ENTERPRISE_ADMIN_PERMISSIONS,
     defaultRoute: '/projects/demo-local-001/brand',
   },
@@ -298,41 +279,30 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
       roleCodes: ['production.operator'],
       status: 'active',
     },
-    allowedWorkbenches: ['production'],
+    allowedWorkbenches: ['tenant', 'production'],
     permissions: CONTENT_OPERATOR_PERMISSIONS,
     defaultRoute: '/production/overview',
   },
 ] as const;
 
-export const DEMO_ACCOUNTS: readonly DemoAccountSummary[] =
-  DEMO_IDENTITIES.map((identity) => ({
-    accountId: identity.accountId,
-    accountKind: identity.accountKind,
-    loginName: identity.loginName,
-    displayName: identity.displayName,
-    roleLabel: identity.roleLabel,
-    organizationName: identity.activeOrganization.organizationName,
-    allowedWorkbenches: identity.allowedWorkbenches,
-    defaultRoute: identity.defaultRoute,
-  }));
+export const DEMO_ACCOUNTS: readonly DemoAccountSummary[] = DEMO_IDENTITIES.map((identity) => ({
+  accountId: identity.accountId,
+  accountKind: identity.accountKind,
+  loginName: identity.loginName,
+  displayName: identity.displayName,
+  roleLabel: identity.roleLabel,
+  organizationName: identity.activeOrganization.organizationName,
+  allowedWorkbenches: identity.allowedWorkbenches,
+  defaultRoute: identity.defaultRoute,
+}));
 
-export function findDemoIdentityByAccountId(
-  accountId: string,
-): DemoIdentity | null {
-  return (
-    DEMO_IDENTITIES.find((identity) => identity.accountId === accountId) ?? null
-  );
+export function findDemoIdentityByAccountId(accountId: string): DemoIdentity | null {
+  return DEMO_IDENTITIES.find((identity) => identity.accountId === accountId) ?? null;
 }
 
-export function findDemoIdentityByLoginName(
-  loginName: string,
-): DemoIdentity | null {
+export function findDemoIdentityByLoginName(loginName: string): DemoIdentity | null {
   const normalizedLoginName = loginName.trim().toLowerCase();
-  return (
-    DEMO_IDENTITIES.find(
-      (identity) => identity.loginName === normalizedLoginName,
-    ) ?? null
-  );
+  return DEMO_IDENTITIES.find((identity) => identity.loginName === normalizedLoginName) ?? null;
 }
 
 export function canAccessDemoWorkbench(

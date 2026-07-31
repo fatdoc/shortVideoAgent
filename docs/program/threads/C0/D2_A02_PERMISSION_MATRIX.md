@@ -4,7 +4,7 @@
 > 负责人：A（SaaS 控制平面 / 公共合同 / 主分支集成）
 > 分支：`dev/control-plane`
 > 前置提交：`327aae6 feat(auth): complete D2 mock session contract`
-> 状态：`A02_ROUTE_GUARDS_TARGETED_PASS_WITH_BASELINE_GAPS`
+> 状态：`A02_WORKBENCH_ACCESS_TARGETED_PASS_WITH_BASELINE_GAPS`
 
 ## 1. 目的与边界
 
@@ -288,3 +288,47 @@ A-02 权限真相已冻结为“工作台 + 具体路由/动作 + canonical scop
 - `git diff --check`：通过。
 - B 独占目录检查：无变更。
 - TypeScript：A 侧新增错误为 0；仍仅剩 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误。
+
+## 14. 2026-07-31 菜单、双工作台与品牌只读（第四切片）
+
+本切片在 Router、Scope Guard 和统一拒绝合同已经落地后，原子启用最终工作台矩阵：
+
+- 企业管理员：`allowedWorkbenches = ['tenant', 'production']`。
+- 内容运营：`allowedWorkbenches = ['tenant', 'production']`。
+- 平台管理员和渠道代理继续保持各自单工作台。
+- 企业工作台 canonical 切换落点统一为 `/projects/demo-local-001/brand`。
+- 生产工作台切换落点统一为 `/production/overview`。
+
+WorkbenchSwitcher 不只读取 `allowedWorkbenches`，还调用 `authorizeDemoNavigationRoute` 校验目标首页，避免展示没有合法入口的工作台。Sidebar 为每个菜单项绑定具体 `DemoRoutePermission`，并通过 `canAccessDemoRoute` 过滤，因此菜单、Router 和安全回跳共享同一权限真相。
+
+内容运营进入企业工作台后的菜单最终收口为：
+
+- 品牌大脑。
+- 脚本编辑。
+- 分镜生产单。
+- 任务 / 交付。
+
+以下企业菜单不会展示，直接 URL 访问仍由 Router 拒绝：
+
+- 企业工作台。
+- 已购能力。
+- 新建 / Brief。
+
+品牌大脑使用 `enterprise.brand-manage` 区分企业管理员和内容运营：
+
+- 企业管理员保留资料编辑、事实状态修改和保存能力。
+- 内容运营显示只读提示，隐藏资料编辑和保存入口，事实状态 Select 禁用，且页面内部写入函数仍执行权限保护。
+- 只读身份仍可查看与导出品牌资料，并可进入脚本生产链。
+
+最终验证：
+
+- `demoIdentity`、`demoRouteAccess`、`demoAuth`、`BrandBrainPage`：71 tests PASS。
+- App Smoke：11 tests PASS，覆盖内容运营切入只读企业工作台和企业管理员双向切换。
+- 合计：82/82 tests PASS。
+- 本切片相关 ESLint：PASS。
+- Governance：PASS。
+- `git diff --check`：PASS。
+- B 独占目录检查：无变更。
+- TypeScript：A 侧新增错误为 0；仍仅剩 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 既有错误。
+
+A-02 的权限表、Router、canonical scope、统一 403、Sidebar、WorkbenchSwitcher、安全回跳和品牌动作权限已完成定向实现。该结论仍仅适用于前端 + Mock 内部 Demo，不代表生产认证、服务端 RBAC 或真实租户隔离。

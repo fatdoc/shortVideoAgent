@@ -125,7 +125,7 @@ describe('D2 identity route authorization', () => {
 });
 
 describe('D2 enabled workbench navigation gate', () => {
-  it('keeps cross-workbench permissions closed until the workbench rollout', () => {
+  it('allows the frozen cross-workbench routes after the workbench rollout', () => {
     const tenant = identity('tenant');
     const production = identity('production');
 
@@ -134,19 +134,22 @@ describe('D2 enabled workbench navigation gate', () => {
     );
     expect(
       authorizeDemoNavigationRoute(tenant, `/production/tasks/${DEMO_PROJECT_ID}`).status,
-    ).toBe('permission-denied');
+    ).toBe('allowed');
 
     expect(authorizeDemoRoute(production, `/projects/${DEMO_PROJECT_ID}/brand`).status).toBe(
       'allowed',
     );
     expect(
       authorizeDemoNavigationRoute(production, `/projects/${DEMO_PROJECT_ID}/brand`).status,
-    ).toBe('permission-denied');
+    ).toBe('allowed');
   });
 
-  it('allows a permitted route in the currently enabled workbench', () => {
-    expect(authorizeDemoNavigationRoute(identity('channel'), '/channel/customers').status).toBe(
-      'allowed',
+  it('still rejects workbenches outside the identity contract', () => {
+    expect(authorizeDemoNavigationRoute(identity('tenant'), '/platform/overview').status).toBe(
+      'permission-denied',
+    );
+    expect(authorizeDemoNavigationRoute(identity('production'), '/channel/overview').status).toBe(
+      'permission-denied',
     );
   });
 });

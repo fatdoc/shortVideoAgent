@@ -104,20 +104,63 @@ describe('app smoke', () => {
     expect(useAuthStore.getState().identity).toBeNull();
   });
 
-  it('keeps content-operator enterprise routes closed before workbench rollout', async () => {
+  it('lets the content operator enter the read-only enterprise workbench', async () => {
+    const user = userEvent.setup();
     useAuthStore.getState().logout();
     loginWithDemoAccount({
       loginName: 'production',
       password: DEMO_AUTH_PASSWORD,
     });
     useAuthStore.getState().hydrate();
-    window.history.pushState({}, '', '/projects/demo-local-001/brand');
+    window.history.pushState({}, '', '/production/overview');
     render(<App />);
 
-    expect(await screen.findByText('ROUTE_PERMISSION_DENIED')).toBeInTheDocument();
-    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
-      '当前身份：视频制作人 · 媒体生产操作员',
-    );
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
+    await user.click(await screen.findByText('企业客户工作台'));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
+    });
+    expect(await screen.findByTestId('brand-readonly')).toHaveTextContent('品牌资料只读');
+    expect(screen.queryByTestId('brand-edit')).not.toBeInTheDocument();
+
+    expect(screen.queryByRole('menuitem', { name: /企业工作台/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /已购能力/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /新建 \/ Brief/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /品牌大脑/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /脚本编辑/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /分镜生产单/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /任务 \/ 交付/ })).toBeInTheDocument();
+  });
+
+  it('lets the enterprise admin switch between both authorized workbenches', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/dashboard');
+    render(<App />);
+
+    await screen.findByRole('heading', { level: 3, name: '工作台' });
+    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
+    await user.click(await screen.findByText('媒体生产工作台'));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/production/overview');
+    });
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
+    await user.click(await screen.findByText('企业客户工作台'));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
+    });
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
+    ).toBeInTheDocument();
   });
 
   it('renders dashboard through router with unified demo data', async () => {

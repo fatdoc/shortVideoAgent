@@ -1,4 +1,5 @@
 import type { ControlPlaneDemoState, Membership } from '../../domain/controlPlane';
+import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
 
 export type WorkbenchKind = 'platform' | 'channel' | 'tenant' | 'production';
 
@@ -38,7 +39,7 @@ export const WORKBENCH_OPTIONS: WorkbenchOption[] = [
     kind: 'tenant',
     label: '企业客户工作台',
     shortLabel: '企业客户',
-    home: '/dashboard',
+    home: ROUTES.brand(DEMO_PROJECT_ID),
   },
   {
     kind: 'production',
@@ -60,8 +61,7 @@ function findMembership(
   type: Membership['organizationType'],
 ): Membership | undefined {
   return snapshot.commercial.memberships.find(
-    (membership) =>
-      membership.organizationType === type && membership.status === 'active',
+    (membership) => membership.organizationType === type && membership.status === 'active',
   );
 }
 
@@ -90,8 +90,7 @@ export function getActiveWorkbenchContext(
       kind,
       label: option.label,
       organizationType: 'PLATFORM',
-      organizationId:
-        membership?.organizationId ?? snapshot.commercial.platform.platformId,
+      organizationId: membership?.organizationId ?? snapshot.commercial.platform.platformId,
       organizationName: snapshot.commercial.platform.displayName,
       tenantId: null,
       projectId: null,
@@ -103,8 +102,7 @@ export function getActiveWorkbenchContext(
   if (kind === 'channel') {
     const membership = findMembership(snapshot, 'CHANNEL');
     const organization = snapshot.commercial.channels.find(
-      (channel) =>
-        channel.channelOrganizationId === membership?.organizationId,
+      (channel) => channel.channelOrganizationId === membership?.organizationId,
     );
     return {
       kind,
@@ -124,17 +122,14 @@ export function getActiveWorkbenchContext(
     kind,
     label: option.label,
     organizationType: 'TENANT',
-    organizationId:
-      membership?.organizationId ?? 'tenant-organization-unavailable',
+    organizationId: membership?.organizationId ?? 'tenant-organization-unavailable',
     organizationName:
       kind === 'production'
         ? `${snapshot.commercial.tenant.displayName} · 媒体生产`
         : snapshot.commercial.tenant.displayName,
     tenantId: snapshot.commercial.tenant.tenantId,
     projectId:
-      membership?.dataScopes
-        .find((scope) => scope.kind === 'PROJECT_SET')
-        ?.projectIds?.[0] ?? null,
+      membership?.dataScopes.find((scope) => scope.kind === 'PROJECT_SET')?.projectIds?.[0] ?? null,
     roleCodes:
       kind === 'production'
         ? (membership?.roleCodes.filter((role) => role.startsWith('production.')) ?? [])

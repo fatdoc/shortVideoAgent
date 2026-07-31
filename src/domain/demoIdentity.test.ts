@@ -99,6 +99,13 @@ describe('D2 demo permission matrix', () => {
     expect(canAccessDemoPermission(production, 'enterprise.brand-manage')).toBe(false);
   });
 
+  it('enables the frozen dual-workbench access for enterprise and content operators', () => {
+    expect(identity('tenant').allowedWorkbenches).toEqual(['tenant', 'production']);
+    expect(identity('production').allowedWorkbenches).toEqual(['tenant', 'production']);
+    expect(identity('platform').allowedWorkbenches).toEqual(['platform']);
+    expect(identity('channel').allowedWorkbenches).toEqual(['channel']);
+  });
+
   it('denies every permission when there is no authenticated identity', () => {
     for (const permission of [...DEMO_ROUTE_PERMISSIONS, ...DEMO_ACTION_PERMISSIONS]) {
       expect(canAccessDemoPermission(null, permission)).toBe(false);

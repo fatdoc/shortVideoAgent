@@ -23,3 +23,4 @@
 | 2026-07-31 | 实现 A-02 四身份路由/动作权限合同与轻量矩阵测试，40 项定向测试通过 | A02_PERMISSION_MODEL_TARGETED_PASS |
 | 2026-07-31 | 新增 A-02 24 路由 canonical 授权内核及 Scope/路径安全测试，66 项定向测试通过 | A02_CANONICAL_ROUTE_AUTHZ_TARGETED_PASS |
 | 2026-07-31 | Router 与安全回跳统一接入 24 路由授权、canonical Scope Guard 和统一 403，79 项定向测试通过 | A02_ROUTE_GUARDS_TARGETED_PASS |
+| 2026-07-31 | 原子启用企业/内容运营双工作台，完成 Sidebar 权限过滤、合法工作台落点和品牌大脑只读，82 项定向/Smoke 测试通过 | A02_WORKBENCH_ACCESS_TARGETED_PASS |

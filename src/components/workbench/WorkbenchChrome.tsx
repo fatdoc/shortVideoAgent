@@ -1,12 +1,10 @@
 import { SafetyCertificateOutlined } from '@ant-design/icons';
 import { Select, Space, Tag, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { authorizeDemoNavigationRoute } from '../../domain/demoRouteAccess';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { useAuthStore } from '../../stores/authStore';
-import {
-  resolveWorkbenchKind,
-  WORKBENCH_OPTIONS,
-} from './workbench';
+import { resolveWorkbenchKind, WORKBENCH_OPTIONS } from './workbench';
 import { TruthBadge } from './TruthBadge';
 
 export function WorkbenchSwitcher() {
@@ -14,8 +12,10 @@ export function WorkbenchSwitcher() {
   const location = useLocation();
   const identity = useAuthStore((state) => state.identity);
   const kind = resolveWorkbenchKind(location.pathname);
-  const allowedOptions = WORKBENCH_OPTIONS.filter((option) =>
-    identity?.allowedWorkbenches.includes(option.kind),
+  const allowedOptions = WORKBENCH_OPTIONS.filter(
+    (option) =>
+      identity?.allowedWorkbenches.includes(option.kind) &&
+      authorizeDemoNavigationRoute(identity, option.home).status === 'allowed',
   );
 
   return (
@@ -39,10 +39,16 @@ export function WorkbenchSwitcher() {
           aria-label="当前登录组织"
           value={identity?.activeOrganization.organizationId}
           popupMatchSelectWidth={360}
-          options={identity ? [{
-            value: identity.activeOrganization.organizationId,
-            label: `${identity.activeOrganization.organizationName} · ${identity.activeOrganization.organizationId}`,
-          }] : []}
+          options={
+            identity
+              ? [
+                  {
+                    value: identity.activeOrganization.organizationId,
+                    label: `${identity.activeOrganization.organizationName} · ${identity.activeOrganization.organizationId}`,
+                  },
+                ]
+              : []
+          }
           disabled
         />
       </div>

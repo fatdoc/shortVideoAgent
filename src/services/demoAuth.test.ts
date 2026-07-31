@@ -192,17 +192,17 @@ describe('demoAuth', () => {
     expect(resolveDemoReturnPath(path, identity!)).toBe(path);
   });
 
-  it('keeps cross-workbench return paths closed until workbench rollout', () => {
+  it('accepts authorized cross-workbench return paths after workbench rollout', () => {
     const tenant = findDemoIdentityByLoginName('tenant');
     const production = findDemoIdentityByLoginName('production');
     expect(tenant).not.toBeNull();
     expect(production).not.toBeNull();
 
     expect(resolveDemoReturnPath('/production/tasks/demo-local-001', tenant!)).toBe(
-      tenant!.defaultRoute,
+      '/production/tasks/demo-local-001',
     );
     expect(resolveDemoReturnPath('/projects/demo-local-001/brand', production!)).toBe(
-      production!.defaultRoute,
+      '/projects/demo-local-001/brand',
     );
     expect(resolveDemoReturnPath('/dashboard', production!)).toBe(production!.defaultRoute);
   });
