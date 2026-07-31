@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A02_WORKBENCH_ACCESS_TARGETED_PASS_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成 A-02 权限模型、Router/Scope Guard、统一 403、Sidebar、WorkbenchSwitcher、双工作台和品牌大脑只读；下一步进入 A-03 控制平面业务收口，负责人 B 继续处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_CONTROL_PLANE_PLAN_READY_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已完成 A-03 控制平面规格/现状审计与五切片计划；下一步实现 A-03.1 scoped commercial projection 和可见性 selector，负责人 B 继续处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -99,3 +99,12 @@
 - 定向验证：权限/路由/Auth/品牌 71 tests PASS，App Smoke 11 tests PASS，合计 82/82 PASS。
 - 相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查 PASS。
 - TypeScript 仍只剩 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 既有错误；A 侧无新增类型错误。
+
+## 2026-07-31 A-03 控制平面业务审计与计划
+
+- 已核对 D2、C1、C2、C3、C4、C6 与现有平台/渠道/企业页面。
+- 当前合同已有组织、产品、SKU、Entitlement、RateCard、Tenant Wallet、CreditLedger 和 Receipt；渠道库存、价格、订单、销售净额和毛差仍缺少独立只读投影。
+- 冻结五切片顺序：商业只读投影与 selector → 平台视图 → 渠道视图 → 企业视图 → 回归/视觉/文档。
+- 所有商业金额继续标记 `DEMO / NON_QUOTE`，与额度分字段保存；不实现真实支付、正式报价、自动分佣或结算引擎。
+- 详细计划：`D2_A03_CONTROL_PLANE_PLAN.md`。
+- 下一步：A-03.1 `feat(control-plane): add scoped commercial demo projections`。
