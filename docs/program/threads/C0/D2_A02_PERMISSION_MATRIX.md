@@ -4,7 +4,7 @@
 > 负责人：A（SaaS 控制平面 / 公共合同 / 主分支集成）
 > 分支：`dev/control-plane`
 > 前置提交：`327aae6 feat(auth): complete D2 mock session contract`
-> 状态：`A02_PERMISSION_MATRIX_FROZEN`
+> 状态：`A02_ROUTE_GUARDS_TARGETED_PASS_WITH_BASELINE_GAPS`
 
 ## 1. 目的与边界
 
@@ -250,3 +250,41 @@ A-02 权限真相已冻结为“工作台 + 具体路由/动作 + canonical scop
 - TypeScript：A 侧新增错误为 0；仍仅剩 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误。
 
 安全拆分保持不变：本切片没有修改 Router、Sidebar、WorkbenchSwitcher、品牌页面或 `allowedWorkbenches`。下一切片先把 Router、安全回跳、canonical Scope Guard 和统一 403 接到该内核；双工作台和菜单/品牌只读在后续切片原子启用。
+
+## 13. 2026-07-31 Router 与统一拒绝合同（第三切片）
+
+已在 `src/app/Router.tsx` 将当前 24 条业务路由统一包入 `RouteAccessGuard`。守卫调用 `authorizeDemoNavigationRoute`，判断顺序为：
+
+1. 路由是否登记。
+2. Tenant/Project 是否为 canonical 资源。
+3. 当前身份是否具备具体路由权限。
+4. 该权限所属工作台当前是否已经启用。
+
+运行结果统一为：
+
+- `allowed`：渲染业务页面。
+- `permission-denied`：渲染 `ROUTE_PERMISSION_DENIED`。
+- `scope-denied`：渲染 `ROUTE_ID_REJECTED`。
+- `unregistered`：渲染 404。
+
+新增 `src/pages/auth/RouteAccessDeniedPage.tsx`，统一展示目标区域、pathname、当前身份、角色、Active Organization、返回默认工作台、退出切换身份和“前端 Demo 拒绝不代表生产 RBAC/服务端安全控制”的声明。退出切换会先清除 Mock 会话和 Auth Store，再 replace 到 `/login`。
+
+`resolveDemoReturnPath` 已删除独立维护的四套路径集合，改为复用 `authorizeDemoNavigationRoute`。因此 Router 与登录回跳对路由登记、scope、权限和当前启用工作台使用同一授权真相。
+
+为避免内容运营在品牌大脑只读能力接线前临时获得可编辑页面，本切片继续保留企业管理员 `tenant`、内容运营 `production` 的单工作台启用状态。尽管具体权限矩阵已经赋予跨工作台路由，导航守卫仍会暂时拒绝；下一切片必须原子完成：
+
+1. 企业管理员和内容运营 `allowedWorkbenches` 扩为 `tenant + production`。
+2. Sidebar 按具体路由权限过滤。
+3. WorkbenchSwitcher 只显示具有合法入口的工作台并使用身份落点。
+4. 内容运营进入企业工作台时落到 canonical 品牌大脑。
+5. 品牌大脑按 `enterprise.brand-manage` 收口为只读。
+6. 更新跨工作台暂拒测试为最终允许矩阵。
+
+验证结果：
+
+- 5 个目标测试文件、79 项测试通过。
+- 相关 ESLint：通过。
+- Governance：通过。
+- `git diff --check`：通过。
+- B 独占目录检查：无变更。
+- TypeScript：A 侧新增错误为 0；仍仅剩 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误。

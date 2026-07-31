@@ -1,4 +1,4 @@
-import { DEMO_PROJECT_ID, ROUTES } from '../domain/constants';
+import { authorizeDemoNavigationRoute } from '../domain/demoRouteAccess';
 import {
   DEMO_SESSION_VERSION,
   type DemoAccountKind,
@@ -8,7 +8,6 @@ import {
   type DemoSession,
   type DemoSessionOrganizationType,
   type DemoSessionWorkbench,
-  type DemoWorkbench,
   findDemoIdentityByAccountId,
   findDemoIdentityByLoginName,
 } from '../domain/demoIdentity';
@@ -226,53 +225,6 @@ function containsControlCharacter(value: string): boolean {
   });
 }
 
-function workbenchForReturnPath(pathname: string): DemoWorkbench | null {
-  const platformPaths = new Set<string>([
-    ROUTES.platformOverview,
-    ROUTES.platformOrganizations,
-    ROUTES.platformCatalog,
-    ROUTES.platformReceipts,
-  ]);
-  if (platformPaths.has(pathname)) {
-    return 'platform';
-  }
-  const channelPaths = new Set<string>([
-    ROUTES.channelOverview,
-    ROUTES.channelProducts,
-    ROUTES.channelCustomers,
-  ]);
-  if (channelPaths.has(pathname)) {
-    return 'channel';
-  }
-  const tenantPaths = new Set([
-    ROUTES.dashboard,
-    ROUTES.enterpriseProducts,
-    ROUTES.projectNew,
-    `/projects/${DEMO_PROJECT_ID}`,
-    ROUTES.brand(DEMO_PROJECT_ID),
-    ROUTES.script(DEMO_PROJECT_ID),
-    ROUTES.storyboard(DEMO_PROJECT_ID),
-    ROUTES.roughCut(DEMO_PROJECT_ID),
-    ROUTES.usage(DEMO_PROJECT_ID),
-    ROUTES.delivery(DEMO_PROJECT_ID),
-  ]);
-  if (tenantPaths.has(pathname)) {
-    return 'tenant';
-  }
-  const productionPaths = new Set([
-    ROUTES.productionOverview,
-    ROUTES.productionInbox(DEMO_PROJECT_ID),
-    ROUTES.productionCanvas(DEMO_PROJECT_ID),
-    ROUTES.productionTasks(DEMO_PROJECT_ID),
-    ROUTES.productionAssets(DEMO_PROJECT_ID),
-    ROUTES.productionExport(DEMO_PROJECT_ID),
-  ]);
-  if (productionPaths.has(pathname)) {
-    return 'production';
-  }
-  return null;
-}
-
 export function resolveDemoReturnPath(
   candidate: unknown,
   identity: DemoIdentity,
@@ -289,19 +241,8 @@ export function resolveDemoReturnPath(
     return identity.defaultRoute;
   }
 
-  try {
-    const url = new URL(candidate, 'https://demo.videoagent.local');
-    if (url.origin !== 'https://demo.videoagent.local') {
-      return identity.defaultRoute;
-    }
-    const workbench = workbenchForReturnPath(url.pathname);
-    if (!workbench || !identity.allowedWorkbenches.includes(workbench)) {
-      return identity.defaultRoute;
-    }
-    return `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return identity.defaultRoute;
-  }
+  const decision = authorizeDemoNavigationRoute(identity, candidate);
+  return decision.status === 'allowed' ? candidate : identity.defaultRoute;
 }
 
 export const demoAuth = {

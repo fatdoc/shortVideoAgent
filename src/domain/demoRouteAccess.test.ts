@@ -8,6 +8,7 @@ import {
 } from './demoIdentity';
 import {
   DEMO_ROUTE_DESCRIPTORS,
+  authorizeDemoNavigationRoute,
   authorizeDemoRoute,
   resolveDemoRouteAccess,
   type DemoRouteDescriptor,
@@ -119,6 +120,33 @@ describe('D2 identity route authorization', () => {
   it('denies a canonical registered route when there is no identity', () => {
     expect(authorizeDemoRoute(null, `/projects/${DEMO_PROJECT_ID}/brand`).status).toBe(
       'permission-denied',
+    );
+  });
+});
+
+describe('D2 enabled workbench navigation gate', () => {
+  it('keeps cross-workbench permissions closed until the workbench rollout', () => {
+    const tenant = identity('tenant');
+    const production = identity('production');
+
+    expect(authorizeDemoRoute(tenant, `/production/tasks/${DEMO_PROJECT_ID}`).status).toBe(
+      'allowed',
+    );
+    expect(
+      authorizeDemoNavigationRoute(tenant, `/production/tasks/${DEMO_PROJECT_ID}`).status,
+    ).toBe('permission-denied');
+
+    expect(authorizeDemoRoute(production, `/projects/${DEMO_PROJECT_ID}/brand`).status).toBe(
+      'allowed',
+    );
+    expect(
+      authorizeDemoNavigationRoute(production, `/projects/${DEMO_PROJECT_ID}/brand`).status,
+    ).toBe('permission-denied');
+  });
+
+  it('allows a permitted route in the currently enabled workbench', () => {
+    expect(authorizeDemoNavigationRoute(identity('channel'), '/channel/customers').status).toBe(
+      'allowed',
     );
   });
 });

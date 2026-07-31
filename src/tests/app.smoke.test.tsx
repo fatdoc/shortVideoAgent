@@ -5,10 +5,7 @@ import App from '../app/App';
 import { clearWorkspace } from '../services/storage';
 import { useProjectStore } from '../stores/projectStore';
 import { cloneDemoWorkspace } from '../mocks/demoWorkspace';
-import {
-  DEMO_AUTH_PASSWORD,
-  loginWithDemoAccount,
-} from '../services/demoAuth';
+import { DEMO_AUTH_PASSWORD, loginWithDemoAccount } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
 
 describe('app smoke', () => {
@@ -34,24 +31,20 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 2, name: '登录工作台' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
   });
 
   it('returns to a safe protected path after login', async () => {
     useAuthStore.getState().logout();
-    window.history.pushState(
-      {},
-      '',
-      '/dashboard?tab=summary#approved',
-    );
+    window.history.pushState({}, '', '/dashboard?tab=summary#approved');
     render(<App />);
 
     await screen.findByRole('heading', { level: 2, name: '登录工作台' });
-    expect(window.history.state.usr?.from).toBe(
-      '/dashboard?tab=summary#approved',
-    );
+    expect(window.history.state.usr?.from).toBe('/dashboard?tab=summary#approved');
     act(() => {
       useAuthStore.getState().login({
         loginName: 'tenant',
@@ -66,12 +59,65 @@ describe('app smoke', () => {
     });
   });
 
-  it('rejects a tenant identity from the platform workbench', async () => {
+  it('renders the unified permission-denied contract', async () => {
     window.history.pushState({}, '', '/platform/overview');
     render(<App />);
 
-    expect(await screen.findByText('WORKBENCH_SCOPE_DENIED')).toBeInTheDocument();
+    expect(await screen.findByText('ROUTE_PERMISSION_DENIED')).toBeInTheDocument();
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent('目标区域：平台总览');
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '当前身份：企业老板 · 租户企业管理员',
+    );
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '海底捞三里屯店 · tenant-demo-hdl',
+    );
+    expect(
+      screen.getByText('前端 Demo 拒绝，不代表生产 RBAC 或服务端安全控制。'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '返回我的工作台' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '退出并切换身份' })).toBeInTheDocument();
+  });
+
+  it('renders the unified canonical scope denial', async () => {
+    window.history.pushState({}, '', '/projects/other-project/brand');
+    render(<App />);
+
+    expect(await screen.findByText('ROUTE_ID_REJECTED')).toBeInTheDocument();
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '目标区域：品牌大脑 · /projects/other-project/brand',
+    );
+    expect(screen.getByText(/不是 canonical Demo 资源/)).toBeInTheDocument();
+  });
+
+  it('logs out from the unified denial page before switching identity', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/platform/overview');
+    render(<App />);
+
+    await screen.findByText('ROUTE_PERMISSION_DENIED');
+    await user.click(screen.getByRole('button', { name: '退出并切换身份' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+    expect(useAuthStore.getState().identity).toBeNull();
+  });
+
+  it('keeps content-operator enterprise routes closed before workbench rollout', async () => {
+    useAuthStore.getState().logout();
+    loginWithDemoAccount({
+      loginName: 'production',
+      password: DEMO_AUTH_PASSWORD,
+    });
+    useAuthStore.getState().hydrate();
+    window.history.pushState({}, '', '/projects/demo-local-001/brand');
+    render(<App />);
+
+    expect(await screen.findByText('ROUTE_PERMISSION_DENIED')).toBeInTheDocument();
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '当前身份：视频制作人 · 媒体生产操作员',
+    );
   });
 
   it('renders dashboard through router with unified demo data', async () => {
@@ -92,13 +138,19 @@ describe('app smoke', () => {
     await screen.findByRole('heading', { level: 3, name: '工作台' });
 
     await user.click(screen.getByRole('menuitem', { name: /新建 \/ Brief/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
     await waitFor(() => {

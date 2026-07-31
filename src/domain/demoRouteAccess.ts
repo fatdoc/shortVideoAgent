@@ -1,6 +1,7 @@
 import { DEMO_PROJECT_ID, DEMO_TENANT_ID } from './constants';
 import {
   canAccessDemoRoute,
+  canAccessDemoWorkbench,
   type DemoIdentity,
   type DemoRoutePermission,
   type DemoWorkbench,
@@ -307,4 +308,20 @@ export function authorizeDemoRoute(
   }
 
   return { status: 'allowed', ...resolved };
+}
+
+export function authorizeDemoNavigationRoute(
+  identity: DemoIdentity | null,
+  candidate: string,
+): DemoRouteAccessDecision {
+  const decision = authorizeDemoRoute(identity, candidate);
+
+  if (
+    decision.status === 'allowed' &&
+    !canAccessDemoWorkbench(identity, decision.descriptor.workbench)
+  ) {
+    return { ...decision, status: 'permission-denied' };
+  }
+
+  return decision;
 }

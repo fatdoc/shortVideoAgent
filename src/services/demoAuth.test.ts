@@ -54,50 +54,18 @@ describe('demoAuth', () => {
       organizationType: 'enterprise',
       defaultWorkbench: 'enterprise',
       issuedAt: NOW.toISOString(),
-      expiresAt: new Date(
-        NOW.getTime() + DEMO_SESSION_DURATION_MS,
-      ).toISOString(),
+      expiresAt: new Date(NOW.getTime() + DEMO_SESSION_DURATION_MS).toISOString(),
     });
   });
 
   it.each([
-    [
-      'platform',
-      'platform_admin',
-      'platform-videoagent',
-      'platform',
-      'platform',
-    ],
-    [
-      'channel',
-      'channel_agent',
-      'channel-demo-level-1',
-      'channel',
-      'channel',
-    ],
-    [
-      'tenant',
-      'enterprise_admin',
-      'tenant-demo-hdl',
-      'enterprise',
-      'enterprise',
-    ],
-    [
-      'production',
-      'content_operator',
-      'tenant-demo-hdl',
-      'enterprise',
-      'production',
-    ],
+    ['platform', 'platform_admin', 'platform-videoagent', 'platform', 'platform'],
+    ['channel', 'channel_agent', 'channel-demo-level-1', 'channel', 'channel'],
+    ['tenant', 'enterprise_admin', 'tenant-demo-hdl', 'enterprise', 'enterprise'],
+    ['production', 'content_operator', 'tenant-demo-hdl', 'enterprise', 'production'],
   ] as const)(
     'creates and restores the canonical %s identity session',
-    (
-      loginName,
-      role,
-      organizationId,
-      organizationType,
-      defaultWorkbench,
-    ) => {
+    (loginName, role, organizationId, organizationType, defaultWorkbench) => {
       const identity = login(loginName);
       const session = readSession();
 
@@ -113,9 +81,9 @@ describe('demoAuth', () => {
   );
 
   it('rejects incorrect credentials without persisting a session', () => {
-    expect(() =>
-      loginWithDemoAccount({ loginName: 'tenant', password: 'wrong' }),
-    ).toThrowError(DemoAuthError);
+    expect(() => loginWithDemoAccount({ loginName: 'tenant', password: 'wrong' })).toThrowError(
+      DemoAuthError,
+    );
     expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
   });
 
@@ -141,28 +109,19 @@ describe('demoAuth', () => {
     ['damaged JSON', '{not-json'],
     ['missing field', (session: DemoSession) => ({ ...session, sessionId: undefined })],
     ['wrong version', (session: DemoSession) => ({ ...session, version: 2 })],
-    [
-      'unknown identity',
-      (session: DemoSession) => ({ ...session, identityId: 'missing-account' }),
-    ],
+    ['unknown identity', (session: DemoSession) => ({ ...session, identityId: 'missing-account' })],
     [
       'unknown organization',
       (session: DemoSession) => ({ ...session, organizationId: 'missing-org' }),
     ],
-    [
-      'mismatched role',
-      (session: DemoSession) => ({ ...session, role: 'platform_admin' }),
-    ],
+    ['mismatched role', (session: DemoSession) => ({ ...session, role: 'platform_admin' })],
   ])('clears a session with %s', (_label, mutate) => {
     login();
     const validSession = readSession();
-    const invalidSession =
-      typeof mutate === 'function' ? mutate(validSession) : mutate;
+    const invalidSession = typeof mutate === 'function' ? mutate(validSession) : mutate;
     window.localStorage.setItem(
       DEMO_AUTH_STORAGE_KEY,
-      typeof invalidSession === 'string'
-        ? invalidSession
-        : JSON.stringify(invalidSession),
+      typeof invalidSession === 'string' ? invalidSession : JSON.stringify(invalidSession),
     );
 
     expect(hydrateDemoSession()).toBeNull();
@@ -210,25 +169,20 @@ describe('demoAuth', () => {
     expect(production).not.toBeNull();
 
     expect(
-      resolveDemoReturnPath(
-        '/projects/demo-local-001/brand?tab=facts#approved',
-        tenant!,
-      ),
+      resolveDemoReturnPath('/projects/demo-local-001/brand?tab=facts#approved', tenant!),
     ).toBe('/projects/demo-local-001/brand?tab=facts#approved');
-    expect(resolveDemoReturnPath('/platform/overview', tenant!)).toBe(
-      tenant!.defaultRoute,
-    );
+    expect(resolveDemoReturnPath('/platform/overview', tenant!)).toBe(tenant!.defaultRoute);
     expect(resolveDemoReturnPath('/projects/demo-local-001/unknown', tenant!)).toBe(
       tenant!.defaultRoute,
     );
-    expect(
-      resolveDemoReturnPath('/production/canvas/other-project', production!),
-    ).toBe(production!.defaultRoute);
+    expect(resolveDemoReturnPath('/production/canvas/other-project', production!)).toBe(
+      production!.defaultRoute,
+    );
   });
 
   it.each([
     ['platform', '/platform/overview'],
-    ['channel', '/channel/customers'],
+    ['channel', '/channel/customers/tenant-demo-hdl/usage'],
     ['tenant', '/projects/demo-local-001/brand'],
     ['production', '/production/tasks/demo-local-001'],
   ])('accepts the canonical %s workbench return path', (loginName, path) => {
@@ -236,6 +190,21 @@ describe('demoAuth', () => {
     expect(identity).not.toBeNull();
 
     expect(resolveDemoReturnPath(path, identity!)).toBe(path);
+  });
+
+  it('keeps cross-workbench return paths closed until workbench rollout', () => {
+    const tenant = findDemoIdentityByLoginName('tenant');
+    const production = findDemoIdentityByLoginName('production');
+    expect(tenant).not.toBeNull();
+    expect(production).not.toBeNull();
+
+    expect(resolveDemoReturnPath('/production/tasks/demo-local-001', tenant!)).toBe(
+      tenant!.defaultRoute,
+    );
+    expect(resolveDemoReturnPath('/projects/demo-local-001/brand', production!)).toBe(
+      production!.defaultRoute,
+    );
+    expect(resolveDemoReturnPath('/dashboard', production!)).toBe(production!.defaultRoute);
   });
 
   it.each([
@@ -248,8 +217,6 @@ describe('demoAuth', () => {
     const tenant = findDemoIdentityByLoginName('tenant');
     expect(tenant).not.toBeNull();
 
-    expect(resolveDemoReturnPath(candidate, tenant!)).toBe(
-      tenant!.defaultRoute,
-    );
+    expect(resolveDemoReturnPath(candidate, tenant!)).toBe(tenant!.defaultRoute);
   });
 });
