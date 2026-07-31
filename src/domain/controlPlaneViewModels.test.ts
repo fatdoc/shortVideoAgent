@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { DEMO_DATA_LABEL, type ControlPlaneDemoState } from './controlPlane';
+import { DEMO_DATA_LABEL, type ControlPlaneDemoState, type ExportReceipt } from './controlPlane';
 import { controlPlaneDemoStateSchema, demoCommercialProjectionSchema } from './controlPlaneSchemas';
 import {
   selectChannelCommercialView,
   selectPlatformCommercialView,
   selectTenantCommercialView,
 } from './controlPlaneViewModels';
-import { createControlPlaneDemoState, DEMO_TENANT_ID } from '../mocks/controlPlaneDemo';
+import {
+  createCanonicalFailureTaskReceipt,
+  createCanonicalSuccessAssetReceipt,
+  createCanonicalSuccessTaskReceipt,
+  createControlPlaneDemoState,
+  DEMO_TENANT_ID,
+} from '../mocks/controlPlaneDemo';
 
 function assertDemoSemantics(value: unknown) {
   if (!value || typeof value !== 'object') return;
@@ -151,6 +157,10 @@ describe('A-03.1 scoped commercial selectors', () => {
 
     expect(view.tenant.tenantId).toBe(DEMO_TENANT_ID);
     expect(view.projectId).toBe('demo-local-001');
+    expect(view.team).toEqual({
+      activeMemberCount: 1,
+      activeMembershipCount: 1,
+    });
     expect(view.entitlements).toHaveLength(4);
     expect(view.wallet.available.value).toBe(1000);
     expect(view.wallet.reserved.value).toBe(0);
@@ -160,6 +170,12 @@ describe('A-03.1 scoped commercial selectors', () => {
       exports: { total: 0, failed: 0, byStatus: {} },
     });
     expect(view.products.filter((item) => item.purchaseState === 'purchased')).toHaveLength(2);
+    expect(view.products.filter((item) => item.purchaseState === 'explanation_only')).toHaveLength(
+      2,
+    );
+    expect(view.products.filter((item) => item.purchaseState === 'locked')).toHaveLength(2);
+    expect(view.products[0].capabilities[0].code).toBe('production.base_generation');
+    expect(view.products[0].entitlements[0].status).toBe('active');
 
     const serialized = JSON.stringify(view);
     expect(serialized).not.toContain('priceSnapshots');
@@ -170,6 +186,60 @@ describe('A-03.1 scoped commercial selectors', () => {
     expect(serialized).not.toContain('UPSTREAM_COST');
     expect(serialized).not.toContain('ledger');
     expect(serialized).not.toContain('scriptApprovals');
+  });
+
+  it('reduces receipt payloads to tenant-safe production result counts', () => {
+    const snapshot = createControlPlaneDemoState();
+    const successTask = createCanonicalSuccessTaskReceipt();
+    const failedTask = createCanonicalFailureTaskReceipt();
+    const asset = createCanonicalSuccessAssetReceipt();
+    asset.reviewStatus = 'approved';
+    const exportReceipt: ExportReceipt = {
+      contractVersion: successTask.contractVersion,
+      exportId: 'export-demo-success',
+      tenantId: successTask.tenantId,
+      projectId: successTask.projectId,
+      generationTaskId: successTask.generationTaskId,
+      status: 'succeeded',
+      outputAssetIds: [...successTask.outputAssetIds],
+      checksum: asset.checksum,
+      error: null,
+      idempotencyKey: 'export-demo-success-v1',
+      createdAt: '2026-07-30T00:07:00.000Z',
+      truthMode: 'MOCK-CONTRACT',
+    };
+    snapshot.generationTaskReceipts = [successTask, failedTask];
+    snapshot.assetReceipts = [asset];
+    snapshot.exportReceipts = [exportReceipt];
+    snapshot.generationTaskReceipts.push({
+      ...successTask,
+      generationTaskId: 'task-other-tenant',
+      tenantId: 'tenant-other',
+      idempotencyKey: 'receipt-task-other-tenant-v1',
+    });
+
+    const view = selectTenantCommercialView(snapshot);
+
+    expect(view.operations).toEqual({
+      generationTasks: {
+        total: 2,
+        failed: 1,
+        byStatus: { succeeded: 1, failed: 1 },
+      },
+      assets: {
+        total: 1,
+        byReviewStatus: { approved: 1 },
+      },
+      exports: {
+        total: 1,
+        failed: 0,
+        byStatus: { succeeded: 1 },
+      },
+    });
+    const serialized = JSON.stringify(view);
+    expect(serialized).not.toContain(successTask.inputDigest);
+    expect(serialized).not.toContain(asset.storageReference);
+    expect(serialized).not.toContain(exportReceipt.outputAssetIds[0]);
   });
 
   it('throws instead of silently selecting another channel when fixed channel is invalid', () => {

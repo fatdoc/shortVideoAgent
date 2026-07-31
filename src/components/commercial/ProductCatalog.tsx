@@ -4,112 +4,82 @@ import {
   InfoCircleOutlined,
   LockOutlined,
 } from '@ant-design/icons';
-import {
-  Button,
-  Descriptions,
-  Drawer,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
-import { useMemo, useState } from 'react';
+import { Button, Descriptions, Drawer, Space, Tag, Typography } from 'antd';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Product } from '../../domain/controlPlane';
+import { ROUTES } from '../../domain/constants';
+import {
+  selectTenantCommercialView,
+  type TenantProductView,
+} from '../../domain/controlPlaneViewModels';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { TruthBadge } from '../workbench/TruthBadge';
 
-type CatalogAudience = 'platform' | 'channel' | 'tenant';
-
 interface ProductCatalogProps {
-  audience: CatalogAudience;
   compact?: boolean;
 }
 
-const availabilityMeta = {
-  active: {
-    label: '已开通',
+const purchaseStateMeta = {
+  purchased: {
+    label: '已购 Entitlement',
     color: 'success',
     icon: <CheckCircleFilled />,
+    dotClassName: 'active',
   },
   explanation_only: {
-    label: '产品说明',
+    label: '产品说明 · 未开通',
     color: 'processing',
     icon: <InfoCircleOutlined />,
+    dotClassName: 'explanation_only',
   },
   locked: {
-    label: '未购买 / 待授权',
+    label: '锁定 · 未授权',
     color: 'default',
     icon: <LockOutlined />,
+    dotClassName: 'locked',
   },
 } as const;
 
-export function ProductCatalog({
-  audience,
-  compact = false,
-}: ProductCatalogProps) {
+export function ProductCatalog({ compact = false }: ProductCatalogProps) {
   const navigate = useNavigate();
   const snapshot = useControlPlaneStore((state) => state.snapshot);
-  const [selected, setSelected] = useState<Product | null>(null);
-  const products = snapshot.commercial.products;
-  const capabilities = snapshot.commercial.capabilities;
-  const skus = snapshot.commercial.skus;
-  const entitlements = snapshot.commercial.entitlements;
-  const rateCard = snapshot.commercial.rateCard;
+  const [selected, setSelected] = useState<TenantProductView | null>(null);
+  const view = selectTenantCommercialView(snapshot);
 
-  const selectedDetails = useMemo(() => {
-    if (!selected) return null;
-    return {
-      capabilities: capabilities.filter((capability) =>
-        selected.capabilityIds.includes(capability.capabilityId),
-      ),
-      sku: skus.find((sku) => sku.productId === selected.productId),
-    };
-  }, [capabilities, selected, skus]);
-
-  const activeCount = products.filter((product) => product.availability === 'active').length;
-  const explanationCount = products.filter(
-    (product) => product.availability === 'explanation_only',
+  const purchasedCount = view.products.filter((item) => item.purchaseState === 'purchased').length;
+  const explanationCount = view.products.filter(
+    (item) => item.purchaseState === 'explanation_only',
   ).length;
-  const lockedCount = products.filter((product) => product.availability === 'locked').length;
-
-  const actionLabel =
-    audience === 'platform'
-      ? '查看目录'
-      : audience === 'channel'
-        ? '查看可售范围'
-        : '开始使用';
+  const lockedCount = view.products.filter((item) => item.purchaseState === 'locked').length;
 
   return (
-    <section className="d1-surface d1-catalog">
+    <section className="d1-surface d1-catalog" data-testid="enterprise-product-catalog">
       <div className="d1-section-heading">
         <div>
-          <Typography.Title level={4}>产品与能力</Typography.Title>
+          <Typography.Title level={4}>企业产品与能力</Typography.Title>
           <Typography.Text type="secondary">
-            {activeCount} 项可用 · {explanationCount} 项说明态 · {lockedCount} 项锁定
+            {purchasedCount} 项已购 · {explanationCount} 项说明态 · {lockedCount} 项锁定
           </Typography.Text>
         </div>
-        <Tag color="gold">{snapshot.truthManifest.disclaimer}</Tag>
+        <Tag color="gold">{view.disclaimer}</Tag>
       </div>
 
       <div className={compact ? 'd1-product-list is-compact' : 'd1-product-list'}>
-        {products.map((product) => {
-          const meta = availabilityMeta[product.availability];
-          const capability = capabilities.find(
-            (item) => item.capabilityId === product.capabilityIds[0],
-          );
-          const entitlement = entitlements.find(
-            (item) => item.capabilityId === capability?.capabilityId,
-          );
+        {view.products.map((item) => {
+          const { product } = item;
+          const meta = purchaseStateMeta[item.purchaseState];
+          const entitlementStatuses = item.entitlements.map((entitlement) => entitlement.status);
           const truthCapabilityId =
-            product.demoAction === 'usable'
+            item.purchaseState === 'purchased' && product.demoAction === 'usable'
               ? 'demo.local-life-golden-path'
               : product.code === 'product.digital_human_addon'
                 ? product.capabilityIds[0]
                 : null;
+
           return (
             <article className="d1-product-row" key={product.productId}>
               <div className="d1-product-state">
-                <span className={`d1-state-dot is-${product.availability}`} />
+                <span className={`d1-state-dot is-${meta.dotClassName}`} />
               </div>
               <div className="d1-product-main">
                 <Space size={8} wrap>
@@ -123,29 +93,27 @@ export function ProductCatalog({
                 </Space>
                 <Typography.Text type="secondary">{product.description}</Typography.Text>
                 <div className="d1-product-meta">
-                  <span>{capability?.code ?? 'capability unavailable'}</span>
                   <span>
-                    Entitlement {entitlement?.status ?? product.availability}
+                    {item.capabilities.map((capability) => capability.code).join('、') ||
+                      'capability unavailable'}
+                  </span>
+                  <span>
+                    Entitlement{' '}
+                    {entitlementStatuses.length > 0 ? entitlementStatuses.join(' / ') : '未配置'}
                   </span>
                 </div>
               </div>
               <div className="d1-product-actions">
-                {product.demoAction === 'usable' ? (
+                {item.purchaseState === 'purchased' && product.demoAction === 'usable' ? (
                   <Button
-                    type={audience === 'tenant' ? 'primary' : 'default'}
+                    type="primary"
                     icon={<ArrowRightOutlined />}
-                    onClick={() => {
-                      if (audience === 'tenant') {
-                        navigate('/dashboard');
-                      } else {
-                        setSelected(product);
-                      }
-                    }}
+                    onClick={() => navigate(ROUTES.brand(view.projectId))}
                   >
-                    {actionLabel}
+                    开始使用
                   </Button>
-                ) : product.demoAction === 'explain' ? (
-                  <Button onClick={() => setSelected(product)}>查看说明</Button>
+                ) : item.purchaseState === 'explanation_only' ? (
+                  <Button onClick={() => setSelected(item)}>查看说明</Button>
                 ) : (
                   <Button disabled icon={<LockOutlined />}>
                     未购买 / 待授权
@@ -157,46 +125,18 @@ export function ProductCatalog({
         })}
       </div>
 
-      {!compact ? (
-        <div className="d1-ratecard-rail">
-          <div>
-            <Typography.Text type="secondary">演示 RateCard</Typography.Text>
-            <Typography.Text strong>{rateCard.version}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">标准动作</Typography.Text>
-            <Typography.Text strong>
-              {rateCard.inputBand.durationSeconds}s · {rateCard.inputBand.resolution}
-            </Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">预计额度</Typography.Text>
-            <Typography.Text strong>{rateCard.estimatedCredits.value}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">最多冻结</Typography.Text>
-            <Typography.Text strong>{rateCard.maxReservedCredits.value}</Typography.Text>
-          </div>
-          <div className="d1-ratecard-disclaimer">
-            <Typography.Text type="secondary">
-              仅形成已登记可交付资产后结算，不承诺额度与人民币、时长或模型调用固定换算。
-            </Typography.Text>
-          </div>
-        </div>
-      ) : null}
-
       <Drawer
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
-        title={selected?.displayName}
+        title={selected?.product.displayName}
         width={520}
       >
-        {selected && selectedDetails ? (
+        {selected ? (
           <Space direction="vertical" size={20} style={{ width: '100%' }}>
-            <Tag color={availabilityMeta[selected.availability].color}>
-              {availabilityMeta[selected.availability].label}
+            <Tag color={purchaseStateMeta[selected.purchaseState].color}>
+              {purchaseStateMeta[selected.purchaseState].label}
             </Tag>
-            <Typography.Paragraph>{selected.description}</Typography.Paragraph>
+            <Typography.Paragraph>{selected.product.description}</Typography.Paragraph>
             <Descriptions
               column={1}
               size="small"
@@ -204,41 +144,44 @@ export function ProductCatalog({
                 {
                   key: 'product',
                   label: 'Product',
-                  children: selected.code,
+                  children: selected.product.code,
                 },
                 {
                   key: 'sku',
                   label: 'SKU',
-                  children: selectedDetails.sku?.displayName ?? '无演示 SKU',
+                  children: selected.skus.map((sku) => sku.displayName).join('、') || '无演示 SKU',
                 },
                 {
                   key: 'capability',
                   label: 'Capability',
-                  children: selectedDetails.capabilities
-                    .map((capability) => capability.displayName)
-                    .join('、'),
+                  children:
+                    selected.capabilities.map((capability) => capability.displayName).join('、') ||
+                    '无关联 Capability',
+                },
+                {
+                  key: 'entitlement',
+                  label: 'Entitlement',
+                  children:
+                    selected.entitlements
+                      .map((entitlement) => `${entitlement.entitlementId} · ${entitlement.status}`)
+                      .join('、') || '当前企业无 Entitlement',
                 },
                 {
                   key: 'stage',
                   label: 'D1 动作',
                   children:
-                    selected.demoAction === 'usable'
-                      ? '可进入演示黄金路径'
-                      : selected.demoAction === 'explain'
-                        ? '仅产品说明，不进入执行'
+                    selected.purchaseState === 'purchased'
+                      ? '已购能力可进入 canonical 企业生产路径'
+                      : selected.purchaseState === 'explanation_only'
+                        ? '仅产品说明，不代表当前企业已经购买或开通'
                         : '未购买 / 待授权，执行必须拒绝',
                 },
               ]}
             />
-            {selectedDetails.capabilities.map((capability) => (
-              <TruthBadge
-                key={capability.capabilityId}
-                capabilityId={capability.capabilityId}
-              />
+            {selected.capabilities.map((capability) => (
+              <TruthBadge key={capability.capabilityId} capabilityId={capability.capabilityId} />
             ))}
-            <Typography.Text type="secondary">
-              {snapshot.truthManifest.disclaimer}
-            </Typography.Text>
+            <Typography.Text type="secondary">{view.disclaimer}</Typography.Text>
           </Space>
         ) : null}
       </Drawer>

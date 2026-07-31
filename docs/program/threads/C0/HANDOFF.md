@@ -132,3 +132,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证证据：渠道页面 4/4、selector 7/7、App Smoke 11/11 PASS；相关 ESLint、Prettier、Governance、diff 和 B 独占目录检查 PASS。
 - TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
 - 下一步由 A 进入 A-03.4 企业经营概览与产品语义。
+
+## A-03.4 企业经营概览与产品语义交接（2026-07-31）
+
+- `/enterprise/products` 已从通用 platform/channel/tenant 目录组件收口为企业专用产品语义，唯一数据入口为 `selectTenantCommercialView`。
+- 企业产品状态由当前 Tenant Entitlement 决定：2 项已购、2 项说明态、2 项锁定；平台目录 `availability` 不再直接代表企业已购。
+- `TenantProductView` 提供 Product、Capability、SKU、Entitlement 关联投影，不暴露价格、订单、渠道库存、结算、平台风险或 CreditLedger。
+- 企业产品页不再展示平台式演示 RateCard；“开始使用”固定进入 `/projects/demo-local-001/brand`，说明态不执行，锁定态按钮禁用。
+- Dashboard 通过 tenant selector 展示团队、项目、Wallet、已购能力和三类回执状态计数；Receipt 聚合按 canonical Tenant 过滤，且不返回 input digest、storage reference、output asset IDs 等载荷字段。
+- A-02 内容运营拒绝 `/dashboard`、`/enterprise/products` 的合同未修改，并由 `demoRouteAccess.test.ts` 回归覆盖。
+- 验证：ProductCatalog 3/3、Dashboard 3/3、selector 8/8、route access 28/28、App Smoke 11/11，合计 53/53 PASS；ESLint、Prettier、Governance、`git diff --check`、B 独占目录检查 PASS。
+- TypeScript 未新增 A-03.4 错误；仍复现三个既有错误：B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型。
+- A 下一步进入 A-03.5；B 独占目录本切片无变更。

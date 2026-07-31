@@ -2,7 +2,7 @@
 
 > Owner：A（SaaS 控制平面 / 公共合同 / 主分支集成）  
 > 日期：2026-07-31  
-> 状态：`A03_3_COMPLETE / A03_4_READY`
+> 状态：`A03_4_COMPLETE / A03_5_READY`
 > 分支：`dev/control-plane`  
 > 前置提交：`e8c252a feat(authz): align menus and workbench access`
 
@@ -190,6 +190,18 @@ feat(control-plane): close channel commercial demo views
 ```text
 feat(control-plane): align enterprise commercial overview
 ```
+
+执行结果（2026-07-31）：
+
+- 企业产品页已从通用 audience 目录收口为企业专用视角，统一消费 `selectTenantCommercialView`；页面状态按当前 Tenant 的 Entitlement 投影为已购、说明态和锁定态，不再把平台目录的 `availability=active` 直接解释为企业已购。
+- `TenantProductView` 新增关联 Capability、SKU 和 Entitlement 投影；企业页面不读取价格、订单、渠道库存、结算、平台风险或原始 CreditLedger。
+- 企业产品页移除演示 RateCard 轨道；已购且可执行产品的“开始使用”统一进入 `/projects/demo-local-001/brand`，说明态仅可查看说明，锁定态按钮保持禁用。
+- `selectTenantCommercialView` 新增 active team 聚合，并将 GenerationTaskReceipt、AssetReceipt、ExportReceipt 按 canonical Tenant 收口为状态计数；返回值不包含 input digest、storage reference、output asset IDs 等回执载荷字段。
+- Dashboard 统一消费 tenant selector，展示企业、团队成员、活跃项目、Wallet 可用/冻结额度、已购能力和三类生产结果回执摘要；未读取或修改 B 侧生产页面正文。
+- 内容运营对 `/dashboard` 和 `/enterprise/products` 的 A-02 拒绝合同保持不变，并由 route access 回归测试覆盖。
+- ProductCatalog 3/3、Dashboard 3/3、selector 8/8、route access 28/28、App Smoke 11/11，合计 53/53 PASS；相关 ESLint、Prettier、Governance、`git diff --check` 和 B 独占目录检查通过。
+- 全量 TypeScript 未发现 A-03.4 新增错误；仍只有 B 侧 Grant prop 与根 `vite.config.ts` Node 类型声明三个既有错误。
+- 下一步进入 A-03.5 四身份回归、视觉检查和 A-03 最终文档收口。
 
 ### A-03.5 回归、视觉与文档
 

@@ -92,12 +92,18 @@ export interface ChannelCommercialView {
 
 export interface TenantProductView {
   product: Product;
+  capabilities: Capability[];
   skus: SKU[];
+  entitlements: Entitlement[];
   purchaseState: 'purchased' | 'locked' | 'explanation_only';
 }
 
 export interface TenantCommercialView {
   tenant: TenantContext;
+  team: {
+    activeMemberCount: number;
+    activeMembershipCount: number;
+  };
   entitlements: Entitlement[];
   products: TenantProductView[];
   wallet: {
@@ -122,10 +128,21 @@ function countBy(values: string[]): StatusCounts {
   }, {});
 }
 
-function selectOperationsSummary(snapshot: ControlPlaneDemoState): CommercialOperationsSummary {
-  const taskStatuses = snapshot.generationTaskReceipts.map((receipt) => receipt.status);
-  const assetStatuses = snapshot.assetReceipts.map((receipt) => receipt.reviewStatus);
-  const exportStatuses = snapshot.exportReceipts.map((receipt) => receipt.status);
+function selectOperationsSummary(
+  snapshot: ControlPlaneDemoState,
+  tenantId?: string,
+): CommercialOperationsSummary {
+  const belongsToTenant = (receiptTenantId: string) =>
+    tenantId === undefined || receiptTenantId === tenantId;
+  const taskStatuses = snapshot.generationTaskReceipts
+    .filter((receipt) => belongsToTenant(receipt.tenantId))
+    .map((receipt) => receipt.status);
+  const assetStatuses = snapshot.assetReceipts
+    .filter((receipt) => belongsToTenant(receipt.tenantId))
+    .map((receipt) => receipt.reviewStatus);
+  const exportStatuses = snapshot.exportReceipts
+    .filter((receipt) => belongsToTenant(receipt.tenantId))
+    .map((receipt) => receipt.status);
 
   return {
     generationTasks: {
@@ -187,7 +204,7 @@ function selectTenantSummary(snapshot: ControlPlaneDemoState): TenantCommercialS
       },
       disclaimer: wallet.disclaimer,
     },
-    operations: selectOperationsSummary(snapshot),
+    operations: selectOperationsSummary(snapshot, snapshot.commercial.tenant.tenantId),
   };
 }
 
@@ -266,6 +283,12 @@ export function selectTenantCommercialView(snapshot: ControlPlaneDemoState): Ten
   const entitlements = snapshot.commercial.entitlements.filter(
     (item) => item.tenantId === tenant.tenantId,
   );
+  const activeMemberships = snapshot.commercial.memberships.filter(
+    (membership) =>
+      membership.organizationType === 'TENANT' &&
+      membership.organizationId === tenant.tenantId &&
+      membership.status === 'active',
+  );
   const activeCapabilityIds = new Set(
     entitlements.filter((item) => item.status === 'active').map((item) => item.capabilityId),
   );
@@ -273,17 +296,31 @@ export function selectTenantCommercialView(snapshot: ControlPlaneDemoState): Ten
 
   return {
     tenant: clone(tenant),
+    team: {
+      activeMemberCount: new Set(activeMemberships.map((membership) => membership.principalId))
+        .size,
+      activeMembershipCount: activeMemberships.length,
+    },
     entitlements: clone(entitlements),
     products: snapshot.commercial.products.map((product) => {
+      const productCapabilities = snapshot.commercial.capabilities.filter((capability) =>
+        product.capabilityIds.includes(capability.capabilityId),
+      );
       const productSkus = snapshot.commercial.skus.filter(
         (sku) => sku.productId === product.productId,
       );
-      const purchased = product.capabilityIds.some((capabilityId) =>
-        activeCapabilityIds.has(capabilityId),
+      const productEntitlements = entitlements.filter((entitlement) =>
+        product.capabilityIds.includes(entitlement.capabilityId),
+      );
+      const purchased = productEntitlements.some(
+        (entitlement) =>
+          entitlement.status === 'active' && activeCapabilityIds.has(entitlement.capabilityId),
       );
       return {
         product: clone(product),
+        capabilities: clone(productCapabilities),
         skus: clone(productSkus),
+        entitlements: clone(productEntitlements),
         purchaseState: purchased
           ? 'purchased'
           : product.availability === 'locked'
@@ -298,7 +335,7 @@ export function selectTenantCommercialView(snapshot: ControlPlaneDemoState): Ten
       disclaimer: wallet.disclaimer,
     },
     projectId: snapshot.fixtureId,
-    operations: selectOperationsSummary(snapshot),
+    operations: selectOperationsSummary(snapshot, tenant.tenantId),
     disclaimer: snapshot.commercial.demoBusiness.disclaimer,
   };
 }

@@ -28,3 +28,4 @@
 | 2026-07-31 | 完成 A-03.1 Demo 商业投影、运行时不变量校验及平台/渠道/企业可见性 Selector，11 项定向测试通过 | A03_COMMERCIAL_PROJECTION_TARGETED_PASS |
 | 2026-07-31 | 拆分平台 overview/organizations/catalog/receipts 四条路由语义，统一消费平台 Selector，22 项页面/Selector/Smoke 测试通过 | A03_PLATFORM_VIEWS_TARGETED_PASS |
 | 2026-07-31 | 拆分渠道 overview/products/customers/usage 四条商业路由，固定一级渠道可见性并完成 22 项页面/Selector/Smoke 回归 | A03_CHANNEL_VIEWS_TARGETED_PASS |
+| 2026-07-31 | 收口企业 Entitlement 产品语义、canonical 品牌入口、团队/Wallet/回执摘要，并完成 53 项 Selector/页面/权限/Smoke 回归 | A03_ENTERPRISE_OVERVIEW_TARGETED_PASS |

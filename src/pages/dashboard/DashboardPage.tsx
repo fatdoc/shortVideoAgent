@@ -8,22 +8,14 @@ import {
   VideoCameraOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import {
-  Alert,
-  Button,
-  Empty,
-  Input,
-  Progress,
-  Select,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, Button, Empty, Input, Progress, Select, Tag, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ProjectMetricCard, WorkflowProgress } from '../../components/project';
 import { TruthBadge } from '../../components/workbench/TruthBadge';
 import '../../components/project/project-workflow.css';
 import { DEMO_PROJECT_ID, PROJECT_STATUS_LABEL, ROUTES } from '../../domain/constants';
+import { selectTenantCommercialView } from '../../domain/controlPlaneViewModels';
 import { summarizeWorkspace } from '../../domain/selectors';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { useProjectStore } from '../../stores/projectStore';
@@ -40,6 +32,11 @@ export function DashboardPage() {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const summary = useMemo(() => summarizeWorkspace(workspace), [workspace]);
+  const tenantView = useMemo(() => selectTenantCommercialView(controlPlane), [controlPlane]);
+  const activeEntitlementCount = tenantView.entitlements.filter(
+    (entitlement) => entitlement.status === 'active',
+  ).length;
+  const operations = tenantView.operations;
   const visibleProject =
     workspace.project.id &&
     workspace.project.name.toLowerCase().includes(query.trim().toLowerCase()) &&
@@ -47,10 +44,7 @@ export function DashboardPage() {
 
   const dueDays = Math.max(
     0,
-    Math.ceil(
-      (new Date(workspace.project.dueDate).getTime() - Date.now()) /
-        (1000 * 60 * 60 * 24),
-    ),
+    Math.ceil((new Date(workspace.project.dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
   );
 
   return (
@@ -80,39 +74,33 @@ export function DashboardPage() {
           </span>
           <div>
             <Typography.Text type="secondary">当前企业</Typography.Text>
-            <Typography.Text strong>
-              {controlPlane.commercial.tenant.displayName}
-            </Typography.Text>
+            <Typography.Text strong>{tenantView.tenant.displayName}</Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">团队成员</Typography.Text>
+            <Typography.Text strong>{tenantView.team.activeMemberCount}</Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">活跃项目</Typography.Text>
+            <Typography.Text strong>{workspace.project.id ? 1 : 0}</Typography.Text>
           </div>
           <div>
             <Typography.Text type="secondary">可用额度</Typography.Text>
-            <Typography.Text strong>
-              {controlPlane.commercial.creditState.wallet.available.value}
-            </Typography.Text>
+            <Typography.Text strong>{tenantView.wallet.available.value}</Typography.Text>
           </div>
           <div>
             <Typography.Text type="secondary">冻结额度</Typography.Text>
-            <Typography.Text strong>
-              {controlPlane.commercial.creditState.wallet.reserved.value}
-            </Typography.Text>
+            <Typography.Text strong>{tenantView.wallet.reserved.value}</Typography.Text>
           </div>
           <div>
             <Typography.Text type="secondary">已购能力</Typography.Text>
-            <Typography.Text strong>
-              {
-                controlPlane.commercial.entitlements.filter(
-                  (entitlement) => entitlement.status === 'active',
-                ).length
-              }
-            </Typography.Text>
+            <Typography.Text strong>{activeEntitlementCount}</Typography.Text>
           </div>
         </div>
         <div className="d1-enterprise-context-actions">
           <TruthBadge capabilityId="demo.local-life-golden-path" compact />
-          <Tag>{controlPlane.truthManifest.disclaimer}</Tag>
-          <Button onClick={() => navigate('/enterprise/products')}>
-            查看已购 / 未购买
-          </Button>
+          <Tag>{tenantView.disclaimer}</Tag>
+          <Button onClick={() => navigate(ROUTES.enterpriseProducts)}>查看已购 / 未购买</Button>
         </div>
       </section>
 
@@ -162,6 +150,55 @@ export function DashboardPage() {
         />
       </div>
 
+      <section className="project-surface" data-testid="dashboard-production-results">
+        <div className="project-section-heading">
+          <div>
+            <Typography.Title level={5}>生产结果回执摘要</Typography.Title>
+            <Typography.Text type="secondary">
+              仅汇总 GenerationTask、Asset 与 Export 回执元数据，不展示生产正文。
+            </Typography.Text>
+          </div>
+          <Tag color="gold">{tenantView.disclaimer}</Tag>
+        </div>
+        <div className="d1-enterprise-result-grid">
+          <article className="d1-enterprise-result-card">
+            <Typography.Text type="secondary">GenerationTask</Typography.Text>
+            <Typography.Text strong className="d1-enterprise-result-value">
+              {operations.generationTasks.total}
+            </Typography.Text>
+            <div>
+              <Tag color="green">成功 {operations.generationTasks.byStatus.succeeded ?? 0}</Tag>
+              <Tag color={operations.generationTasks.failed > 0 ? 'error' : 'default'}>
+                失败 {operations.generationTasks.failed}
+              </Tag>
+            </div>
+          </article>
+          <article className="d1-enterprise-result-card">
+            <Typography.Text type="secondary">Asset</Typography.Text>
+            <Typography.Text strong className="d1-enterprise-result-value">
+              {operations.assets.total}
+            </Typography.Text>
+            <div>
+              <Tag color="blue">已登记 {operations.assets.byReviewStatus.registered ?? 0}</Tag>
+              <Tag color="green">已通过 {operations.assets.byReviewStatus.approved ?? 0}</Tag>
+              <Tag color="orange">QA 阻断 {operations.assets.byReviewStatus.qa_blocked ?? 0}</Tag>
+            </div>
+          </article>
+          <article className="d1-enterprise-result-card">
+            <Typography.Text type="secondary">Export</Typography.Text>
+            <Typography.Text strong className="d1-enterprise-result-value">
+              {operations.exports.total}
+            </Typography.Text>
+            <div>
+              <Tag color="green">成功 {operations.exports.byStatus.succeeded ?? 0}</Tag>
+              <Tag color={operations.exports.failed > 0 ? 'error' : 'default'}>
+                失败 {operations.exports.failed}
+              </Tag>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <div className="project-dashboard-grid">
         <section className="project-surface">
           <div className="project-section-heading">
@@ -184,7 +221,10 @@ export function DashboardPage() {
                 style={{ width: 122 }}
                 options={[
                   { value: 'all', label: '全部状态' },
-                  { value: workspace.project.status, label: PROJECT_STATUS_LABEL[workspace.project.status] ?? '进行中' },
+                  {
+                    value: workspace.project.status,
+                    label: PROJECT_STATUS_LABEL[workspace.project.status] ?? '进行中',
+                  },
                 ]}
               />
             </div>
@@ -239,10 +279,12 @@ export function DashboardPage() {
             </div>
           ) : (
             <Empty description="没有匹配的项目" image={Empty.PRESENTED_IMAGE_SIMPLE}>
-              <Button onClick={() => {
-                setQuery('');
-                setStatusFilter('all');
-              }}>
+              <Button
+                onClick={() => {
+                  setQuery('');
+                  setStatusFilter('all');
+                }}
+              >
                 清除筛选
               </Button>
             </Empty>
@@ -258,7 +300,9 @@ export function DashboardPage() {
           </div>
           <div className="project-task-list">
             <div className="project-task-item">
-              <span className="project-task-icon"><VideoCameraOutlined /></span>
+              <span className="project-task-icon">
+                <VideoCameraOutlined />
+              </span>
               <span className="project-task-copy">
                 <Typography.Text strong>虾滑制作待补拍</Typography.Text>
                 <Typography.Text type="secondary">分镜 05 · matchStatus=reshoot</Typography.Text>
@@ -266,7 +310,9 @@ export function DashboardPage() {
               <Tag color="orange">1</Tag>
             </div>
             <div className="project-task-item">
-              <span className="project-task-icon"><FileTextOutlined /></span>
+              <span className="project-task-icon">
+                <FileTextOutlined />
+              </span>
               <span className="project-task-copy">
                 <Typography.Text strong>会员权益缺镜</Typography.Text>
                 <Typography.Text type="secondary">分镜 07 · 将阻断导出</Typography.Text>
@@ -274,7 +320,9 @@ export function DashboardPage() {
               <Tag color="red">1</Tag>
             </div>
             <div className="project-task-item">
-              <span className="project-task-icon"><CheckSquareOutlined /></span>
+              <span className="project-task-icon">
+                <CheckSquareOutlined />
+              </span>
               <span className="project-task-copy">
                 <Typography.Text strong>复核脚本版本</Typography.Text>
                 <Typography.Text type="secondary">{summary.activeScriptName}</Typography.Text>

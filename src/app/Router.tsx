@@ -179,7 +179,7 @@ export function AppRouter() {
               path="enterprise/products"
               element={
                 <RouteAccessGuard>
-                  <ProductCatalogPage audience="tenant" />
+                  <ProductCatalogPage />
                 </RouteAccessGuard>
               }
             />

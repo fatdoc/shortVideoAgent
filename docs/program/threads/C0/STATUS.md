@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_3_CHANNEL_VIEWS_TARGETED_PASS_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成 A-03.3 固定一级渠道四路由商业视角收口；下一步进入 A-03.4 企业经营概览与产品语义，负责人 B 继续处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_4_ENTERPRISE_OVERVIEW_TARGETED_PASS_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已完成 A-03.4 企业产品语义与经营/生产结果摘要；下一步进入 A-03.5 四身份回归、视觉检查和最终文档收口，负责人 B 继续处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -138,3 +138,15 @@
 - 验证证据：渠道页面 4 tests、selector 7 tests、App Smoke 11 tests，合计 22/22 PASS；相关 ESLint、Prettier、Governance、`git diff --check` 和 B 独占目录检查 PASS。
 - TypeScript 的 A-03.3 新增错误为 0；全量检查仍只剩 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型声明三个既有错误。
 - 下一步：A-03.4 企业经营概览与产品语义。
+
+## 2026-07-31 A-03.4 企业经营概览与产品语义
+
+- 企业产品页已改为企业专用视角，统一消费 `selectTenantCommercialView`；已购、说明态和锁定态按 canonical Tenant Entitlement 判断，不再把平台目录可用状态伪装成企业已购。
+- `TenantProductView` 现在携带关联 Capability、SKU 和 Entitlement；企业页面不获得价格、订单、渠道库存、结算、平台风险或原始 CreditLedger。
+- 企业产品页已移除平台式 RateCard 轨道；已购产品“开始使用”进入 `/projects/demo-local-001/brand`，说明态只查看说明，锁定态不可执行。
+- Dashboard 统一消费 tenant selector，补齐团队成员、活跃项目、Wallet 可用/冻结额度、已购能力，以及 GenerationTask/Asset/Export 回执元数据计数。
+- 三类回执先按 canonical Tenant 过滤，再聚合状态；企业视图不返回 input digest、storage reference、output asset IDs 或 B 侧生产正文。
+- 内容运营对 `/dashboard` 和 `/enterprise/products` 的 A-02 拒绝合同保持不变；A 未修改 B 独占目录。
+- 验证证据：ProductCatalog 3/3、Dashboard 3/3、selector 8/8、route access 28/28、App Smoke 11/11，合计 53/53 PASS；相关 ESLint、Prettier、Governance、diff 和 B 独占目录检查 PASS。
+- TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
+- 下一步：A-03.5 四身份回归、关键视口视觉检查和 A-03 最终收口。
