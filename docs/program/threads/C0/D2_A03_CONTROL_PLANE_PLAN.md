@@ -2,7 +2,7 @@
 
 > Owner：A（SaaS 控制平面 / 公共合同 / 主分支集成）  
 > 日期：2026-07-31  
-> 状态：`A03_4_COMPLETE / A03_5_READY`
+> 状态：`A03_COMPLETE / READY_FOR_INTEGRATION`
 > 分支：`dev/control-plane`  
 > 前置提交：`e8c252a feat(authz): align menus and workbench access`
 
@@ -218,6 +218,19 @@ feat(control-plane): align enterprise commercial overview
 ```text
 docs(control-plane): record A-03 closure evidence
 ```
+
+执行结果（2026-07-31）：
+
+- 四身份回归已覆盖平台管理员、一级渠道管理员、企业管理员和内容运营，直接 URL 越权与 canonical Tenant/Project Scope Guard 继续按 A-02 冻结合同拒绝。
+- 定向回归结果：`demoIdentity` 10/10、`demoRouteAccess` 28/28、App Smoke 11/11，合计 49/49 PASS。
+- 已在 1440×900 检查平台 overview/catalog、渠道 overview/products/customers、企业 Dashboard/products 和 canonical 品牌大脑；补充完成 1280 宽度检查。
+- 视觉检查发现 Workbench 顶栏上下文选择器超出 56px 顶栏，且 1440 宽度下操作区挤压退出按钮；已由 `e4d70ff fix(shell): keep workbench header within viewport` 独立修复。
+- 修复后上下文选择器保持在顶栏内；1580 以下压缩上下文区域，1380 以下隐藏详细组织文案，退出操作保持可见。
+- Governance、`git diff --check`、视觉修复定向 ESLint/Prettier 和 B 独占目录变更检查 PASS；A 未修改 B 独占目录。
+- 全量测试为 132/141 PASS、9 项超时失败并伴随 1 个环境卸载后的 MutationObserver 异常；失败文件单独复跑结果为 BrandBrain 5/5、Brief 2/2、ScriptEditor 8/8、App Smoke 11/11 PASS，说明完整 Test Gate 仍受并发/超时基线阻塞。
+- 全量 Build 复现 3 个既有错误：B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 类型，以及根 `vite.config.ts` 的 `node:path` / `__dirname` 类型；全量 Lint 为 702 problems（697 errors、5 warnings），主要位于 StoryCanvas 存量代码。
+- 不得把 A-03 定向通过描述为 D2 全仓 Gate 通过。
+- A-03 控制平面已完成，交付范围为 `f48c210..e4d70ff`；下一步由 A 完成收口文档提交、推送 `dev/control-plane`，再与 B 的 `dev/production-plane` 进入短期集成分支验证。
 
 ## 5. 测试策略
 

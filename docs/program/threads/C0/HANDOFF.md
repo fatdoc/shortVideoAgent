@@ -144,3 +144,18 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证：ProductCatalog 3/3、Dashboard 3/3、selector 8/8、route access 28/28、App Smoke 11/11，合计 53/53 PASS；ESLint、Prettier、Governance、`git diff --check`、B 独占目录检查 PASS。
 - TypeScript 未新增 A-03.4 错误；仍复现三个既有错误：B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型。
 - A 下一步进入 A-03.5；B 独占目录本切片无变更。
+
+## A-03 控制平面集成交接（2026-07-31）
+
+- 状态：A-01 Mock 会话、A-02 路由/动作/canonical Scope 授权、A-03 平台/渠道/企业商业视图均已完成；A 控制平面标记为 `READY_FOR_INTEGRATION`，不代表 D2 全仓 Gate 已通过。
+- 分支与范围：`dev/control-plane`，基线 `f48c210`，交付头提交 `e4d70ff`；本次文档收口提交完成后以新的分支头为准。
+- A-03 提交顺序：`d99e9b7` 计划 → `5a9cf52` 商业投影 → `33e6b90` 平台页面 → `351a368` 渠道页面 → `3a04748` 企业页面 → `e4d70ff` 顶栏视觉修复。
+- 定向证据：四身份/越权/App Smoke 合计 49/49 PASS；A-03.4 页面、Selector、权限与 Smoke 合计 53/53 PASS；Governance、相关 ESLint/Prettier、`git diff --check` 和 B 独占目录检查 PASS。
+- 视觉证据：完成 1440×900 平台、渠道、企业关键页面检查和 1280 宽度补充检查；顶栏上下文选择器已保持在 56px 顶栏内，较窄视口下退出操作保持可见。
+- A 未修改 B 独占目录：`src/pages/production/`、`src/pages/script-editor/`、`src/pages/storyboard/`、`src/pages/rough-cut/`、`src/features/storycanvas/`、`apps/storycanvas/src/`。
+- 全量 Test 基线：132/141 PASS、9 项超时失败、1 个环境卸载后的 MutationObserver 异常；失败文件单独复跑 BrandBrain 5/5、Brief 2/2、ScriptEditor 8/8、App Smoke 11/11 PASS。完整 Test Gate 仍为 FAIL，集成阶段需处理并发资源或超时配置，不能用定向通过替代全量 Gate。
+- 全量 Build 基线：3 个既有错误，分别为 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 类型，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型。
+- 全量 Lint 基线：702 problems（697 errors、5 warnings），主要位于 `apps/storycanvas/src/` 等 StoryCanvas 存量代码。
+- B 交付要求：推送 `dev/production-plane`；提供提交清单、共享文件改动、验证命令和已知问题；共享文件修改必须独立 commit，禁止强推或覆盖 A 成果。
+- 集成方式：不要把 B 分支直接合入 `dev/control-plane`。从最新 `main` 创建短期 `integration/d2-a03-b03`，依次合并 A、B，逐段审查 Router/layout/design/contracts/store 等共享冲突。
+- 集成 Gate：`npm test`、`npm run lint`、`npm run build`、`npm run validate:governance`、`git diff --check`，并回归四身份、直接 URL 越权、D1 生产主链和 1440×900/1280×800 关键视口。

@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_4_ENTERPRISE_OVERVIEW_TARGETED_PASS_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成 A-03.4 企业产品语义与经营/生产结果摘要；下一步进入 A-03.5 四身份回归、视觉检查和最终文档收口，负责人 B 继续处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_CONTROL_PLANE_READY_FOR_INTEGRATION_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已完成 A-03 控制平面业务、权限、四身份回归和关键视口视觉收口；下一步推送 `dev/control-plane`、审查 B 的 `dev/production-plane`，并创建短期集成分支执行 D2 全仓 Gate
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -14,7 +14,7 @@
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：D2 已有业务实现，但根 Build、默认 Lint 和 7 项单测尚未通过；视觉证据和最终验收 Gate 尚未执行
+- 阻塞：A 控制平面定向 Gate 已通过；D2 全量 Test 为 132/141 PASS、9 项并发超时，Build 有 3 个既有类型错误，Lint 为 702 problems；B 分支尚待远端交付与集成核验
 - 最近更新：2026-07-31
 
 ## 2026-07-30 单前端收口
@@ -150,3 +150,16 @@
 - 验证证据：ProductCatalog 3/3、Dashboard 3/3、selector 8/8、route access 28/28、App Smoke 11/11，合计 53/53 PASS；相关 ESLint、Prettier、Governance、diff 和 B 独占目录检查 PASS。
 - TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
 - 下一步：A-03.5 四身份回归、关键视口视觉检查和 A-03 最终收口。
+
+## 2026-07-31 A-03.5 四身份回归、视觉与控制平面收口
+
+- 四身份定向回归覆盖平台管理员、一级渠道管理员、企业管理员和内容运营；canonical Tenant/Project 越权拒绝合同保持不变。
+- 验证证据：`demoIdentity` 10/10、`demoRouteAccess` 28/28、App Smoke 11/11，合计 49/49 PASS。
+- 已在 1440×900 检查 `/platform/overview`、`/platform/catalog`、`/channel/overview`、`/channel/products`、`/channel/customers`、`/dashboard`、`/enterprise/products`、`/projects/demo-local-001/brand`，并补充 1280 宽度检查。
+- 已修复 Workbench 顶栏选择器越界和 1440 宽度操作区挤压问题，独立提交为 `e4d70ff fix(shell): keep workbench header within viewport`。
+- Governance、`git diff --check`、视觉修复定向 ESLint/Prettier 和 B 独占目录检查 PASS；A 分支工作区 clean，A-03 控制平面进入 `READY_FOR_INTEGRATION`。
+- 全量测试为 132/141 PASS、9 项超时失败和 1 个环境卸载异常；单文件复跑 BrandBrain 5/5、Brief 2/2、ScriptEditor 8/8、App Smoke 11/11 PASS，完整 Test Gate 仍按 FAIL 记录。
+- 全量 Build 复现 B 侧 Grant prop 与根 Vite Node 类型共 3 个既有错误；全量 Lint 复现 702 problems（697 errors、5 warnings），主要来自 StoryCanvas 存量代码。
+- A 交付范围：基线 `f48c210`，当前头提交 `e4d70ff`；A-03 功能提交为 `5a9cf52`、`33e6b90`、`351a368`、`3a04748`、`e4d70ff`，计划提交为 `d99e9b7`。
+- 全仓 Gate 尚未通过：仍需 B 修复生产平面 Grant prop、ScriptEditor/StoryCanvas Test/Lint/Build 交接项，并处理根 `vite.config.ts` Node 类型声明后，在短期集成分支复跑完整 Gate。
+- 下一步：完成本次文档收口提交并推送 `dev/control-plane`；B 分支到位后，从最新 `main` 创建 `integration/d2-a03-b03`，按控制平面 → 生产平面顺序合并和验证。
