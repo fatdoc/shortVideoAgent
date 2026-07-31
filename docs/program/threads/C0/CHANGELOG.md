@@ -25,3 +25,4 @@
 | 2026-07-31 | Router 与安全回跳统一接入 24 路由授权、canonical Scope Guard 和统一 403，79 项定向测试通过 | A02_ROUTE_GUARDS_TARGETED_PASS |
 | 2026-07-31 | 原子启用企业/内容运营双工作台，完成 Sidebar 权限过滤、合法工作台落点和品牌大脑只读，82 项定向/Smoke 测试通过 | A02_WORKBENCH_ACCESS_TARGETED_PASS |
 | 2026-07-31 | 完成 A-03 控制平面业务审计，冻结 scoped commercial projection、平台/渠道/企业页面收口和五切片实施计划 | A03_PLAN_READY |
+| 2026-07-31 | 完成 A-03.1 Demo 商业投影、运行时不变量校验及平台/渠道/企业可见性 Selector，11 项定向测试通过 | A03_COMMERCIAL_PROJECTION_TARGETED_PASS |

@@ -102,3 +102,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - A 不修改 B 独占生产目录；企业生产结果只消费 Receipt/Asset/Export 元数据。
 - 详细计划：`docs/program/threads/C0/D2_A03_CONTROL_PLANE_PLAN.md`。
 - 下一切片：A-03.1 商业只读投影与工作台可见性 selector，独立测试并独立提交。
+
+## A-03.1 商业只读投影交接（2026-07-31）
+
+- A 已在 `ControlPlaneCommercialFixture.demoBusiness` 落地 canonical Demo 商业只读投影，数据参与 fixture digest、运行时校验和 reset 重建。
+- 投影包含五层价格、两条订单、固定一级渠道库存与对账、平台风险摘要；金额全部为 `amountMinor + CNY`，并保留 `DEMO / NON_QUOTE` 声明。
+- `src/domain/controlPlaneViewModels.ts` 已提供 platform/channel/tenant 三类可见性 selector；平台/渠道不获得企业生产正文，企业不获得价格、订单、库存、对账或平台风险。
+- 渠道视角固定为 `channel-demo-level-1`，只暴露 Master→Level 1 直接取得价和 Level 1 直接售出价格；上游 Provider 成本与 Platform→Master 结算价不可见。
+- 定向测试与 storage/mock adapter 合计 12/12 PASS；相关 ESLint、Governance、diff 和 B 独占目录检查 PASS。
+- 全量 TypeScript 未发现 A-03.1 新增错误；仍有 B 侧 StoryCanvas Grant prop 和根 Vite Node 类型声明基线缺口。
+- 下一步由 A 进入 A-03.2，只改共享平台控制平面页面和测试，不修改 B 独占目录。

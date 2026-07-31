@@ -2,7 +2,7 @@
 
 > Owner：A（SaaS 控制平面 / 公共合同 / 主分支集成）  
 > 日期：2026-07-31  
-> 状态：`AUDIT_COMPLETE / IMPLEMENTATION_READY`  
+> 状态：`A03_1_COMPLETE / A03_2_READY`
 > 分支：`dev/control-plane`  
 > 前置提交：`e8c252a feat(authz): align menus and workbench access`
 
@@ -103,6 +103,15 @@ feat(control-plane): add scoped commercial demo projections
 ```
 
 验收：定向单测、相关 ESLint、Governance、`git diff --check`、B 独占目录检查。
+
+执行结果（2026-07-31）：
+
+- 已把带 `DEMO / NON_QUOTE` 语义的价格快照、演示订单、渠道库存、对账和平台风险摘要纳入 canonical fixture、digest 与运行时 schema。
+- 已新增 platform/channel/tenant 三套纯函数 view model，固定一级渠道 ID 不合法时明确抛错，不静默回退。
+- 已用 7 条单测冻结五层价格、订单/库存/毛差计算与跨工作台敏感字段隔离。
+- 定向测试 12/12、相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查通过。
+- TypeScript 的 A-03.1 新增错误已清零；全量检查仍受 B 侧 Grant prop 和根 `vite.config.ts` 缺少 Node 类型声明的既有基线阻塞。
+- 下一步进入 A-03.2 平台路由语义分离。
 
 ### A-03.2 平台路由语义分离
 

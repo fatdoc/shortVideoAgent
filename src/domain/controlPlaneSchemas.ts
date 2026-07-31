@@ -11,6 +11,14 @@ import {
   type CreditLedgerEntry,
   type CreditLot,
   type DataScope,
+  type DemoChannelCreditInventory,
+  type DemoChannelSettlementSummary,
+  type DemoCommercialOrder,
+  type DemoCommercialProjection,
+  type DemoCreditValue,
+  type DemoMoneyValue,
+  type DemoPlatformRiskSummary,
+  type DemoPriceSnapshot,
   type DemoProjectGrant,
   type DemoRateCard,
   type Entitlement,
@@ -81,7 +89,7 @@ function assertArray(value: unknown, label: string): asserts value is unknown[] 
   if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
 }
 
-function assertDemoCredit(value: unknown, label: string) {
+function assertDemoCredit(value: unknown, label: string): asserts value is DemoCreditValue {
   assertRecord(value, label);
   assertNumber(value.value, `${label}.value`);
   if (!Number.isInteger(value.value)) throw new Error(`${label}.value must be an integer`);
@@ -91,6 +99,291 @@ function assertDemoCredit(value: unknown, label: string) {
   }
   if (value.label !== DEMO_DATA_LABEL) throw new Error(`${label}.label is invalid`);
 }
+
+function assertNonNegativeInteger(value: unknown, label: string): asserts value is number {
+  assertNumber(value, label);
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${label} must be a non-negative integer`);
+  }
+}
+
+function assertNonNegativeDemoCredit(
+  value: unknown,
+  label: string,
+): asserts value is DemoCreditValue {
+  assertDemoCredit(value, label);
+  if (value.value < 0) throw new Error(`${label}.value must be non-negative`);
+}
+
+function assertDemoMoney(value: unknown, label: string): asserts value is DemoMoneyValue {
+  assertRecord(value, label);
+  assertNonNegativeInteger(value.amountMinor, `${label}.amountMinor`);
+  if (value.currency !== 'CNY') throw new Error(`${label}.currency is invalid`);
+  if (value.dataMode !== 'DEMO' || value.quoteStatus !== 'NON_QUOTE') {
+    throw new Error(`${label} must retain DEMO/NON_QUOTE semantics`);
+  }
+  if (value.label !== DEMO_DATA_LABEL) throw new Error(`${label}.label is invalid`);
+}
+
+function assertDemoCommercialParty(value: unknown, label: string) {
+  assertRecord(value, label);
+  if (!['PROVIDER', 'PLATFORM', 'CHANNEL', 'TENANT'].includes(value.partyType as string)) {
+    throw new Error(`${label}.partyType is invalid`);
+  }
+  assertString(value.partyId, `${label}.partyId`);
+  assertString(value.displayName, `${label}.displayName`);
+}
+
+export const demoPriceSnapshotSchema = schema<DemoPriceSnapshot>(
+  'DemoPriceSnapshot',
+  (value): asserts value is DemoPriceSnapshot => {
+    assertRecord(value, 'DemoPriceSnapshot');
+    assertString(value.priceSnapshotId, 'DemoPriceSnapshot.priceSnapshotId');
+    if (value.version !== 'demo-v1') throw new Error('DemoPriceSnapshot.version is invalid');
+    if (
+      ![
+        'UPSTREAM_COST',
+        'PLATFORM_SETTLEMENT',
+        'CHANNEL_WHOLESALE',
+        'CUSTOMER_RETAIL',
+        'CAMPAIGN',
+      ].includes(value.priceLayer as string)
+    ) {
+      throw new Error('DemoPriceSnapshot.priceLayer is invalid');
+    }
+    assertDemoCommercialParty(value.seller, 'DemoPriceSnapshot.seller');
+    assertDemoCommercialParty(value.buyer, 'DemoPriceSnapshot.buyer');
+    assertString(value.skuId, 'DemoPriceSnapshot.skuId');
+    if (!['PER_STANDARD_TASK', 'PER_AI_VIDEO_CREDIT'].includes(value.chargeUnit as string)) {
+      throw new Error('DemoPriceSnapshot.chargeUnit is invalid');
+    }
+    assertDemoMoney(value.unitPrice, 'DemoPriceSnapshot.unitPrice');
+    if (value.taxIncluded !== false) throw new Error('DemoPriceSnapshot.taxIncluded must be false');
+    assertString(value.effectiveFrom, 'DemoPriceSnapshot.effectiveFrom');
+    assertString(value.effectiveTo, 'DemoPriceSnapshot.effectiveTo');
+    if (value.disclaimer !== DEMO_DATA_LABEL) {
+      throw new Error('DemoPriceSnapshot disclaimer missing');
+    }
+  },
+);
+
+export const demoCommercialOrderSchema = schema<DemoCommercialOrder>(
+  'DemoCommercialOrder',
+  (value): asserts value is DemoCommercialOrder => {
+    assertRecord(value, 'DemoCommercialOrder');
+    assertString(value.orderId, 'DemoCommercialOrder.orderId');
+    assertDemoCommercialParty(value.seller, 'DemoCommercialOrder.seller');
+    assertDemoCommercialParty(value.buyer, 'DemoCommercialOrder.buyer');
+    assertString(value.skuId, 'DemoCommercialOrder.skuId');
+    if (value.status !== 'fulfilled') throw new Error('DemoCommercialOrder.status is invalid');
+    assertNonNegativeDemoCredit(value.creditAmount, 'DemoCommercialOrder.creditAmount');
+    assertDemoMoney(value.listAmount, 'DemoCommercialOrder.listAmount');
+    assertDemoMoney(value.discountAmount, 'DemoCommercialOrder.discountAmount');
+    assertDemoMoney(value.netAmount, 'DemoCommercialOrder.netAmount');
+    assertDemoMoney(value.acquisitionCost, 'DemoCommercialOrder.acquisitionCost');
+    assertDemoMoney(value.grossSpread, 'DemoCommercialOrder.grossSpread');
+    if (
+      value.listAmount.amountMinor - value.discountAmount.amountMinor !==
+      value.netAmount.amountMinor
+    ) {
+      throw new Error('DemoCommercialOrder net amount is inconsistent');
+    }
+    if (
+      value.netAmount.amountMinor - value.acquisitionCost.amountMinor !==
+      value.grossSpread.amountMinor
+    ) {
+      throw new Error('DemoCommercialOrder gross spread is inconsistent');
+    }
+    assertArray(value.priceSnapshotIds, 'DemoCommercialOrder.priceSnapshotIds');
+    value.priceSnapshotIds.forEach((id, index) =>
+      assertString(id, `DemoCommercialOrder.priceSnapshotIds[${index}]`),
+    );
+    assertString(value.fulfilledAt, 'DemoCommercialOrder.fulfilledAt');
+    if (value.disclaimer !== DEMO_DATA_LABEL) {
+      throw new Error('DemoCommercialOrder disclaimer missing');
+    }
+  },
+);
+
+export const demoChannelCreditInventorySchema = schema<DemoChannelCreditInventory>(
+  'DemoChannelCreditInventory',
+  (value): asserts value is DemoChannelCreditInventory => {
+    assertRecord(value, 'DemoChannelCreditInventory');
+    assertString(value.channelOrganizationId, 'DemoChannelCreditInventory.channelOrganizationId');
+    assertNonNegativeDemoCredit(
+      value.purchasedCredits,
+      'DemoChannelCreditInventory.purchasedCredits',
+    );
+    assertNonNegativeDemoCredit(
+      value.allocatedToSubchannels,
+      'DemoChannelCreditInventory.allocatedToSubchannels',
+    );
+    assertNonNegativeDemoCredit(
+      value.allocatedToTenants,
+      'DemoChannelCreditInventory.allocatedToTenants',
+    );
+    assertNonNegativeDemoCredit(
+      value.availableCredits,
+      'DemoChannelCreditInventory.availableCredits',
+    );
+    if (
+      value.purchasedCredits.value !==
+      value.allocatedToSubchannels.value +
+        value.allocatedToTenants.value +
+        value.availableCredits.value
+    ) {
+      throw new Error('DemoChannelCreditInventory balance is inconsistent');
+    }
+    assertString(value.asOf, 'DemoChannelCreditInventory.asOf');
+    if (value.disclaimer !== DEMO_DATA_LABEL) {
+      throw new Error('DemoChannelCreditInventory disclaimer missing');
+    }
+  },
+);
+
+export const demoChannelSettlementSummarySchema = schema<DemoChannelSettlementSummary>(
+  'DemoChannelSettlementSummary',
+  (value): asserts value is DemoChannelSettlementSummary => {
+    assertRecord(value, 'DemoChannelSettlementSummary');
+    assertString(value.settlementId, 'DemoChannelSettlementSummary.settlementId');
+    assertString(value.channelOrganizationId, 'DemoChannelSettlementSummary.channelOrganizationId');
+    assertString(value.periodStart, 'DemoChannelSettlementSummary.periodStart');
+    assertString(value.periodEnd, 'DemoChannelSettlementSummary.periodEnd');
+    if (value.status !== 'reviewed') {
+      throw new Error('DemoChannelSettlementSummary.status is invalid');
+    }
+    assertArray(value.orderIds, 'DemoChannelSettlementSummary.orderIds');
+    value.orderIds.forEach((id, index) =>
+      assertString(id, `DemoChannelSettlementSummary.orderIds[${index}]`),
+    );
+    assertNonNegativeDemoCredit(
+      value.openingAvailableCredits,
+      'DemoChannelSettlementSummary.openingAvailableCredits',
+    );
+    assertNonNegativeDemoCredit(
+      value.purchasedCredits,
+      'DemoChannelSettlementSummary.purchasedCredits',
+    );
+    assertNonNegativeDemoCredit(
+      value.soldCredits,
+      'DemoChannelSettlementSummary.soldCredits',
+    );
+    assertNonNegativeDemoCredit(
+      value.closingAvailableCredits,
+      'DemoChannelSettlementSummary.closingAvailableCredits',
+    );
+    if (
+      value.openingAvailableCredits.value +
+        value.purchasedCredits.value -
+        value.soldCredits.value !==
+      value.closingAvailableCredits.value
+    ) {
+      throw new Error('DemoChannelSettlementSummary credit balance is inconsistent');
+    }
+    assertDemoMoney(value.salesNetAmount, 'DemoChannelSettlementSummary.salesNetAmount');
+    assertDemoMoney(value.acquisitionCost, 'DemoChannelSettlementSummary.acquisitionCost');
+    assertDemoMoney(value.grossSpread, 'DemoChannelSettlementSummary.grossSpread');
+    if (
+      value.salesNetAmount.amountMinor - value.acquisitionCost.amountMinor !==
+      value.grossSpread.amountMinor
+    ) {
+      throw new Error('DemoChannelSettlementSummary gross spread is inconsistent');
+    }
+    assertNonNegativeInteger(
+      value.unmatchedItemCount,
+      'DemoChannelSettlementSummary.unmatchedItemCount',
+    );
+    if (value.disclaimer !== DEMO_DATA_LABEL) {
+      throw new Error('DemoChannelSettlementSummary disclaimer missing');
+    }
+  },
+);
+
+export const demoPlatformRiskSummarySchema = schema<DemoPlatformRiskSummary>(
+  'DemoPlatformRiskSummary',
+  (value): asserts value is DemoPlatformRiskSummary => {
+    assertRecord(value, 'DemoPlatformRiskSummary');
+    assertNonNegativeInteger(
+      value.openCommercialExceptions,
+      'DemoPlatformRiskSummary.openCommercialExceptions',
+    );
+    assertNonNegativeInteger(
+      value.unmatchedReceiptCount,
+      'DemoPlatformRiskSummary.unmatchedReceiptCount',
+    );
+    assertNonNegativeInteger(value.frozenWalletCount, 'DemoPlatformRiskSummary.frozenWalletCount');
+    assertNonNegativeInteger(value.auditEventCount, 'DemoPlatformRiskSummary.auditEventCount');
+    assertString(value.asOf, 'DemoPlatformRiskSummary.asOf');
+    if (value.disclaimer !== DEMO_DATA_LABEL) {
+      throw new Error('DemoPlatformRiskSummary disclaimer missing');
+    }
+  },
+);
+
+export const demoCommercialProjectionSchema = schema<DemoCommercialProjection>(
+  'DemoCommercialProjection',
+  (value): asserts value is DemoCommercialProjection => {
+    assertRecord(value, 'DemoCommercialProjection');
+    assertString(
+      value.fixedChannelOrganizationId,
+      'DemoCommercialProjection.fixedChannelOrganizationId',
+    );
+    assertArray(value.priceSnapshots, 'DemoCommercialProjection.priceSnapshots');
+    const priceSnapshots = value.priceSnapshots.map((item) => demoPriceSnapshotSchema.parse(item));
+    const priceLayers = new Set(priceSnapshots.map((item) => item.priceLayer));
+    for (const requiredLayer of [
+      'UPSTREAM_COST',
+      'PLATFORM_SETTLEMENT',
+      'CHANNEL_WHOLESALE',
+      'CUSTOMER_RETAIL',
+      'CAMPAIGN',
+    ] as const) {
+      if (!priceLayers.has(requiredLayer)) {
+        throw new Error(`DemoCommercialProjection is missing ${requiredLayer}`);
+      }
+    }
+    const priceSnapshotIds = new Set(priceSnapshots.map((item) => item.priceSnapshotId));
+    assertArray(value.orders, 'DemoCommercialProjection.orders');
+    const orders = value.orders.map((item) => demoCommercialOrderSchema.parse(item));
+    orders.forEach((item) => {
+      for (const priceSnapshotId of item.priceSnapshotIds) {
+        if (!priceSnapshotIds.has(priceSnapshotId)) {
+          throw new Error(`DemoCommercialOrder references unknown price ${priceSnapshotId}`);
+        }
+      }
+    });
+    const orderIds = new Set(orders.map((item) => item.orderId));
+    assertArray(value.channelInventories, 'DemoCommercialProjection.channelInventories');
+    const channelInventories = value.channelInventories.map((item) =>
+      demoChannelCreditInventorySchema.parse(item),
+    );
+    assertArray(value.settlementSummaries, 'DemoCommercialProjection.settlementSummaries');
+    const settlementSummaries = value.settlementSummaries.map((item) =>
+      demoChannelSettlementSummarySchema.parse(item),
+    );
+    settlementSummaries.forEach((item) => {
+      for (const orderId of item.orderIds) {
+        if (!orderIds.has(orderId)) {
+          throw new Error(`DemoChannelSettlementSummary references unknown order ${orderId}`);
+        }
+      }
+    });
+    if (
+      !channelInventories.some(
+        (item) => item.channelOrganizationId === value.fixedChannelOrganizationId,
+      ) ||
+      !settlementSummaries.some(
+        (item) => item.channelOrganizationId === value.fixedChannelOrganizationId,
+      )
+    ) {
+      throw new Error('DemoCommercialProjection fixed channel has no inventory or settlement');
+    }
+    demoPlatformRiskSummarySchema.parse(value.platformRisk);
+    if (value.disclaimer !== DEMO_DATA_LABEL) {
+      throw new Error('DemoCommercialProjection disclaimer missing');
+    }
+  },
+);
 
 export const platformContextSchema = schema<PlatformContext>(
   'PlatformContext',
@@ -522,7 +815,7 @@ export const controlPlaneDemoStateSchema = schema<ControlPlaneDemoState>(
     assertRecord(commercial, 'ControlPlaneDemoState.commercial');
     platformContextSchema.parse(commercial.platform);
     assertArray(commercial.channels, 'ControlPlaneDemoState.commercial.channels');
-    commercial.channels.forEach((item) => channelOrganizationSchema.parse(item));
+    const channels = commercial.channels.map((item) => channelOrganizationSchema.parse(item));
     tenantContextSchema.parse(commercial.tenant);
     assertArray(commercial.memberships, 'ControlPlaneDemoState.commercial.memberships');
     commercial.memberships.forEach((item) => membershipSchema.parse(item));
@@ -569,6 +862,15 @@ export const controlPlaneDemoStateSchema = schema<ControlPlaneDemoState>(
       'ControlPlaneDemoState.commercial.creditState.ledger',
     );
     creditLedgerSchema.parse(commercial.creditState.ledger);
+    const demoBusiness = demoCommercialProjectionSchema.parse(commercial.demoBusiness);
+    if (
+      !channels.some(
+        (channel) =>
+          channel.channelOrganizationId === demoBusiness.fixedChannelOrganizationId,
+      )
+    ) {
+      throw new Error('ControlPlaneDemoState fixed commercial channel does not exist');
+    }
     assertArray(value.scriptApprovals, 'ControlPlaneDemoState.scriptApprovals');
     value.scriptApprovals.forEach((item) => scriptApprovalSchema.parse(item));
     if (value.package) projectProductionPackageSchema.parse(value.package);
@@ -624,6 +926,12 @@ export const controlPlaneSchemas = {
   CreditLot: creditLotSchema,
   CreditLedger: creditLedgerSchema,
   CreditLedgerEntry: creditLedgerEntrySchema,
+  DemoPriceSnapshot: demoPriceSnapshotSchema,
+  DemoCommercialOrder: demoCommercialOrderSchema,
+  DemoChannelCreditInventory: demoChannelCreditInventorySchema,
+  DemoChannelSettlementSummary: demoChannelSettlementSummarySchema,
+  DemoPlatformRiskSummary: demoPlatformRiskSummarySchema,
+  DemoCommercialProjection: demoCommercialProjectionSchema,
   ProjectProductionPackage: projectProductionPackageSchema,
   ScriptApproval: scriptApprovalSchema,
   DemoProjectGrant: demoProjectGrantSchema,
