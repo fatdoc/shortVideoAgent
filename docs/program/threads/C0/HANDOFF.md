@@ -22,3 +22,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 主持材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
 - 未完成：D2 前端实现、定向测试、lint/build/governance、四身份与越权视觉证据、D2 Demo Pack 增补和最终 Gate。
 - 下游接手：先阅读 D2 权威规格，再按 P0/P1 清单实施与取证；保留 D1 业务事实和交互，不扩张真实后端基础设施。
+
+
+## A/B Stage 0 交接（2026-07-31）
+
+- A 分支：`dev/control-plane`；基线提交：`f48c210`。
+- 环境和双服务已可运行，详见 `D2_STAGE0_BASELINE.md`。
+- A 进入 A-01：会话合同、过期/损坏处理、安全站内回跳和对应测试。
+- B 待处理：`StoryCanvasApp` Grant prop 类型导致的 Build 阻塞、ScriptEditor 失败测试、StoryCanvas 独立 lint/install Gate、vendor 换行符重写。
+- 默认 Gate 当前状态：Governance PASS；Test/Lint/Build FAIL。任何一方不得把当前状态描述为 D2 Gate 已通过。
+- 共享文件变更继续由 A 审核；B 的共享修复需独立 commit 并说明验收命令。

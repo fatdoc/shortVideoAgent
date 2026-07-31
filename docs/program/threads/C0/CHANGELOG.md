@@ -15,3 +15,6 @@
 | 2026-07-30 | 清理独立前端构建脚本并将生产深链统一到 5173；确认 SQLite 由启动迁移本地创建且不入库 | REMOTE_RUNTIME_ALIGNED |
 | 2026-07-30 | 新增 D2 四身份、登录、会话、路由保护、工作台差异、越权拒绝及验收规格 | SPEC_READY |
 | 2026-07-30 | 明确真实 IdP、服务端授权、租户隔离、代理继承/分佣权限与安全审计为后续边界 | DEFERRED |
+| 2026-07-31 | 建立 A 独立分支 `dev/control-plane`，完成子模块、依赖与双服务运行基线 | STAGE0_RUNTIME_READY |
+| 2026-07-31 | 记录 D2 Stage 0：Governance 与根定向 ESLint 通过，Test/Lint/Build 存在分级缺口 | BASELINE_GAPS_RECORDED |
+| 2026-07-31 | 冻结 A/B 修复边界：A 进入 A-01，B 接收 StoryCanvas Build/Test/Lint 交接项 | HANDOFF_READY |
