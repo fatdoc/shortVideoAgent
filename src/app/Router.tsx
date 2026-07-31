@@ -31,6 +31,7 @@ import {
   canAccessDemoWorkbench,
   type DemoWorkbench,
 } from '../domain/demoIdentity';
+import { resolveDemoReturnPath } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
 
 function SessionLoading() {
@@ -53,24 +54,37 @@ function RequireSession() {
 
   if (status === 'idle' || status === 'hydrating') return <SessionLoading />;
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
   }
   return <Outlet />;
 }
 
 function LoginEntry() {
+  const location = useLocation();
   const status = useAuthStore((state) => state.status);
   const hydrate = useAuthStore((state) => state.hydrate);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const defaultRoute = useAuthStore((state) => state.defaultRoute);
+  const identity = useAuthStore((state) => state.identity);
 
   useEffect(() => {
     if (status === 'idle') hydrate();
   }, [hydrate, status]);
 
   if (status === 'idle' || status === 'hydrating') return <SessionLoading />;
-  if (isAuthenticated) {
-    return <Navigate to={defaultRoute ?? '/dashboard'} replace />;
+  if (isAuthenticated && identity) {
+    const returnTo = (location.state as { from?: unknown } | null)?.from;
+    return (
+      <Navigate
+        to={resolveDemoReturnPath(returnTo, identity)}
+        replace
+      />
+    );
   }
   return <LoginPage />;
 }

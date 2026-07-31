@@ -18,3 +18,4 @@
 | 2026-07-31 | 建立 A 独立分支 `dev/control-plane`，完成子模块、依赖与双服务运行基线 | STAGE0_RUNTIME_READY |
 | 2026-07-31 | 记录 D2 Stage 0：Governance 与根定向 ESLint 通过，Test/Lint/Build 存在分级缺口 | BASELINE_GAPS_RECORDED |
 | 2026-07-31 | 冻结 A/B 修复边界：A 进入 A-01，B 接收 StoryCanvas Build/Test/Lint 交接项 | HANDOFF_READY |
+| 2026-07-31 | 完成 A-01 完整 Mock 会话、过期/损坏清理、身份切换和安全站内回跳，33 项定向测试通过 | A01_TARGETED_PASS |

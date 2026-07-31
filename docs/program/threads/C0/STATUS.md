@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `IMPLEMENTED_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 在 `dev/control-plane` 执行 A-01，会话合同、过期清理、损坏恢复与安全回跳；负责人 B 处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A01_TARGETED_PASS_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已完成 A-01 定向验收，下一步冻结 A-02 权限矩阵；负责人 B 处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -36,3 +36,13 @@
 - 默认 Lint：FAIL，主要为根 ESLint 扫描 StoryCanvas 存量源码产生 697 errors。
 - Build：FAIL，包含根 Node 类型缺失和 B 侧 StoryCanvas Grant prop 类型边界。
 - 完整分级与 A/B 请求见 `D2_STAGE0_BASELINE.md`。
+
+## 2026-07-31 A-01 Mock 会话与安全回跳
+
+- DemoSession 已补齐 version、sessionId、identityId、role、organization、defaultWorkbench、issuedAt 和 expiresAt。
+- 四身份会话有效期统一为 8 小时；刷新恢复前严格校验版本、字段、时间和 canonical identity 元数据。
+- 过期、损坏、字段缺失、错版本、未知账号/组织和身份元数据不匹配时清理会话并回到匿名状态。
+- 身份切换生成全新 sessionId；失败切换不保留上一身份的内存状态或持久化会话。
+- 安全回跳只接受当前身份允许的站内白名单路径；外部 URL、跨角色路径和未知 Project 回到身份默认工作台。
+- 定向测试：33 PASS；`npx eslint src`、Governance、`git diff --check` PASS。
+- 详细验收：`D2_A01_AUTH_SESSION.md`。

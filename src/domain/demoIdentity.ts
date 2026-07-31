@@ -14,6 +14,25 @@ export type DemoWorkbench =
 
 export type DemoOrganizationType = 'PLATFORM' | 'CHANNEL' | 'TENANT';
 
+export const DEMO_SESSION_VERSION = 1 as const;
+
+export type DemoRole =
+  | 'platform_admin'
+  | 'channel_agent'
+  | 'enterprise_admin'
+  | 'content_operator';
+
+export type DemoSessionOrganizationType =
+  | 'platform'
+  | 'channel'
+  | 'enterprise';
+
+export type DemoSessionWorkbench =
+  | 'platform'
+  | 'channel'
+  | 'enterprise'
+  | 'production';
+
 export interface DemoOrganizationIdentity {
   organizationId: string;
   organizationName: string;
@@ -58,10 +77,16 @@ export interface DemoLoginCredentials {
   password: string;
 }
 
-export interface DemoAuthSession {
-  contractVersion: typeof DEMO_IDENTITY_CONTRACT_VERSION;
-  accountId: string;
-  createdAt: string;
+export interface DemoSession {
+  version: typeof DEMO_SESSION_VERSION;
+  sessionId: string;
+  identityId: string;
+  role: DemoRole;
+  organizationId: string;
+  organizationType: DemoSessionOrganizationType;
+  defaultWorkbench: DemoSessionWorkbench;
+  issuedAt: string;
+  expiresAt: string;
 }
 
 const PLATFORM_ORGANIZATION: DemoOrganizationIdentity = {

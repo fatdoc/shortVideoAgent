@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../app/App';
@@ -34,9 +34,36 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 2, name: '欢迎登录' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: '登录工作台' })).toBeInTheDocument();
     expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
+  });
+
+  it('returns to a safe protected path after login', async () => {
+    useAuthStore.getState().logout();
+    window.history.pushState(
+      {},
+      '',
+      '/dashboard?tab=summary#approved',
+    );
+    render(<App />);
+
+    await screen.findByRole('heading', { level: 2, name: '登录工作台' });
+    expect(window.history.state.usr?.from).toBe(
+      '/dashboard?tab=summary#approved',
+    );
+    act(() => {
+      useAuthStore.getState().login({
+        loginName: 'tenant',
+        password: DEMO_AUTH_PASSWORD,
+      });
+    });
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/dashboard');
+      expect(window.location.search).toBe('?tab=summary');
+      expect(window.location.hash).toBe('#approved');
+    });
   });
 
   it('rejects a tenant identity from the platform workbench', async () => {

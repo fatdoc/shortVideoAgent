@@ -32,3 +32,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 待处理：`StoryCanvasApp` Grant prop 类型导致的 Build 阻塞、ScriptEditor 失败测试、StoryCanvas 独立 lint/install Gate、vendor 换行符重写。
 - 默认 Gate 当前状态：Governance PASS；Test/Lint/Build FAIL。任何一方不得把当前状态描述为 D2 Gate 已通过。
 - 共享文件变更继续由 A 审核；B 的共享修复需独立 commit 并说明验收命令。
+
+## A-01 完成交接（2026-07-31）
+
+- A 已完成完整 DemoSession 合同、8 小时过期、损坏清理、身份元数据校验和 LocalStorage 安全失败。
+- Router 已保存 pathname/query/hash，并按当前身份工作台与 canonical Project 执行站内白名单回跳。
+- 定向证据：33 tests PASS，`npx eslint src`、Governance 和 `git diff --check` PASS。
+- 详细报告：`D2_A01_AUTH_SESSION.md`。
+- 本次没有修改 B 独占文件；B 可继续按 Stage 0 交接修复 Grant prop 类型和 ScriptEditor 测试。
+- A 下一步在 A-02 冻结身份权限矩阵，届时如需调整共享 Router 将由 A 统一处理。

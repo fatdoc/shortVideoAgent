@@ -78,6 +78,7 @@ export const useAuthStore = create<DemoAuthStoreState>((set) => ({
       });
       return identity;
     } catch (error) {
+      logoutDemoAccount();
       set({
         status: 'anonymous',
         ...identitySlice(null),
