@@ -23,6 +23,7 @@ export function WorkbenchSwitcher() {
       <div className="d1-context-selects">
         <Select
           aria-label="切换工作台"
+          size="small"
           value={kind}
           popupMatchSelectWidth={240}
           onChange={(nextKind) => {
@@ -37,6 +38,7 @@ export function WorkbenchSwitcher() {
         />
         <Select
           aria-label="当前登录组织"
+          size="small"
           value={identity?.activeOrganization.organizationId}
           popupMatchSelectWidth={360}
           options={

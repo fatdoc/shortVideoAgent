@@ -23,7 +23,10 @@
 }
 
 .d1-topbar-actions {
+  flex: 1;
+  justify-content: flex-end;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .d1-context-switcher {
@@ -35,7 +38,7 @@
 
 .d1-context-selects {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .d1-context-selects .ant-select {
@@ -932,7 +935,7 @@
   font-size: 11px;
 }
 
-@media (max-width: 1380px) {
+@media (max-width: 1580px) {
   .d1-context-switcher {
     min-width: 435px;
   }
@@ -946,6 +949,16 @@
   }
 
   .d1-truth-digest {
+    display: none;
+  }
+}
+
+@media (max-width: 1380px) {
+  .d1-context-switcher {
+    min-width: 176px;
+  }
+
+  .d1-context-copy {
     display: none;
   }
 
