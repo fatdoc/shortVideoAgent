@@ -95,6 +95,8 @@ describe('A-03.1 scoped commercial selectors', () => {
       ]),
     );
     expect(view.channels).toHaveLength(3);
+    expect(view.capabilities).toHaveLength(6);
+    expect(view.rateCard.meterCode).toBe('STANDARD_5S_720P_VIDEO');
     expect(view.orders).toHaveLength(2);
     expect(view.channelInventories[0].availableCredits.value).toBe(500);
     expect(view.settlementSummaries[0].grossSpread.amountMinor).toBe(6000);

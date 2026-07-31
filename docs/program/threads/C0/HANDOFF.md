@@ -23,7 +23,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 未完成：D2 前端实现、定向测试、lint/build/governance、四身份与越权视觉证据、D2 Demo Pack 增补和最终 Gate。
 - 下游接手：先阅读 D2 权威规格，再按 P0/P1 清单实施与取证；保留 D1 业务事实和交互，不扩张真实后端基础设施。
 
-
 ## A/B Stage 0 交接（2026-07-31）
 
 - A 分支：`dev/control-plane`；基线提交：`f48c210`。
@@ -58,7 +57,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 下一步由 A 原子修改共享 Router、Sidebar、WorkbenchSwitcher 和安全回跳，再启用企业管理员/内容运营的企业 + 生产双工作台。
 - 定向权限/Auth 测试 40 PASS；A 侧 TypeScript 错误为 0。
 - B 侧仍只需处理 `IntegratedStoryCanvasPage.tsx` 的 Grant prop 类型，不需要修改 A 的权限合同。
-
 
 ## A-02 canonical 路由授权内核（第二切片，2026-07-31）
 
@@ -112,3 +110,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 定向测试与 storage/mock adapter 合计 12/12 PASS；相关 ESLint、Governance、diff 和 B 独占目录检查 PASS。
 - 全量 TypeScript 未发现 A-03.1 新增错误；仍有 B 侧 StoryCanvas Grant prop 和根 Vite Node 类型声明基线缺口。
 - 下一步由 A 进入 A-03.2，只改共享平台控制平面页面和测试，不修改 B 独占目录。
+
+## A-03.2 平台路由语义分离交接（2026-07-31）
+
+- A 已将 `/platform/overview`、`/platform/organizations`、`/platform/catalog` 和 `/platform/production-receipts` 拆成四个独立平台管理页面。
+- 四页面统一使用 `selectPlatformCommercialView`；selector 新增 Capability 与 RateCard 投影，平台页面不再直接读取 Tenant `creditState.ledger`、ScriptApproval、ProductionPackage 或生产正文。
+- overview 负责全局指标与入口，organizations 负责组织树和 Tenant 内容边界，catalog 负责 Product/Capability/SKU/RateCard 与五层非正式价格，receipts 负责 GenerationTask/Asset/Export 状态和异常计数。
+- 旧 `WorkbenchHomePage` 平台分支和旧 Wallet/ledger 回执投影已删除；渠道页面仍保持原实现，A-03.3 再按固定一级渠道 selector 收口。
+- 验证证据：平台页面 4/4、selector 7/7、App Smoke 11/11 PASS；相关 ESLint、Governance、diff 和 B 独占目录检查 PASS。
+- TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
+- 下一步由 A 进入 A-03.3；B 独占目录本切片无变更。

@@ -1,5 +1,6 @@
 import {
   DEMO_DATA_LABEL,
+  type Capability,
   type ChannelOrganization,
   type ControlPlaneDemoState,
   type DemoChannelCreditInventory,
@@ -8,6 +9,7 @@ import {
   type DemoCreditValue,
   type DemoPlatformRiskSummary,
   type DemoPriceSnapshot,
+  type DemoRateCard,
   type Entitlement,
   type PlatformContext,
   type Product,
@@ -56,8 +58,10 @@ export interface PlatformCommercialView {
   platform: PlatformContext;
   channels: ChannelOrganization[];
   tenant: TenantCommercialSummary;
+  capabilities: Capability[];
   products: Product[];
   skus: SKU[];
+  rateCard: DemoRateCard;
   priceSnapshots: DemoPriceSnapshot[];
   orders: DemoCommercialOrder[];
   channelInventories: DemoChannelCreditInventory[];
@@ -169,8 +173,10 @@ export function selectPlatformCommercialView(
     platform: clone(snapshot.commercial.platform),
     channels: clone(snapshot.commercial.channels),
     tenant: selectTenantSummary(snapshot),
+    capabilities: clone(snapshot.commercial.capabilities),
     products: clone(snapshot.commercial.products),
     skus: clone(snapshot.commercial.skus),
+    rateCard: clone(snapshot.commercial.rateCard),
     priceSnapshots: clone(business.priceSnapshots),
     orders: clone(business.orders),
     channelInventories: clone(business.channelInventories),

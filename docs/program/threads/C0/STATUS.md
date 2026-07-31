@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_CONTROL_PLANE_PLAN_READY_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成 A-03 控制平面规格/现状审计与五切片计划；下一步实现 A-03.1 scoped commercial projection 和可见性 selector，负责人 B 继续处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_2_PLATFORM_VIEWS_TARGETED_PASS_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已完成 A-03.2 平台四路由语义分离；下一步进入 A-03.3 固定一级渠道商业视角收口，负责人 B 继续处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -24,7 +24,6 @@
 - 画布前端位置：`src/features/storycanvas/`
 - 媒体生产 API：`apps/storycanvas/src/`，`10588` 仅作内部 API
 - 已移除独立 `50188` 前端和 `apps/storycanvas/data/web/` 编译副本
-
 
 ## 2026-07-31 A 端 Stage 0 基线
 
@@ -64,7 +63,6 @@
 - 相关 ESLint、Governance、`git diff --check` 通过。
 - TypeScript 的 A 侧错误已清零；当前仍只剩 B 侧 StoryCanvas Grant prop 既有阻塞。
 - 为防止旧工作台守卫临时放大权限，双工作台尚未启用；下一步原子接入 Router、Sidebar、WorkbenchSwitcher 和安全回跳。
-
 
 ## 2026-07-31 A-02 canonical 路由授权内核（第二切片）
 
@@ -119,3 +117,13 @@
 - 定向验证：商业 selector 与 storage/mock adapter 共 11 tests PASS；相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查 PASS。
 - TypeScript 的 A-03.1 新增错误为 0；全量检查仍受 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 与根 `vite.config.ts` Node 类型声明既有缺口阻塞。
 - 下一步：A-03.2 平台 overview / organizations / catalog / receipts 路由语义分离。
+
+## 2026-07-31 A-03.2 平台路由语义分离
+
+- `/platform/overview`、`/platform/organizations`、`/platform/catalog`、`/platform/production-receipts` 已分别切换到独立平台页面，不再复用 `WorkbenchHomePage` 或通用 ProductCatalog 页面。
+- 四页面统一消费 `selectPlatformCommercialView`；selector 已补齐 Capability 和 RateCard，不读取 ScriptApproval、ProductionPackage、品牌/脚本/素材正文或原始 Tenant CreditLedger。
+- overview 只展示平台全局指标、风险和管理入口；organizations 展示完整渠道树、canonical Tenant 商业摘要及 `PRODUCTION_CONTENT` 边界；catalog 展示 Product/Capability/SKU/RateCard 与五层非正式价格；receipts 只展示三类回执状态、失败和未匹配计数。
+- 已移除旧平台回执页的 Wallet/ledger 投影和旧 Workbench 平台分支；渠道工作台未提前重构。
+- 验证证据：平台页面 4 tests、selector 7 tests、App Smoke 11 tests，合计 22/22 PASS；相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查 PASS。
+- TypeScript 的 A-03.2 新增错误为 0；全量检查仍只剩 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型声明三个既有错误。
+- 下一步：A-03.3 固定 `channel-demo-level-1` 渠道商业视角收口。

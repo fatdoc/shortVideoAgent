@@ -2,7 +2,7 @@
 
 > Owner：A（SaaS 控制平面 / 公共合同 / 主分支集成）  
 > 日期：2026-07-31  
-> 状态：`A03_1_COMPLETE / A03_2_READY`
+> 状态：`A03_2_COMPLETE / A03_3_READY`
 > 分支：`dev/control-plane`  
 > 前置提交：`e8c252a feat(authz): align menus and workbench access`
 
@@ -131,6 +131,16 @@ feat(control-plane): add scoped commercial demo projections
 ```text
 feat(control-plane): separate platform management views
 ```
+
+执行结果（2026-07-31）：
+
+- 已新增 `PlatformOverviewPage`、`PlatformOrganizationsPage`、`PlatformCatalogPage` 和 `PlatformReceiptMonitorPage`，四条平台路由不再复用同一页面。
+- 四个页面统一消费 `selectPlatformCommercialView`；platform selector 已补齐 Capability 与 RateCard，只返回组织、目录、商业摘要、三类回执计数和平台风险。
+- overview 只承担全局指标与管理入口；organizations 展示 Platform → Master → Level 1 → Level 2 → canonical Tenant 组织树及 `PRODUCTION_CONTENT` 边界；catalog 展示 Product/Capability/SKU/RateCard 与五层非正式价格；receipts 只展示 GenerationTask/Asset/Export 状态计数、失败和未匹配摘要。
+- 已删除旧 Workbench 平台分支和直接读取 Tenant `creditState.ledger` 的旧平台回执页；渠道页面暂保持原语义，留待 A-03.3。
+- 平台页面专用测试 4/4、selector 测试 7/7、App Smoke 11/11 PASS；相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查通过。
+- 全量 TypeScript 未发现 A-03.2 新增错误；仍只有 B 侧 Grant prop 与根 `vite.config.ts` Node 类型声明三个既有错误。
+- 下一步进入 A-03.3 固定一级渠道商业视角收口。
 
 ### A-03.3 渠道商业视角收口
 

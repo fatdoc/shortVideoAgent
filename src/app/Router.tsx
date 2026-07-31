@@ -10,15 +10,18 @@ import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
 import { ProductCatalogPage } from '../pages/commercial/ProductCatalogPage';
 import { DashboardPage } from '../pages/dashboard/DashboardPage';
+import {
+  PlatformCatalogPage,
+  PlatformOrganizationsPage,
+  PlatformOverviewPage,
+  PlatformReceiptMonitorPage,
+} from '../pages/platform/PlatformManagementPages';
 import { IntegratedStoryCanvasPage } from '../pages/production/IntegratedStoryCanvasPage';
 import { ProductionWorkbenchPage } from '../pages/production/ProductionWorkbenchPage';
 import { RoughCutPage } from '../pages/rough-cut/RoughCutPage';
 import { ScriptEditorPage } from '../pages/script-editor/ScriptEditorPage';
 import { StoryboardPage } from '../pages/storyboard/StoryboardPage';
-import {
-  PlatformReceiptMonitorPage,
-  WorkbenchHomePage,
-} from '../pages/workbench/WorkbenchHomePage';
+import { WorkbenchHomePage } from '../pages/workbench/WorkbenchHomePage';
 import { resolveDemoReturnPath } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
 
@@ -107,7 +110,7 @@ export function AppRouter() {
               path="platform/overview"
               element={
                 <RouteAccessGuard>
-                  <WorkbenchHomePage kind="platform" />
+                  <PlatformOverviewPage />
                 </RouteAccessGuard>
               }
             />
@@ -115,7 +118,7 @@ export function AppRouter() {
               path="platform/organizations"
               element={
                 <RouteAccessGuard>
-                  <WorkbenchHomePage kind="platform" />
+                  <PlatformOrganizationsPage />
                 </RouteAccessGuard>
               }
             />
@@ -123,7 +126,7 @@ export function AppRouter() {
               path="platform/catalog"
               element={
                 <RouteAccessGuard>
-                  <ProductCatalogPage audience="platform" />
+                  <PlatformCatalogPage />
                 </RouteAccessGuard>
               }
             />

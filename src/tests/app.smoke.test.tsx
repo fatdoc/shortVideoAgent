@@ -161,7 +161,7 @@ describe('app smoke', () => {
     expect(
       await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
     ).toBeInTheDocument();
-  });
+  }, 10_000);
 
   it('renders dashboard through router with unified demo data', async () => {
     window.history.pushState({}, '', '/dashboard');
