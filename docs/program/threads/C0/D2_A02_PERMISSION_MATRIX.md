@@ -221,3 +221,32 @@ A-02 权限真相已冻结为“工作台 + 具体路由/动作 + canonical scop
 - 相关 ESLint：通过。
 - Governance：通过。
 - TypeScript：A 侧新增类型错误为 0；仍仅被 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误阻塞。
+
+
+## 12. 2026-07-31 canonical 路由授权内核（第二切片）
+
+已新增 `src/domain/demoRouteAccess.ts`：
+
+- 将当前 Router 的 24 条业务路由登记为单一 descriptor 表。
+- 每条 descriptor 包含 pattern、permission、workbench、target label 和 scope。
+- 使用不依赖 React Router 的纯 segment matcher，静态 `/projects/new` 优先于动态 Project 入口。
+- 忽略 query/hash；拒绝外部 URL、`//`、反斜杠、额外路径段和相似前缀。
+- canonical Tenant/Project 检查先于身份权限检查，防止错误资源 ID 被角色拒绝结果掩盖。
+- `authorizeDemoRoute` 明确返回 `allowed`、`permission-denied`、`scope-denied` 或 `unregistered`。
+
+新增 `src/domain/demoRouteAccess.test.ts`，覆盖：
+
+- 24 个 permission 各有且只有一条路由规则。
+- descriptor workbench 与权限合同一致，pattern 不重复。
+- 四身份完整路由允许集合和内容运营三项企业拒绝。
+- 匿名拒绝、错误 Tenant/Project、encoded slash、query/hash、尾斜杠、额外路径段、外部 URL 和相似前缀。
+
+验证结果：
+
+- 权限、路由、Demo Auth、Auth Store：66 项通过。
+- 相关 ESLint：通过。
+- Governance：通过。
+- `git diff --check`：通过。
+- TypeScript：A 侧新增错误为 0；仍仅剩 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误。
+
+安全拆分保持不变：本切片没有修改 Router、Sidebar、WorkbenchSwitcher、品牌页面或 `allowedWorkbenches`。下一切片先把 Router、安全回跳、canonical Scope Guard 和统一 403 接到该内核；双工作台和菜单/品牌只读在后续切片原子启用。

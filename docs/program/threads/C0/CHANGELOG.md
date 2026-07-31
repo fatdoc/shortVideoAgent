@@ -21,3 +21,4 @@
 | 2026-07-31 | 完成 A-01 完整 Mock 会话、过期/损坏清理、身份切换和安全站内回跳，33 项定向测试通过 | A01_TARGETED_PASS |
 | 2026-07-31 | 冻结 A-02 四身份工作台、具体路由/动作及 canonical Tenant/Project 三层权限矩阵 | A02_PERMISSION_MATRIX_FROZEN |
 | 2026-07-31 | 实现 A-02 四身份路由/动作权限合同与轻量矩阵测试，40 项定向测试通过 | A02_PERMISSION_MODEL_TARGETED_PASS |
+| 2026-07-31 | 新增 A-02 24 路由 canonical 授权内核及 Scope/路径安全测试，66 项定向测试通过 | A02_CANONICAL_ROUTE_AUTHZ_TARGETED_PASS |

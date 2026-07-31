@@ -1,3 +1,5 @@
+import { DEMO_TENANT_ID } from './constants';
+
 export const DEMO_IDENTITY_CONTRACT_VERSION = '1.0' as const;
 
 export type DemoAccountKind =
@@ -164,7 +166,7 @@ const CHANNEL_ORGANIZATION: DemoOrganizationIdentity = {
 };
 
 const TENANT_ORGANIZATION: DemoOrganizationIdentity = {
-  organizationId: 'tenant-demo-hdl',
+  organizationId: DEMO_TENANT_ID,
   organizationName: '海底捞三里屯店',
   organizationType: 'TENANT',
 };

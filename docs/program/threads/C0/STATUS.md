@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A02_PERMISSION_MODEL_TARGETED_PASS_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已实现 A-02 权限模型，下一步原子接入 Router、菜单、安全回跳和 Scope Guard；负责人 B 处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A02_CANONICAL_ROUTE_AUTHZ_TARGETED_PASS_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已完成 A-02 canonical 路由授权内核，下一步接入 Router、安全回跳、Scope Guard 和统一 403；负责人 B 处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -64,3 +64,15 @@
 - 相关 ESLint、Governance、`git diff --check` 通过。
 - TypeScript 的 A 侧错误已清零；当前仍只剩 B 侧 StoryCanvas Grant prop 既有阻塞。
 - 为防止旧工作台守卫临时放大权限，双工作台尚未启用；下一步原子接入 Router、Sidebar、WorkbenchSwitcher 和安全回跳。
+
+
+## 2026-07-31 A-02 canonical 路由授权内核（第二切片）
+
+- 新增 canonical Tenant 常量 `DEMO_TENANT_ID`，与既有 Project 常量共同作为前端 Demo scope 真相。
+- 新增 `src/domain/demoRouteAccess.ts`，登记 Router 当前 24 条业务路由及 permission、workbench、目标标签和 scope。
+- 授权顺序固定为“已登记路由 → canonical Tenant/Project → 身份具体权限”，返回 `allowed`、`permission-denied`、`scope-denied` 或 `unregistered`。
+- 纯 segment matcher 忽略 query/hash，但拒绝外部 URL、双斜杠、反斜杠、额外路径段、错误资源 ID 和 encoded slash 绕过。
+- 权限、路由、Demo Auth、Auth Store 共 66 项定向测试通过；相关 ESLint、Governance、`git diff --check` 通过。
+- TypeScript 未新增 A 侧错误，仍仅剩 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误。
+- 本切片没有修改 Router、Sidebar、WorkbenchSwitcher、品牌页面或 `allowedWorkbenches`，因此没有改变现有运行时权限。
+- 下一切片：Router + 安全回跳 + canonical Scope Guard + 统一 403。
