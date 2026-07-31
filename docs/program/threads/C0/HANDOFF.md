@@ -40,4 +40,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 定向证据：33 tests PASS，`npx eslint src`、Governance 和 `git diff --check` PASS。
 - 详细报告：`D2_A01_AUTH_SESSION.md`。
 - 本次没有修改 B 独占文件；B 可继续按 Stage 0 交接修复 Grant prop 类型和 ScriptEditor 测试。
-- A 下一步在 A-02 冻结身份权限矩阵，届时如需调整共享 Router 将由 A 统一处理。
+- A-02 身份权限矩阵已冻结；下一步由 A 在共享 Router 实现统一权限和 Scope Guard。
+
+## A-02 权限矩阵冻结（2026-07-31）
+
+- A 已冻结 D2 前端授权为“工作台 + 具体路由/动作 + canonical scope”三层模型。
+- 企业管理员拥有企业与生产工作台；内容运营拥有生产工作台和限定企业生产链入口，品牌大脑仅只读。
+- 内容运营不得进入企业工作台、已购能力、新建 Brief，也不得修改品牌高权限配置。
+- Tenant 固定为 `tenant-demo-hdl`，Project 固定为 `demo-local-001`；错误参数必须明确 403，不得自动映射。
+- B 独占生产页面本轮不需修改；A 将在共享 Router 接入统一权限和 scope guard。
+- 权威实现矩阵：`docs/program/threads/C0/D2_A02_PERMISSION_MATRIX.md`。

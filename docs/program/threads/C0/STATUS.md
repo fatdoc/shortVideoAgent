@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A01_TARGETED_PASS_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成 A-01 定向验收，下一步冻结 A-02 权限矩阵；负责人 B 处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A02_PERMISSION_MATRIX_FROZEN_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已冻结 A-02 权限矩阵，下一步实现统一权限判断与路由 Scope Guard；负责人 B 处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -46,3 +46,12 @@
 - 安全回跳只接受当前身份允许的站内白名单路径；外部 URL、跨角色路径和未知 Project 回到身份默认工作台。
 - 定向测试：33 PASS；`npx eslint src`、Governance、`git diff --check` PASS。
 - 详细验收：`D2_A01_AUTH_SESSION.md`。
+
+## 2026-07-31 A-02 权限矩阵冻结
+
+- 已冻结四身份的工作台、具体路由/动作和 canonical Tenant/Project 三层权限模型。
+- 企业管理员允许进入企业与 canonical Project 生产工作台；默认仍进入海底捞品牌大脑。
+- 内容运营允许进入生产工作台及限定企业生产链入口；品牌大脑只读，拒绝企业工作台、已购能力和新建 Brief。
+- Router、Sidebar、WorkbenchSwitcher 和安全回跳必须复用统一权限键，禁止分别维护角色判断。
+- canonical 范围固定为 Tenant `tenant-demo-hdl`、Project `demo-local-001`。
+- 详细矩阵：`D2_A02_PERMISSION_MATRIX.md`；下一步实现统一权限判断和 Router scope guard。
