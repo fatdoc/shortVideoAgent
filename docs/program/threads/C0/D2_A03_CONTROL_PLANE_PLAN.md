@@ -2,7 +2,7 @@
 
 > Owner：A（SaaS 控制平面 / 公共合同 / 主分支集成）  
 > 日期：2026-07-31  
-> 状态：`A03_2_COMPLETE / A03_3_READY`
+> 状态：`A03_3_COMPLETE / A03_4_READY`
 > 分支：`dev/control-plane`  
 > 前置提交：`e8c252a feat(authz): align menus and workbench access`
 
@@ -160,6 +160,17 @@ feat(control-plane): separate platform management views
 ```text
 feat(control-plane): close channel commercial demo views
 ```
+
+执行结果（2026-07-31）：
+
+- 已新增 `ChannelOverviewPage`、`ChannelProductsPage`、`ChannelCustomersPage` 和 `ChannelCustomerUsagePage`，四条渠道路由不再复用旧 `WorkbenchHomePage` 或通用 ProductCatalog 渠道分支。
+- 四页面统一消费 `selectChannelCommercialView`，固定 `channel-demo-level-1` + `CHANNEL_SUBTREE_COMMERCIAL`；页面不直接读取完整 commercial fixture、ProductionPackage 或原始 CreditLedger。
+- overview 展示当前一级渠道、直接下级、企业客户、额度库存、销售净额和订单毛差；products 只展示非锁定产品与当前渠道直接参与的四条价格快照；customers 展示 canonical Tenant 商业状态、Entitlement 数量和汇总用量；usage 展示 Wallet、客户订单、消费/释放聚合与三类回执数量。
+- Tenant 商业摘要新增由 `creditScenarios` 聚合的 consumed/released 只读汇总，不返回 append-only ledger 分录。
+- 已删除无路由引用的旧 `WorkbenchHomePage`；canonical Tenant 继续由 Router Scope Guard 统一校验，渠道页面不再重复校验。
+- 渠道页面 4/4、selector 7/7、App Smoke 11/11，合计 22/22 PASS；相关 ESLint、Prettier、Governance、`git diff --check` 和 B 独占目录检查通过。
+- 全量 TypeScript 未发现 A-03.3 新增错误；仍只有 B 侧 Grant prop 与根 `vite.config.ts` Node 类型声明三个既有错误。
+- 下一步进入 A-03.4 企业经营概览与产品语义。
 
 ### A-03.4 企业经营概览与产品语义
 

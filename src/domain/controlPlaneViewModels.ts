@@ -51,6 +51,12 @@ export interface TenantCommercialSummary {
     reserved: DemoCreditValue;
     disclaimer: typeof DEMO_DATA_LABEL;
   };
+  creditUsage: {
+    scenarioCount: number;
+    consumed: DemoCreditValue;
+    released: DemoCreditValue;
+    disclaimer: typeof DEMO_DATA_LABEL;
+  };
   operations: CommercialOperationsSummary;
 }
 
@@ -144,6 +150,15 @@ function selectTenantSummary(snapshot: ControlPlaneDemoState): TenantCommercialS
     (entitlement) => entitlement.tenantId === snapshot.commercial.tenant.tenantId,
   );
   const wallet = snapshot.commercial.creditState.wallet;
+  const creditScenarios = snapshot.commercial.creditScenarios;
+  const consumedCredits = creditScenarios.reduce(
+    (total, scenario) => total + scenario.consumedCredits.value,
+    0,
+  );
+  const releasedCredits = creditScenarios.reduce(
+    (total, scenario) => total + scenario.releasedCredits.value,
+    0,
+  );
 
   return {
     tenantId: snapshot.commercial.tenant.tenantId,
@@ -158,6 +173,18 @@ function selectTenantSummary(snapshot: ControlPlaneDemoState): TenantCommercialS
       status: wallet.status,
       available: clone(wallet.available),
       reserved: clone(wallet.reserved),
+      disclaimer: wallet.disclaimer,
+    },
+    creditUsage: {
+      scenarioCount: creditScenarios.length,
+      consumed: {
+        ...clone(wallet.available),
+        value: consumedCredits,
+      },
+      released: {
+        ...clone(wallet.available),
+        value: releasedCredits,
+      },
       disclaimer: wallet.disclaimer,
     },
     operations: selectOperationsSummary(snapshot),

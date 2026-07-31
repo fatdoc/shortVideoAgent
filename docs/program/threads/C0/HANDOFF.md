@@ -120,3 +120,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证证据：平台页面 4/4、selector 7/7、App Smoke 11/11 PASS；相关 ESLint、Governance、diff 和 B 独占目录检查 PASS。
 - TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
 - 下一步由 A 进入 A-03.3；B 独占目录本切片无变更。
+
+## A-03.3 渠道商业视角收口交接（2026-07-31）
+
+- A 已将 `/channel/overview`、`/channel/products`、`/channel/customers` 和 `/channel/customers/:tenantId/usage` 拆成四个独立渠道商业页面。
+- 四页面统一使用 `selectChannelCommercialView`，固定视角为 `channel-demo-level-1` + `CHANNEL_SUBTREE_COMMERCIAL`；Router 继续统一拒绝错误 canonical Tenant。
+- overview 展示当前一级渠道、直接下级、企业客户、额度库存、销售净额和订单毛差；products 仅展示非锁定产品及当前渠道直接参与的价格快照，上游 Provider 成本与 Platform→Master 结算价不可见。
+- customers 展示 Tenant 商业状态、Entitlement 数量和汇总用量；usage 展示 Wallet、客户订单、消费/释放聚合与三类回执数量，不展开生产正文或原始 CreditLedger。
+- `TenantCommercialSummary.creditUsage` 由 canonical `creditScenarios` 聚合 consumed/released 数量，仅作为 Demo 商业摘要。
+- 无路由引用的旧 `WorkbenchHomePage` 已删除；A 未修改 B 独占目录。
+- 验证证据：渠道页面 4/4、selector 7/7、App Smoke 11/11 PASS；相关 ESLint、Prettier、Governance、diff 和 B 独占目录检查 PASS。
+- TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
+- 下一步由 A 进入 A-03.4 企业经营概览与产品语义。

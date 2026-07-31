@@ -27,3 +27,4 @@
 | 2026-07-31 | 完成 A-03 控制平面业务审计，冻结 scoped commercial projection、平台/渠道/企业页面收口和五切片实施计划 | A03_PLAN_READY |
 | 2026-07-31 | 完成 A-03.1 Demo 商业投影、运行时不变量校验及平台/渠道/企业可见性 Selector，11 项定向测试通过 | A03_COMMERCIAL_PROJECTION_TARGETED_PASS |
 | 2026-07-31 | 拆分平台 overview/organizations/catalog/receipts 四条路由语义，统一消费平台 Selector，22 项页面/Selector/Smoke 测试通过 | A03_PLATFORM_VIEWS_TARGETED_PASS |
+| 2026-07-31 | 拆分渠道 overview/products/customers/usage 四条商业路由，固定一级渠道可见性并完成 22 项页面/Selector/Smoke 回归 | A03_CHANNEL_VIEWS_TARGETED_PASS |

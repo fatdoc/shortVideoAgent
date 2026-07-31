@@ -8,6 +8,12 @@ import { RouteAccessDeniedPage } from '../pages/auth/RouteAccessDeniedPage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
+import {
+  ChannelCustomerUsagePage,
+  ChannelCustomersPage,
+  ChannelOverviewPage,
+  ChannelProductsPage,
+} from '../pages/channel/ChannelCommercialPages';
 import { ProductCatalogPage } from '../pages/commercial/ProductCatalogPage';
 import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import {
@@ -21,7 +27,6 @@ import { ProductionWorkbenchPage } from '../pages/production/ProductionWorkbench
 import { RoughCutPage } from '../pages/rough-cut/RoughCutPage';
 import { ScriptEditorPage } from '../pages/script-editor/ScriptEditorPage';
 import { StoryboardPage } from '../pages/storyboard/StoryboardPage';
-import { WorkbenchHomePage } from '../pages/workbench/WorkbenchHomePage';
 import { resolveDemoReturnPath } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
 
@@ -142,7 +147,7 @@ export function AppRouter() {
               path="channel/overview"
               element={
                 <RouteAccessGuard>
-                  <WorkbenchHomePage kind="channel" />
+                  <ChannelOverviewPage />
                 </RouteAccessGuard>
               }
             />
@@ -150,7 +155,7 @@ export function AppRouter() {
               path="channel/products"
               element={
                 <RouteAccessGuard>
-                  <ProductCatalogPage audience="channel" />
+                  <ChannelProductsPage />
                 </RouteAccessGuard>
               }
             />
@@ -158,7 +163,7 @@ export function AppRouter() {
               path="channel/customers"
               element={
                 <RouteAccessGuard>
-                  <WorkbenchHomePage kind="channel" />
+                  <ChannelCustomersPage />
                 </RouteAccessGuard>
               }
             />
@@ -166,7 +171,7 @@ export function AppRouter() {
               path="channel/customers/:tenantId/usage"
               element={
                 <RouteAccessGuard>
-                  <WorkbenchHomePage kind="channel" />
+                  <ChannelCustomerUsagePage />
                 </RouteAccessGuard>
               }
             />

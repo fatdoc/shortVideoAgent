@@ -129,6 +129,12 @@ describe('A-03.1 scoped commercial selectors', () => {
     ).toBe(true);
     expect(view.inventory.availableCredits.value).toBe(500);
     expect(view.settlementSummary.grossSpread.amountMinor).toBe(6000);
+    expect(view.customers[0].creditUsage).toEqual({
+      scenarioCount: 2,
+      consumed: expect.objectContaining({ value: 100, unit: 'AI_VIDEO_CREDIT' }),
+      released: expect.objectContaining({ value: 100, unit: 'AI_VIDEO_CREDIT' }),
+      disclaimer: '演示数据 · 非正式报价',
+    });
 
     const serialized = JSON.stringify(view);
     expect(serialized).not.toContain('UPSTREAM_COST');
