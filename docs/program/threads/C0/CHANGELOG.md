@@ -20,3 +20,4 @@
 | 2026-07-31 | 冻结 A/B 修复边界：A 进入 A-01，B 接收 StoryCanvas Build/Test/Lint 交接项 | HANDOFF_READY |
 | 2026-07-31 | 完成 A-01 完整 Mock 会话、过期/损坏清理、身份切换和安全站内回跳，33 项定向测试通过 | A01_TARGETED_PASS |
 | 2026-07-31 | 冻结 A-02 四身份工作台、具体路由/动作及 canonical Tenant/Project 三层权限矩阵 | A02_PERMISSION_MATRIX_FROZEN |
+| 2026-07-31 | 实现 A-02 四身份路由/动作权限合同与轻量矩阵测试，40 项定向测试通过 | A02_PERMISSION_MODEL_TARGETED_PASS |

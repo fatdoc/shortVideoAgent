@@ -227,7 +227,7 @@ function containsControlCharacter(value: string): boolean {
 }
 
 function workbenchForReturnPath(pathname: string): DemoWorkbench | null {
-  const platformPaths = new Set([
+  const platformPaths = new Set<string>([
     ROUTES.platformOverview,
     ROUTES.platformOrganizations,
     ROUTES.platformCatalog,
@@ -236,7 +236,7 @@ function workbenchForReturnPath(pathname: string): DemoWorkbench | null {
   if (platformPaths.has(pathname)) {
     return 'platform';
   }
-  const channelPaths = new Set([
+  const channelPaths = new Set<string>([
     ROUTES.channelOverview,
     ROUTES.channelProducts,
     ROUTES.channelCustomers,

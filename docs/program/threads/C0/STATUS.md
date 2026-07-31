@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A02_PERMISSION_MATRIX_FROZEN_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已冻结 A-02 权限矩阵，下一步实现统一权限判断与路由 Scope Guard；负责人 B 处理生产平面 Build/Test 交接项
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A02_PERMISSION_MODEL_TARGETED_PASS_WITH_BASELINE_GAPS`
+- 当前任务：负责人 A 已实现 A-02 权限模型，下一步原子接入 Router、菜单、安全回跳和 Scope Guard；负责人 B 处理生产平面 Build/Test 交接项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -55,3 +55,12 @@
 - Router、Sidebar、WorkbenchSwitcher 和安全回跳必须复用统一权限键，禁止分别维护角色判断。
 - canonical 范围固定为 Tenant `tenant-demo-hdl`、Project `demo-local-001`。
 - 详细矩阵：`D2_A02_PERMISSION_MATRIX.md`；下一步实现统一权限判断和 Router scope guard。
+
+## 2026-07-31 A-02 权限模型第一切片
+
+- `DemoIdentity` 已加入 24 个路由权限、1 个品牌动作权限及完整路由到工作台映射。
+- 四身份权限集合已按冻结矩阵实现；内容运营具备限定企业生产链权限，但没有品牌管理动作权限。
+- 新增轻量权限矩阵单测，并与 Demo Auth、Auth Store 合计 40 项通过。
+- 相关 ESLint、Governance、`git diff --check` 通过。
+- TypeScript 的 A 侧错误已清零；当前仍只剩 B 侧 StoryCanvas Grant prop 既有阻塞。
+- 为防止旧工作台守卫临时放大权限，双工作台尚未启用；下一步原子接入 Router、Sidebar、WorkbenchSwitcher 和安全回跳。

@@ -50,3 +50,11 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Tenant 固定为 `tenant-demo-hdl`，Project 固定为 `demo-local-001`；错误参数必须明确 403，不得自动映射。
 - B 独占生产页面本轮不需修改；A 将在共享 Router 接入统一权限和 scope guard。
 - 权威实现矩阵：`docs/program/threads/C0/D2_A02_PERMISSION_MATRIX.md`。
+
+## A-02 权限模型第一切片（2026-07-31）
+
+- A 已在 `src/domain/demoIdentity.ts` 落地具体路由/动作权限合同和四身份权限集合。
+- 新权限模型目前尚未扩大旧 `allowedWorkbenches`，避免 Router 接线前产生临时越权。
+- 下一步由 A 原子修改共享 Router、Sidebar、WorkbenchSwitcher 和安全回跳，再启用企业管理员/内容运营的企业 + 生产双工作台。
+- 定向权限/Auth 测试 40 PASS；A 侧 TypeScript 错误为 0。
+- B 侧仍只需处理 `IntegratedStoryCanvasPage.tsx` 的 Grant prop 类型，不需要修改 A 的权限合同。

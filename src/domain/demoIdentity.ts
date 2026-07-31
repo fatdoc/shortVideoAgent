@@ -12,6 +12,67 @@ export type DemoWorkbench =
   | 'tenant'
   | 'production';
 
+export const DEMO_ROUTE_PERMISSIONS = [
+  'platform.overview',
+  'platform.organizations',
+  'platform.catalog',
+  'platform.receipts',
+  'channel.overview',
+  'channel.products',
+  'channel.customers',
+  'channel.customer-usage',
+  'enterprise.dashboard',
+  'enterprise.products',
+  'enterprise.project-create',
+  'enterprise.project-entry',
+  'enterprise.brand-read',
+  'enterprise.script',
+  'enterprise.storyboard',
+  'enterprise.rough-cut',
+  'enterprise.usage',
+  'enterprise.delivery',
+  'production.overview',
+  'production.inbox',
+  'production.canvas',
+  'production.tasks',
+  'production.assets',
+  'production.export',
+] as const;
+
+export type DemoRoutePermission = (typeof DEMO_ROUTE_PERMISSIONS)[number];
+
+export const DEMO_ACTION_PERMISSIONS = ['enterprise.brand-manage'] as const;
+
+export type DemoActionPermission = (typeof DEMO_ACTION_PERMISSIONS)[number];
+export type DemoPermission = DemoRoutePermission | DemoActionPermission;
+
+export const DEMO_ROUTE_PERMISSION_WORKBENCH = {
+  'platform.overview': 'platform',
+  'platform.organizations': 'platform',
+  'platform.catalog': 'platform',
+  'platform.receipts': 'platform',
+  'channel.overview': 'channel',
+  'channel.products': 'channel',
+  'channel.customers': 'channel',
+  'channel.customer-usage': 'channel',
+  'enterprise.dashboard': 'tenant',
+  'enterprise.products': 'tenant',
+  'enterprise.project-create': 'tenant',
+  'enterprise.project-entry': 'tenant',
+  'enterprise.brand-read': 'tenant',
+  'enterprise.script': 'tenant',
+  'enterprise.storyboard': 'tenant',
+  'enterprise.rough-cut': 'tenant',
+  'enterprise.usage': 'tenant',
+  'enterprise.delivery': 'tenant',
+  'production.overview': 'production',
+  'production.inbox': 'production',
+  'production.canvas': 'production',
+  'production.tasks': 'production',
+  'production.assets': 'production',
+  'production.export': 'production',
+} as const satisfies Record<DemoRoutePermission, DemoWorkbench>;
+
 export type DemoOrganizationType = 'PLATFORM' | 'CHANNEL' | 'TENANT';
 
 export const DEMO_SESSION_VERSION = 1 as const;
@@ -58,6 +119,7 @@ export interface DemoIdentity {
   activeOrganization: DemoOrganizationIdentity;
   activeMembership: DemoMembershipIdentity;
   allowedWorkbenches: readonly DemoWorkbench[];
+  permissions: readonly DemoPermission[];
   defaultRoute: string;
 }
 
@@ -107,6 +169,56 @@ const TENANT_ORGANIZATION: DemoOrganizationIdentity = {
   organizationType: 'TENANT',
 };
 
+const PLATFORM_ADMIN_PERMISSIONS = [
+  'platform.overview',
+  'platform.organizations',
+  'platform.catalog',
+  'platform.receipts',
+] as const satisfies readonly DemoPermission[];
+
+const CHANNEL_AGENT_PERMISSIONS = [
+  'channel.overview',
+  'channel.products',
+  'channel.customers',
+  'channel.customer-usage',
+] as const satisfies readonly DemoPermission[];
+
+const ENTERPRISE_ADMIN_PERMISSIONS = [
+  'enterprise.dashboard',
+  'enterprise.products',
+  'enterprise.project-create',
+  'enterprise.project-entry',
+  'enterprise.brand-read',
+  'enterprise.brand-manage',
+  'enterprise.script',
+  'enterprise.storyboard',
+  'enterprise.rough-cut',
+  'enterprise.usage',
+  'enterprise.delivery',
+  'production.overview',
+  'production.inbox',
+  'production.canvas',
+  'production.tasks',
+  'production.assets',
+  'production.export',
+] as const satisfies readonly DemoPermission[];
+
+const CONTENT_OPERATOR_PERMISSIONS = [
+  'enterprise.project-entry',
+  'enterprise.brand-read',
+  'enterprise.script',
+  'enterprise.storyboard',
+  'enterprise.rough-cut',
+  'enterprise.usage',
+  'enterprise.delivery',
+  'production.overview',
+  'production.inbox',
+  'production.canvas',
+  'production.tasks',
+  'production.assets',
+  'production.export',
+] as const satisfies readonly DemoPermission[];
+
 export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
   {
     contractVersion: DEMO_IDENTITY_CONTRACT_VERSION,
@@ -125,6 +237,7 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
       status: 'active',
     },
     allowedWorkbenches: ['platform'],
+    permissions: PLATFORM_ADMIN_PERMISSIONS,
     defaultRoute: '/platform/overview',
   },
   {
@@ -144,6 +257,7 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
       status: 'active',
     },
     allowedWorkbenches: ['channel'],
+    permissions: CHANNEL_AGENT_PERMISSIONS,
     defaultRoute: '/channel/overview',
   },
   {
@@ -163,6 +277,7 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
       status: 'active',
     },
     allowedWorkbenches: ['tenant'],
+    permissions: ENTERPRISE_ADMIN_PERMISSIONS,
     defaultRoute: '/projects/demo-local-001/brand',
   },
   {
@@ -182,6 +297,7 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
       status: 'active',
     },
     allowedWorkbenches: ['production'],
+    permissions: CONTENT_OPERATOR_PERMISSIONS,
     defaultRoute: '/production/overview',
   },
 ] as const;
@@ -222,4 +338,18 @@ export function canAccessDemoWorkbench(
   workbench: DemoWorkbench,
 ): boolean {
   return identity?.allowedWorkbenches.includes(workbench) ?? false;
+}
+
+export function canAccessDemoPermission(
+  identity: DemoIdentity | null,
+  permission: DemoPermission,
+): boolean {
+  return identity?.permissions.includes(permission) ?? false;
+}
+
+export function canAccessDemoRoute(
+  identity: DemoIdentity | null,
+  permission: DemoRoutePermission,
+): boolean {
+  return canAccessDemoPermission(identity, permission);
 }

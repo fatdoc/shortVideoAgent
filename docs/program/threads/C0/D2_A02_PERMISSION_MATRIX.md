@@ -195,3 +195,29 @@ Project：demo-local-001
 ## 10. 冻结结论
 
 A-02 权限真相已冻结为“工作台 + 具体路由/动作 + canonical scope”三层模型。后续实现如需改变任一允许/拒绝关系，必须先更新本文，再同步 Router、菜单、安全回跳和测试，避免产生多套授权真相。
+
+## 11. 2026-07-31 权限模型第一切片
+
+已在 `src/domain/demoIdentity.ts` 实现：
+
+- 24 个具体路由权限键。
+- `enterprise.brand-manage` 品牌高权限动作键。
+- 路由权限到四类工作台的完整映射。
+- 四身份精确权限集合。
+- `canAccessDemoPermission` 和 `canAccessDemoRoute` 统一判断函数。
+
+新增 `src/domain/demoIdentity.test.ts`，冻结四身份完整权限集合并验证跨域拒绝、企业管理员生产权限、内容运营限定企业入口、匿名拒绝和路由工作台映射。
+
+为避免 Router 仍使用旧工作台级守卫时产生临时越权，本切片没有提前扩大企业管理员和内容运营的 `allowedWorkbenches`。下一切片必须原子完成以下接线后再启用双工作台：
+
+1. Router 具体权限守卫。
+2. Sidebar 权限过滤。
+3. WorkbenchSwitcher 身份落点。
+4. 安全回跳具体路由权限。
+
+定向验证：
+
+- 权限、Demo Auth、Auth Store：40 项通过。
+- 相关 ESLint：通过。
+- Governance：通过。
+- TypeScript：A 侧新增类型错误为 0；仍仅被 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误阻塞。
