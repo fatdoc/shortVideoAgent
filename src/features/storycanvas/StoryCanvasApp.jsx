@@ -35,6 +35,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { createMvpClient } from "./mvpApi";
+import { validateEmbeddedStoryCanvasGrant } from "./StoryCanvasApp.types";
 import "./storycanvas.css";
 
 const mvpApi = createMvpClient();
@@ -1681,6 +1682,9 @@ function StatusBar({ shots, activeTask, batchState, exporting }) {
   );
 }
 
+/**
+ * @param {import("./StoryCanvasApp.types").StoryCanvasAppProps} props
+ */
 export function StoryCanvasApp({ grant: embeddedGrant = null }) {
   const [shots, setShots] = useState(initialShots);
   const [selectedId, setSelectedId] = useState(0);
@@ -1723,24 +1727,20 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
 
     async function bootstrapWithGrant(grant, readyTarget = null) {
       if (bootstrapping || cancelled) return;
-      const projectId = grant?.projectId;
-      const packageId = grant?.packageId;
-      if (
-        projectId !== "demo-local-001"
-        || packageId !== "package-demo-local-001-v1"
-        || grant?.projectId !== projectId
-        || grant?.packageId !== packageId
-      ) {
+      const validation = validateEmbeddedStoryCanvasGrant(grant);
+      if (!validation.ok) {
+        mvpApi.clearProductionGrant();
         setServiceState("error");
-        setTaskError("GRANT_BRIDGE_SCOPE_MISMATCH：深链、project、package 与 grant 必须完全一致");
+        setTaskError(validation.error.message);
         return;
       }
+      const validatedGrant = validation.grant;
 
       bootstrapping = true;
       if (grantRequestTimer) window.clearInterval(grantRequestTimer);
       setServiceState("loading");
       setTaskError("");
-      mvpApi.setProductionGrant(grant);
+      mvpApi.setProductionGrant(validatedGrant);
       try {
         const data = await mvpApi.bootstrap();
         if (cancelled) return;
