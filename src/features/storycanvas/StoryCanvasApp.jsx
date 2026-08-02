@@ -35,6 +35,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 import { createMvpClient } from "./mvpApi";
+import { Phase1ShotWorkbench } from "./Phase1ShotWorkbench";
 import { validateEmbeddedStoryCanvasGrant } from "./StoryCanvasApp.types";
 import "./storycanvas.css";
 
@@ -1708,6 +1709,10 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
   const [exportResult, setExportResult] = useState(null);
   const [outputSettings, setOutputSettings] = useState(loadOutputSettings);
   const [production, setProduction] = useState(null);
+  const [phase1Workbench, setPhase1Workbench] = useState(null);
+  const [phase1Loading, setPhase1Loading] = useState(false);
+  const [phase1Error, setPhase1Error] = useState("");
+  const [phase1Action, setPhase1Action] = useState("");
 
   const selectedShot = useMemo(() => shots.find((shot) => shot.id === selectedId) ?? shots[0], [shots, selectedId]);
   const selectedContinuityShot = continuity?.shots?.[String(selectedShot?.internalId || selectedId)] || null;
@@ -1778,6 +1783,18 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
             || tasks[0];
           return visibleTask ? applyTaskToShots([shot], visibleTask)[0] : shot;
         }));
+        setPhase1Loading(true);
+        try {
+          const runtimeWorkbench = await mvpApi.getPhase1Workbench();
+          if (!cancelled) {
+            setPhase1Workbench(runtimeWorkbench);
+            setPhase1Error("");
+          }
+        } catch (runtimeError) {
+          if (!cancelled) setPhase1Error(runtimeError.message);
+        } finally {
+          if (!cancelled) setPhase1Loading(false);
+        }
         readyTarget?.source?.postMessage(
           {
             type: "storycanvas:d1-ready",
@@ -1840,6 +1857,100 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
       window.removeEventListener("message", handleGrantMessage);
     };
   }, [embeddedGrant]);
+
+  const activePhase1TaskCount = useMemo(
+    () => (phase1Workbench?.shots || []).flatMap((shot) => shot.tasks || [])
+      .filter((task) => ["queued", "running", "validating"].includes(task.status)).length,
+    [phase1Workbench],
+  );
+
+  useEffect(() => {
+    if (!activePhase1TaskCount) return undefined;
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const next = await mvpApi.getPhase1Workbench();
+        if (!cancelled) {
+          setPhase1Workbench(next);
+          setPhase1Error("");
+        }
+      } catch (error) {
+        if (!cancelled) setPhase1Error(error.message);
+      }
+    }, 2500);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [activePhase1TaskCount]);
+
+  async function refreshPhase1Workbench() {
+    setPhase1Loading(true);
+    try {
+      const next = await mvpApi.getPhase1Workbench();
+      setPhase1Workbench(next);
+      setPhase1Error("");
+      return next;
+    } catch (error) {
+      setPhase1Error(error.message);
+      throw error;
+    } finally {
+      setPhase1Loading(false);
+    }
+  }
+
+  async function runPhase1Action(key, operation, successMessage) {
+    if (phase1Action) return;
+    setPhase1Action(key);
+    setPhase1Error("");
+    try {
+      await operation();
+      await refreshPhase1Workbench();
+      setNotice(successMessage);
+    } catch (error) {
+      setPhase1Error(error.message);
+      setNotice("Phase1 Runtime 操作失败");
+    } finally {
+      setPhase1Action("");
+    }
+  }
+
+  function generatePhase1Plans() {
+    return runPhase1Action("plan-all", () => mvpApi.generatePhase1Plans(), "8 镜 DEMO 生产方案已生成，需逐镜确认");
+  }
+
+  function confirmPhase1Plan(shotId, planVersion) {
+    return runPhase1Action(`confirm:${shotId}`, () => mvpApi.confirmPhase1Plan(shotId, planVersion), `镜头 ${shotId} 的生产方案已确认`);
+  }
+
+  function savePhase1Creative(shotId, patch) {
+    return runPhase1Action(`save:${shotId}`, () => mvpApi.updatePhase1ShotCreative(shotId, patch), `镜头 ${shotId} 的创意参数已持久化`);
+  }
+
+  function createPhase1GenerationTask(shotId, taskType, draft, plan) {
+    return runPhase1Action(
+      `task:${shotId}`,
+      () => mvpApi.createPhase1Task(shotId, {
+        taskType,
+        generationPlanVersion: plan?.planVersion,
+        requestedPrompt: taskType === "image.generate" ? draft.imagePrompt : draft.videoPrompt,
+        negativePrompt: draft.negativePrompt,
+        model: taskType === "image.generate" ? draft.imageModel : draft.videoModel,
+        inputAssetIds: draft.referenceAssetIds,
+        idempotencyKey: window.crypto.randomUUID(),
+      }),
+      `镜头 ${shotId} 已创建独立生成任务`,
+    );
+  }
+
+  function retryPhase1Task(taskId) {
+    return runPhase1Action(`retry:${taskId}`, () => mvpApi.retryPhase1Task(taskId, window.crypto.randomUUID()), `任务 ${taskId} 已创建重试 Attempt`);
+  }
+
+  function cancelPhase1Task(taskId) {
+    return runPhase1Action(`cancel:${taskId}`, () => mvpApi.cancelPhase1Task(taskId), `任务 ${taskId} 已提交取消`);
+  }
+
+  function decidePhase1Attempt(shotId, attemptId, decision) {
+    return runPhase1Action(`decision:${attemptId}`, () => mvpApi.decidePhase1Attempt(shotId, attemptId, decision), `Attempt ${attemptId} 已标记为${decision === "selected" ? "采用" : decision === "alternative" ? "备选" : "淘汰"}`);
+  }
 
   useEffect(() => {
     if (batchState?.running || !activeTask?.id || !["queued", "running"].includes(activeTask.status)) return undefined;
@@ -2154,24 +2265,24 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
         zoom={zoom}
         onZoom={changeZoom}
         onOpenCanvas={() => setActiveNav("canvas")}
-        onGenerate={generateSelected}
+        onGenerate={production ? generatePhase1Plans : generateSelected}
         onBatch={generateAllVideos}
         onExport={() => exportAllVideos()}
         serviceState={serviceState}
         keyConfigured={capabilities?.keyConfigured}
-        generationDisabled={
+        generationDisabled={production ? phase1Loading || Boolean(phase1Action) : (
           generationSubmitting
           || Boolean(activeTask)
           || Boolean(batchState?.running)
           || exporting
           || (!capabilities?.[generationKind]?.available && !demoScenarioForShot(selectedShot, generationKind))
-        }
+        )}
         batchDisabled={Boolean(activeTask) || Boolean(batchState?.running) || exporting || !capabilities?.video?.available}
         batchState={batchState}
         videosReady={videosReady}
         exporting={exporting}
         shotCount={shots.length}
-        generationLabel={demoScenarioForShot(selectedShot, generationKind)
+        generationLabel={production ? "生成全部镜头生产方案 · DEMO" : demoScenarioForShot(selectedShot, generationKind)
             ? demoScenarioForShot(selectedShot, generationKind) === "success"
               ? "登记权益图卡 · MOCK-CONTRACT"
               : "登记失败任务 · MOCK-CONTRACT"
@@ -2183,7 +2294,22 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
       <main className="workspace-grid">
         <AppNav active={activeNav} onChange={(id) => { setActiveNav(id); setTaskError(""); }} />
         <AnimatePresence mode="wait" initial={false}>
-          {activeNav === "canvas" ? (
+          {activeNav === "canvas" && production ? (
+            <Phase1ShotWorkbench
+              workbench={phase1Workbench}
+              loading={phase1Loading}
+              error={phase1Error}
+              action={phase1Action}
+              onReload={() => { void refreshPhase1Workbench(); }}
+              onGeneratePlans={generatePhase1Plans}
+              onConfirmPlan={confirmPhase1Plan}
+              onSaveCreative={savePhase1Creative}
+              onCreateTask={createPhase1GenerationTask}
+              onRetryTask={retryPhase1Task}
+              onCancelTask={cancelPhase1Task}
+              onDecideAttempt={decidePhase1Attempt}
+            />
+          ) : activeNav === "canvas" ? (
             <motion.div className="canvas-view" key="canvas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
               <ScriptOutline shots={shots} selectedId={selectedId} onSelect={(id) => { setSelectedId(id); setTaskError(""); }} onAdd={addShot} />
               <CanvasWorkspace

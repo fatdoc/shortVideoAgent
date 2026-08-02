@@ -36,6 +36,22 @@ export function createMvpClient() {
     return productionGrant;
   }
 
+  function phase1ProjectPath(suffix = "") {
+    const projectId = projectIdFromDeepLink();
+    return `/production/v0.1/projects/${encodeURIComponent(projectId)}/runtime${suffix}`;
+  }
+
+  function phase1Request(suffix = "", init = {}) {
+    const grant = requireGrant();
+    return request(phase1ProjectPath(suffix), {
+      ...init,
+      headers: {
+        "X-StoryCanvas-Demo-Grant": encodeGrantHeader(grant),
+        ...init.headers,
+      },
+    });
+  }
+
   function encodeGrantHeader(grant) {
     const bytes = new TextEncoder().encode(JSON.stringify(grant));
     let binary = "";
@@ -166,6 +182,48 @@ export function createMvpClient() {
     createFallbackExport: () => request(
       "/production/v0.1/projects/demo-local-001/fallback-export",
       { method: "POST", body: JSON.stringify({ grant: requireGrant() }) },
+    ),
+    getPhase1Workbench: () => phase1Request("/workbench"),
+    generatePhase1Plans: () => phase1Request("/plans/demo", {
+      method: "POST",
+      body: JSON.stringify({ mode: "DEMO", grant: requireGrant() }),
+    }),
+    updatePhase1ShotCreative: (shotId, patch) => phase1Request(
+      `/shots/${encodeURIComponent(shotId)}/creative`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ patch, grant: requireGrant() }),
+      },
+    ),
+    confirmPhase1Plan: (shotId, planVersion) => phase1Request(
+      `/shots/${encodeURIComponent(shotId)}/plans/${encodeURIComponent(planVersion)}/confirm`,
+      { method: "POST", body: JSON.stringify({ grant: requireGrant() }) },
+    ),
+    createPhase1Task: (shotId, input) => phase1Request(
+      `/shots/${encodeURIComponent(shotId)}/tasks`,
+      {
+        method: "POST",
+        body: JSON.stringify({ ...input, grant: requireGrant() }),
+      },
+    ),
+    getPhase1Task: (taskId) => phase1Request(`/tasks/${encodeURIComponent(taskId)}`),
+    retryPhase1Task: (taskId, idempotencyKey) => phase1Request(
+      `/tasks/${encodeURIComponent(taskId)}/retry`,
+      {
+        method: "POST",
+        body: JSON.stringify({ idempotencyKey, grant: requireGrant() }),
+      },
+    ),
+    cancelPhase1Task: (taskId) => phase1Request(
+      `/tasks/${encodeURIComponent(taskId)}/cancel`,
+      { method: "POST", body: JSON.stringify({ grant: requireGrant() }) },
+    ),
+    decidePhase1Attempt: (shotId, attemptId, operatorDecision) => phase1Request(
+      `/shots/${encodeURIComponent(shotId)}/attempts/${encodeURIComponent(attemptId)}/decision`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ operatorDecision, grant: requireGrant() }),
+      },
     ),
     getContinuity: async () => (await request(
       "/production/v0.1/projects/demo-local-001",
