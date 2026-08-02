@@ -38,7 +38,7 @@ export function createMvpClient() {
 
   function phase1ProjectPath(suffix = "") {
     const projectId = projectIdFromDeepLink();
-    return `/production/v0.1/projects/${encodeURIComponent(projectId)}/runtime${suffix}`;
+    return `/production/v0.1/runtime/projects/${encodeURIComponent(projectId)}${suffix}`;
   }
 
   function phase1Request(suffix = "", init = {}) {
@@ -102,6 +102,34 @@ export function createMvpClient() {
     const payload = await response.json();
     if (!response.ok) throw new Error(getMessage(payload, `请求失败（HTTP ${response.status}）`));
     return payload.data;
+  }
+
+  function normalizePhase1Workbench(state) {
+    const plans = state?.plans || [];
+    const attempts = state?.attempts || [];
+    const tasks = state?.tasks || [];
+    const assets = state?.assets || [];
+    return {
+      ...state,
+      mode: "DEMO",
+      modelOptions: {
+        image: [{ id: "demo-image-disabled", label: "Phase 1 暂不启用图片 Mock", available: false }],
+        video: [{ id: "storycanvas-demo-fixture-v1", label: "StoryCanvas 可播放视频 Fixture", available: true }],
+      },
+      referenceAssets: assets.filter((asset) => asset.validationStatus === "valid"),
+      shots: (state?.shots || []).map((shot) => {
+        const shotPlans = plans.filter((plan) => plan.shotId === shot.id);
+        const shotAttempts = attempts
+          .filter((attempt) => attempt.shotId === shot.id)
+          .map((attempt) => ({ ...attempt, asset: assets.find((asset) => asset.id === attempt.assetId) || null }));
+        return {
+          ...shot,
+          generationPlan: shotPlans.sort((left, right) => right.planVersion - left.planVersion)[0] || null,
+          tasks: tasks.filter((task) => task.shotId === shot.id),
+          attempts: shotAttempts,
+        };
+      }),
+    };
   }
 
   return {
@@ -183,37 +211,65 @@ export function createMvpClient() {
       "/production/v0.1/projects/demo-local-001/fallback-export",
       { method: "POST", body: JSON.stringify({ grant: requireGrant() }) },
     ),
-    getPhase1Workbench: () => phase1Request("/workbench"),
+    getPhase1Workbench: async () => {
+      await phase1Request("/sync", {
+        method: "POST",
+        body: JSON.stringify({ grant: requireGrant() }),
+      });
+      return normalizePhase1Workbench(await phase1Request("/state"));
+    },
     generatePhase1Plans: () => phase1Request("/plans/demo", {
       method: "POST",
       body: JSON.stringify({ mode: "DEMO", grant: requireGrant() }),
     }),
-    updatePhase1ShotCreative: (shotId, patch) => phase1Request(
-      `/shots/${encodeURIComponent(shotId)}/creative`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ patch, grant: requireGrant() }),
-      },
-    ),
+    updatePhase1ShotCreative: async (shotId, patch) => {
+      const { referenceAssetIds = [], ...creativePatch } = patch;
+      const encodedShotId = encodeURIComponent(shotId);
+      return Promise.all([
+        phase1Request(`/shots/${encodedShotId}/creative`, {
+          method: "PUT",
+          body: JSON.stringify({ patch: creativePatch, grant: requireGrant() }),
+        }),
+        phase1Request(`/shots/${encodedShotId}/references`, {
+          method: "PUT",
+          body: JSON.stringify({
+            references: referenceAssetIds.map((assetId) => ({ assetId, referenceRole: "image_reference" })),
+            grant: requireGrant(),
+          }),
+        }),
+      ]);
+    },
     confirmPhase1Plan: (shotId, planVersion) => phase1Request(
       `/shots/${encodeURIComponent(shotId)}/plans/${encodeURIComponent(planVersion)}/confirm`,
       { method: "POST", body: JSON.stringify({ grant: requireGrant() }) },
     ),
-    createPhase1Task: (shotId, input) => phase1Request(
-      `/shots/${encodeURIComponent(shotId)}/tasks`,
-      {
+    createPhase1Task: async (shotId, input) => {
+      const created = await phase1Request(`/shots/${encodeURIComponent(shotId)}/tasks`, {
         method: "POST",
-        body: JSON.stringify({ ...input, grant: requireGrant() }),
-      },
-    ),
+        body: JSON.stringify({
+          ...input,
+          taskType: input.taskType === "image.generate" ? "image-generation" : "video-generation",
+          model: input.model || (input.taskType === "image.generate" ? "demo-image-disabled" : "storycanvas-demo-fixture-v1"),
+          reservedCredit: input.reservedCredit || 120,
+          grant: requireGrant(),
+        }),
+      });
+      return phase1Request(`/tasks/${encodeURIComponent(created.task.id)}/run`, {
+        method: "POST",
+        body: JSON.stringify({ grant: requireGrant() }),
+      });
+    },
     getPhase1Task: (taskId) => phase1Request(`/tasks/${encodeURIComponent(taskId)}`),
-    retryPhase1Task: (taskId, idempotencyKey) => phase1Request(
-      `/tasks/${encodeURIComponent(taskId)}/retry`,
-      {
+    retryPhase1Task: async (taskId, idempotencyKey) => {
+      const created = await phase1Request(`/tasks/${encodeURIComponent(taskId)}/retry`, {
         method: "POST",
         body: JSON.stringify({ idempotencyKey, grant: requireGrant() }),
-      },
-    ),
+      });
+      return phase1Request(`/tasks/${encodeURIComponent(created.task.id)}/run`, {
+        method: "POST",
+        body: JSON.stringify({ grant: requireGrant() }),
+      });
+    },
     cancelPhase1Task: (taskId) => phase1Request(
       `/tasks/${encodeURIComponent(taskId)}/cancel`,
       { method: "POST", body: JSON.stringify({ grant: requireGrant() }) },
@@ -222,7 +278,7 @@ export function createMvpClient() {
       `/shots/${encodeURIComponent(shotId)}/attempts/${encodeURIComponent(attemptId)}/decision`,
       {
         method: "PUT",
-        body: JSON.stringify({ operatorDecision, grant: requireGrant() }),
+        body: JSON.stringify({ decision: operatorDecision, grant: requireGrant() }),
       },
     ),
     getContinuity: async () => (await request(

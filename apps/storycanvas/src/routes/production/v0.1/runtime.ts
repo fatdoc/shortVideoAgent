@@ -12,9 +12,10 @@ const mode = process.env.STORYCANVAS_RUNTIME_MODE === "REAL" ? "REAL" : "DEMO";
 const adapter = mode === "REAL"
   ? new RealRuntimeAdapterDisabled()
   : new DemoFixtureRuntimeAdapter({
-      fixturePath: process.env.STORYCANVAS_DEMO_VIDEO_FIXTURE ?? "",
+      fixturePath: process.env.STORYCANVAS_DEMO_VIDEO_FIXTURE
+        ?? path.resolve(process.cwd(), "../../public/media/d1/demo-local-001-fallback-synthetic-v1.mp4"),
       outputDirectory: process.env.STORYCANVAS_DEMO_OUTPUT_DIR ?? path.join(process.cwd(), "data", "oss", "phase1-runtime"),
-      playableBaseUrl: process.env.STORYCANVAS_DEMO_PLAYABLE_BASE_URL,
+      playableBaseUrl: process.env.STORYCANVAS_DEMO_PLAYABLE_BASE_URL ?? "http://localhost:10588/oss/phase1-runtime",
     });
 const runtime = new Phase1RuntimeService(db as Knex, { adapter });
 
@@ -51,6 +52,33 @@ router.get("/projects/:projectId/state", async (req, res) => {
   } catch (cause) { respond(res, cause); }
 });
 
+router.post("/projects/:projectId/plans/demo", async (req, res) => {
+  try {
+    await runtime.authorizeProject(req.params.projectId, grant(req), ["production.package.read"]);
+    await runtime.synchronizeProductionShots(req.params.projectId);
+    const state = await runtime.listProjectState(req.params.projectId);
+    const plans = [];
+    for (const shot of state.shots) {
+      const contract = shot.shotContract ?? {};
+      const purpose = contract.narrativePurpose || shot.title;
+      plans.push(await runtime.saveGenerationPlan(shot.id, {
+        imagePrompt: `${shot.title}。画面目标：${purpose}`,
+        videoPrompt: `${shot.title}。镜头动作：${contract.action || purpose}。运镜：${contract.cameraMovement || "保持分镜要求"}`,
+        negativePrompt: Array.isArray(contract.prohibitedTerms) ? contract.prohibitedTerms.join("，") : "",
+        recommendedImageModel: "demo-image-disabled",
+        recommendedVideoModel: "storycanvas-demo-fixture-v1",
+        referenceAssetIds: [],
+        continuityEntityIds: [],
+        cameraPlan: { movementType: contract.cameraMovement || null },
+        estimatedCredit: 120,
+        generatedBy: "phase1-demo-planner",
+        idempotencyKey: `phase1-demo-plan:${req.params.projectId}:${shot.id}:v1`,
+      }));
+    }
+    res.status(201).send(success({ mode: "DEMO", plans }));
+  } catch (cause) { respond(res, cause); }
+});
+
 router.put("/projects/:projectId/shots/:shotId/creative", async (req, res) => {
   try {
     await runtime.authorizeProject(req.params.projectId, grant(req), ["production.package.read"]);
@@ -72,6 +100,18 @@ router.post("/projects/:projectId/shots/:shotId/plans", async (req, res) => {
   } catch (cause) { respond(res, cause); }
 });
 
+router.post("/projects/:projectId/shots/:shotId/plans/:planVersion/confirm", async (req, res) => {
+  try {
+    const grantValue = grant(req) as { subject?: { id?: string } };
+    await runtime.authorizeProject(req.params.projectId, grantValue, ["production.package.read"]);
+    res.status(200).send(success(await runtime.confirmGenerationPlan(
+      req.params.shotId,
+      Number(req.params.planVersion),
+      grantValue.subject?.id ?? "production.operator",
+    )));
+  } catch (cause) { respond(res, cause); }
+});
+
 router.post("/projects/:projectId/shots/:shotId/tasks", async (req, res) => {
   try {
     await runtime.authorizeProject(req.params.projectId, grant(req), ["production.package.read", "production.receipt.write"]);
@@ -83,6 +123,13 @@ router.post("/projects/:projectId/tasks/:taskId/run", async (req, res) => {
   try {
     await runtime.authorizeProject(req.params.projectId, grant(req), ["production.receipt.write"]);
     res.status(200).send(success(await runtime.runDemoTask(req.params.taskId)));
+  } catch (cause) { respond(res, cause); }
+});
+
+router.get("/projects/:projectId/tasks/:taskId", async (req, res) => {
+  try {
+    await runtime.authorizeProject(req.params.projectId, grant(req), ["production.package.read"]);
+    res.status(200).send(success(await runtime.getTask(req.params.taskId)));
   } catch (cause) { respond(res, cause); }
 });
 

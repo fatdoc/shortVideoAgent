@@ -15,12 +15,16 @@ describe('Phase1 runtime mvp client', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('loads the runtime workbench with the in-memory grant header', async () => {
-    const fetchMock = vi.fn().mockImplementationOnce(() => response({ token: 'test-token' })).mockImplementationOnce(() => response({ projectId: 'demo-local-001', shots: [] }));
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response({ token: 'test-token' }))
+      .mockImplementationOnce(() => response({ shots: [] }))
+      .mockImplementationOnce(() => response({ shots: [], plans: [], attempts: [], tasks: [], assets: [] }));
     vi.stubGlobal('fetch', fetchMock);
     const client = createMvpClient(); client.setProductionGrant(grant);
     await client.getPhase1Workbench();
-    expect(fetchMock.mock.calls[1][0]).toContain('/production/v0.1/projects/demo-local-001/runtime/workbench');
+    expect(fetchMock.mock.calls[1][0]).toContain('/production/v0.1/runtime/projects/demo-local-001/sync');
     expect(fetchMock.mock.calls[1][1].headers['X-StoryCanvas-Demo-Grant']).toBeTruthy();
+    expect(fetchMock.mock.calls[2][0]).toContain('/production/v0.1/runtime/projects/demo-local-001/state');
   });
 
   it('uses only the DEMO planning endpoint for agent planning', async () => {
@@ -28,7 +32,7 @@ describe('Phase1 runtime mvp client', () => {
     vi.stubGlobal('fetch', fetchMock);
     const client = createMvpClient(); client.setProductionGrant(grant);
     await client.generatePhase1Plans();
-    expect(fetchMock.mock.calls[1][0]).toContain('/runtime/plans/demo');
+    expect(fetchMock.mock.calls[1][0]).toContain('/runtime/projects/demo-local-001/plans/demo');
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ mode: 'DEMO' });
   });
 

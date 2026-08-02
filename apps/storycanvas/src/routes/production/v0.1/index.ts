@@ -2,6 +2,7 @@ import express from "express";
 import type { Request, Response } from "express";
 import { error, success } from "@/lib/responseFormat";
 import { ProductionContractError } from "@/domain/productionContract";
+import runtimeRouter from "./runtime";
 import {
   acceptProductionPackage,
   acknowledgeProductionReceipt,
@@ -18,6 +19,8 @@ import {
 } from "@/services/storycanvas/productionContractAdapter";
 
 const router = express.Router();
+
+router.use("/runtime", runtimeRouter);
 
 function explicitGrantFromHeader(req: Request) {
   const encoded = req.header("x-storycanvas-demo-grant");

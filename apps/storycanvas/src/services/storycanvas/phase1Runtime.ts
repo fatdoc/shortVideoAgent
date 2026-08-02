@@ -320,6 +320,36 @@ export class Phase1RuntimeService {
     return { ...parsed, duplicate: false };
   }
 
+  async confirmGenerationPlan(shotId: string, planVersion: number, operatorId: string) {
+    if (!Number.isInteger(planVersion) || planVersion <= 0) {
+      throw new Phase1RuntimeError("PLAN_VERSION_INVALID", "Generation Plan 版本必须为正整数");
+    }
+    const plan = await this.database("sc_generation_plans")
+      .where({ productionShotId: shotId, planVersion })
+      .first();
+    if (!plan) throw new Phase1RuntimeError("PLAN_NOT_FOUND", `Generation Plan v${planVersion} 不存在`);
+    if (plan.status === "approved" && plan.approvedByOperator) {
+      return { ...this.publicPlan(plan), duplicate: true };
+    }
+    const now = this.timestamp();
+    await this.database.transaction(async (transaction) => {
+      await transaction("sc_generation_plans")
+        .where({ productionShotId: shotId, status: "approved" })
+        .whereNot({ planVersion })
+        .update({ status: "superseded", updatedAt: now });
+      await transaction("sc_generation_plans")
+        .where({ productionShotId: shotId, planVersion })
+        .update({ status: "approved", approvedByOperator: operatorId, approvedAt: now, updatedAt: now });
+      await transaction("sc_production_shots")
+        .where({ id: shotId })
+        .update({ status: "ready", updatedAt: now });
+    });
+    return {
+      ...this.publicPlan(await this.database("sc_generation_plans").where({ productionShotId: shotId, planVersion }).first()),
+      duplicate: false,
+    };
+  }
+
   private publicPlan(row: Record<string, any>) {
     return {
       id: row.id, shotId: row.productionShotId, planVersion: Number(row.planVersion), imagePrompt: row.imagePrompt,
@@ -342,7 +372,10 @@ export class Phase1RuntimeService {
       }
     };
     inspect(patch);
-    const allowed = new Set(["visualPrompt", "videoPrompt", "framing", "cameraAngle", "cameraMovement", "visualStyle", "modelOptions"]);
+    const allowed = new Set([
+      "visualPrompt", "imagePrompt", "videoPrompt", "negativePrompt", "framing", "cameraAngle",
+      "cameraMovement", "visualStyle", "modelOptions", "imageModel", "videoModel",
+    ]);
     const unknown = Object.keys(patch).filter((key) => !allowed.has(key));
     if (unknown.length) throw new Phase1RuntimeError("CREATIVE_FIELD_NOT_ALLOWED", `不可编辑字段：${unknown.join(",")}`);
     const shot = await this.database("sc_production_shots").where({ id: shotId }).first();
@@ -375,7 +408,9 @@ export class Phase1RuntimeService {
     const locked = parseJson<Record<string, unknown>>(shot.lockedBusinessFieldsJson, {});
     const contract = parseJson<Record<string, unknown>>(shot.shotContractJson, {});
     const creative = parseJson<Record<string, unknown>>(shot.editableCreativeFieldsJson, {});
-    const requestedPrompt = taskType === "image-generation" ? plan.imagePrompt : plan.videoPrompt;
+    const requestedPrompt = taskType === "image-generation"
+      ? (creative.imagePrompt || creative.visualPrompt || plan.imagePrompt)
+      : (creative.videoPrompt || plan.videoPrompt);
     return {
       requestedPrompt,
       resolvedPrompt: [
@@ -465,6 +500,12 @@ export class Phase1RuntimeService {
     };
   }
 
+  async getTask(taskId: string) {
+    const task = await this.database("sc_tasks").where({ id: taskId }).first();
+    if (!task) throw new Phase1RuntimeError("TASK_NOT_FOUND", `Runtime Task ${taskId} 不存在`);
+    return this.publicTask(task);
+  }
+
   async retryTask(taskId: string, idempotencyKey: string) {
     const task = await this.database("sc_tasks").where({ id: taskId }).first();
     const attempt = task ? await this.database("sc_shot_attempts").where({ generationTaskId: taskId }).first() : null;
@@ -488,7 +529,18 @@ export class Phase1RuntimeService {
     if (task.status === "succeeded") return { task: this.publicTask(task), duplicate: true };
     if (task.status !== "queued") throw new Phase1RuntimeError("TASK_START_NOT_ALLOWED", `status=${task.status} 不允许启动`);
     const request = this.providerRequest(task);
-    const submitted = await this.adapter.submit(request);
+    let submitted: { providerTaskId: string };
+    try {
+      submitted = await this.adapter.submit(request);
+    } catch (cause) {
+      await this.finalizeFailure(
+        task,
+        "PROVIDER_SUBMIT_FAILED",
+        cause instanceof Error ? cause.message : String(cause),
+        "failed",
+      );
+      throw cause;
+    }
     const now = this.timestamp();
     await this.database("sc_tasks").where({ id: taskId }).update({ status: "running", progress: 10, externalTaskId: submitted.providerTaskId, startedAt: now, updatedAt: now });
     return { task: this.publicTask(await this.database("sc_tasks").where({ id: taskId }).first()), duplicate: false };
