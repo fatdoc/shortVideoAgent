@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Knex returns untyped legacy table rows at this adapter boundary. */
 import crypto from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import type { Knex } from "knex";
@@ -5,7 +6,6 @@ import {
   assertGrantScope,
   assertPackageContract,
   digestValue,
-  type ProjectProductionPackage,
 } from "@/domain/productionContract";
 import {
   cameraPlanSchema,
@@ -250,6 +250,7 @@ export class Phase1RuntimeService {
     const tasks = shotIds.length ? await this.database("sc_tasks").whereIn("productionShotId", shotIds).orderBy("createdAt") : [];
     const assets = shotIds.length ? await this.database("sc_media_assets").whereIn("productionShotId", shotIds).orderBy("createdAt") : [];
     const roughCuts = await this.database("sc_rough_cuts").where({ externalProjectId }).orderBy("createdAt");
+    const exports = await this.database("sc_export_artifacts").where({ externalProjectId }).orderBy("createdAt");
     const credits = shots[0] ? await this.database("sc_runtime_credit_entries").where({ projectId: shots[0].projectId }).orderBy("createdAt") : [];
     return {
       shots: shots.map((shot) => this.publicShot(shot)),
@@ -258,6 +259,20 @@ export class Phase1RuntimeService {
       tasks: tasks.map((task) => this.publicTask(task)),
       assets: assets.map((asset) => this.publicAsset(asset)),
       roughCuts: roughCuts.map((cut) => this.publicRoughCut(cut)),
+      exports: exports.map((artifact) => ({
+        id: artifact.id,
+        projectId: Number(artifact.projectId),
+        externalProjectId: artifact.externalProjectId,
+        roughCutId: artifact.roughCutId,
+        exportType: artifact.exportType,
+        platformVariant: artifact.platformVariant,
+        assetId: artifact.assetId,
+        status: artifact.status,
+        manifest: parseJson(artifact.manifestJson, {}),
+        provenance: parseJson(artifact.provenanceJson, {}),
+        approvedAt: artifact.approvedAt,
+        createdAt: artifact.createdAt,
+      })),
       credits,
     };
   }

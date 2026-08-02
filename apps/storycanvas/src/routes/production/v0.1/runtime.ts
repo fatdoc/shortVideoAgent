@@ -61,18 +61,21 @@ router.post("/projects/:projectId/plans/demo", async (req, res) => {
     for (const shot of state.shots) {
       const contract = shot.shotContract ?? {};
       const purpose = contract.narrativePurpose || shot.title;
+      const cameraMovement = typeof contract.cameraMovement === "string"
+        ? contract.cameraMovement
+        : contract.cameraMovement?.movementType || contract.cameraMovement?.type || "";
       plans.push(await runtime.saveGenerationPlan(shot.id, {
         imagePrompt: `${shot.title}。画面目标：${purpose}`,
-        videoPrompt: `${shot.title}。镜头动作：${contract.action || purpose}。运镜：${contract.cameraMovement || "保持分镜要求"}`,
+        videoPrompt: `${shot.title}。镜头动作：${contract.action || purpose}。运镜：${cameraMovement || "保持分镜要求"}`,
         negativePrompt: Array.isArray(contract.prohibitedTerms) ? contract.prohibitedTerms.join("，") : "",
         recommendedImageModel: "demo-image-disabled",
         recommendedVideoModel: "storycanvas-demo-fixture-v1",
         referenceAssetIds: [],
         continuityEntityIds: [],
-        cameraPlan: { movementType: contract.cameraMovement || null },
+        cameraPlan: { movementType: cameraMovement || null },
         estimatedCredit: 120,
         generatedBy: "phase1-demo-planner",
-        idempotencyKey: `phase1-demo-plan:${req.params.projectId}:${shot.id}:v1`,
+        idempotencyKey: `phase1-demo-plan:${req.params.projectId}:${shot.id}:v2`,
       }));
     }
     res.status(201).send(success({ mode: "DEMO", plans }));

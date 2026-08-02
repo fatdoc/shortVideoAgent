@@ -44,7 +44,9 @@ function shotIdOf(shot) {
 }
 
 function displayValue(value) {
-  if (Array.isArray(value)) return value.join("、") || "无";
+  if (Array.isArray(value)) return value.map((item) => (
+    item && typeof item === "object" ? JSON.stringify(item) : String(item)
+  )).join("、") || "无";
   if (value && typeof value === "object") return JSON.stringify(value);
   if (value === null || value === undefined || value === "") return "未提供";
   return String(value);
@@ -146,13 +148,14 @@ function CreativeInspector({ shot, workbench, busy, onSave, onConfirmPlan, onCre
   const creative = shot.editableCreativeFields || {};
   const [draft, setDraft] = useState({ referenceAssetIds: [] });
   useEffect(() => {
+    const cameraMovement = creative.cameraMovement ?? plan?.cameraPlan?.movementType ?? "";
     setDraft({
       imagePrompt: creative.imagePrompt ?? plan?.imagePrompt ?? "",
       videoPrompt: creative.videoPrompt ?? plan?.videoPrompt ?? "",
       negativePrompt: creative.negativePrompt ?? plan?.negativePrompt ?? "",
       imageModel: creative.imageModel ?? plan?.recommendedImageModel ?? "",
       videoModel: creative.videoModel ?? plan?.recommendedVideoModel ?? "",
-      cameraMovement: creative.cameraMovement ?? plan?.cameraPlan?.movementType ?? "",
+      cameraMovement: typeof cameraMovement === "string" ? cameraMovement : displayValue(cameraMovement),
       referenceAssetIds: creative.referenceAssetIds ?? plan?.referenceAssetIds ?? [],
     });
   }, [shotIdOf(shot), plan?.planVersion]);
@@ -197,7 +200,7 @@ function CreativeInspector({ shot, workbench, busy, onSave, onConfirmPlan, onCre
   );
 }
 
-function RuntimeLedger({ shot, error, busy, onRetry, onCancel }) {
+function RuntimeLedger({ shot, workbench, error, busy, onRetry, onCancel }) {
   const tasksRef = useRef(null);
   const assetsRef = useRef(null);
   const [focusId, setFocusId] = useState("");
@@ -205,6 +208,13 @@ function RuntimeLedger({ shot, error, busy, onRetry, onCancel }) {
     setFocusId(id || "");
     (kind === "task" ? tasksRef : assetsRef).current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
+  const latestRoughCut = [...(workbench?.roughCuts || [])].sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))[0];
+  const latestExport = [...(workbench?.exports || [])].sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)))[0];
+  const credits = workbench?.credits || [];
+  const creditSummary = credits.reduce((summary, entry) => ({
+    ...summary,
+    [entry.operation]: (summary[entry.operation] || 0) + Number(entry.amount || 0),
+  }), { reserve: 0, consume: 0, release: 0 });
   return {
     locate,
     panel: (
@@ -212,6 +222,9 @@ function RuntimeLedger({ shot, error, busy, onRetry, onCancel }) {
         <div ref={tasksRef} className="phase1-runtime-block"><header><IconHistory size={14} />生成任务</header>{(shot.tasks || []).length ? shot.tasks.map((task) => <article key={task.id} className={focusId === task.id ? "focused" : ""}><div><strong>{task.taskType}</strong><span className={task.status}>{taskStatusLabel[task.status] || task.status} · {task.progress}%</span></div><small>{task.id} · {task.provider || "provider pending"} / {task.model || "model pending"}</small>{task.errorMessage && <p>{task.errorCode ? `${task.errorCode}：` : ""}{task.errorMessage}</p>}<footer><span><IconCoins size={12} />冻结 {task.reservedCredit || 0} / 消费 {task.consumedCredit || 0} / 释放 {task.releasedCredit || 0}</span>{["failed", "cancelled"].includes(task.status) && <button disabled={busy} onClick={() => onRetry(task.id)}><IconRefresh size={12} />重试</button>}{["queued", "running", "validating"].includes(task.status) && <button disabled={busy} onClick={() => onCancel(task.id)}><IconPlayerPause size={12} />取消</button>}</footer></article>) : <p>当前镜头还没有生成任务。</p>}</div>
         <div ref={assetsRef} className="phase1-runtime-block"><header><IconMovie size={14} />资产校验</header>{(shot.attempts || []).length ? shot.attempts.map((attempt) => { const asset = attempt.asset; return <article key={attempt.id} className={focusId === asset?.id ? "focused" : ""}><div><strong>Attempt {attempt.attemptNumber}</strong><span className={asset?.validationStatus}>{asset?.validationStatus || "missing"}</span></div><small>{asset?.id || "没有资产"} · {asset?.mimeType || "未检测媒体格式"}</small></article>; }) : <p>没有 Attempt 或媒体资产。</p>}</div>
         <div className="phase1-runtime-block"><header><IconRoute size={14} />来源链</header><p>Shot {shotIdOf(shot)} → Attempt → Task → Asset → Selection</p><small>Package {shot.productionPackageId} · Storyboard {shot.externalStoryboardShotId}</small></div>
+        <div className="phase1-runtime-block"><header><IconMovie size={14} />粗剪与企业确认</header>{latestRoughCut ? <article><div><strong>{latestRoughCut.id}</strong><span className={latestRoughCut.approvalStatus}>{latestRoughCut.approvalStatus}</span></div><small>{latestRoughCut.orderedShotSelections?.length || 0} 镜 · {latestRoughCut.totalDuration || 0}s · {latestRoughCut.aspectRatio}</small><p>批准主体：{latestRoughCut.approvedBy || "等待 tenant.owner"}</p></article> : <p>八镜全部采用后才能创建 RoughCut。</p>}</div>
+        <div className="phase1-runtime-block"><header><IconFileText size={14} />导出与 Provenance</header>{latestExport ? <article><div><strong>{latestExport.exportType} · {latestExport.platformVariant}</strong><span className={latestExport.status}>{latestExport.status}</span></div><small>{latestExport.id} · Asset {latestExport.assetId}</small><p>来源字段：{Object.keys(latestExport.provenance || {}).join(" → ")}</p></article> : <p>企业确认 RoughCut 后才能生成 ExportArtifact。</p>}</div>
+        <div className="phase1-runtime-block"><header><IconCoins size={14} />项目额度流水</header><p>冻结 {creditSummary.reserve} · 消费 {creditSummary.consume} · 释放 {creditSummary.release}</p><small>{credits.length} 条 append-only Runtime Ledger Entry</small></div>
         {(error || busy) && <div className={`phase1-runtime-message ${error ? "error" : "busy"}`}>{busy ? <IconLoader2 className="spin" size={14} /> : <IconAlertTriangle size={14} />}{error || "正在同步 Runtime 事实"}</div>}
       </section>
     ),
@@ -230,7 +243,7 @@ export function Phase1ShotWorkbench({ workbench, loading, error, action, onReloa
   }, [shots, selectedId]);
   const shot = shots.find((candidate) => shotIdOf(candidate) === selectedId) || shots[0];
   const busy = Boolean(action);
-  const ledger = RuntimeLedger({ shot: shot || { tasks: [], attempts: [] }, error, busy, onRetry: onRetryTask, onCancel: onCancelTask });
+  const ledger = RuntimeLedger({ shot: shot || { tasks: [], attempts: [] }, workbench, error, busy, onRetry: onRetryTask, onCancel: onCancelTask });
   const chooseShot = (id) => { setSelectedId(id); onShotSelect?.(id); };
 
   if (loading && !workbench) return <section className="phase1-runtime-state"><IconLoader2 className="spin" size={22} /><strong>正在读取 Phase1 Runtime</strong></section>;

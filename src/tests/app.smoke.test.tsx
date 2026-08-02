@@ -34,7 +34,7 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 2, name: '欢迎登录' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: '登录工作台' })).toBeInTheDocument();
     expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
   });
