@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
 - 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_CONTROL_PLANE_READY_FOR_INTEGRATION_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成 A-03 控制平面业务、权限、四身份回归和关键视口视觉收口；下一步推送 `dev/control-plane`、审查 B 的 `dev/production-plane`，并创建短期集成分支执行 D2 全仓 Gate
+- 当前任务：负责人 A 已完成并推送 A-03；已向 B 发出 `D2-AB-UNBLOCK-001`，等待其解除 Grant/Build/分支交接阻塞并推送 `dev/production-plane`，随后创建短期集成分支执行 D2 全仓 Gate
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -14,8 +14,8 @@
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：A 控制平面定向 Gate 已通过；D2 全量 Test 为 132/141 PASS、9 项并发超时，Build 有 3 个既有类型错误，Lint 为 702 problems；B 分支尚待远端交付与集成核验
-- 最近更新：2026-07-31
+- 阻塞：A 控制平面已推送；尚无可审查的 `origin/dev/production-plane`，Build 仍有 B 侧 StoryCanvas Grant prop 和根 Vite Node 类型共 3 个错误，全量 Test/Lint 仍保留基线缺口；等待 B 按 `D2-AB-UNBLOCK-001` 回传
+- 最近更新：2026-08-02
 
 ## 2026-07-30 单前端收口
 
@@ -163,3 +163,13 @@
 - A 交付范围：基线 `f48c210`，当前头提交 `e4d70ff`；A-03 功能提交为 `5a9cf52`、`33e6b90`、`351a368`、`3a04748`、`e4d70ff`，计划提交为 `d99e9b7`。
 - 全仓 Gate 尚未通过：仍需 B 修复生产平面 Grant prop、ScriptEditor/StoryCanvas Test/Lint/Build 交接项，并处理根 `vite.config.ts` Node 类型声明后，在短期集成分支复跑完整 Gate。
 - 下一步：完成本次文档收口提交并推送 `dev/control-plane`；B 分支到位后，从最新 `main` 创建 `integration/d2-a03-b03`，按控制平面 → 生产平面顺序合并和验证。
+
+## 2026-08-02 向 B 发出生产平面集成阻塞解除请求
+
+- A 分支 `dev/control-plane` 已推送，头提交为 `ac9a959`，状态 `READY_FOR_INTEGRATION`。
+- 本地缓存远端目前只见 `origin/codex/archive-legacy-white-workbench-20260730`，未见正式 `origin/dev/production-plane`；旧归档分支与当前 `main` 分叉且夹带 A/共享改动，禁止整体合并。
+- 复跑 `npx tsc -b --pretty false`，确认三个 Build 阻塞仍存在：B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 类型错误，以及根 `vite.config.ts` 的 `node:path` / `__dirname` 类型声明。
+- 已要求 B 从最新 `origin/main` 建立并推送 `dev/production-plane`，只迁移 B 负责范围，逐项报告 B-01～B-05 进度，并提供提交、共享文件、测试和风险清单。
+- 根 Vite/TS 配置属于共享面，要求 B 以独立 commit 或最小补丁交接，禁止夹带在生产页面重构中。
+- 正式请求：`docs/collaboration/DEVELOPER_B_INTEGRATION_UNBLOCK_REQUEST_2026-08-02.md`。
+- A 下一步：等待 B 分支达到最低交付标准后，从最新 `main` 创建 `integration/d2-a03-b03`，按 A → B 顺序合并并执行完整 Gate。

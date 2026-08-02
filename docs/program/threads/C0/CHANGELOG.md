@@ -31,3 +31,4 @@
 | 2026-07-31 | 收口企业 Entitlement 产品语义、canonical 品牌入口、团队/Wallet/回执摘要，并完成 53 项 Selector/页面/权限/Smoke 回归     | A03_ENTERPRISE_OVERVIEW_TARGETED_PASS   |
 | 2026-07-31 | 完成 A-03 四身份/越权/Smoke 与两档视口收口，修复 Workbench 顶栏越界并准备控制平面集成交付                               | A03_CONTROL_PLANE_READY_FOR_INTEGRATION |
 | 2026-07-31 | 复核集成前全仓基线：定向测试通过；全量 Test 132/141、Build 3 个错误、Lint 702 个问题，保留到集成 Gate 处理              | A03_INTEGRATION_BASELINE_RECORDED       |
+| 2026-08-02 | 向 B 发出 D2 生产平面进度对齐与集成阻塞解除请求，要求修复 Grant/Build、推送干净 `dev/production-plane` 并逐项回传 B-01～B-05 | B_INTEGRATION_UNBLOCK_REQUESTED |
