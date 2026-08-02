@@ -1,10 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import type { Phase1MediaAsset, Phase1RuntimeWorkbench } from './StoryCanvasApp.types';
 import { Phase1ShotWorkbench, isPlayablePhase1Attempt, normalizePhase1Shots } from './Phase1ShotWorkbench';
 
-const validAsset = { id: 'asset-video-1', assetType: 'video', playableUrl: '/media/shot-01.mp4', validationStatus: 'valid', mimeType: 'video/mp4' };
+const validAsset: Phase1MediaAsset = { id: 'asset-video-1', assetType: 'video', playableUrl: '/media/shot-01.mp4', validationStatus: 'valid', mimeType: 'video/mp4' };
 
-function createWorkbench(approved = false) {
+function createWorkbench(approved = false): Phase1RuntimeWorkbench {
   return {
     projectId: 'demo-local-001', packageId: 'package-demo-local-001-v1', mode: 'DEMO', assets: [validAsset],
     referenceAssets: [{ id: 'ref-store', assetType: 'image', validationStatus: 'valid', name: '门店参考图', referenceRole: 'location_reference' }],

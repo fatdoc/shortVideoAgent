@@ -3,7 +3,7 @@ import type { DemoProjectGrant } from '../../domain/controlPlane';
 import { createMvpClient } from './mvpApi';
 
 const grant: DemoProjectGrant = {
-  grantId: 'grant-phase1', grantType: 'DEMO_PROJECT_GRANT', mock: true, truthMode: 'MOCK-CONTRACT', tenantId: 'tenant-demo-hdl', organizationId: 'tenant-demo-hdl', organizationType: 'TENANT', projectId: 'demo-local-001', packageId: 'package-demo-local-001-v1', packageVersion: 1, capabilityIds: ['cap-production-base-generation'], scopes: ['production.package.read', 'production.receipt.write'], issuedAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-03T00:00:00.000Z', mockHandle: 'mock-handle:phase1', warning: 'DEMO ONLY',
+  grantId: 'grant-phase1', grantType: 'DEMO_PROJECT_GRANT', mock: true, truthMode: 'MOCK-CONTRACT', tenantId: 'tenant-demo-hdl', organizationId: 'tenant-demo-hdl', organizationType: 'TENANT', projectId: 'demo-local-001', packageId: 'package-demo-local-001-v1', packageVersion: 1, capabilityIds: ['cap-production-base-generation'], scopes: ['production.package.read', 'production.receipt.write'], issuedAt: '2026-08-02T00:00:00.000Z', expiresAt: '2026-08-03T00:00:00.000Z', mockHandle: 'mock-handle:phase1', warning: 'DEMO ONLY · NOT A SIGNED TOKEN · DO NOT USE AS CREDENTIAL',
 };
 
 function response(data: unknown) {

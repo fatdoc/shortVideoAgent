@@ -122,6 +122,31 @@ export interface Phase1RuntimeWorkbench {
   provenance?: Record<string, unknown>;
 }
 
+export interface Phase1ShotWorkbenchProps {
+  workbench: Phase1RuntimeWorkbench | null;
+  loading: boolean;
+  error: string;
+  action: string;
+  onReload: () => unknown;
+  onGeneratePlans: () => unknown;
+  onConfirmPlan: (shotId: string, planVersion: number) => unknown;
+  onSaveCreative: (shotId: string, patch: Record<string, unknown>) => unknown;
+  onCreateTask: (
+    shotId: string,
+    taskType: string,
+    draft: Record<string, unknown>,
+    plan?: Phase1GenerationPlan | null,
+  ) => unknown;
+  onRetryTask: (taskId: string) => unknown;
+  onCancelTask: (taskId: string) => unknown;
+  onDecideAttempt: (
+    shotId: string,
+    attemptId: string,
+    decision: Phase1AttemptDecision,
+  ) => unknown;
+  onShotSelect?: (shotId: string) => void;
+}
+
 export type StoryCanvasGrantRejectionCode =
   | 'EXPLICIT_GRANT_REQUIRED'
   | 'GRANT_CONTRACT_INVALID'

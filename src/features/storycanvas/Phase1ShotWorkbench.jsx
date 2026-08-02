@@ -218,6 +218,9 @@ function RuntimeLedger({ shot, error, busy, onRetry, onCancel }) {
   };
 }
 
+/**
+ * @param {import("./StoryCanvasApp.types").Phase1ShotWorkbenchProps} props
+ */
 export function Phase1ShotWorkbench({ workbench, loading, error, action, onReload, onGeneratePlans, onConfirmPlan, onSaveCreative, onCreateTask, onRetryTask, onCancelTask, onDecideAttempt, onShotSelect }) {
   const shots = useMemo(() => normalizePhase1Shots(workbench), [workbench]);
   const assets = workbench?.assets || [];
