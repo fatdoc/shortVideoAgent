@@ -722,7 +722,9 @@ export class StoryCanvasBridge {
           this.notifyListeners();
         } catch (error) {
           this.failHandoff(
-            'GRANT_EXPIRED',
+            error instanceof ControlPlaneMockError
+              ? error.code
+              : 'GRANT_HANDOFF_FAILED',
             error instanceof Error ? error.message : 'Grant handoff 失败。',
           );
         }

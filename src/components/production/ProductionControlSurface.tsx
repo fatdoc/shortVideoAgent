@@ -24,6 +24,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
+import { isPhase1HandoffReady } from '../../domain/phase1Production';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import {
   DEMO_FAILURE_TASK_ID,
@@ -59,6 +60,7 @@ export function ProductionControlSurface({
 }: ProductionControlSurfaceProps) {
   const navigate = useNavigate();
   const snapshot = useControlPlaneStore((state) => state.snapshot);
+  const phase1Projection = useControlPlaneStore((state) => state.phase1Projection);
   const loading = useControlPlaneStore((state) => state.loading);
   const error = useControlPlaneStore((state) => state.error);
   const lastAction = useControlPlaneStore((state) => state.lastAction);
@@ -106,6 +108,9 @@ export function ProductionControlSurface({
     (receipt) => receipt.generationTaskId === DEMO_SUCCESS_TASK_ID,
   );
   const productionPackage = snapshot.package;
+  const phase1Handoff = phase1Projection?.handoffs?.find(
+    (handoff) => handoff.packageId === productionPackage?.packageId,
+  );
   const grant = snapshot.grants[0];
   const sourceTask = successTask ?? failureTask;
   const sourceAsset = sourceTask
@@ -129,7 +134,8 @@ export function ProductionControlSurface({
   const transport = snapshot.transport;
   const visibleReceiptSync = transport.lastAttemptAt ? lastReceiptSync : null;
   const packageAccepted =
-    ([
+    (isPhase1HandoffReady(phase1Handoff) ||
+      ([
       'accepted',
       'duplicate',
       'handoff_waiting',
@@ -138,7 +144,7 @@ export function ProductionControlSurface({
     ].includes(transport.phase) ||
       ['accepted', 'duplicate'].includes(
         lastPackageDispatch?.response?.result ?? '',
-      )) &&
+      ))) &&
     transport.packageId === productionPackage?.packageId &&
     transport.projectId === productionPackage?.projectId;
   const retryableTransport =
@@ -383,6 +389,19 @@ export function ProductionControlSurface({
               </Button>
             </Space>
           </div>
+
+          {phase1Handoff ? (
+            <Alert
+              type={isPhase1HandoffReady(phase1Handoff) ? 'success' : 'error'}
+              showIcon
+              message={`Production handoff · ${phase1Handoff.status}`}
+              description={
+                phase1Handoff.error
+                  ? `${phase1Handoff.error.code} · ${phase1Handoff.error.message}`
+                  : `Grant ${phase1Handoff.grantStatus} · Package ${phase1Handoff.packageId}`
+              }
+            />
+          ) : null}
 
           <div className="d1-connection-line">
             <div className="is-ready">

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExportReceipt } from '../../domain/controlPlane';
+import { createPhase1ControlPlaneProjection } from '../../domain/phase1Production';
 import {
   DEMO_SUCCESS_ASSET_ID,
   DEMO_SUCCESS_TASK_ID,
@@ -63,6 +64,7 @@ function setStoreSnapshot(snapshot: ReturnType<typeof createControlPlaneDemoStat
     bootstrapResult: { status: 'accepted' },
     lastPackageDispatch: null,
     lastReceiptSync: null,
+    phase1Projection: createPhase1ControlPlaneProjection(),
     openStoryCanvas: storeMock.openStoryCanvas,
   };
 }
@@ -152,5 +154,35 @@ describe('ProductionControlSurface', () => {
 
     expect(screen.queryByRole('button', { name: '同步 Outbox' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reserve 80' })).toBeEnabled();
+  });
+
+  it('shows the exact Grant rejection reason from the persistent handoff', () => {
+    const snapshot = createAcceptedSnapshot();
+    setStoreSnapshot(snapshot);
+    const projection = createPhase1ControlPlaneProjection();
+    projection.handoffs.push({
+      packageId: snapshot.package!.packageId,
+      projectId: snapshot.package!.projectId,
+      packageDigest: snapshot.package!.digest,
+      status: 'grant_invalid',
+      grantStatus: 'invalid',
+      grantId: 'grant-demo-local-001-v1',
+      deepLink: null,
+      error: {
+        code: 'GRANT_EXPIRED',
+        message: 'Current Demo grant 已过期，必须重新签发。',
+        retryable: false,
+        details: { expiresAt: '2026-08-02T12:00:00.000Z' },
+      },
+      updatedAt: '2026-08-02T12:01:00.000Z',
+    });
+    storeMock.state.phase1Projection = projection;
+
+    renderSurface('inbox');
+
+    expect(screen.getByText('Production handoff · grant_invalid')).toBeInTheDocument();
+    expect(
+      screen.getByText(/GRANT_EXPIRED · Current Demo grant 已过期/),
+    ).toBeInTheDocument();
   });
 });

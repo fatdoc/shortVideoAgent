@@ -4,11 +4,33 @@ import type {
   ControlPlaneDemoState,
   ControlPlaneBootstrapResult,
   ControlPlaneErrorShape,
+  DemoProjectGrant,
+  ProjectProductionPackage,
   ReceiptSyncResult,
   ScriptApproval,
   SourceChain,
   StoryCanvasHandoffState,
 } from '../domain/controlPlane';
+import {
+  applyPhase1CreditCommand,
+  createPhase1ControlPlaneProjection,
+  isPhase1ControlPlaneProjection,
+  projectCanonicalReceipts,
+  projectPhase1Asset,
+  projectPhase1Attempt,
+  projectPhase1Export,
+  projectPhase1RoughCut,
+  projectPhase1Task,
+  recordPhase1Handoff,
+  selectPhase1Attempt,
+  type Phase1ControlPlaneProjection,
+  type Phase1CreditCommand,
+  type Phase1ExportArtifact,
+  type Phase1MediaAsset,
+  type Phase1RoughCut,
+  type Phase1RuntimeTask,
+  type Phase1ShotAttempt,
+} from '../domain/phase1Production';
 import {
   CAPABILITY_IDS,
   createCanonicalFailureTaskReceipt,
@@ -37,8 +59,31 @@ import {
   saveActiveOrganizationId,
 } from '../services/activeOrganization';
 
+const PHASE1_STORAGE_KEY = 'videoagent:control-plane:phase1:v1';
+
+function loadPhase1Projection(): Phase1ControlPlaneProjection {
+  if (typeof window === 'undefined') return createPhase1ControlPlaneProjection();
+  try {
+    const raw = window.localStorage.getItem(PHASE1_STORAGE_KEY);
+    if (!raw) return createPhase1ControlPlaneProjection();
+    const parsed: unknown = JSON.parse(raw);
+    return isPhase1ControlPlaneProjection(parsed)
+      ? parsed
+      : createPhase1ControlPlaneProjection();
+  } catch {
+    return createPhase1ControlPlaneProjection();
+  }
+}
+
+function savePhase1Projection(projection: Phase1ControlPlaneProjection) {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(PHASE1_STORAGE_KEY, JSON.stringify(projection));
+  }
+}
+
 interface ControlPlaneStoreState {
   snapshot: ControlPlaneDemoState;
+  phase1Projection: Phase1ControlPlaneProjection;
   loading: boolean;
   error: ControlPlaneErrorShape | null;
   lastAction: string | null;
@@ -48,6 +93,13 @@ interface ControlPlaneStoreState {
   lastReceiptSync: ReceiptSyncResult | null;
   handoffState: StoryCanvasHandoffState;
   activeOrganization: ActiveOrganizationContext | null;
+  upsertPhase1Task: (task: Phase1RuntimeTask) => void;
+  upsertPhase1Attempt: (attempt: Phase1ShotAttempt) => void;
+  upsertPhase1Asset: (asset: Phase1MediaAsset) => void;
+  selectPhase1Attempt: (attemptId: string) => void;
+  upsertPhase1RoughCut: (roughCut: Phase1RoughCut) => void;
+  upsertPhase1Export: (artifact: Phase1ExportArtifact) => void;
+  applyPhase1Credit: (command: Phase1CreditCommand) => boolean;
   refresh: () => void;
   bootstrap: () => ControlPlaneBootstrapResult;
   configureStoryCanvasBaseUrl: (baseUrl: string) => void;
@@ -196,8 +248,24 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
     }
   };
 
+  const updatePhase1 = (
+    actionName: string,
+    update: (current: Phase1ControlPlaneProjection) => Phase1ControlPlaneProjection,
+  ) => {
+    try {
+      const phase1Projection = update(get().phase1Projection);
+      savePhase1Projection(phase1Projection);
+      set({ phase1Projection, error: null, lastAction: actionName });
+      return true;
+    } catch (error) {
+      set({ error: toErrorShape(error), lastAction: `${actionName}:rejected` });
+      return false;
+    }
+  };
+
   return {
     snapshot: initialSnapshot,
+    phase1Projection: loadPhase1Projection(),
     loading: false,
     error: initialOrganizationError,
     lastAction: null,
@@ -207,6 +275,36 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
     lastReceiptSync: null,
     handoffState: storyCanvasBridge.getHandoffState(),
     activeOrganization: initialActiveOrganization,
+
+    upsertPhase1Task: (task) =>
+      void updatePhase1('upsertPhase1Task', (current) => projectPhase1Task(current, task)),
+    upsertPhase1Attempt: (attempt) =>
+      void updatePhase1('upsertPhase1Attempt', (current) =>
+        projectPhase1Attempt(current, attempt),
+      ),
+    upsertPhase1Asset: (asset) =>
+      void updatePhase1('upsertPhase1Asset', (current) => projectPhase1Asset(current, asset)),
+    selectPhase1Attempt: (attemptId) =>
+      void updatePhase1('selectPhase1Attempt', (current) =>
+        selectPhase1Attempt(current, attemptId),
+      ),
+    upsertPhase1RoughCut: (roughCut) =>
+      void updatePhase1('upsertPhase1RoughCut', (current) =>
+        projectPhase1RoughCut(current, roughCut),
+      ),
+    upsertPhase1Export: (artifact) =>
+      void updatePhase1('upsertPhase1Export', (current) =>
+        projectPhase1Export(current, artifact),
+      ),
+    applyPhase1Credit: (command) => {
+      let duplicate = false;
+      const accepted = updatePhase1('applyPhase1Credit', (current) => {
+        const result = applyPhase1CreditCommand(current, command);
+        duplicate = result.duplicate;
+        return result.state;
+      });
+      return accepted && duplicate;
+    },
 
     refresh: () => run('refresh'),
 
@@ -276,10 +374,12 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
         error: null,
         lastAction: 'dispatchCanonicalPackage',
       });
+      let productionPackage: ProjectProductionPackage | null = null;
+      let grant: DemoProjectGrant | null = null;
       try {
         requireProductionContext();
         const snapshot = controlPlaneMockAdapter.getState();
-        const productionPackage =
+        productionPackage =
           snapshot.package ??
           controlPlaneMockAdapter.createProjectProductionPackage({
             authorization: tenantDemoAuthorization,
@@ -290,17 +390,30 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
             ],
             idempotencyKey: DEMO_PACKAGE_IDEMPOTENCY_KEY,
           });
-        const grant = issueCurrentGrant();
+        grant = issueCurrentGrant();
         const result = await storyCanvasBridge.sendPackage(
           productionPackage,
           grant,
         );
         const bootstrapResult = storyCanvasBridge.bootstrap();
+        const phase1Projection = recordPhase1Handoff(get().phase1Projection, {
+          productionPackage,
+          grant,
+          response: result.response,
+          error: result.transport.lastError
+            ? {
+                ...result.transport.lastError,
+                details: result.transport.lastError.details,
+              }
+            : null,
+        });
+        savePhase1Projection(phase1Projection);
         set({
           snapshot: controlPlaneMockAdapter.getState(),
           loading: false,
           lastPackageDispatch: result,
           bootstrapResult,
+          phase1Projection,
           error:
             result.transport.phase === 'error' ||
             result.transport.phase === 'rejected'
@@ -317,10 +430,21 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
         });
         return result;
       } catch (error) {
+        const errorShape = toErrorShape(error);
+        const phase1Projection = productionPackage
+          ? recordPhase1Handoff(get().phase1Projection, {
+              productionPackage,
+              grant,
+              response: null,
+              error: errorShape,
+            })
+          : get().phase1Projection;
+        savePhase1Projection(phase1Projection);
         set({
           snapshot: controlPlaneMockAdapter.getState(),
           loading: false,
-          error: toErrorShape(error),
+          error: errorShape,
+          phase1Projection,
         });
         return null;
       }
@@ -332,23 +456,36 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
         error: null,
         lastAction: 'retryCanonicalPackage',
       });
+      let productionPackage: ProjectProductionPackage | null = null;
+      let grant: DemoProjectGrant | null = null;
       try {
         requireProductionContext();
         const snapshot = controlPlaneMockAdapter.getState();
-        if (!snapshot.package) {
+        productionPackage = snapshot.package;
+        if (!productionPackage) {
           throw new Error('重试前必须存在同一 package。');
         }
-        const grant = issueCurrentGrant();
+        grant = issueCurrentGrant();
         const result = await storyCanvasBridge.retryPackage(
-          snapshot.package,
+          productionPackage,
           grant,
         );
         const bootstrapResult = storyCanvasBridge.bootstrap();
+        const phase1Projection = recordPhase1Handoff(get().phase1Projection, {
+          productionPackage,
+          grant,
+          response: result.response,
+          error: result.transport.lastError
+            ? { ...result.transport.lastError, details: result.transport.lastError.details }
+            : null,
+        });
+        savePhase1Projection(phase1Projection);
         set({
           snapshot: controlPlaneMockAdapter.getState(),
           loading: false,
           lastPackageDispatch: result,
           bootstrapResult,
+          phase1Projection,
           error:
             result.transport.phase === 'error' ||
             result.transport.phase === 'rejected'
@@ -365,7 +502,17 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
         });
         return result;
       } catch (error) {
-        set({ loading: false, error: toErrorShape(error) });
+        const errorShape = toErrorShape(error);
+        const phase1Projection = productionPackage
+          ? recordPhase1Handoff(get().phase1Projection, {
+              productionPackage,
+              grant,
+              response: null,
+              error: errorShape,
+            })
+          : get().phase1Projection;
+        savePhase1Projection(phase1Projection);
+        set({ loading: false, error: errorShape, phase1Projection });
         return null;
       }
     },
@@ -388,8 +535,16 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
           grant,
         );
         const bootstrapResult = storyCanvasBridge.bootstrap();
+        const refreshedSnapshot = controlPlaneMockAdapter.getState();
+        const phase1Projection = projectCanonicalReceipts(get().phase1Projection, {
+          tasks: refreshedSnapshot.generationTaskReceipts,
+          assets: refreshedSnapshot.assetReceipts,
+          exports: refreshedSnapshot.exportReceipts,
+        });
+        savePhase1Projection(phase1Projection);
         set({
-          snapshot: controlPlaneMockAdapter.getState(),
+          snapshot: refreshedSnapshot,
+          phase1Projection,
           loading: false,
           lastReceiptSync: result,
           bootstrapResult,
@@ -630,6 +785,8 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
 
     applyResetSnapshot: (snapshot) => {
       try {
+        const phase1Projection = createPhase1ControlPlaneProjection();
+        savePhase1Projection(phase1Projection);
         const organizationId =
           get().activeOrganization?.activeOrganizationId ??
           loadActiveOrganizationId() ??
@@ -648,8 +805,11 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
           lastSourceChain: null,
         });
       } catch (error) {
+        const phase1Projection = createPhase1ControlPlaneProjection();
+        savePhase1Projection(phase1Projection);
         set({
           snapshot,
+          phase1Projection,
           activeOrganization: null,
           handoffState: storyCanvasBridge.getHandoffState(),
           loading: false,
