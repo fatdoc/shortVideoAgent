@@ -213,12 +213,15 @@ phase1-credit:<taskId>:<operation>
 | 方法 | 路径 | 作用 |
 |---|---|---|
 | `POST` | `/projects/:projectId/sync` | 从 accepted Package 幂等投影 8 个稳定 ProductionShot |
-| `GET` | `/projects/:projectId/state` | 恢复 Shot、Plan、Task、Attempt、Asset、RoughCut 和额度状态 |
+| `GET` | `/projects/:projectId/state` | 恢复 Shot、Plan、Task、Attempt、Asset、RoughCut、Export 和额度状态 |
+| `POST` | `/projects/:projectId/plans/demo` | 使用已批准生产包生成八镜确定性 DEMO 计划 |
 | `PUT` | `/projects/:projectId/shots/:shotId/creative` | 保存允许制作人员修改的创意字段 |
 | `PUT` | `/projects/:projectId/shots/:shotId/references` | 保存镜头参考素材及 Reference Role |
 | `POST` | `/projects/:projectId/shots/:shotId/plans` | 保存 GenerationPlan 和人工确认状态 |
+| `POST` | `/projects/:projectId/shots/:shotId/plans/:planVersion/confirm` | production.operator 确认指定计划版本 |
 | `POST` | `/projects/:projectId/shots/:shotId/tasks` | 创建独立 Runtime Task、Attempt 并冻结额度 |
 | `POST` | `/projects/:projectId/tasks/:taskId/run` | 启动 DEMO Task |
+| `GET` | `/projects/:projectId/tasks/:taskId` | 读取单个 Runtime Task |
 | `POST` | `/projects/:projectId/tasks/:taskId/poll` | 查询 Provider 进度并执行资产验证 |
 | `POST` | `/projects/:projectId/tasks/:taskId/cancel` | 取消任务并释放额度 |
 | `POST` | `/projects/:projectId/tasks/:taskId/retry` | 创建新的重试 Attempt |

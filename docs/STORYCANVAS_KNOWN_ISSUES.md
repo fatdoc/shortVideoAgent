@@ -16,8 +16,8 @@ Phase1 已完成 Mock 模式下的 Shot、Task、Attempt、valid Asset、Selecti
 | KI-03 | P0 | Export 不是独立合成资产 | 当前 Export 复用 valid 镜头资产，而不是新生成的独立 FFmpeg 合成资产 | Export 记录存在不等于正式成片文件存在 |
 | KI-04 | P1 | 图片 Mock/REAL 生成禁用 | 当前 Phase1 没有开放图片 Mock 或 REAL 生成链 | 图片 Attempt、图生视频前置图和真实图片版本链不能验收 |
 | KI-05 | P1 | 真实钱包 ACK 未接 | 当前额度链为本地/Mock 投影，未接正式钱包 ACK | 不能用于真实扣费、退款、对账或渠道结算 |
-| KI-06 | P1 | 旧 `app.smoke` 有 1 个失败 | 最终验证仍存在 1 个 legacy smoke failure | 全量旧应用回归不能标记为全通过 |
 | KI-07 | P1 | 全量 App TypeScript 存在既有 Agent/Zod 风险 | 定向测试与构建通过，但全量 App TS 仍有既有 Agent/Zod 类型风险 | 后续修改可能暴露旧类型漂移，不能宣称类型风险清零 |
+| KI-11 | P1 | 仓库全量 Lint 未清零 | 最终验证仍有 702 个既有问题（697 errors、5 warnings）；Phase1 新增文件为 0 error | 不能宣称仓库静态质量门禁全部通过 |
 | KI-08 | P2 | Playwright CLI 缺少 Chrome | CLI 浏览器验证无法执行；In-App Browser 截图成功 | 有可视化证据，但缺少标准 Playwright CLI 自动化浏览器回归 |
 | KI-09 | P2 | 旧 LocalStorage 首次产生幂等冲突 | 首次使用旧 LocalStorage 状态发生冲突；Demo Reset 后恢复，重复 Package 返回 duplicate | 旧本地状态可能影响首次演示，需要明确 Reset 恢复路径 |
 | KI-10 | P1 | 真实模型未验证 | 本轮没有调用真实图片或视频模型 | 不能证明 Provider 账号、质量、耗时、成本和成功率 |
@@ -101,15 +101,19 @@ RoughCut API totalDuration = 48s
 
 因此只能称为 Mock Credit 闭环。
 
-## 7. KI-06/KI-07：遗留质量风险
+## 7. KI-07/KI-11：遗留质量风险
 
 ### 7.1 app.smoke
 
-旧 `app.smoke` 仍有 1 个失败。定向 24/24 和 Runtime 4/4 通过不能覆盖该失败。
+旧登录标题断言已经对齐当前页面，Root 全量测试最终为 72/72 PASS。
 
 ### 7.2 全量 TypeScript
 
 全量 App TypeScript 仍存在既有 Agent/Zod 风险。当前 Root Build 和 StoryCanvas Build 通过，不等同于所有遗留类型定义、Agent Schema 和 Zod 数据漂移已经治理完成。
+
+### 7.3 全量 Lint
+
+最终全量 Lint 仍有 702 个既有问题（697 errors、5 warnings）。本阶段新增文件定向 Lint 为 0 error，但不能据此宣称仓库全量 Lint 已通过。
 
 ## 8. KI-08：浏览器工具
 
@@ -144,5 +148,5 @@ IAB 截图可作为页面可见性证据，但不能替代 CLI 浏览器自动�
 6. 真实钱包 ACK 和幂等结算接通；
 7. 至少一个受控真实 Provider 路径完成非自动付费验证；
 8. 图片 Mock/REAL 能力边界重新确认并验证；
-9. 旧 smoke failure 和全量 Agent/Zod 风险有明确处置；
+9. 全量 Lint 与 Agent/Zod 遗留风险有明确处置；
 10. 浏览器自动化环境补齐或形成正式替代验收记录。

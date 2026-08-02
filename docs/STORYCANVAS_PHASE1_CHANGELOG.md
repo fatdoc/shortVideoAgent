@@ -35,6 +35,7 @@ StoryCanvas 仍是企业生产流程中的镜头生产台，不是通用无限�
 | `f2c0022` | 增加任务事实源、额度、Prompt 和目标领域模型文档 |
 | `d784339` | 增加 StoryCanvas Phase1 production runtime domain |
 | `f626dd1` | 连接 Phase1 Runtime Workbench |
+| `deb04af` | 增加 RoughCut、Export、Provenance、额度交付摘要与 14 张验收截图 |
 
 以上为当前共享分支的近期 Phase1 提交记录。本文不推断尚未提交的并行工作内容。
 
@@ -115,6 +116,7 @@ StoryCanvas 仍是企业生产流程中的镜头生产台，不是通用无限�
 | 验证 | 结果 |
 |---|---:|
 | Root targeted | 24/24 PASS |
+| Root full test | 72/72 PASS |
 | Runtime targeted | 4/4 PASS |
 | Root build | PASS |
 | StoryCanvas build | PASS，需本地 `--no-save mariadb` |
@@ -124,6 +126,8 @@ StoryCanvas 仍是企业生产流程中的镜头生产台，不是通用无限�
 | Cancelled credit release | PASS，80/0/80 |
 | Locked price rejection | PASS |
 | Real paid model call | 未执行 |
+| Phase1 files lint | 0 error |
+| Repository lint | 702 个既有问题 |
 
 ## 8. 当前 HTTP 事实
 
@@ -154,7 +158,7 @@ StoryCanvas 仍是企业生产流程中的镜头生产台，不是通用无限�
 - 图片 Mock/REAL 生成；
 - 真实付费 Provider 验证；
 - 真实钱包 ACK；
-- 旧 `app.smoke` 全通过；
+- 仓库全量 Lint 既有 702 个问题清零；
 - 全量 App TypeScript Agent/Zod 风险清零；
 - Playwright CLI Chrome 自动化验证。
 

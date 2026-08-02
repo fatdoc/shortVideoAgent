@@ -24,6 +24,7 @@ Phase1 已通过根控制面、Runtime、构建、迁移和本地 HTTP 闭环验
 | 验证项 | 结果 | 说明 |
 |---|---:|---|
 | 根控制面定向测试 | 24/24 PASS | 覆盖控制面投影、额度门禁、幂等和交接相关行为 |
+| Root 全量测试 | 72/72 PASS | 已将旧 smoke 登录标题断言对齐当前“登录工作台” |
 | StoryCanvas Runtime 定向测试 | 4/4 PASS | 覆盖 Phase1 Runtime 核心链路 |
 | Root Build | PASS | 根前端构建通过 |
 | StoryCanvas Build | PASS | 本地以 `--no-save` 补充 `mariadb` 后构建通过；该依赖处理未作为本报告中的代码交付 |
@@ -34,6 +35,8 @@ Phase1 已通过根控制面、Runtime、构建、迁移和本地 HTTP 闭环验
 | RoughCut | PASS，有限制 | 状态为 approved；实测 `totalDuration = 48s`，与 30s 目标不一致 |
 | Export | PASS，有限制 | Export 记录存在，但当前复用 valid 镜头资产，不是独立合成成片资产 |
 | Provenance | PASS | HTTP 返回 14 类来源链信息；本报告不推测未提供的分类名称 |
+| Phase1 新增文件 Lint | PASS | 0 error；JSX 因根 ESLint 配置未匹配仅有 ignored warning |
+| 仓库全量 Lint | 基线未清零 | 702 个既有问题（697 errors、5 warnings） |
 | 失败任务 | PASS | `reserved/consumed/released = 80/0/80` |
 | 取消任务 | PASS | `reserved/consumed/released = 80/0/80` |
 | 锁定商业字段 | PASS | 修改 locked price 被拒绝 |
@@ -188,9 +191,10 @@ production.operator 修改锁定价格：被拒绝。
 
 ## 10. 已知非通过项
 
-- 旧 `app.smoke` 仍有 1 个失败；
+- Root 全量测试已为 72/72；旧 `app.smoke` 标题断言已修复；
+- 仓库全量 Lint 仍有 702 个既有问题（697 errors、5 warnings）；
 - 全量 App TypeScript 仍存在既有 Agent/Zod 风险；
 - 首次旧 LocalStorage 状态触发幂等冲突；执行 Demo Reset 后恢复，并在重复 Package 时得到 duplicate；
-- 上述问题未在本次文档提交中修改。
+- 上述遗留问题未在本阶段扩展修复。
 
 完整清单见 `docs/STORYCANVAS_KNOWN_ISSUES.md`。
