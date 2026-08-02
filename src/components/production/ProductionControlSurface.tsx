@@ -22,6 +22,8 @@ import {
   Typography,
 } from 'antd';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import {
   DEMO_FAILURE_TASK_ID,
@@ -55,6 +57,7 @@ function shortDigest(value: string) {
 export function ProductionControlSurface({
   view = 'all',
 }: ProductionControlSurfaceProps) {
+  const navigate = useNavigate();
   const snapshot = useControlPlaneStore((state) => state.snapshot);
   const loading = useControlPlaneStore((state) => state.loading);
   const error = useControlPlaneStore((state) => state.error);
@@ -73,13 +76,6 @@ export function ProductionControlSurface({
   );
   const syncReceipts = useControlPlaneStore(
     (state) => state.syncStoryCanvasReceipts,
-  );
-  const handoffState = useControlPlaneStore((state) => state.handoffState);
-  const openStoryCanvas = useControlPlaneStore(
-    (state) => state.openStoryCanvas,
-  );
-  const clearStoryCanvasHandoff = useControlPlaneStore(
-    (state) => state.clearStoryCanvasHandoff,
   );
   const reserveSuccess = useControlPlaneStore(
     (state) => state.reserveCanonicalSuccess,
@@ -104,6 +100,9 @@ export function ProductionControlSurface({
     (receipt) => receipt.generationTaskId === DEMO_FAILURE_TASK_ID,
   );
   const successAsset = snapshot.assetReceipts.find(
+    (receipt) => receipt.generationTaskId === DEMO_SUCCESS_TASK_ID,
+  );
+  const successExport = snapshot.exportReceipts.find(
     (receipt) => receipt.generationTaskId === DEMO_SUCCESS_TASK_ID,
   );
   const productionPackage = snapshot.package;
@@ -146,14 +145,6 @@ export function ProductionControlSurface({
     !packageAccepted &&
     Boolean(transport.lastAttemptAt) &&
     ['offline', 'rejected', 'error'].includes(transport.phase);
-  const handoffWaiting = [
-    'opening',
-    'waiting_for_grant_request',
-    'grant_sent',
-  ].includes(handoffState.status);
-  const handoffReady = handoffState.status === 'ready';
-  const handoffFailed =
-    handoffState.status === 'timeout' || handoffState.status === 'error';
   const resetSucceeded =
     lastAction === 'resetDemoExperience' &&
     !error &&
@@ -179,7 +170,7 @@ export function ProductionControlSurface({
         key: 'reserve-success',
         index: '02',
         title: '成功支线预冻结 120',
-        detail: 'reserve 120；匹配回执接收并 ack 后解释为 consume 100 + release 20。',
+        detail: 'reserve 120；随后进入同页画布执行成功案例，再回到任务页同步回执。',
         done: Boolean(successReservation),
         disabled: !packageAccepted,
         action: reserveSuccess,
@@ -189,9 +180,9 @@ export function ProductionControlSurface({
       {
         key: 'sync-success',
         index: '03',
-        title: '同步并确认成功回执',
-        detail: '轮询 Outbox，按 Task → Asset → Export 接收；ack 成功才显示 acknowledged。',
-        done: Boolean(successTask && successAsset),
+        title: '同步并确认成功交付',
+        detail: '轮询 Outbox，Task → Asset → Export 全部 ACK 后才完成并结算 100 + 20。',
+        done: Boolean(successTask && successAsset && successExport),
         disabled: !successReservation,
         action: syncReceipts,
         buttonLabel: '同步 Outbox',
@@ -201,9 +192,9 @@ export function ProductionControlSurface({
         key: 'reserve-failure',
         index: '04',
         title: '失败支线预冻结 80',
-        detail: 'reserve 80；失败且无可交付资产时 consume 0 + release 80。',
+        detail: '成功交付闭环后 reserve 80；在画布执行失败案例，不生成假资产。',
         done: Boolean(failureReservation),
-        disabled: !successAsset,
+        disabled: !successExport,
         action: reserveFailure,
         buttonLabel: 'Reserve 80',
         tone: 'failure',
@@ -230,6 +221,7 @@ export function ProductionControlSurface({
       scriptApproval?.status,
       syncReceipts,
       successAsset,
+      successExport,
       successReservation,
       successTask,
     ],
@@ -243,11 +235,6 @@ export function ProductionControlSurface({
   const availableForNextTask =
     credit.wallet.available.value >=
     snapshot.commercial.rateCard.maxReservedCredits.value;
-
-  const retryStoryCanvasHandoff = () => {
-    clearStoryCanvasHandoff();
-    openStoryCanvas();
-  };
 
   return (
     <div className="d1-production-stack">
@@ -353,7 +340,7 @@ export function ProductionControlSurface({
             <div>
               <Typography.Title level={4}>生产包与 StoryCanvas 入口</Typography.Title>
               <Typography.Text type="secondary">
-                发包、Grant 与 StoryCanvas 连接状态分开呈现。
+                发包完成后进入同一 SaaS 前端内嵌画布；Grant 只通过 React 内存边界传递。
               </Typography.Text>
             </div>
             <Space wrap>
@@ -387,34 +374,13 @@ export function ProductionControlSurface({
               <Button
                 type="primary"
                 icon={<SendOutlined />}
-                disabled={
-                  !packageAccepted ||
-                  handoffWaiting ||
-                  handoffReady ||
-                  handoffFailed
+                disabled={!packageAccepted}
+                onClick={() =>
+                  navigate(ROUTES.productionCanvas(DEMO_PROJECT_ID))
                 }
-                onClick={openStoryCanvas}
               >
-                {handoffReady
-                  ? '画布已授权'
-                  : handoffWaiting
-                    ? '等待画布授权'
-                    : handoffFailed
-                      ? '交接失败'
-                      : '启动 StoryCanvas 授权'}
+                进入 StoryCanvas 画布
               </Button>
-              {handoffFailed ? (
-                <>
-                  <Button onClick={clearStoryCanvasHandoff}>清理交接</Button>
-                  <Button
-                    type="primary"
-                    icon={<ReloadOutlined />}
-                    onClick={retryStoryCanvasHandoff}
-                  >
-                    重试授权
-                  </Button>
-                </>
-              ) : null}
             </Space>
           </div>
 
@@ -434,7 +400,7 @@ export function ProductionControlSurface({
               <span>StoryCanvas</span>
               <small>
                 {packageAccepted
-                  ? `${transport.phase} · handoff ${handoffState.status}`
+                  ? `${transport.phase} · embedded route ready`
                   : `${transport.phase} · HTTP_NOT_CONNECTED`}
               </small>
             </div>
@@ -453,38 +419,23 @@ export function ProductionControlSurface({
                 />
               }
             />
-          ) : handoffReady ? (
+          ) : (
             <Alert
               type="success"
               showIcon
-              message="handoff ready · 画布已授权"
-              description={`StoryCanvas 已通过受信 origin 完成 grant request / grant / ready。Ready at ${handoffState.readyAt ?? '—'}。`}
+              message={`${transport.phase} · 同页画布入口已就绪`}
+              description="Package 与当前 Grant 已验证。进入 /production/canvas/demo-local-001 后由根应用以内存 Prop 注入 Grant，不经过 URL、LocalStorage、sessionStorage 或子窗消息。"
               action={
-                <Button size="small" onClick={clearStoryCanvasHandoff}>
-                  清理交接状态
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() =>
+                    navigate(ROUTES.productionCanvas(DEMO_PROJECT_ID))
+                  }
+                >
+                  打开画布
                 </Button>
               }
-            />
-          ) : handoffWaiting ? (
-            <Alert
-              type="info"
-              showIcon
-              message={`${handoffState.status} · 等待画布授权`}
-              description={`已打开受信 StoryCanvas 子窗；Grant 不进入 URL 或持久存储。等待 storycanvas:d1-ready，截止 ${handoffState.expiresAt ?? '—'}。`}
-            />
-          ) : handoffFailed ? (
-            <Alert
-              type="error"
-              showIcon
-              message={`${handoffState.status} · StoryCanvas 交接未完成`}
-              description={`${handoffState.error?.code ?? 'HANDOFF_ERROR'} · ${handoffState.error?.message ?? '可清理后重试。'} 未表述为画布已授权。`}
-            />
-          ) : (
-            <Alert
-              type="info"
-              showIcon
-              message={`${transport.phase} · package + grant 已验证`}
-              description="尚未启动画布授权。点击“启动 StoryCanvas 授权”，由 C4 Store 完成受信子窗与 postMessage handoff。"
             />
           )}
         </section>
