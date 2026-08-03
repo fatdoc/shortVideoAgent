@@ -139,4 +139,36 @@ describe('resetDemoExperienceTransaction', () => {
     expect(storyCanvasBridge.getState()).toEqual(previous.transport);
     expect(result.controlPlane.stateName).not.toBe('DEMO_READY');
   });
+
+  it('reports a non-retryable reset failure when checkpoint restoration also fails', async () => {
+    const previous = prepareDirtyExperience();
+    vi.spyOn(controlPlaneMockAdapter, 'resetDemoReady').mockImplementationOnce(() => {
+      throw new Error('forced reset failure');
+    });
+    vi.spyOn(controlPlaneMockAdapter, 'restoreCheckpoint').mockImplementationOnce(() => {
+      throw new Error('forced rollback failure');
+    });
+
+    const result = await resetDemoExperienceTransaction();
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected RESET_FAILED.');
+    expect(result).toMatchObject({
+      stateName: 'RESET_FAILED',
+      workspace: previous.dirtyWorkspace,
+      controlPlane: previous.controlPlane,
+      error: {
+        code: 'CONTRACT_VALIDATION_FAILED',
+        message: 'Demo 重置失败，且旧快照恢复失败；不得展示 DEMO_READY。',
+        retryable: false,
+        details: {
+          resetError: 'forced reset failure',
+          rollbackError: 'forced rollback failure',
+        },
+      },
+    });
+    expect(loadWorkspace()).toEqual(previous.dirtyWorkspace);
+    expect(storyCanvasBridge.getState()).toEqual(previous.transport);
+    expect(result.controlPlane.stateName).not.toBe('DEMO_READY');
+  });
 });

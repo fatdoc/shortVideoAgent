@@ -33,3 +33,5 @@
 | 2026-07-31 | 复核集成前全仓基线：定向测试通过；全量 Test 132/141、Build 3 个错误、Lint 702 个问题，保留到集成 Gate 处理                                | A03_INTEGRATION_BASELINE_RECORDED       |
 | 2026-08-02 | 向 B 发出 D2 生产平面进度对齐与集成阻塞解除请求，要求修复 Grant/Build、推送干净 `dev/production-plane` 并逐项回传 B-01～B-05              | B_INTEGRATION_UNBLOCK_REQUESTED         |
 | 2026-08-03 | A 分支快进至已验收 `main@8594e21`，完成 A-04 生产交付投影审计，冻结 Tenant/Project ViewModel、Store/Adapter 测试、Dashboard 与 B 只读边界 | A04_PLAN_READY                          |
+| 2026-08-03 | 完成 Tenant/Project 交付只读投影，唯一任务、双范围、运行额度和安全字段 6 项测试通过                                                       | A04_DELIVERY_VIEW_READY                 |
+| 2026-08-03 | 完成 Adapter/Store/Reset 可靠性，修复 Reset 旧证据残留，A-04.1～2 联合 28 项测试通过                                                      | A04_2_RELIABILITY_READY                 |

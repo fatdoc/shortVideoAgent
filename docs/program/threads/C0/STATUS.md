@@ -2,20 +2,20 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A03_CONTROL_PLANE_READY_FOR_INTEGRATION_WITH_BASELINE_GAPS`
-- 当前任务：负责人 A 已完成并推送 A-03；已向 B 发出 `D2-AB-UNBLOCK-001`，等待其解除 Grant/Build/分支交接阻塞并推送 `dev/production-plane`，随后创建短期集成分支执行 D2 全仓 Gate
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_2_RELIABILITY_READY`
+- 当前任务：负责人 A 已完成 A-04.1 Tenant/Project 交付只读投影与 A-04.2 Store/Adapter/Reset 可靠性，下一步进入 A-04.3 企业 Dashboard 交付状态 UI
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
-- D2 当前基线：`f48c210`；Stage 0 报告：`D2_STAGE0_BASELINE.md`
+- D2 当前基线：已验收并进入 `main@8594e21`；历史 Stage 0 报告：`D2_STAGE0_BASELINE.md`
 - D2 规格：`docs/program/specs/C0_D2_IDENTITY_ROLE_WORKBENCHES.md`
 - D2 范围：四身份、统一登录、Mock 会话、路由保护、差异化工作台、越权拒绝
 - D2 边界：前端 + Mock；不是生产认证，不是服务端 RBAC，不承诺真实租户安全隔离
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：A 控制平面已推送；尚无可审查的 `origin/dev/production-plane`，Build 仍有 B 侧 StoryCanvas Grant prop 和根 Vite Node 类型共 3 个错误，全量 Test/Lint 仍保留基线缺口；等待 B 按 `D2-AB-UNBLOCK-001` 回传
-- 最近更新：2026-08-02
+- 阻塞：A-04.3 当前无 B 阻塞；未来联合 Phase1 集成只接收双方确认的正式 `dev/*`，不接收 `origin/codex/*` 临时分支
+- 最近更新：2026-08-03
 
 ## 2026-07-30 单前端收口
 
@@ -184,3 +184,13 @@
 - 审计基线测试：ViewModel、Dashboard、ProductionControlSurface、IntegratedStoryCanvasPage 合计 4 files / 16 tests PASS；仅有既有 Ant Design Spin warning。
 - 详细计划：`D2_A04_DELIVERY_EVIDENCE_PLAN.md`。
 - 下一步：A-04.1 先写 Tenant/Project scoped 交付投影测试，再实现纯函数 ViewModel。
+
+## 2026-08-03 A-04.1～A-04.2 交付投影与可靠性收口
+
+- 已完成 Tenant/Project scoped 的 `selectTenantProjectDeliveryView()`，输出 Package、Grant、transport、sync、唯一任务、Asset/Export 证据、运行时额度、错误和安全动作，不返回生产正文、Provider/存储内部字段、商业价格或跨租户数据。
+- Adapter 直接测试覆盖 Package/额度幂等、Receipt duplicate、冲突终态、成功/失败额度结算与 preflight 零副作用。
+- Store 直接测试覆盖 dispatch/retry、ACK 失败零入账、重复同步不重复结算和 transport 失败映射。
+- Reset 直接测试覆盖成功 Demo 基线清理、普通 rollback、rollback 自身失败、旧 activeOrganization 拒绝和失败时旧证据保留。
+- 已最小修复成功 Reset 后 `lastPackageDispatch` / `lastReceiptSync` 残留；A 未修改 B 独占 Bridge、生产页面或 StoryCanvas 实现。
+- 联合验证：6 个 Test Files、28 个 Tests PASS；相关 ESLint、Prettier、`git diff --check` PASS；A-04.2c 生产 Build PASS，仅有既有的大 chunk 警告。
+- 当前状态：`A04_2_RELIABILITY_READY`；下一步 A-04.3 企业 Dashboard 交付状态 UI。

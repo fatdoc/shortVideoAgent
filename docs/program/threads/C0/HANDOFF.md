@@ -170,3 +170,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 基线验证：相关 4 个测试文件 16/16 PASS。
 - 详细计划：`docs/program/threads/C0/D2_A04_DELIVERY_EVIDENCE_PLAN.md`。
 - 下一切片：A-04.1 `feat(control-plane): add tenant delivery evidence projection`。
+
+## A-04.2 控制平面交付可靠性交接（2026-08-03）
+
+- 状态：A-04.1 Tenant/Project 交付只读投影与 A-04.2 Store/Adapter/Reset 可靠性已完成，标记为 `A04_2_RELIABILITY_READY`。
+- ViewModel 只输出安全交付证据：Package、Grant、transport、sync、唯一任务、Asset/Export 数量、运行时额度、错误和可恢复动作；禁止生产正文、Provider/存储内部字段、商业价格和跨租户数据。
+- Adapter 覆盖命令幂等、Receipt duplicate、冲突终态、成功/失败额度时序与 preflight 零副作用。
+- Store 覆盖 dispatch/retry、ACK 失败零入账、duplicate 不重复结算、部分/整体同步失败映射。
+- Reset 覆盖成功清理、普通 rollback、rollback 自身失败、旧 activeOrganization 拒绝和失败时旧运行证据保留；成功 Reset 已清除 `lastPackageDispatch` / `lastReceiptSync`。
+- 验证：A-04.1 + A-04.2 共 6 个 Test Files、28 个 Tests PASS；相关 ESLint、Prettier、`git diff --check` PASS；生产 Build PASS。
+- A 未修改 `src/services/storyCanvasBridge.ts`、生产页面/组件、StoryCanvas 或 `apps/storycanvas/src/`。
+- 下一步：A-04.3 由 Dashboard 消费安全 ViewModel，保持企业管理员可见、内容运营拒绝合同，并完成页面 Reset 状态与两档视口验收。

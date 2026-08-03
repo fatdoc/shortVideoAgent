@@ -2,7 +2,7 @@
 
 > Owner：A（SaaS 控制平面 / 公共合同 / 最终集成）
 > 日期：2026-08-03
-> 状态：`A04_0_PLAN_READY`
+> 状态：`A04_2_RELIABILITY_READY`
 > 分支：`dev/control-plane`
 > 基线：`main@8594e21`
 > 正式上游：当前仓库 `main` 与双方确认后的正式 `dev/*` 交付分支；`origin/codex/*` 仅为临时工作分支，不作为需求或集成来源
@@ -251,3 +251,26 @@ A-04.0～A-04.3 基于当前 `main@8594e21` 可以独立实施，目前无 B 阻
 - 已知限制和演示路径。
 
 在此之前，`integration/d2-phase1-production-loop` 保持在 `main@8594e21`，不接收 `origin/codex/*` 临时分支。
+
+## 8. 2026-08-03 实施进度
+
+### 8.1 A-04.1 项目交付只读投影完成
+
+- 已新增 `selectTenantProjectDeliveryView()`，按 canonical Tenant + Project 双重范围投影 Package、Grant、transport、receipt sync、唯一任务、Asset/Export 证据和运行时额度状态。
+- 已覆盖唯一 `generationTaskId` 归并、跨范围隔离、敏感字段隔离、expired/scope mismatch、部分同步失败和安全可恢复动作。
+- 提交：`47e74b0 feat(control-plane): add tenant delivery evidence projection`。
+
+### 8.2 A-04.2 Store / Adapter 可靠性完成
+
+- Adapter 测试覆盖 Package/额度命令幂等、Receipt duplicate、冲突终态、成功/失败额度结算与三类 preflight 零副作用。
+- Store 测试覆盖 dispatch/retry、部分 ACK 失败零入账、重复同步不重复结算和 transport 整体失败映射。
+- Reset 测试覆盖成功清理、普通 rollback、rollback 自身失败、旧 activeOrganization 拒绝和失败时旧运行证据保留。
+- 已修复成功 Reset 后 `lastPackageDispatch` / `lastReceiptSync` 残留；未修改 B 独占 Bridge 或生产页面实现。
+- A-04.1 + A-04.2 联合回归：6 个 Test Files、28 个 Tests 全部通过；相关 ESLint、Prettier 与 `git diff --check` 通过。
+- 提交序列：`85f4251` Adapter 测试 → `3cf56fd` Store 同步测试 → `926fa06` Reset 清理修复 → 本次边界测试与文档收口提交。
+
+### 8.3 下一步
+
+- A-04.2 验收条件已满足，当前无 B 阻塞。
+- 下一切片进入 A-04.3：Dashboard 只消费安全 ViewModel，展示企业项目交付状态、额度解释、最近同步和可恢复动作，并保持内容运营拒绝合同。
+- 页面级 Reset 成功/失败展示、1440×900 与 1280×800 视觉检查归入 A-04.3，不在可靠性层跨范围实现。

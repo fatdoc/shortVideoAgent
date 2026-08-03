@@ -138,6 +138,39 @@ describe('resetDemoExperience store orchestration', () => {
     expect(controlPlaneState.handoffState.status).toBe('closed');
   });
 
+  it('clears stale delivery evidence when the previous active organization is rejected', async () => {
+    prepareRuntimeEvidence();
+    const activeOrganization = useControlPlaneStore.getState().activeOrganization;
+    if (!activeOrganization) throw new Error('Expected active organization.');
+    useControlPlaneStore.setState({
+      activeOrganization: {
+        ...activeOrganization,
+        activeOrganizationId: 'organization-missing',
+      },
+    });
+
+    const result = await resetDemoExperience();
+    const controlPlaneState = useControlPlaneStore.getState();
+
+    expect(result.ok).toBe(true);
+    expect(controlPlaneState).toMatchObject({
+      activeOrganization: null,
+      loading: false,
+      lastAction: 'resetDemoExperience:organization-rejected',
+      lastPackageDispatch: null,
+      lastReceiptSync: null,
+      lastSourceChain: null,
+      error: {
+        code: 'ROUTE_ID_REJECTED',
+        retryable: false,
+        details: { organizationId: 'organization-missing' },
+      },
+    });
+    expect(controlPlaneState.snapshot.package).toBeNull();
+    expect(controlPlaneState.bootstrapResult.status).toBe('offline');
+    expect(controlPlaneState.handoffState.status).toBe('closed');
+  });
+
   it('preserves the rolled-back runtime evidence when reset fails', async () => {
     const evidence = prepareRuntimeEvidence();
     const dirtyWorkspace = cloneDemoWorkspace();
