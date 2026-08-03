@@ -1,5 +1,5 @@
 import { Button, Result, Spin } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DEMO_PROJECT_ID } from '../../domain/constants';
 import { StoryCanvasApp } from '../../features/storycanvas/StoryCanvasApp';
@@ -8,6 +8,7 @@ import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 export function IntegratedStoryCanvasPage() {
   const { projectId } = useParams<{ projectId?: string }>();
   const [preparing, setPreparing] = useState(true);
+  const initialDispatchPromise = useRef<Promise<unknown> | null>(null);
   const snapshot = useControlPlaneStore((state) => state.snapshot);
   const error = useControlPlaneStore((state) => state.error);
   const dispatchCanonicalPackage = useControlPlaneStore(
@@ -23,8 +24,11 @@ export function IntegratedStoryCanvasPage() {
         active = false;
       };
     }
+    if (!initialDispatchPromise.current) {
+      initialDispatchPromise.current = dispatchCanonicalPackage();
+    }
 
-    void dispatchCanonicalPackage().finally(() => {
+    void initialDispatchPromise.current.finally(() => {
       if (active) setPreparing(false);
     });
     return () => {

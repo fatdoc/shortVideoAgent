@@ -7,7 +7,6 @@ import {
 } from '@ant-design/icons';
 import { Alert, Button, Form, Input, Tag, Typography } from 'antd';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import haidilaoLogo from '../../components/brand/assets/haidilao-logo.png';
 import { DEMO_IDENTITIES, type DemoIdentity } from '../../domain/demoIdentity';
 import { DEMO_AUTH_NOTICE, DEMO_AUTH_PASSWORD } from '../../services/demoAuth';
@@ -27,7 +26,6 @@ const identityTone = {
 } as const;
 
 export function LoginPage() {
-  const navigate = useNavigate();
   const [form] = Form.useForm<LoginValues>();
   const login = useAuthStore((state) => state.login);
   const storeError = useAuthStore((state) => state.error);
@@ -40,12 +38,11 @@ export function LoginPage() {
   const submitLogin = (values: LoginValues) => {
     clearError();
     setSubmitting(true);
-    const identity = login({
+    login({
       loginName: values.account.trim(),
       password: values.password,
     });
     setSubmitting(false);
-    if (identity) navigate(identity.defaultRoute, { replace: true });
   };
 
   const loginAsIdentity = (identity: DemoIdentity) => {

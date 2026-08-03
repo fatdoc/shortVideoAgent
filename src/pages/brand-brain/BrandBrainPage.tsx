@@ -22,19 +22,17 @@ import {
 import { Alert, App, Button, Dropdown, Select, Tabs, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import {
-  BrandEditorDrawer,
-  BrandFactsTable,
-  BrandMetricCard,
-} from '../../components/brand';
+import { BrandEditorDrawer, BrandFactsTable, BrandMetricCard } from '../../components/brand';
 import '../../components/brand/brand-brain.css';
 import haidilaoLogo from '../../components/brand/assets/haidilao-logo.png';
 import zhangYongAvatar from '../../components/brand/assets/zhang-yong-avatar.png';
 import { EmptyState } from '../../components/common/EmptyState';
 import { ErrorState } from '../../components/common/ErrorState';
 import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
+import { canAccessDemoPermission } from '../../domain/demoIdentity';
 import { isDemoProject } from '../../domain/selectors';
 import type { BrandProfile, ClaimStatus } from '../../domain/types';
+import { useAuthStore } from '../../stores/authStore';
 import { useProjectStore } from '../../stores/projectStore';
 
 function cloneBrand(brand: BrandProfile): BrandProfile {
@@ -154,6 +152,7 @@ export function BrandBrainPage() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { projectId } = useParams();
+  const identity = useAuthStore((state) => state.identity);
   const workspace = useProjectStore((state) => state.workspace);
   const loading = useProjectStore((state) => state.loading);
   const error = useProjectStore((state) => state.error);
@@ -169,6 +168,7 @@ export function BrandBrainPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   const validProject = isDemoProject(projectId) || projectId === DEMO_PROJECT_ID;
+  const canManageBrand = canAccessDemoPermission(identity, 'enterprise.brand-manage');
 
   useEffect(() => {
     if (!dirty && lastAction === 'reset') {
@@ -187,12 +187,17 @@ export function BrandBrainPage() {
   );
 
   const markDraft = (next: BrandProfile) => {
+    if (!canManageBrand) return;
     setDraft(next);
     setDirty(true);
     setSaved(false);
   };
 
   const saveBrand = async () => {
+    if (!canManageBrand) {
+      message.warning('当前身份仅可查看品牌资料。');
+      return false;
+    }
     await updateBrand(draft);
     if (useProjectStore.getState().error) return false;
     setDraft(cloneBrand(useProjectStore.getState().workspace.brand));
@@ -216,7 +221,7 @@ export function BrandBrainPage() {
   };
 
   const proceedToScript = async () => {
-    if (dirty) {
+    if (dirty && canManageBrand) {
       const savedSuccessfully = await saveBrand();
       if (!savedSuccessfully) return;
     }
@@ -278,9 +283,11 @@ export function BrandBrainPage() {
         <div>
           <Typography.Title level={5}>商家基本资料</Typography.Title>
         </div>
-        <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
-          编辑
-        </Button>
+        {canManageBrand ? (
+          <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
+            编辑
+          </Button>
+        ) : null}
       </div>
       <div className="brand-identity">
         <img className="brand-logo" src={haidilaoLogo} alt="海底捞品牌标识" />
@@ -313,7 +320,11 @@ export function BrandBrainPage() {
           <span className="brand-detail-label">门店地址</span>
           <span>
             北京市朝阳区三里屯路 19 号三里屯太古里南区 B1-12
-            <Button type="link" size="small" onClick={() => message.info('演示模式：已定位三里屯太古里门店')}>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => message.info('演示模式：已定位三里屯太古里门店')}
+            >
               查看地图
             </Button>
           </span>
@@ -353,9 +364,11 @@ export function BrandBrainPage() {
         <div>
           <Typography.Title level={5}>套餐 / 商品信息</Typography.Title>
         </div>
-        <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
-          管理套餐
-        </Button>
+        {canManageBrand ? (
+          <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
+            管理套餐
+          </Button>
+        ) : null}
       </div>
       <div className="brand-package-table">
         <div className="brand-package-table-head">
@@ -366,11 +379,7 @@ export function BrandBrainPage() {
           <span>适用场景</span>
         </div>
         {referencePackageRows.map((item) => (
-          <div
-            className="brand-package-row"
-            key={item.id}
-            data-claim-ids={item.claimIds.join(',')}
-          >
+          <div className="brand-package-row" key={item.id} data-claim-ids={item.claimIds.join(',')}>
             <Typography.Text strong>{item.name}</Typography.Text>
             <Typography.Text type="secondary">{item.type}</Typography.Text>
             <span className="brand-package-price">{item.price}</span>
@@ -379,11 +388,7 @@ export function BrandBrainPage() {
           </div>
         ))}
       </div>
-      <Button
-        type="link"
-        className="brand-package-footer"
-        onClick={() => setActiveTab('packages')}
-      >
+      <Button type="link" className="brand-package-footer" onClick={() => setActiveTab('packages')}>
         查看全部 28 个套餐 / 商品 <RightOutlined />
       </Button>
     </section>
@@ -396,9 +401,11 @@ export function BrandBrainPage() {
           <Typography.Title level={5}>禁用词</Typography.Title>
           <Typography.Text type="secondary">共 23 个禁用词</Typography.Text>
         </div>
-        <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
-          编辑
-        </Button>
+        {canManageBrand ? (
+          <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
+            编辑
+          </Button>
+        ) : null}
       </div>
       <div className="brand-rule-warning">
         <ExclamationCircleOutlined />
@@ -423,9 +430,11 @@ export function BrandBrainPage() {
         <div>
           <Typography.Title level={5}>老板 IP 信息</Typography.Title>
         </div>
-        <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
-          编辑
-        </Button>
+        {canManageBrand ? (
+          <Button type="link" icon={<EditOutlined />} onClick={() => setEditorOpen(true)}>
+            编辑
+          </Button>
+        ) : null}
       </div>
       <div className="brand-person">
         <img className="brand-person-avatar" src={zhangYongAvatar} alt="张勇头像" />
@@ -507,9 +516,7 @@ export function BrandBrainPage() {
             </span>
             <span className="brand-reference-copy">
               <Typography.Text strong>{record.title}</Typography.Text>
-              <Typography.Text type="secondary">
-                引用事实 {record.count} 条
-              </Typography.Text>
+              <Typography.Text type="secondary">引用事实 {record.count} 条</Typography.Text>
             </span>
             <span className="brand-reference-meta">
               <Typography.Text type="secondary">{record.time}</Typography.Text>
@@ -589,18 +596,22 @@ export function BrandBrainPage() {
       scripts={workspace.scripts}
       tone={['热情', '真诚', '年轻化']}
       voiceExample="“海底捞服务至上，让每一次用餐都暖心！”"
-      disabled={loading}
+      disabled={loading || !canManageBrand}
       onStatusChange={changeFactStatus}
     />
   );
 
   const toolbarMenuItems = [
-    {
-      key: 'save',
-      icon: <SaveOutlined />,
-      disabled: !dirty,
-      label: <span data-testid="brand-save">{dirty ? '保存资料' : '资料已保存'}</span>,
-    },
+    ...(canManageBrand
+      ? [
+          {
+            key: 'save',
+            icon: <SaveOutlined />,
+            disabled: !dirty,
+            label: <span data-testid="brand-save">{dirty ? '保存资料' : '资料已保存'}</span>,
+          },
+        ]
+      : []),
     {
       key: 'script',
       icon: <ArrowRightOutlined />,
@@ -612,11 +623,7 @@ export function BrandBrainPage() {
     <div className="brand-brain-page" data-testid="brand-brain-page">
       <section className="brand-page-toolbar">
         <div className="brand-page-title">
-          <Typography.Title
-            level={3}
-            className="brand-page-heading"
-            aria-label="品牌 / 商家大脑"
-          >
+          <Typography.Title level={3} className="brand-page-heading" aria-label="品牌 / 商家大脑">
             品牌/商家大脑
           </Typography.Title>
           <span className="brand-toolbar-divider" />
@@ -633,21 +640,19 @@ export function BrandBrainPage() {
           />
         </div>
         <div className="brand-toolbar-actions">
-          <Button
-            icon={<ExportOutlined />}
-            onClick={exportBrand}
-            data-testid="brand-export"
-          >
+          <Button icon={<ExportOutlined />} onClick={exportBrand} data-testid="brand-export">
             导出品牌资料
           </Button>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => setEditorOpen(true)}
-            data-testid="brand-edit"
-          >
-            编辑资料
-          </Button>
+          {canManageBrand ? (
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => setEditorOpen(true)}
+              data-testid="brand-edit"
+            >
+              编辑资料
+            </Button>
+          ) : null}
           <Dropdown
             trigger={['click']}
             menu={{
@@ -662,11 +667,23 @@ export function BrandBrainPage() {
               icon={<MoreOutlined />}
               loading={loading && lastAction === 'updateBrand'}
               data-testid="brand-more"
-              aria-label={dirty ? '更多操作，有未保存修改' : saved ? '更多操作，资料已保存' : '更多操作'}
+              aria-label={
+                dirty ? '更多操作，有未保存修改' : saved ? '更多操作，资料已保存' : '更多操作'
+              }
             />
           </Dropdown>
         </div>
       </section>
+
+      {!canManageBrand ? (
+        <Alert
+          type="info"
+          showIcon
+          data-testid="brand-readonly"
+          message="品牌资料只读"
+          description="当前内容运营身份可以查看品牌事实并进入生产链，但不能编辑资料、修改事实状态或保存品牌配置。"
+        />
+      ) : null}
 
       {error ? (
         <Alert
@@ -791,14 +808,16 @@ export function BrandBrainPage() {
         ]}
       />
 
-      <BrandEditorDrawer
-        open={editorOpen}
-        brand={draft}
-        onChange={markDraft}
-        onClose={() => setEditorOpen(false)}
-        onSave={() => void saveBrand()}
-        saving={loading && lastAction === 'updateBrand'}
-      />
+      {canManageBrand ? (
+        <BrandEditorDrawer
+          open={editorOpen}
+          brand={draft}
+          onChange={markDraft}
+          onClose={() => setEditorOpen(false)}
+          onSave={() => void saveBrand()}
+          saving={loading && lastAction === 'updateBrand'}
+        />
+      ) : null}
     </div>
   );
 }
