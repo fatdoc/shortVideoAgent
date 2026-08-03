@@ -23,7 +23,10 @@
 }
 
 .d1-topbar-actions {
+  flex: 1;
+  justify-content: flex-end;
   min-width: 0;
+  white-space: nowrap;
 }
 
 .d1-context-switcher {
@@ -35,7 +38,7 @@
 
 .d1-context-selects {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .d1-context-selects .ant-select {
@@ -361,7 +364,9 @@
   align-items: center;
   gap: 12px;
   border-top: 1px solid #edf0f4;
-  transition: background 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
 }
 
 .d1-product-row:hover {
@@ -791,6 +796,10 @@
   gap: 18px;
 }
 
+.d1-enterprise-context-main {
+  flex-wrap: wrap;
+}
+
 .d1-enterprise-context-main > div {
   display: flex;
   flex-direction: column;
@@ -804,6 +813,29 @@
   color: #1677ff;
   border-radius: 9px;
   background: #dbeafe;
+}
+
+.d1-enterprise-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.d1-enterprise-result-card {
+  min-height: 110px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border: 1px solid #e5eaf2;
+  border-radius: 10px;
+  background: #fafcff;
+}
+
+.d1-enterprise-result-value {
+  color: #172033;
+  font-size: 28px;
+  line-height: 1;
 }
 
 .d1-storyboard-summary {
@@ -837,7 +869,9 @@
   border-top: 1px solid #edf0f4;
   background: #fff;
   cursor: pointer;
-  transition: background 150ms ease, box-shadow 150ms ease;
+  transition:
+    background 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .d1-shot-row:hover {
@@ -901,7 +935,7 @@
   font-size: 11px;
 }
 
-@media (max-width: 1380px) {
+@media (max-width: 1580px) {
   .d1-context-switcher {
     min-width: 435px;
   }
@@ -915,6 +949,16 @@
   }
 
   .d1-truth-digest {
+    display: none;
+  }
+}
+
+@media (max-width: 1380px) {
+  .d1-context-switcher {
+    min-width: 176px;
+  }
+
+  .d1-context-copy {
     display: none;
   }
 
@@ -941,6 +985,10 @@
 
   .d1-enterprise-context-actions .d1-truth-badge {
     display: none;
+  }
+
+  .d1-enterprise-result-grid {
+    grid-template-columns: repeat(3, minmax(180px, 1fr));
   }
 
   .d1-approval-blocker {

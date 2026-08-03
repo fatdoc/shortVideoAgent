@@ -6,8 +6,11 @@ import {
   type Capability,
   type CapabilityTruthManifest,
   type ChannelOrganization,
+  type DemoCommercialParty,
+  type DemoCommercialProjection,
   type ControlPlaneCommercialFixture,
   type ControlPlaneDemoState,
+  type DemoMoneyValue,
   type DemoProjectGrant,
   type Entitlement,
   type AssetReceipt,
@@ -57,8 +60,31 @@ export const ENTITLEMENT_IDS = {
 
 const DEMO_CREATED_AT = '2026-07-30T00:00:00.000Z';
 const DEMO_VALID_TO = '2027-07-30T00:00:00.000Z';
+const DEMO_CHANNEL_MASTER_ID = 'channel-demo-master';
+const DEMO_CHANNEL_LEVEL_1_ID = 'channel-demo-level-1';
+const DEMO_CHANNEL_LEVEL_2_ID = 'channel-demo-level-2';
+const DEMO_PLATFORM_ID = 'platform-videoagent';
+const DEMO_PROVIDER_ID = 'provider-demo-generation';
 export const DEFAULT_STORYCANVAS_API_BASE =
   'http://localhost:10588/api/production/v0.1';
+
+function demoMoney(amountMinor: number): DemoMoneyValue {
+  return {
+    amountMinor,
+    currency: 'CNY',
+    dataMode: 'DEMO',
+    quoteStatus: 'NON_QUOTE',
+    label: DEMO_DATA_LABEL,
+  };
+}
+
+function demoParty(
+  partyType: DemoCommercialParty['partyType'],
+  partyId: string,
+  displayName: string,
+): DemoCommercialParty {
+  return { partyType, partyId, displayName };
+}
 
 const capabilities: Capability[] = [
   {
@@ -273,7 +299,7 @@ const entitlements: Entitlement[] = [
 
 const channels: ChannelOrganization[] = [
   {
-    channelOrganizationId: 'channel-demo-master',
+    channelOrganizationId: DEMO_CHANNEL_MASTER_ID,
     displayName: '总代理演示组织',
     contextType: 'CHANNEL',
     tier: 'MASTER',
@@ -283,22 +309,22 @@ const channels: ChannelOrganization[] = [
     whiteLabelMode: false,
   },
   {
-    channelOrganizationId: 'channel-demo-level-1',
+    channelOrganizationId: DEMO_CHANNEL_LEVEL_1_ID,
     displayName: '一级代理演示组织',
     contextType: 'CHANNEL',
     tier: 'LEVEL_1',
     depth: 2,
-    parentChannelOrganizationId: 'channel-demo-master',
+    parentChannelOrganizationId: DEMO_CHANNEL_MASTER_ID,
     status: 'active',
     whiteLabelMode: false,
   },
   {
-    channelOrganizationId: 'channel-demo-level-2',
+    channelOrganizationId: DEMO_CHANNEL_LEVEL_2_ID,
     displayName: '二级代理演示组织',
     contextType: 'CHANNEL',
     tier: 'LEVEL_2',
     depth: 3,
-    parentChannelOrganizationId: 'channel-demo-level-1',
+    parentChannelOrganizationId: DEMO_CHANNEL_LEVEL_1_ID,
     status: 'active',
     whiteLabelMode: false,
   },
@@ -320,7 +346,7 @@ const memberships: Membership[] = [
     membershipId: 'membership-demo-channel-level-1',
     principalId: 'principal-demo-owner',
     organizationType: 'CHANNEL',
-    organizationId: 'channel-demo-level-1',
+    organizationId: DEMO_CHANNEL_LEVEL_1_ID,
     roleCodes: ['channel.admin'],
     dataScopes: [{ kind: 'CHANNEL_SUBTREE_COMMERCIAL' }],
     status: 'active',
@@ -347,10 +373,186 @@ const memberships: Membership[] = [
   },
 ];
 
+function buildDemoCommercialProjection(): DemoCommercialProjection {
+  const provider = demoParty('PROVIDER', DEMO_PROVIDER_ID, '演示生成服务商');
+  const platform = demoParty('PLATFORM', DEMO_PLATFORM_ID, '短视频营销 Agent 平台');
+  const master = demoParty('CHANNEL', DEMO_CHANNEL_MASTER_ID, '总代理演示组织');
+  const level1 = demoParty('CHANNEL', DEMO_CHANNEL_LEVEL_1_ID, '一级代理演示组织');
+  const level2 = demoParty('CHANNEL', DEMO_CHANNEL_LEVEL_2_ID, '二级代理演示组织');
+  const tenant = demoParty('TENANT', DEMO_TENANT_ID, '海底捞演示企业');
+
+  return {
+    fixedChannelOrganizationId: DEMO_CHANNEL_LEVEL_1_ID,
+    priceSnapshots: [
+      {
+        priceSnapshotId: 'price-demo-upstream-cost',
+        version: 'demo-v1',
+        priceLayer: 'UPSTREAM_COST',
+        seller: provider,
+        buyer: platform,
+        skuId: 'sku-demo-1',
+        chargeUnit: 'PER_STANDARD_TASK',
+        unitPrice: demoMoney(680),
+        taxIncluded: false,
+        effectiveFrom: DEMO_CREATED_AT,
+        effectiveTo: DEMO_VALID_TO,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+      {
+        priceSnapshotId: 'price-demo-platform-master',
+        version: 'demo-v1',
+        priceLayer: 'PLATFORM_SETTLEMENT',
+        seller: platform,
+        buyer: master,
+        skuId: 'sku-demo-1',
+        chargeUnit: 'PER_AI_VIDEO_CREDIT',
+        unitPrice: demoMoney(8),
+        taxIncluded: false,
+        effectiveFrom: DEMO_CREATED_AT,
+        effectiveTo: DEMO_VALID_TO,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+      {
+        priceSnapshotId: 'price-demo-master-level-1',
+        version: 'demo-v1',
+        priceLayer: 'CHANNEL_WHOLESALE',
+        seller: master,
+        buyer: level1,
+        skuId: 'sku-demo-1',
+        chargeUnit: 'PER_AI_VIDEO_CREDIT',
+        unitPrice: demoMoney(10),
+        taxIncluded: false,
+        effectiveFrom: DEMO_CREATED_AT,
+        effectiveTo: DEMO_VALID_TO,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+      {
+        priceSnapshotId: 'price-demo-level-1-level-2',
+        version: 'demo-v1',
+        priceLayer: 'CHANNEL_WHOLESALE',
+        seller: level1,
+        buyer: level2,
+        skuId: 'sku-demo-1',
+        chargeUnit: 'PER_AI_VIDEO_CREDIT',
+        unitPrice: demoMoney(12),
+        taxIncluded: false,
+        effectiveFrom: DEMO_CREATED_AT,
+        effectiveTo: DEMO_VALID_TO,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+      {
+        priceSnapshotId: 'price-demo-level-1-tenant-retail',
+        version: 'demo-v1',
+        priceLayer: 'CUSTOMER_RETAIL',
+        seller: level1,
+        buyer: tenant,
+        skuId: 'sku-demo-1',
+        chargeUnit: 'PER_AI_VIDEO_CREDIT',
+        unitPrice: demoMoney(18),
+        taxIncluded: false,
+        effectiveFrom: DEMO_CREATED_AT,
+        effectiveTo: DEMO_VALID_TO,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+      {
+        priceSnapshotId: 'price-demo-level-1-tenant-campaign',
+        version: 'demo-v1',
+        priceLayer: 'CAMPAIGN',
+        seller: level1,
+        buyer: tenant,
+        skuId: 'sku-demo-1',
+        chargeUnit: 'PER_AI_VIDEO_CREDIT',
+        unitPrice: demoMoney(15),
+        taxIncluded: false,
+        effectiveFrom: DEMO_CREATED_AT,
+        effectiveTo: DEMO_VALID_TO,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+    ],
+    orders: [
+      {
+        orderId: 'order-demo-level-1-level-2-500',
+        seller: level1,
+        buyer: level2,
+        skuId: 'sku-demo-1',
+        status: 'fulfilled',
+        creditAmount: demoCredits(500),
+        listAmount: demoMoney(6000),
+        discountAmount: demoMoney(0),
+        netAmount: demoMoney(6000),
+        acquisitionCost: demoMoney(5000),
+        grossSpread: demoMoney(1000),
+        priceSnapshotIds: ['price-demo-master-level-1', 'price-demo-level-1-level-2'],
+        fulfilledAt: '2026-07-30T01:00:00.000Z',
+        disclaimer: DEMO_DATA_LABEL,
+      },
+      {
+        orderId: 'order-demo-level-1-tenant-1000',
+        seller: level1,
+        buyer: tenant,
+        skuId: 'sku-demo-1',
+        status: 'fulfilled',
+        creditAmount: demoCredits(1000),
+        listAmount: demoMoney(18000),
+        discountAmount: demoMoney(3000),
+        netAmount: demoMoney(15000),
+        acquisitionCost: demoMoney(10000),
+        grossSpread: demoMoney(5000),
+        priceSnapshotIds: [
+          'price-demo-master-level-1',
+          'price-demo-level-1-tenant-retail',
+          'price-demo-level-1-tenant-campaign',
+        ],
+        fulfilledAt: '2026-07-30T02:00:00.000Z',
+        disclaimer: DEMO_DATA_LABEL,
+      },
+    ],
+    channelInventories: [
+      {
+        channelOrganizationId: DEMO_CHANNEL_LEVEL_1_ID,
+        purchasedCredits: demoCredits(2000),
+        allocatedToSubchannels: demoCredits(500),
+        allocatedToTenants: demoCredits(1000),
+        availableCredits: demoCredits(500),
+        asOf: '2026-07-30T23:59:59.000Z',
+        disclaimer: DEMO_DATA_LABEL,
+      },
+    ],
+    settlementSummaries: [
+      {
+        settlementId: 'settlement-demo-level-1-2026-07',
+        channelOrganizationId: DEMO_CHANNEL_LEVEL_1_ID,
+        periodStart: '2026-07-01T00:00:00.000Z',
+        periodEnd: '2026-07-31T23:59:59.000Z',
+        status: 'reviewed',
+        orderIds: ['order-demo-level-1-level-2-500', 'order-demo-level-1-tenant-1000'],
+        openingAvailableCredits: demoCredits(0),
+        purchasedCredits: demoCredits(2000),
+        soldCredits: demoCredits(1500),
+        closingAvailableCredits: demoCredits(500),
+        salesNetAmount: demoMoney(21000),
+        acquisitionCost: demoMoney(15000),
+        grossSpread: demoMoney(6000),
+        unmatchedItemCount: 0,
+        disclaimer: DEMO_DATA_LABEL,
+      },
+    ],
+    platformRisk: {
+      openCommercialExceptions: 1,
+      unmatchedReceiptCount: 0,
+      frozenWalletCount: 0,
+      auditEventCount: 12,
+      asOf: '2026-07-30T23:59:59.000Z',
+      disclaimer: DEMO_DATA_LABEL,
+    },
+    disclaimer: DEMO_DATA_LABEL,
+  };
+}
+
 function buildCommercialFixture(): ControlPlaneCommercialFixture {
   return {
     platform: {
-      platformId: 'platform-videoagent',
+      platformId: DEMO_PLATFORM_ID,
       displayName: '短视频营销 Agent 平台',
       status: 'active',
       contextType: 'PLATFORM',
@@ -362,7 +564,7 @@ function buildCommercialFixture(): ControlPlaneCommercialFixture {
       contextType: 'TENANT',
       status: 'active',
       acquisitionMode: 'CHANNEL',
-      currentServiceChannelOrganizationId: 'channel-demo-level-1',
+      currentServiceChannelOrganizationId: DEMO_CHANNEL_LEVEL_1_ID,
       dataBoundary: 'PRODUCTION_CONTENT',
     },
     memberships: structuredClone(memberships),
@@ -418,6 +620,7 @@ function buildCommercialFixture(): ControlPlaneCommercialFixture {
       },
     ],
     creditState: createDemoReadyCreditState(),
+    demoBusiness: buildDemoCommercialProjection(),
   };
 }
 

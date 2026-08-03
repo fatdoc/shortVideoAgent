@@ -1,36 +1,33 @@
-import { Button, Result } from 'antd';
 import { useEffect, type ReactNode } from 'react';
-import {
-  BrowserRouter,
-  Navigate,
-  Outlet,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-  useParams,
-} from 'react-router-dom';
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { DEMO_PROJECT_ID } from '../domain/constants';
+import { authorizeDemoNavigationRoute } from '../domain/demoRouteAccess';
 import { AppShell } from '../layouts/AppShell';
-import { DashboardPage } from '../pages/dashboard/DashboardPage';
-import { BriefPage } from '../pages/brief/BriefPage';
+import { NotFoundPage } from '../pages/NotFoundPage';
+import { RouteAccessDeniedPage } from '../pages/auth/RouteAccessDeniedPage';
+import { LoginPage } from '../pages/auth/LoginPage';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
+import { BriefPage } from '../pages/brief/BriefPage';
+import {
+  ChannelCustomerUsagePage,
+  ChannelCustomersPage,
+  ChannelOverviewPage,
+  ChannelProductsPage,
+} from '../pages/channel/ChannelCommercialPages';
+import { ProductCatalogPage } from '../pages/commercial/ProductCatalogPage';
+import { DashboardPage } from '../pages/dashboard/DashboardPage';
+import {
+  PlatformCatalogPage,
+  PlatformOrganizationsPage,
+  PlatformOverviewPage,
+  PlatformReceiptMonitorPage,
+} from '../pages/platform/PlatformManagementPages';
+import { IntegratedStoryCanvasPage } from '../pages/production/IntegratedStoryCanvasPage';
+import { ProductionWorkbenchPage } from '../pages/production/ProductionWorkbenchPage';
+import { RoughCutPage } from '../pages/rough-cut/RoughCutPage';
 import { ScriptEditorPage } from '../pages/script-editor/ScriptEditorPage';
 import { StoryboardPage } from '../pages/storyboard/StoryboardPage';
-import { RoughCutPage } from '../pages/rough-cut/RoughCutPage';
-import { NotFoundPage } from '../pages/NotFoundPage';
-import { DEMO_PROJECT_ID } from '../domain/constants';
-import {
-  PlatformReceiptMonitorPage,
-  WorkbenchHomePage,
-} from '../pages/workbench/WorkbenchHomePage';
-import { ProductCatalogPage } from '../pages/commercial/ProductCatalogPage';
-import { ProductionWorkbenchPage } from '../pages/production/ProductionWorkbenchPage';
-import { IntegratedStoryCanvasPage } from '../pages/production/IntegratedStoryCanvasPage';
-import { LoginPage } from '../pages/auth/LoginPage';
-import {
-  canAccessDemoWorkbench,
-  type DemoWorkbench,
-} from '../domain/demoIdentity';
+import { resolveDemoReturnPath } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
 
 function SessionLoading() {
@@ -53,24 +50,32 @@ function RequireSession() {
 
   if (status === 'idle' || status === 'hydrating') return <SessionLoading />;
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
   }
   return <Outlet />;
 }
 
 function LoginEntry() {
+  const location = useLocation();
   const status = useAuthStore((state) => state.status);
   const hydrate = useAuthStore((state) => state.hydrate);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const defaultRoute = useAuthStore((state) => state.defaultRoute);
+  const identity = useAuthStore((state) => state.identity);
 
   useEffect(() => {
     if (status === 'idle') hydrate();
   }, [hydrate, status]);
 
   if (status === 'idle' || status === 'hydrating') return <SessionLoading />;
-  if (isAuthenticated) {
-    return <Navigate to={defaultRoute ?? '/dashboard'} replace />;
+  if (isAuthenticated && identity) {
+    const returnTo = (location.state as { from?: unknown } | null)?.from;
+    return <Navigate to={resolveDemoReturnPath(returnTo, identity)} replace />;
   }
   return <LoginPage />;
 }
@@ -80,55 +85,22 @@ function DefaultEntry() {
   return <Navigate to={defaultRoute ?? '/login'} replace />;
 }
 
-function WorkbenchAccessGuard({
-  workbench,
-  children,
-}: {
-  workbench: DemoWorkbench;
-  children: ReactNode;
-}) {
+function RouteAccessGuard({ children }: { children: ReactNode }) {
+  const location = useLocation();
   const identity = useAuthStore((state) => state.identity);
-  const navigate = useNavigate();
-
-  if (canAccessDemoWorkbench(identity, workbench)) return children;
-
-  return (
-    <Result
-      status="403"
-      title="WORKBENCH_SCOPE_DENIED"
-      subTitle={`当前身份“${identity?.displayName ?? '未识别'}”无权进入该工作台。Demo 身份也必须遵守角色边界。`}
-      extra={
-        <Button
-          type="primary"
-          onClick={() => navigate(identity?.defaultRoute ?? '/login', { replace: true })}
-        >
-          返回我的工作台
-        </Button>
-      }
-    />
+  const decision = authorizeDemoNavigationRoute(
+    identity,
+    `${location.pathname}${location.search}${location.hash}`,
   );
+
+  if (decision.status === 'allowed') return children;
+  if (decision.status === 'unregistered') return <NotFoundPage />;
+
+  return <RouteAccessDeniedPage decision={decision} />;
 }
 
 function CanonicalProjectEntry() {
-  const navigate = useNavigate();
-  const { projectId } = useParams<{ projectId?: string }>();
-
-  if (projectId === DEMO_PROJECT_ID) {
-    return <Navigate to={`/projects/${DEMO_PROJECT_ID}/brand`} replace />;
-  }
-
-  return (
-    <Result
-      status="403"
-      title="ROUTE_ID_REJECTED"
-      subTitle={`Project ${projectId ?? 'missing'} 不是 canonical Demo 身份；已安全拒绝，未映射到 ${DEMO_PROJECT_ID}。`}
-      extra={
-        <Button type="primary" onClick={() => navigate('/dashboard')}>
-          返回企业工作台
-        </Button>
-      }
-    />
-  );
+  return <Navigate to={`/projects/${DEMO_PROJECT_ID}/brand`} replace />;
 }
 
 export function AppRouter() {
@@ -138,122 +110,200 @@ export function AppRouter() {
         <Route path="/login" element={<LoginEntry />} />
         <Route element={<RequireSession />}>
           <Route element={<AppShell />}>
-          <Route index element={<DefaultEntry />} />
-          <Route
-            path="platform/overview"
-            element={
-              <WorkbenchAccessGuard workbench="platform">
-                <WorkbenchHomePage kind="platform" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="platform/organizations"
-            element={
-              <WorkbenchAccessGuard workbench="platform">
-                <WorkbenchHomePage kind="platform" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="platform/catalog"
-            element={
-              <WorkbenchAccessGuard workbench="platform">
-                <ProductCatalogPage audience="platform" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="platform/production-receipts"
-            element={
-              <WorkbenchAccessGuard workbench="platform">
-                <PlatformReceiptMonitorPage />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="channel/overview"
-            element={
-              <WorkbenchAccessGuard workbench="channel">
-                <WorkbenchHomePage kind="channel" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="channel/products"
-            element={
-              <WorkbenchAccessGuard workbench="channel">
-                <ProductCatalogPage audience="channel" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="channel/customers"
-            element={
-              <WorkbenchAccessGuard workbench="channel">
-                <WorkbenchHomePage kind="channel" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="channel/customers/:tenantId/usage"
-            element={
-              <WorkbenchAccessGuard workbench="channel">
-                <WorkbenchHomePage kind="channel" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route
-            path="enterprise/products"
-            element={
-              <WorkbenchAccessGuard workbench="tenant">
-                <ProductCatalogPage audience="tenant" />
-              </WorkbenchAccessGuard>
-            }
-          />
-          <Route path="dashboard" element={<WorkbenchAccessGuard workbench="tenant"><DashboardPage /></WorkbenchAccessGuard>} />
-          <Route path="projects/new" element={<WorkbenchAccessGuard workbench="tenant"><BriefPage /></WorkbenchAccessGuard>} />
-          <Route path="projects/:projectId/brand" element={<WorkbenchAccessGuard workbench="tenant"><BrandBrainPage /></WorkbenchAccessGuard>} />
-          <Route path="projects/:projectId/script" element={<WorkbenchAccessGuard workbench="tenant"><ScriptEditorPage /></WorkbenchAccessGuard>} />
-          <Route path="projects/:projectId/storyboard" element={<WorkbenchAccessGuard workbench="tenant"><StoryboardPage /></WorkbenchAccessGuard>} />
-          <Route path="projects/:projectId/rough-cut" element={<WorkbenchAccessGuard workbench="tenant"><RoughCutPage /></WorkbenchAccessGuard>} />
-          <Route
-            path="projects/:projectId/usage"
-            element={<WorkbenchAccessGuard workbench="tenant"><RoughCutPage view="assets" /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="projects/:projectId/delivery"
-            element={<WorkbenchAccessGuard workbench="tenant"><RoughCutPage view="export" /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="production/overview"
-            element={<WorkbenchAccessGuard workbench="production"><ProductionWorkbenchPage /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="production/inbox/:projectId"
-            element={<WorkbenchAccessGuard workbench="production"><ProductionWorkbenchPage view="inbox" /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="production/canvas/:projectId"
-            element={<WorkbenchAccessGuard workbench="production"><IntegratedStoryCanvasPage /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="production/tasks/:projectId"
-            element={<WorkbenchAccessGuard workbench="production"><ProductionWorkbenchPage view="tasks" /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="production/assets/:projectId"
-            element={<WorkbenchAccessGuard workbench="production"><ProductionWorkbenchPage view="assets" /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="production/export/:projectId"
-            element={<WorkbenchAccessGuard workbench="production"><ProductionWorkbenchPage view="export" /></WorkbenchAccessGuard>}
-          />
-          <Route
-            path="projects/:projectId"
-            element={<WorkbenchAccessGuard workbench="tenant"><CanonicalProjectEntry /></WorkbenchAccessGuard>}
-          />
-          <Route path="*" element={<NotFoundPage />} />
+            <Route index element={<DefaultEntry />} />
+            <Route
+              path="platform/overview"
+              element={
+                <RouteAccessGuard>
+                  <PlatformOverviewPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="platform/organizations"
+              element={
+                <RouteAccessGuard>
+                  <PlatformOrganizationsPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="platform/catalog"
+              element={
+                <RouteAccessGuard>
+                  <PlatformCatalogPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="platform/production-receipts"
+              element={
+                <RouteAccessGuard>
+                  <PlatformReceiptMonitorPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="channel/overview"
+              element={
+                <RouteAccessGuard>
+                  <ChannelOverviewPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="channel/products"
+              element={
+                <RouteAccessGuard>
+                  <ChannelProductsPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="channel/customers"
+              element={
+                <RouteAccessGuard>
+                  <ChannelCustomersPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="channel/customers/:tenantId/usage"
+              element={
+                <RouteAccessGuard>
+                  <ChannelCustomerUsagePage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="enterprise/products"
+              element={
+                <RouteAccessGuard>
+                  <ProductCatalogPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="dashboard"
+              element={
+                <RouteAccessGuard>
+                  <DashboardPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/new"
+              element={
+                <RouteAccessGuard>
+                  <BriefPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId/brand"
+              element={
+                <RouteAccessGuard>
+                  <BrandBrainPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId/script"
+              element={
+                <RouteAccessGuard>
+                  <ScriptEditorPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId/storyboard"
+              element={
+                <RouteAccessGuard>
+                  <StoryboardPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId/rough-cut"
+              element={
+                <RouteAccessGuard>
+                  <RoughCutPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId/usage"
+              element={
+                <RouteAccessGuard>
+                  <RoughCutPage view="assets" />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId/delivery"
+              element={
+                <RouteAccessGuard>
+                  <RoughCutPage view="export" />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="production/overview"
+              element={
+                <RouteAccessGuard>
+                  <ProductionWorkbenchPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="production/inbox/:projectId"
+              element={
+                <RouteAccessGuard>
+                  <ProductionWorkbenchPage view="inbox" />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="production/canvas/:projectId"
+              element={
+                <RouteAccessGuard>
+                  <IntegratedStoryCanvasPage />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="production/tasks/:projectId"
+              element={
+                <RouteAccessGuard>
+                  <ProductionWorkbenchPage view="tasks" />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="production/assets/:projectId"
+              element={
+                <RouteAccessGuard>
+                  <ProductionWorkbenchPage view="assets" />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="production/export/:projectId"
+              element={
+                <RouteAccessGuard>
+                  <ProductionWorkbenchPage view="export" />
+                </RouteAccessGuard>
+              }
+            />
+            <Route
+              path="projects/:projectId"
+              element={
+                <RouteAccessGuard>
+                  <CanonicalProjectEntry />
+                </RouteAccessGuard>
+              }
+            />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
       </Routes>

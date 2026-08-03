@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders } from '../../app/Providers';
 import { DEMO_PROJECT_ID } from '../../domain/constants';
 import { cloneDemoWorkspace } from '../../mocks/demoWorkspace';
+import { DEMO_AUTH_PASSWORD, loginWithDemoAccount } from '../../services/demoAuth';
 import { clearWorkspace } from '../../services/storage';
+import { useAuthStore } from '../../stores/authStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { BrandBrainPage } from './BrandBrainPage';
 
@@ -31,6 +33,8 @@ describe('BrandBrainPage', () => {
     );
     clearWorkspace();
     window.localStorage.clear();
+    loginWithDemoAccount({ loginName: 'tenant', password: DEMO_AUTH_PASSWORD });
+    useAuthStore.getState().hydrate();
     useProjectStore.setState({
       workspace: cloneDemoWorkspace(),
       loading: false,
@@ -65,11 +69,14 @@ describe('BrandBrainPage', () => {
     const merchant = screen.getByTestId('brand-merchant-input');
     fireEvent.change(merchant, { target: { value: '海底捞火锅·北京三里屯旗舰店' } });
     await user.click(screen.getByTestId('brand-drawer-save'));
-    await waitFor(() => {
-      expect(useProjectStore.getState().workspace.brand.merchant).toBe(
-        '海底捞火锅·北京三里屯旗舰店',
-      );
-    }, { timeout: 3000 });
+    await waitFor(
+      () => {
+        expect(useProjectStore.getState().workspace.brand.merchant).toBe(
+          '海底捞火锅·北京三里屯旗舰店',
+        );
+      },
+      { timeout: 3000 },
+    );
   });
 
   it('changes claim status and saves it to the shared workspace', async () => {
@@ -91,5 +98,24 @@ describe('BrandBrainPage', () => {
     await user.click(screen.getByTestId('brand-more'));
     await user.click(await screen.findByTestId('brand-to-script'));
     expect(await screen.findByText('Script route')).toBeInTheDocument();
+  });
+
+  it('keeps brand facts read-only for the content operator', async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().logout();
+    loginWithDemoAccount({ loginName: 'production', password: DEMO_AUTH_PASSWORD });
+    useAuthStore.getState().hydrate();
+
+    renderPage();
+
+    expect(screen.getByTestId('brand-readonly')).toHaveTextContent('品牌资料只读');
+    expect(screen.queryByTestId('brand-edit')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: '事实库' }));
+    expect(screen.getByRole('combobox', { name: 'C1 状态' })).toBeDisabled();
+
+    await user.click(screen.getByTestId('brand-more'));
+    expect(await screen.findByTestId('brand-to-script')).toBeInTheDocument();
+    expect(screen.queryByTestId('brand-save')).not.toBeInTheDocument();
   });
 });

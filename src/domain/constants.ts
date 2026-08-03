@@ -1,3 +1,4 @@
+export const DEMO_TENANT_ID = 'tenant-demo-hdl';
 export const DEMO_PROJECT_ID = 'demo-local-001';
 export const STORAGE_KEY = 'videoagent:mvp:v1';
 

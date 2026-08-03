@@ -1,14 +1,11 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../app/App';
 import { clearWorkspace } from '../services/storage';
 import { useProjectStore } from '../stores/projectStore';
 import { cloneDemoWorkspace } from '../mocks/demoWorkspace';
-import {
-  DEMO_AUTH_PASSWORD,
-  loginWithDemoAccount,
-} from '../services/demoAuth';
+import { DEMO_AUTH_PASSWORD, loginWithDemoAccount } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
 
 describe('app smoke', () => {
@@ -34,18 +31,137 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 2, name: '欢迎登录' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
   });
 
-  it('rejects a tenant identity from the platform workbench', async () => {
+  it('returns to a safe protected path after login', async () => {
+    useAuthStore.getState().logout();
+    window.history.pushState({}, '', '/dashboard?tab=summary#approved');
+    render(<App />);
+
+    await screen.findByRole('heading', { level: 2, name: '登录工作台' });
+    expect(window.history.state.usr?.from).toBe('/dashboard?tab=summary#approved');
+    act(() => {
+      useAuthStore.getState().login({
+        loginName: 'tenant',
+        password: DEMO_AUTH_PASSWORD,
+      });
+    });
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/dashboard');
+      expect(window.location.search).toBe('?tab=summary');
+      expect(window.location.hash).toBe('#approved');
+    });
+  });
+
+  it('renders the unified permission-denied contract', async () => {
     window.history.pushState({}, '', '/platform/overview');
     render(<App />);
 
-    expect(await screen.findByText('WORKBENCH_SCOPE_DENIED')).toBeInTheDocument();
+    expect(await screen.findByText('ROUTE_PERMISSION_DENIED')).toBeInTheDocument();
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent('目标区域：平台总览');
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '当前身份：企业老板 · 租户企业管理员',
+    );
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '海底捞三里屯店 · tenant-demo-hdl',
+    );
+    expect(
+      screen.getByText('前端 Demo 拒绝，不代表生产 RBAC 或服务端安全控制。'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '返回我的工作台' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '退出并切换身份' })).toBeInTheDocument();
   });
+
+  it('renders the unified canonical scope denial', async () => {
+    window.history.pushState({}, '', '/projects/other-project/brand');
+    render(<App />);
+
+    expect(await screen.findByText('ROUTE_ID_REJECTED')).toBeInTheDocument();
+    expect(screen.getByTestId('route-access-denied')).toHaveTextContent(
+      '目标区域：品牌大脑 · /projects/other-project/brand',
+    );
+    expect(screen.getByText(/不是 canonical Demo 资源/)).toBeInTheDocument();
+  });
+
+  it('logs out from the unified denial page before switching identity', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/platform/overview');
+    render(<App />);
+
+    await screen.findByText('ROUTE_PERMISSION_DENIED');
+    await user.click(screen.getByRole('button', { name: '退出并切换身份' }));
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/login');
+    expect(useAuthStore.getState().identity).toBeNull();
+  });
+
+  it('lets the content operator enter the read-only enterprise workbench', async () => {
+    const user = userEvent.setup();
+    useAuthStore.getState().logout();
+    loginWithDemoAccount({
+      loginName: 'production',
+      password: DEMO_AUTH_PASSWORD,
+    });
+    useAuthStore.getState().hydrate();
+    window.history.pushState({}, '', '/production/overview');
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
+    await user.click(await screen.findByText('企业客户工作台'));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
+    });
+    expect(await screen.findByTestId('brand-readonly')).toHaveTextContent('品牌资料只读');
+    expect(screen.queryByTestId('brand-edit')).not.toBeInTheDocument();
+
+    expect(screen.queryByRole('menuitem', { name: /企业工作台/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /已购能力/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /新建 \/ Brief/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /品牌大脑/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /脚本编辑/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /分镜生产单/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /任务 \/ 交付/ })).toBeInTheDocument();
+  });
+
+  it('lets the enterprise admin switch between both authorized workbenches', async () => {
+    const user = userEvent.setup();
+    window.history.pushState({}, '', '/dashboard');
+    render(<App />);
+
+    await screen.findByRole('heading', { level: 3, name: '工作台' });
+    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
+    await user.click(await screen.findByText('媒体生产工作台'));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/production/overview');
+    });
+    expect(
+      await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
+    await user.click(await screen.findByText('企业客户工作台'));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
+    });
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
+    ).toBeInTheDocument();
+  }, 10_000);
 
   it('renders dashboard through router with unified demo data', async () => {
     window.history.pushState({}, '', '/dashboard');
@@ -65,13 +181,19 @@ describe('app smoke', () => {
     await screen.findByRole('heading', { level: 3, name: '工作台' });
 
     await user.click(screen.getByRole('menuitem', { name: /新建 \/ Brief/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
     await waitFor(() => {

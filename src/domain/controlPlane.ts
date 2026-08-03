@@ -31,6 +31,96 @@ export interface DemoMoneyValue extends DemoSemantic {
   currency: 'CNY';
 }
 
+export type DemoCommercialPartyType = 'PROVIDER' | OrganizationContextType;
+
+export interface DemoCommercialParty {
+  partyType: DemoCommercialPartyType;
+  partyId: string;
+  displayName: string;
+}
+
+export type DemoPriceLayer =
+  'UPSTREAM_COST' | 'PLATFORM_SETTLEMENT' | 'CHANNEL_WHOLESALE' | 'CUSTOMER_RETAIL' | 'CAMPAIGN';
+
+export interface DemoPriceSnapshot {
+  priceSnapshotId: string;
+  version: 'demo-v1';
+  priceLayer: DemoPriceLayer;
+  seller: DemoCommercialParty;
+  buyer: DemoCommercialParty;
+  skuId: string;
+  chargeUnit: 'PER_STANDARD_TASK' | 'PER_AI_VIDEO_CREDIT';
+  unitPrice: DemoMoneyValue;
+  taxIncluded: false;
+  effectiveFrom: string;
+  effectiveTo: string;
+  disclaimer: DemoDataLabel;
+}
+
+export interface DemoCommercialOrder {
+  orderId: string;
+  seller: DemoCommercialParty;
+  buyer: DemoCommercialParty;
+  skuId: string;
+  status: 'fulfilled';
+  creditAmount: DemoCreditValue;
+  listAmount: DemoMoneyValue;
+  discountAmount: DemoMoneyValue;
+  netAmount: DemoMoneyValue;
+  acquisitionCost: DemoMoneyValue;
+  grossSpread: DemoMoneyValue;
+  priceSnapshotIds: string[];
+  fulfilledAt: string;
+  disclaimer: DemoDataLabel;
+}
+
+export interface DemoChannelCreditInventory {
+  channelOrganizationId: string;
+  purchasedCredits: DemoCreditValue;
+  allocatedToSubchannels: DemoCreditValue;
+  allocatedToTenants: DemoCreditValue;
+  availableCredits: DemoCreditValue;
+  asOf: string;
+  disclaimer: DemoDataLabel;
+}
+
+export interface DemoChannelSettlementSummary {
+  settlementId: string;
+  channelOrganizationId: string;
+  periodStart: string;
+  periodEnd: string;
+  status: 'reviewed';
+  orderIds: string[];
+  openingAvailableCredits: DemoCreditValue;
+  purchasedCredits: DemoCreditValue;
+  soldCredits: DemoCreditValue;
+  closingAvailableCredits: DemoCreditValue;
+  salesNetAmount: DemoMoneyValue;
+  acquisitionCost: DemoMoneyValue;
+  grossSpread: DemoMoneyValue;
+  unmatchedItemCount: number;
+  disclaimer: DemoDataLabel;
+}
+
+export interface DemoPlatformRiskSummary {
+  openCommercialExceptions: number;
+  unmatchedReceiptCount: number;
+  frozenWalletCount: number;
+  auditEventCount: number;
+  asOf: string;
+  disclaimer: DemoDataLabel;
+}
+
+export interface DemoCommercialProjection {
+  fixedChannelOrganizationId: string;
+  priceSnapshots: DemoPriceSnapshot[];
+  orders: DemoCommercialOrder[];
+  channelInventories: DemoChannelCreditInventory[];
+  settlementSummaries: DemoChannelSettlementSummary[];
+  platformRisk: DemoPlatformRiskSummary;
+  disclaimer: DemoDataLabel;
+}
+
 export interface PlatformContext {
   platformId: string;
   displayName: string;
@@ -690,6 +780,7 @@ export interface ControlPlaneCommercialFixture {
   rateCard: DemoRateCard;
   creditScenarios: DemoCreditScenario[];
   creditState: CreditState;
+  demoBusiness: DemoCommercialProjection;
 }
 
 export interface ControlPlaneDemoState {

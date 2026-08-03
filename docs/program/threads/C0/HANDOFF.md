@@ -22,3 +22,140 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 主持材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
 - 未完成：D2 前端实现、定向测试、lint/build/governance、四身份与越权视觉证据、D2 Demo Pack 增补和最终 Gate。
 - 下游接手：先阅读 D2 权威规格，再按 P0/P1 清单实施与取证；保留 D1 业务事实和交互，不扩张真实后端基础设施。
+
+## A/B Stage 0 交接（2026-07-31）
+
+- A 分支：`dev/control-plane`；基线提交：`f48c210`。
+- 环境和双服务已可运行，详见 `D2_STAGE0_BASELINE.md`。
+- A 进入 A-01：会话合同、过期/损坏处理、安全站内回跳和对应测试。
+- B 待处理：`StoryCanvasApp` Grant prop 类型导致的 Build 阻塞、ScriptEditor 失败测试、StoryCanvas 独立 lint/install Gate、vendor 换行符重写。
+- 默认 Gate 当前状态：Governance PASS；Test/Lint/Build FAIL。任何一方不得把当前状态描述为 D2 Gate 已通过。
+- 共享文件变更继续由 A 审核；B 的共享修复需独立 commit 并说明验收命令。
+
+## A-01 完成交接（2026-07-31）
+
+- A 已完成完整 DemoSession 合同、8 小时过期、损坏清理、身份元数据校验和 LocalStorage 安全失败。
+- Router 已保存 pathname/query/hash，并按当前身份工作台与 canonical Project 执行站内白名单回跳。
+- 定向证据：33 tests PASS，`npx eslint src`、Governance 和 `git diff --check` PASS。
+- 详细报告：`D2_A01_AUTH_SESSION.md`。
+- 本次没有修改 B 独占文件；B 可继续按 Stage 0 交接修复 Grant prop 类型和 ScriptEditor 测试。
+- A-02 身份权限矩阵已冻结；下一步由 A 在共享 Router 实现统一权限和 Scope Guard。
+
+## A-02 权限矩阵冻结（2026-07-31）
+
+- A 已冻结 D2 前端授权为“工作台 + 具体路由/动作 + canonical scope”三层模型。
+- 企业管理员拥有企业与生产工作台；内容运营拥有生产工作台和限定企业生产链入口，品牌大脑仅只读。
+- 内容运营不得进入企业工作台、已购能力、新建 Brief，也不得修改品牌高权限配置。
+- Tenant 固定为 `tenant-demo-hdl`，Project 固定为 `demo-local-001`；错误参数必须明确 403，不得自动映射。
+- B 独占生产页面本轮不需修改；A 将在共享 Router 接入统一权限和 scope guard。
+- 权威实现矩阵：`docs/program/threads/C0/D2_A02_PERMISSION_MATRIX.md`。
+
+## A-02 权限模型第一切片（2026-07-31）
+
+- A 已在 `src/domain/demoIdentity.ts` 落地具体路由/动作权限合同和四身份权限集合。
+- 新权限模型目前尚未扩大旧 `allowedWorkbenches`，避免 Router 接线前产生临时越权。
+- 下一步由 A 原子修改共享 Router、Sidebar、WorkbenchSwitcher 和安全回跳，再启用企业管理员/内容运营的企业 + 生产双工作台。
+- 定向权限/Auth 测试 40 PASS；A 侧 TypeScript 错误为 0。
+- B 侧仍只需处理 `IntegratedStoryCanvasPage.tsx` 的 Grant prop 类型，不需要修改 A 的权限合同。
+
+## A-02 canonical 路由授权内核（第二切片，2026-07-31）
+
+- A 已新增 `src/domain/demoRouteAccess.ts`，把 Router 当前 24 条业务路由统一登记为 permission、workbench、target label 和 scope。
+- canonical Tenant 为 `tenant-demo-hdl`，canonical Project 为 `demo-local-001`；错误 ID 在身份权限之前返回 `scope-denied`。
+- 授权内核只处理纯路径和身份，不依赖 React Router，可被 Router、Sidebar 和安全回跳共同复用。
+- 定向验证：权限/路由/Demo Auth/Auth Store 66 tests PASS；相关 ESLint、Governance、`git diff --check` PASS。
+- TypeScript 仍只被 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误阻塞；A 未修改 B 独占文件。
+- 本切片没有扩大 `allowedWorkbenches`，也没有改变 Router 运行行为。
+- A 下一步接入共享 Router、安全回跳、canonical Scope Guard 和统一 403；Sidebar、WorkbenchSwitcher、双工作台和品牌只读保留到后续原子切片。
+
+## A-02 Router 与统一拒绝合同（第三切片，2026-07-31）
+
+- A 已将 Router 当前 24 条业务路由统一接入 `authorizeDemoNavigationRoute`，不再由各工作台单独维护粗粒度守卫。
+- Router 与登录安全回跳现在共同复用路由登记、canonical Tenant/Project、具体权限和当前启用工作台四层判断。
+- 新增统一 403：权限拒绝使用 `ROUTE_PERMISSION_DENIED`，错误 Tenant/Project 使用 `ROUTE_ID_REJECTED`，并展示身份、角色、组织、目标、返回、退出切换和 Demo 安全声明。
+- 错误 Project 入口不再在页面内自动处理；Scope Guard 会在业务页面渲染前明确拒绝。
+- 定向验证：5 个测试文件、79 tests PASS；相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查 PASS。
+- TypeScript 仍只被 B 侧 `IntegratedStoryCanvasPage.tsx` Grant prop 既有错误阻塞；A 未修改 B 独占文件。
+- 为避免内容运营在品牌大脑只读能力完成前获得编辑页面，本切片没有提前扩大 `allowedWorkbenches`。
+- A 下一步必须原子完成 Sidebar 权限过滤、WorkbenchSwitcher 合法落点、企业管理员/内容运营双工作台和品牌大脑只读，然后更新本切片的跨工作台暂拒测试。
+
+## A-02 菜单、双工作台与品牌只读（第四切片，2026-07-31）
+
+- A 已将企业管理员和内容运营的 `allowedWorkbenches` 原子扩为 `tenant + production`；平台管理员和渠道代理仍为单工作台。
+- 企业工作台统一落到 `/projects/demo-local-001/brand`，生产工作台统一落到 `/production/overview`；WorkbenchSwitcher 还会用 canonical 导航授权过滤无合法入口的选项。
+- Sidebar 已由工作台粗粒度展示改为逐菜单具体权限过滤。内容运营企业侧仅显示品牌大脑、脚本、分镜和任务/交付，不显示企业工作台、已购能力和新建 Brief。
+- 品牌大脑已按 `enterprise.brand-manage` 区分管理与只读：内容运营不能编辑资料、改变事实状态或保存配置，但保留查看、导出和进入脚本的能力。
+- 登录安全回跳与 Router 已允许冻结矩阵中的合法跨工作台路径，同时继续拒绝平台/渠道越权、内容运营 `/dashboard` 和错误 canonical 资源。
+- 验证证据：权限/路由/Auth/品牌 71 tests PASS，App Smoke 11 tests PASS；相关 ESLint、Governance、`git diff --check` 和 B 独占目录检查 PASS。
+- TypeScript 仍只被 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 既有错误阻塞；A 未修改 B 独占文件。
+- A-02 前端权限、路由、菜单和只读动作合同已完成定向收口。A 下一步进入 A-03 控制平面业务收口；最终 D2 Gate 仍需等待 B 基线缺口、视觉证据和完整回归。
+
+## A-03 控制平面业务收口计划（2026-07-31）
+
+- A 已完成平台、固定一级渠道和企业控制平面的只读审计；当前未修改业务代码。
+- 现有合同已具备组织、产品、SKU、Entitlement、RateCard、Tenant Wallet、CreditLedger 和三类 Receipt，但没有渠道库存、价格、订单或收益只读投影。
+- A-03 将先新增带 `DEMO / NON_QUOTE` 标识的 scoped commercial projection 与 selector 测试，再依次收口平台、渠道和企业页面。
+- 渠道固定使用 `channel-demo-level-1` + `CHANNEL_SUBTREE_COMMERCIAL`，不提前实现真实多级继承、自动分佣、支付或结算引擎。
+- 金额与额度严格分离；金额不进入 CreditLedger，客户价格和 Wallet 不进入 ProjectProductionPackage。
+- A 不修改 B 独占生产目录；企业生产结果只消费 Receipt/Asset/Export 元数据。
+- 详细计划：`docs/program/threads/C0/D2_A03_CONTROL_PLANE_PLAN.md`。
+- 下一切片：A-03.1 商业只读投影与工作台可见性 selector，独立测试并独立提交。
+
+## A-03.1 商业只读投影交接（2026-07-31）
+
+- A 已在 `ControlPlaneCommercialFixture.demoBusiness` 落地 canonical Demo 商业只读投影，数据参与 fixture digest、运行时校验和 reset 重建。
+- 投影包含五层价格、两条订单、固定一级渠道库存与对账、平台风险摘要；金额全部为 `amountMinor + CNY`，并保留 `DEMO / NON_QUOTE` 声明。
+- `src/domain/controlPlaneViewModels.ts` 已提供 platform/channel/tenant 三类可见性 selector；平台/渠道不获得企业生产正文，企业不获得价格、订单、库存、对账或平台风险。
+- 渠道视角固定为 `channel-demo-level-1`，只暴露 Master→Level 1 直接取得价和 Level 1 直接售出价格；上游 Provider 成本与 Platform→Master 结算价不可见。
+- 定向测试与 storage/mock adapter 合计 12/12 PASS；相关 ESLint、Governance、diff 和 B 独占目录检查 PASS。
+- 全量 TypeScript 未发现 A-03.1 新增错误；仍有 B 侧 StoryCanvas Grant prop 和根 Vite Node 类型声明基线缺口。
+- 下一步由 A 进入 A-03.2，只改共享平台控制平面页面和测试，不修改 B 独占目录。
+
+## A-03.2 平台路由语义分离交接（2026-07-31）
+
+- A 已将 `/platform/overview`、`/platform/organizations`、`/platform/catalog` 和 `/platform/production-receipts` 拆成四个独立平台管理页面。
+- 四页面统一使用 `selectPlatformCommercialView`；selector 新增 Capability 与 RateCard 投影，平台页面不再直接读取 Tenant `creditState.ledger`、ScriptApproval、ProductionPackage 或生产正文。
+- overview 负责全局指标与入口，organizations 负责组织树和 Tenant 内容边界，catalog 负责 Product/Capability/SKU/RateCard 与五层非正式价格，receipts 负责 GenerationTask/Asset/Export 状态和异常计数。
+- 旧 `WorkbenchHomePage` 平台分支和旧 Wallet/ledger 回执投影已删除；渠道页面仍保持原实现，A-03.3 再按固定一级渠道 selector 收口。
+- 验证证据：平台页面 4/4、selector 7/7、App Smoke 11/11 PASS；相关 ESLint、Governance、diff 和 B 独占目录检查 PASS。
+- TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
+- 下一步由 A 进入 A-03.3；B 独占目录本切片无变更。
+
+## A-03.3 渠道商业视角收口交接（2026-07-31）
+
+- A 已将 `/channel/overview`、`/channel/products`、`/channel/customers` 和 `/channel/customers/:tenantId/usage` 拆成四个独立渠道商业页面。
+- 四页面统一使用 `selectChannelCommercialView`，固定视角为 `channel-demo-level-1` + `CHANNEL_SUBTREE_COMMERCIAL`；Router 继续统一拒绝错误 canonical Tenant。
+- overview 展示当前一级渠道、直接下级、企业客户、额度库存、销售净额和订单毛差；products 仅展示非锁定产品及当前渠道直接参与的价格快照，上游 Provider 成本与 Platform→Master 结算价不可见。
+- customers 展示 Tenant 商业状态、Entitlement 数量和汇总用量；usage 展示 Wallet、客户订单、消费/释放聚合与三类回执数量，不展开生产正文或原始 CreditLedger。
+- `TenantCommercialSummary.creditUsage` 由 canonical `creditScenarios` 聚合 consumed/released 数量，仅作为 Demo 商业摘要。
+- 无路由引用的旧 `WorkbenchHomePage` 已删除；A 未修改 B 独占目录。
+- 验证证据：渠道页面 4/4、selector 7/7、App Smoke 11/11 PASS；相关 ESLint、Prettier、Governance、diff 和 B 独占目录检查 PASS。
+- TypeScript 未新增 A 侧错误；剩余三个错误仍为 B 侧 Grant prop 与根 Vite Node 类型声明既有基线。
+- 下一步由 A 进入 A-03.4 企业经营概览与产品语义。
+
+## A-03.4 企业经营概览与产品语义交接（2026-07-31）
+
+- `/enterprise/products` 已从通用 platform/channel/tenant 目录组件收口为企业专用产品语义，唯一数据入口为 `selectTenantCommercialView`。
+- 企业产品状态由当前 Tenant Entitlement 决定：2 项已购、2 项说明态、2 项锁定；平台目录 `availability` 不再直接代表企业已购。
+- `TenantProductView` 提供 Product、Capability、SKU、Entitlement 关联投影，不暴露价格、订单、渠道库存、结算、平台风险或 CreditLedger。
+- 企业产品页不再展示平台式演示 RateCard；“开始使用”固定进入 `/projects/demo-local-001/brand`，说明态不执行，锁定态按钮禁用。
+- Dashboard 通过 tenant selector 展示团队、项目、Wallet、已购能力和三类回执状态计数；Receipt 聚合按 canonical Tenant 过滤，且不返回 input digest、storage reference、output asset IDs 等载荷字段。
+- A-02 内容运营拒绝 `/dashboard`、`/enterprise/products` 的合同未修改，并由 `demoRouteAccess.test.ts` 回归覆盖。
+- 验证：ProductCatalog 3/3、Dashboard 3/3、selector 8/8、route access 28/28、App Smoke 11/11，合计 53/53 PASS；ESLint、Prettier、Governance、`git diff --check`、B 独占目录检查 PASS。
+- TypeScript 未新增 A-03.4 错误；仍复现三个既有错误：B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型。
+- A 下一步进入 A-03.5；B 独占目录本切片无变更。
+
+## A-03 控制平面集成交接（2026-07-31）
+
+- 状态：A-01 Mock 会话、A-02 路由/动作/canonical Scope 授权、A-03 平台/渠道/企业商业视图均已完成；A 控制平面标记为 `READY_FOR_INTEGRATION`，不代表 D2 全仓 Gate 已通过。
+- 分支与范围：`dev/control-plane`，基线 `f48c210`，交付头提交 `e4d70ff`；本次文档收口提交完成后以新的分支头为准。
+- A-03 提交顺序：`d99e9b7` 计划 → `5a9cf52` 商业投影 → `33e6b90` 平台页面 → `351a368` 渠道页面 → `3a04748` 企业页面 → `e4d70ff` 顶栏视觉修复。
+- 定向证据：四身份/越权/App Smoke 合计 49/49 PASS；A-03.4 页面、Selector、权限与 Smoke 合计 53/53 PASS；Governance、相关 ESLint/Prettier、`git diff --check` 和 B 独占目录检查 PASS。
+- 视觉证据：完成 1440×900 平台、渠道、企业关键页面检查和 1280 宽度补充检查；顶栏上下文选择器已保持在 56px 顶栏内，较窄视口下退出操作保持可见。
+- A 未修改 B 独占目录：`src/pages/production/`、`src/pages/script-editor/`、`src/pages/storyboard/`、`src/pages/rough-cut/`、`src/features/storycanvas/`、`apps/storycanvas/src/`。
+- 全量 Test 基线：132/141 PASS、9 项超时失败、1 个环境卸载后的 MutationObserver 异常；失败文件单独复跑 BrandBrain 5/5、Brief 2/2、ScriptEditor 8/8、App Smoke 11/11 PASS。完整 Test Gate 仍为 FAIL，集成阶段需处理并发资源或超时配置，不能用定向通过替代全量 Gate。
+- 全量 Build 基线：3 个既有错误，分别为 B 侧 `IntegratedStoryCanvasPage.tsx:76` Grant prop 类型，以及根 `vite.config.ts` 缺少 `node:path` / `__dirname` 类型。
+- 全量 Lint 基线：702 problems（697 errors、5 warnings），主要位于 `apps/storycanvas/src/` 等 StoryCanvas 存量代码。
+- B 交付要求：推送 `dev/production-plane`；提供提交清单、共享文件改动、验证命令和已知问题；共享文件修改必须独立 commit，禁止强推或覆盖 A 成果。
+- 集成方式：不要把 B 分支直接合入 `dev/control-plane`。从最新 `main` 创建短期 `integration/d2-a03-b03`，依次合并 A、B，逐段审查 Router/layout/design/contracts/store 等共享冲突。
+- 集成 Gate：`npm test`、`npm run lint`、`npm run build`、`npm run validate:governance`、`git diff --check`，并回归四身份、直接 URL 越权、D1 生产主链和 1440×900/1280×800 关键视口。
