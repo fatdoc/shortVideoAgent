@@ -35,3 +35,5 @@
 | 2026-08-03 | A 分支快进至已验收 `main@8594e21`，完成 A-04 生产交付投影审计，冻结 Tenant/Project ViewModel、Store/Adapter 测试、Dashboard 与 B 只读边界 | A04_PLAN_READY                          |
 | 2026-08-03 | 完成 Tenant/Project 交付只读投影，唯一任务、双范围、运行额度和安全字段 6 项测试通过                                                       | A04_DELIVERY_VIEW_READY                 |
 | 2026-08-03 | 完成 Adapter/Store/Reset 可靠性，修复 Reset 旧证据残留，A-04.1～2 联合 28 项测试通过                                                      | A04_2_RELIABILITY_READY                 |
+| 2026-08-03 | 企业 Dashboard 接入安全交付 ViewModel，覆盖空状态、成功、部分同步与 Reset，完成 1440×900 / 1280×800 视觉验收                              | A04_3_DASHBOARD_READY                   |
+| 2026-08-03 | A-04 定向 51 项、全量串行 181 项测试、Build、Governance 和 A 范围 ESLint 通过；记录 B StoryCanvas 全仓 Lint 存量阻塞                      | A04_READY_FOR_INTEGRATION               |

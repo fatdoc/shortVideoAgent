@@ -181,3 +181,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证：A-04.1 + A-04.2 共 6 个 Test Files、28 个 Tests PASS；相关 ESLint、Prettier、`git diff --check` PASS；生产 Build PASS。
 - A 未修改 `src/services/storyCanvasBridge.ts`、生产页面/组件、StoryCanvas 或 `apps/storycanvas/src/`。
 - 下一步：A-04.3 由 Dashboard 消费安全 ViewModel，保持企业管理员可见、内容运营拒绝合同，并完成页面 Reset 状态与两档视口验收。
+
+## A-04 控制平面交付状态完成交接（2026-08-03）
+
+- 状态：`A04_READY_FOR_INTEGRATION`；A-04.1～A-04.4 已完成。
+- 企业 Dashboard 只消费安全 Tenant/Project ViewModel，展示 Package、Grant、transport、receipt sync、唯一任务、Asset/Export、额度 reserved/consumed/released 和安全错误，不泄漏 Receipt payload、存储引用、Provider 内部字段、商业价格或跨租户数据。
+- 功能提交：`47e74b0` Delivery View → `85f4251` Adapter 测试 → `3cf56fd` Store 同步测试 → `926fa06` Reset 清理 → `9a224be` Dashboard UI；中间边界测试提交见分支日志。
+- 定向回归：4 Files / 51 Tests PASS；全量串行回归：26 Files / 181 Tests PASS。
+- Build PASS，Governance PASS，`git diff --check` PASS；A-04 文件定向 ESLint PASS。
+- 视觉证据：`docs/program/evidence/a04-dashboard-delivery-1440x900.png`、`docs/program/evidence/a04-dashboard-delivery-1280x800.png`；两档均无横向溢出。
+- 全仓 `npm run lint` 仍被 B 的 StoryCanvas 存量代码阻塞：702 problems（697 errors、5 warnings）。A 不修改 `src/features/storycanvas/`、生产页面/组件、`storyCanvasBridge.ts` 或 `apps/storycanvas/src/` 来消除此债务。
+- StoryCanvas API 启动后产生的未跟踪空文件 `apps/storycanvas/data/vendor/byteplus.ts` 属于 B 范围，A 提交必须排除。
+- 集成建议：推送 `dev/control-plane` 后，从最新 `main` 建立短期集成分支；全仓 Lint 由 B 修复或在集成验收中作为明确阻塞处理。

@@ -269,8 +269,19 @@ A-04.0～A-04.3 基于当前 `main@8594e21` 可以独立实施，目前无 B 阻
 - A-04.1 + A-04.2 联合回归：6 个 Test Files、28 个 Tests 全部通过；相关 ESLint、Prettier 与 `git diff --check` 通过。
 - 提交序列：`85f4251` Adapter 测试 → `3cf56fd` Store 同步测试 → `926fa06` Reset 清理修复 → 本次边界测试与文档收口提交。
 
-### 8.3 下一步
+### 8.3 A-04.3 企业 Dashboard 交付状态完成
 
-- A-04.2 验收条件已满足，当前无 B 阻塞。
-- 下一切片进入 A-04.3：Dashboard 只消费安全 ViewModel，展示企业项目交付状态、额度解释、最近同步和可恢复动作，并保持内容运营拒绝合同。
-- 页面级 Reset 成功/失败展示、1440×900 与 1280×800 视觉检查归入 A-04.3，不在可靠性层跨范围实现。
+- Dashboard 已接入 `selectTenantProjectDeliveryView()`，展示 Package、Grant、transport、receipt sync、唯一任务、Asset/Export、运行额度与安全错误。
+- 页面不再以 Receipt 事件条数冒充任务数，不展示原始 Bridge/Receipt payload、存储引用、Provider 字段或跨租户数据。
+- 页面测试覆盖安全空状态、canonical success、partial sync 与 Reset 后旧证据清理。
+- 功能提交：`9a224be feat(control-plane): surface tenant delivery evidence`。
+- 1440×900 与 1280×800 视觉验收均通过，无横向溢出；证据保存在 `docs/program/evidence/a04-dashboard-delivery-*.png`。
+
+### 8.4 A-04.4 回归与收口完成
+
+- 定向回归：4 Files / 51 Tests PASS。
+- 全量串行回归：26 Files / 181 Tests PASS。
+- A-04 变更文件定向 ESLint PASS；Build PASS（仅既有大 chunk warning）；Governance PASS；`git diff --check` PASS。
+- 全仓 `npm run lint` 复现 B 独占 StoryCanvas 存量问题：702 problems（697 errors、5 warnings）；A 不跨边界修改。
+- StoryCanvas API 运行时生成的未跟踪空文件 `apps/storycanvas/data/vendor/byteplus.ts` 属于 B 范围，明确排除在 A 提交之外。
+- A-04 状态：`A04_READY_FOR_INTEGRATION`；下一步创建文档收口提交、推送 `dev/control-plane` 并进入正式集成。

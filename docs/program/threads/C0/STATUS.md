@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_2_RELIABILITY_READY`
-- 当前任务：负责人 A 已完成 A-04.1 Tenant/Project 交付只读投影与 A-04.2 Store/Adapter/Reset 可靠性，下一步进入 A-04.3 企业 Dashboard 交付状态 UI
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_READY_FOR_INTEGRATION`
+- 当前任务：负责人 A 已完成 A-04 Tenant/Project 交付投影、可靠性、企业 Dashboard 和收口验证；下一步提交并推送 `dev/control-plane`，再进入正式集成
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -14,7 +14,7 @@
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：A-04.3 当前无 B 阻塞；未来联合 Phase1 集成只接收双方确认的正式 `dev/*`，不接收 `origin/codex/*` 临时分支
+- 阻塞：A-04 功能无 B 阻塞；全仓 `npm run lint` 仍被 B 独占 StoryCanvas 存量代码阻塞（697 errors / 5 warnings），A 以本轮文件定向 ESLint 通过作为控制平面交付证据；未来集成只接收正式 `dev/*`
 - 最近更新：2026-08-03
 
 ## 2026-07-30 单前端收口
@@ -194,3 +194,15 @@
 - 已最小修复成功 Reset 后 `lastPackageDispatch` / `lastReceiptSync` 残留；A 未修改 B 独占 Bridge、生产页面或 StoryCanvas 实现。
 - 联合验证：6 个 Test Files、28 个 Tests PASS；相关 ESLint、Prettier、`git diff --check` PASS；A-04.2c 生产 Build PASS，仅有既有的大 chunk 警告。
 - 当前状态：`A04_2_RELIABILITY_READY`；下一步 A-04.3 企业 Dashboard 交付状态 UI。
+
+## 2026-08-03 A-04.3～A-04.4 企业交付状态与收口
+
+- 企业 Dashboard 已消费 `selectTenantProjectDeliveryView()`，展示 Package、Grant、transport、receipt sync、唯一任务、Asset/Export、运行额度和安全错误；不读取或展示 Bridge/Receipt 原始 payload。
+- 页面测试覆盖安全空状态、canonical success、partial sync 和 Reset 后旧证据清理；功能提交为 `9a224be feat(control-plane): surface tenant delivery evidence`。
+- 定向回归：Dashboard、Delivery View、Route Access、App Smoke 合计 4 Files / 51 Tests PASS。
+- 全量串行测试：26 Files / 181 Tests PASS。
+- 视觉验收：1440×900 与 1280×800 均无横向溢出，交付状态卡片完整可读；证据见 `docs/program/evidence/a04-dashboard-delivery-1440x900.png` 与 `a04-dashboard-delivery-1280x800.png`。
+- A-04 变更文件定向 ESLint PASS；Build PASS（仅既有大 chunk warning）；Governance PASS；`git diff --check` PASS。
+- 全仓 Lint 仍为 702 problems（697 errors、5 warnings），集中于 B 独占的 `apps/storycanvas/src/`、`apps/storycanvas/data/vendor/` 与生成文件，不由 A 越界修复。
+- StoryCanvas API 运行时生成的未跟踪空文件 `apps/storycanvas/data/vendor/byteplus.ts` 属于 B 范围，不纳入 A 提交。
+- 当前状态：`A04_READY_FOR_INTEGRATION`。
