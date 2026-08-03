@@ -159,3 +159,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 交付要求：推送 `dev/production-plane`；提供提交清单、共享文件改动、验证命令和已知问题；共享文件修改必须独立 commit，禁止强推或覆盖 A 成果。
 - 集成方式：不要把 B 分支直接合入 `dev/control-plane`。从最新 `main` 创建短期 `integration/d2-a03-b03`，依次合并 A、B，逐段审查 Router/layout/design/contracts/store 等共享冲突。
 - 集成 Gate：`npm test`、`npm run lint`、`npm run build`、`npm run validate:governance`、`git diff --check`，并回归四身份、直接 URL 越权、D1 生产主链和 1440×900/1280×800 关键视口。
+
+## A-04.0 控制平面生产交付投影计划（2026-08-03）
+
+- A-01～A-03 与第一轮 A/B 集成已进入 `main@8594e21`；`dev/control-plane` 已 fast-forward 到该基线。
+- `integration/d2-phase1-production-loop` 保持干净并留给未来正式集成；`origin/codex/*` 已确认为 B 临时分支，不 merge、不 cherry-pick，也不作为 A 的设计输入。
+- A-04 目标是在现有 v0.1 Package / Grant / Receipt / Credit 合同上，形成 Tenant/Project scoped 的生产交付只读投影、Store/Adapter 可靠性证据和企业 Dashboard 状态解释。
+- 审计发现当前商业 selector 只提供 Receipt 数量；Dashboard 没有消费 last dispatch/sync/transport/error；任务按 Receipt 记录计数而不是唯一 task 归并；Adapter、Store、Bridge 边界和原子 reset 缺少直接测试。
+- A 边界：允许修改 controlPlane domain/view model、controlPlane Adapter/Store、reset、Dashboard 和 A 文档；不得修改 `storyCanvasBridge.ts`、生产页面/组件、StoryCanvas 或 `apps/storycanvas/src/`。Bridge 问题必须交给 B。
+- 基线验证：相关 4 个测试文件 16/16 PASS。
+- 详细计划：`docs/program/threads/C0/D2_A04_DELIVERY_EVIDENCE_PLAN.md`。
+- 下一切片：A-04.1 `feat(control-plane): add tenant delivery evidence projection`。
