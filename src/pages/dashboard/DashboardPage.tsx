@@ -15,8 +15,10 @@ import { ProjectMetricCard, WorkflowProgress } from '../../components/project';
 import { TruthBadge } from '../../components/workbench/TruthBadge';
 import '../../components/project/project-workflow.css';
 import { DEMO_PROJECT_ID, PROJECT_STATUS_LABEL, ROUTES } from '../../domain/constants';
+import { selectTenantProjectDeliveryView } from '../../domain/controlPlaneDeliveryView';
 import { selectTenantCommercialView } from '../../domain/controlPlaneViewModels';
 import { summarizeWorkspace } from '../../domain/selectors';
+import { DEMO_TENANT_ID } from '../../mocks/controlPlaneDemo';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { useProjectStore } from '../../stores/projectStore';
 
@@ -28,15 +30,27 @@ export function DashboardPage() {
   const hydrate = useProjectStore((state) => state.hydrate);
   const clearError = useProjectStore((state) => state.clearError);
   const controlPlane = useControlPlaneStore((state) => state.snapshot);
+  const lastReceiptSync = useControlPlaneStore((state) => state.lastReceiptSync);
+  const controlPlaneError = useControlPlaneStore((state) => state.error);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const summary = useMemo(() => summarizeWorkspace(workspace), [workspace]);
   const tenantView = useMemo(() => selectTenantCommercialView(controlPlane), [controlPlane]);
+  const deliveryView = useMemo(
+    () =>
+      selectTenantProjectDeliveryView(controlPlane, {
+        tenantId: DEMO_TENANT_ID,
+        projectId: DEMO_PROJECT_ID,
+        now: new Date().toISOString(),
+        receiptSync: lastReceiptSync,
+        error: controlPlaneError,
+      }),
+    [controlPlane, controlPlaneError, lastReceiptSync],
+  );
   const activeEntitlementCount = tenantView.entitlements.filter(
     (entitlement) => entitlement.status === 'active',
   ).length;
-  const operations = tenantView.operations;
   const visibleProject =
     workspace.project.id &&
     workspace.project.name.toLowerCase().includes(query.trim().toLowerCase()) &&
@@ -150,53 +164,93 @@ export function DashboardPage() {
         />
       </div>
 
-      <section className="project-surface" data-testid="dashboard-production-results">
+      <section className="project-surface" data-testid="dashboard-delivery-status">
         <div className="project-section-heading">
           <div>
-            <Typography.Title level={5}>生产结果回执摘要</Typography.Title>
+            <Typography.Title level={5}>项目交付状态</Typography.Title>
             <Typography.Text type="secondary">
-              仅汇总 GenerationTask、Asset 与 Export 回执元数据，不展示生产正文。
+              由租户 / 项目安全投影汇总，不直接展示 Bridge 或 Receipt 原始载荷。
             </Typography.Text>
           </div>
-          <Tag color="gold">{tenantView.disclaimer}</Tag>
+          <div className="dashboard-delivery-disclaimer">
+            <Tag color="blue">{deliveryView.disclaimer.dataMode}</Tag>
+            <Tag color="gold">{deliveryView.disclaimer.truthMode}</Tag>
+            <Tag>{deliveryView.disclaimer.authority}</Tag>
+          </div>
         </div>
+
+        <div className="dashboard-delivery-status-rail">
+          <Tag color={deliveryView.package.status === 'ready' ? 'green' : 'default'}>
+            Package {deliveryView.package.status}
+          </Tag>
+          <Tag color={deliveryView.grant.status === 'active' ? 'green' : 'default'}>
+            Grant {deliveryView.grant.status}
+          </Tag>
+          <Tag color={deliveryView.transport.connected ? 'processing' : 'default'}>
+            传输 {deliveryView.transport.status}
+          </Tag>
+          <Tag color={deliveryView.receiptSync.status === 'partial_failure' ? 'orange' : 'default'}>
+            最近同步 {deliveryView.receiptSync.status}
+          </Tag>
+        </div>
+
         <div className="d1-enterprise-result-grid">
           <article className="d1-enterprise-result-card">
-            <Typography.Text type="secondary">GenerationTask</Typography.Text>
+            <Typography.Text type="secondary">任务终态</Typography.Text>
             <Typography.Text strong className="d1-enterprise-result-value">
-              {operations.generationTasks.total}
+              唯一任务 {deliveryView.summary.uniqueTaskCount}
             </Typography.Text>
             <div>
-              <Tag color="green">成功 {operations.generationTasks.byStatus.succeeded ?? 0}</Tag>
-              <Tag color={operations.generationTasks.failed > 0 ? 'error' : 'default'}>
-                失败 {operations.generationTasks.failed}
+              <Tag color="green">成功 {deliveryView.summary.succeeded}</Tag>
+              <Tag color={deliveryView.summary.failed > 0 ? 'error' : 'default'}>
+                失败 {deliveryView.summary.failed}
+              </Tag>
+              <Tag>进行中 {deliveryView.summary.inProgress}</Tag>
+            </div>
+          </article>
+          <article className="d1-enterprise-result-card">
+            <Typography.Text type="secondary">交付证据</Typography.Text>
+            <Typography.Text strong>
+              可交付 Asset {deliveryView.summary.deliverableAssetCount}
+            </Typography.Text>
+            <Typography.Text strong>Export {deliveryView.summary.exportCount}</Typography.Text>
+            <div>
+              <Tag>accepted {deliveryView.receiptSync.accepted}</Tag>
+              <Tag>duplicate {deliveryView.receiptSync.duplicate}</Tag>
+              <Tag color={deliveryView.receiptSync.rejected > 0 ? 'error' : 'default'}>
+                rejected {deliveryView.receiptSync.rejected}
+              </Tag>
+              <Tag color={deliveryView.receiptSync.ackError > 0 ? 'orange' : 'default'}>
+                ACK error {deliveryView.receiptSync.ackError}
               </Tag>
             </div>
           </article>
           <article className="d1-enterprise-result-card">
-            <Typography.Text type="secondary">Asset</Typography.Text>
-            <Typography.Text strong className="d1-enterprise-result-value">
-              {operations.assets.total}
-            </Typography.Text>
-            <div>
-              <Tag color="blue">已登记 {operations.assets.byReviewStatus.registered ?? 0}</Tag>
-              <Tag color="green">已通过 {operations.assets.byReviewStatus.approved ?? 0}</Tag>
-              <Tag color="orange">QA 阻断 {operations.assets.byReviewStatus.qa_blocked ?? 0}</Tag>
+            <Typography.Text type="secondary">AI 视频额度证据</Typography.Text>
+            <div className="dashboard-delivery-credit-list">
+              <Typography.Text strong>
+                reserved {deliveryView.summary.credits.reserved}
+              </Typography.Text>
+              <Typography.Text strong>
+                consumed {deliveryView.summary.credits.consumed}
+              </Typography.Text>
+              <Typography.Text strong>
+                released {deliveryView.summary.credits.released}
+              </Typography.Text>
             </div>
-          </article>
-          <article className="d1-enterprise-result-card">
-            <Typography.Text type="secondary">Export</Typography.Text>
-            <Typography.Text strong className="d1-enterprise-result-value">
-              {operations.exports.total}
-            </Typography.Text>
-            <div>
-              <Tag color="green">成功 {operations.exports.byStatus.succeeded ?? 0}</Tag>
-              <Tag color={operations.exports.failed > 0 ? 'error' : 'default'}>
-                失败 {operations.exports.failed}
-              </Tag>
-            </div>
+            <Typography.Text type="secondary">{deliveryView.summary.credits.unit}</Typography.Text>
           </article>
         </div>
+
+        {deliveryView.lastError ? (
+          <Alert
+            className="dashboard-delivery-error"
+            type={deliveryView.lastError.retryable ? 'warning' : 'error'}
+            showIcon
+            message={`${deliveryView.lastError.code} · ${deliveryView.lastError.message}`}
+            description={`可重试：${deliveryView.lastError.retryable ? '是' : '否'}`}
+          />
+        ) : null}
       </section>
 
       <div className="project-dashboard-grid">

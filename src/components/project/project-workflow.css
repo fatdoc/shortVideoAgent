@@ -121,6 +121,44 @@
   gap: 2px;
 }
 
+.dashboard-delivery-disclaimer,
+.dashboard-delivery-status-rail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-delivery-disclaimer .ant-tag,
+.dashboard-delivery-status-rail .ant-tag {
+  margin: 0;
+}
+
+.dashboard-delivery-status-rail {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5eaf2;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.dashboard-delivery-credit-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dashboard-delivery-credit-list .ant-typography {
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #f0f5ff;
+  font-size: 12px;
+}
+
+.dashboard-delivery-error {
+  margin-top: 12px;
+}
+
 .project-list-tools {
   display: flex;
   align-items: center;
@@ -135,7 +173,10 @@
   grid-template-columns: minmax(260px, 1.5fr) minmax(150px, 0.65fr) minmax(130px, 0.55fr) auto;
   gap: 20px;
   align-items: center;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .project-list-row:hover {
