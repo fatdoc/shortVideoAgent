@@ -646,6 +646,8 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
           error: null,
           lastAction: 'resetDemoExperience',
           lastSourceChain: null,
+          lastPackageDispatch: null,
+          lastReceiptSync: null,
         });
       } catch (error) {
         set({
@@ -656,6 +658,8 @@ export const useControlPlaneStore = create<ControlPlaneStoreState>((set, get) =>
           error: toErrorShape(error),
           lastAction: 'resetDemoExperience:organization-rejected',
           lastSourceChain: null,
+          lastPackageDispatch: null,
+          lastReceiptSync: null,
         });
       }
     },
