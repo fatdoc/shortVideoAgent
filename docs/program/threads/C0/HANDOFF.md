@@ -159,3 +159,37 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 交付要求：推送 `dev/production-plane`；提供提交清单、共享文件改动、验证命令和已知问题；共享文件修改必须独立 commit，禁止强推或覆盖 A 成果。
 - 集成方式：不要把 B 分支直接合入 `dev/control-plane`。从最新 `main` 创建短期 `integration/d2-a03-b03`，依次合并 A、B，逐段审查 Router/layout/design/contracts/store 等共享冲突。
 - 集成 Gate：`npm test`、`npm run lint`、`npm run build`、`npm run validate:governance`、`git diff --check`，并回归四身份、直接 URL 越权、D1 生产主链和 1440×900/1280×800 关键视口。
+
+## A-04.0 控制平面生产交付投影计划（2026-08-03）
+
+- A-01～A-03 与第一轮 A/B 集成已进入 `main@8594e21`；`dev/control-plane` 已 fast-forward 到该基线。
+- `integration/d2-phase1-production-loop` 保持干净并留给未来正式集成；`origin/codex/*` 已确认为 B 临时分支，不 merge、不 cherry-pick，也不作为 A 的设计输入。
+- A-04 目标是在现有 v0.1 Package / Grant / Receipt / Credit 合同上，形成 Tenant/Project scoped 的生产交付只读投影、Store/Adapter 可靠性证据和企业 Dashboard 状态解释。
+- 审计发现当前商业 selector 只提供 Receipt 数量；Dashboard 没有消费 last dispatch/sync/transport/error；任务按 Receipt 记录计数而不是唯一 task 归并；Adapter、Store、Bridge 边界和原子 reset 缺少直接测试。
+- A 边界：允许修改 controlPlane domain/view model、controlPlane Adapter/Store、reset、Dashboard 和 A 文档；不得修改 `storyCanvasBridge.ts`、生产页面/组件、StoryCanvas 或 `apps/storycanvas/src/`。Bridge 问题必须交给 B。
+- 基线验证：相关 4 个测试文件 16/16 PASS。
+- 详细计划：`docs/program/threads/C0/D2_A04_DELIVERY_EVIDENCE_PLAN.md`。
+- 下一切片：A-04.1 `feat(control-plane): add tenant delivery evidence projection`。
+
+## A-04.2 控制平面交付可靠性交接（2026-08-03）
+
+- 状态：A-04.1 Tenant/Project 交付只读投影与 A-04.2 Store/Adapter/Reset 可靠性已完成，标记为 `A04_2_RELIABILITY_READY`。
+- ViewModel 只输出安全交付证据：Package、Grant、transport、sync、唯一任务、Asset/Export 数量、运行时额度、错误和可恢复动作；禁止生产正文、Provider/存储内部字段、商业价格和跨租户数据。
+- Adapter 覆盖命令幂等、Receipt duplicate、冲突终态、成功/失败额度时序与 preflight 零副作用。
+- Store 覆盖 dispatch/retry、ACK 失败零入账、duplicate 不重复结算、部分/整体同步失败映射。
+- Reset 覆盖成功清理、普通 rollback、rollback 自身失败、旧 activeOrganization 拒绝和失败时旧运行证据保留；成功 Reset 已清除 `lastPackageDispatch` / `lastReceiptSync`。
+- 验证：A-04.1 + A-04.2 共 6 个 Test Files、28 个 Tests PASS；相关 ESLint、Prettier、`git diff --check` PASS；生产 Build PASS。
+- A 未修改 `src/services/storyCanvasBridge.ts`、生产页面/组件、StoryCanvas 或 `apps/storycanvas/src/`。
+- 下一步：A-04.3 由 Dashboard 消费安全 ViewModel，保持企业管理员可见、内容运营拒绝合同，并完成页面 Reset 状态与两档视口验收。
+
+## A-04 控制平面交付状态完成交接（2026-08-03）
+
+- 状态：`A04_READY_FOR_INTEGRATION`；A-04.1～A-04.4 已完成。
+- 企业 Dashboard 只消费安全 Tenant/Project ViewModel，展示 Package、Grant、transport、receipt sync、唯一任务、Asset/Export、额度 reserved/consumed/released 和安全错误，不泄漏 Receipt payload、存储引用、Provider 内部字段、商业价格或跨租户数据。
+- 功能提交：`47e74b0` Delivery View → `85f4251` Adapter 测试 → `3cf56fd` Store 同步测试 → `926fa06` Reset 清理 → `9a224be` Dashboard UI；中间边界测试提交见分支日志。
+- 定向回归：4 Files / 51 Tests PASS；全量串行回归：26 Files / 181 Tests PASS。
+- Build PASS，Governance PASS，`git diff --check` PASS；A-04 文件定向 ESLint PASS。
+- 视觉证据：`docs/program/evidence/a04-dashboard-delivery-1440x900.png`、`docs/program/evidence/a04-dashboard-delivery-1280x800.png`；两档均无横向溢出。
+- 全仓 `npm run lint` 仍被 B 的 StoryCanvas 存量代码阻塞：702 problems（697 errors、5 warnings）。A 不修改 `src/features/storycanvas/`、生产页面/组件、`storyCanvasBridge.ts` 或 `apps/storycanvas/src/` 来消除此债务。
+- StoryCanvas API 启动后产生的未跟踪空文件 `apps/storycanvas/data/vendor/byteplus.ts` 属于 B 范围，A 提交必须排除。
+- 集成建议：推送 `dev/control-plane` 后，从最新 `main` 建立短期集成分支；全仓 Lint 由 B 修复或在集成验收中作为明确阻塞处理。

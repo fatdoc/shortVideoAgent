@@ -1,5 +1,8 @@
 # StoryCanvas Phase1 分支集成审查
 
+> **历史记录 / 当前口径已取代（2026-08-03）**
+> 本文记录的是当时对 `origin/codex/storycanvas-phase1-production-loop` 的一次只读审查。现已确认 `origin/codex/*` 属于 B 的临时工作分支，不是正式需求或交付来源。本文不得继续作为 merge、cherry-pick 或 A-04 实现依据；未来只接收双方确认的正式 `dev/*` 交付分支。
+
 - 日期：2026-08-03
 - 审查人：A
 - 当前集成基线：`integration/d2-a03-b03@63cbed2`
