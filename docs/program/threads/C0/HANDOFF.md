@@ -202,4 +202,4 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 例外：全仓 Lint 维持既有 702 problems（697 errors、5 warnings），集中于 B/StoryCanvas 范围。用户已明确接受该既有例外，不阻止本轮 A-04 合入；债务继续归 B 或后续专项治理。
 - 运行时文件：未跟踪的 `apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交、未删除或修改。
 - 权威记录：`docs/collaboration/integration/D2_A04_INTEGRATION_2026-08-04.md`。
-- 下一步：再次确认 `origin/main` 未前移后，以 `--ff-only` 快进本地 `main`，推送并核对远端一致性。
+- 最终结果：推送前确认 `origin/main@8594e21` 未前移；本地 `main` 已以 `--ff-only` 快进并推送，核对 `main == origin/main@1df2bd1`。下一轮 A 任务尚未立项。

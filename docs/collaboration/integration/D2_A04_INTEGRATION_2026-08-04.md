@@ -6,7 +6,7 @@
 - A 来源：`dev/control-plane@2fe1ec5`
 - 集成分支：`integration/d2-a04-control-plane`
 - 功能合并提交：`03bc566 merge: integrate A-04 control plane`
-- 状态：A-04 自动化 Gate、边界审查与既有 Lint 例外已接受；准备快进并推送 `main`
+- 状态：A-04 自动化 Gate、边界审查与既有 Lint 例外已接受；已快进并推送 `main`
 
 ## 1. 集成范围
 
@@ -123,9 +123,9 @@ apps/storycanvas/data/vendor/byteplus.ts
 
 A-04 功能、回归测试、构建、治理和边界审查均满足本轮验收要求。全仓 Lint 的唯一失败维持既有 StoryCanvas 基线，用户已于 2026-08-04 明确接受该例外。
 
-下一步：
+最终结果：
 
-1. 提交本集成记录与 C0 线程记忆；
-2. 再次刷新并确认 `origin/main` 未前移；
-3. 使用 `--ff-only` 将本地 `main` 快进到验证后的集成结果；
-4. 推送并确认 `main == origin/main`。
+1. 本集成记录与 C0 线程记忆已提交；
+2. 推送前已刷新并确认 `origin/main@8594e21` 未前移；
+3. 本地 `main` 已使用 `--ff-only` 快进到集成结果；
+4. 已推送并确认 `main == origin/main@1df2bd1`。

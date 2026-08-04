@@ -2,12 +2,12 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_INTEGRATION_ACCEPTED`
-- 当前任务：A-04 已在 `integration/d2-a04-control-plane` 完成集成验证并接受既有 StoryCanvas Lint 例外；下一步快进并推送 `main`
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN`
+- 当前任务：A-04 已完成集成、快进与远端 `main` 一致性核对；下一轮 A 任务尚未立项
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
-- D2 当前基线：`main@8594e21`；A-04 已在短期集成分支通过验证，待快进并推送；历史 Stage 0 报告：`D2_STAGE0_BASELINE.md`
+- D2 当前基线：A-04 已进入远端 `main`，集成接受头为 `1df2bd1`；历史 Stage 0 报告：`D2_STAGE0_BASELINE.md`
 - D2 规格：`docs/program/specs/C0_D2_IDENTITY_ROLE_WORKBENCHES.md`
 - D2 范围：四身份、统一登录、Mock 会话、路由保护、差异化工作台、越权拒绝
 - D2 边界：前端 + Mock；不是生产认证，不是服务端 RBAC，不承诺真实租户安全隔离
