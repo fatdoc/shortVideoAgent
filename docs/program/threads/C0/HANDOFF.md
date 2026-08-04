@@ -193,3 +193,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 全仓 `npm run lint` 仍被 B 的 StoryCanvas 存量代码阻塞：702 problems（697 errors、5 warnings）。A 不修改 `src/features/storycanvas/`、生产页面/组件、`storyCanvasBridge.ts` 或 `apps/storycanvas/src/` 来消除此债务。
 - StoryCanvas API 启动后产生的未跟踪空文件 `apps/storycanvas/data/vendor/byteplus.ts` 属于 B 范围，A 提交必须排除。
 - 集成建议：推送 `dev/control-plane` 后，从最新 `main` 建立短期集成分支；全仓 Lint 由 B 修复或在集成验收中作为明确阻塞处理。
+
+## A-04 集成接受交接（2026-08-04）
+
+- 状态：`A04_INTEGRATION_ACCEPTED`。A-04 已从 `origin/main@8594e21` 建立 `integration/d2-a04-control-plane`，并以 `03bc566` 显式合入 `dev/control-plane@2fe1ec5`。
+- 边界审查：B 独占目录和共享集成文件相对 `main` 无跟踪文件变化；合并无冲突；集成分支文件树与 A 正式交付头一致。
+- Gate：A-04 定向 4 Files / 51 Tests PASS；全量串行 26 Files / 181 Tests PASS；A-04 定向 ESLint、Build、Governance、`git diff --check` 全部 PASS。
+- 例外：全仓 Lint 维持既有 702 problems（697 errors、5 warnings），集中于 B/StoryCanvas 范围。用户已明确接受该既有例外，不阻止本轮 A-04 合入；债务继续归 B 或后续专项治理。
+- 运行时文件：未跟踪的 `apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交、未删除或修改。
+- 权威记录：`docs/collaboration/integration/D2_A04_INTEGRATION_2026-08-04.md`。
+- 下一步：再次确认 `origin/main` 未前移后，以 `--ff-only` 快进本地 `main`，推送并核对远端一致性。

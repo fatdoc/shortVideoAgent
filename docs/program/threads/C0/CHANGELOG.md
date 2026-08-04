@@ -37,3 +37,4 @@
 | 2026-08-03 | 完成 Adapter/Store/Reset 可靠性，修复 Reset 旧证据残留，A-04.1～2 联合 28 项测试通过                                                      | A04_2_RELIABILITY_READY                 |
 | 2026-08-03 | 企业 Dashboard 接入安全交付 ViewModel，覆盖空状态、成功、部分同步与 Reset，完成 1440×900 / 1280×800 视觉验收                              | A04_3_DASHBOARD_READY                   |
 | 2026-08-03 | A-04 定向 51 项、全量串行 181 项测试、Build、Governance 和 A 范围 ESLint 通过；记录 B StoryCanvas 全仓 Lint 存量阻塞                      | A04_READY_FOR_INTEGRATION               |
+| 2026-08-04 | A-04 在短期集成分支完成 51 项定向、181 项全量测试、Build、Governance 和边界审查；接受既有 StoryCanvas Lint 例外                           | A04_INTEGRATION_ACCEPTED                |

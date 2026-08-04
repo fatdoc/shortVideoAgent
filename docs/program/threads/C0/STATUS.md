@@ -2,20 +2,20 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_READY_FOR_INTEGRATION`
-- 当前任务：负责人 A 已完成 A-04 Tenant/Project 交付投影、可靠性、企业 Dashboard 和收口验证；下一步提交并推送 `dev/control-plane`，再进入正式集成
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_INTEGRATION_ACCEPTED`
+- 当前任务：A-04 已在 `integration/d2-a04-control-plane` 完成集成验证并接受既有 StoryCanvas Lint 例外；下一步快进并推送 `main`
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
-- D2 当前基线：已验收并进入 `main@8594e21`；历史 Stage 0 报告：`D2_STAGE0_BASELINE.md`
+- D2 当前基线：`main@8594e21`；A-04 已在短期集成分支通过验证，待快进并推送；历史 Stage 0 报告：`D2_STAGE0_BASELINE.md`
 - D2 规格：`docs/program/specs/C0_D2_IDENTITY_ROLE_WORKBENCHES.md`
 - D2 范围：四身份、统一登录、Mock 会话、路由保护、差异化工作台、越权拒绝
 - D2 边界：前端 + Mock；不是生产认证，不是服务端 RBAC，不承诺真实租户安全隔离
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：A-04 功能无 B 阻塞；全仓 `npm run lint` 仍被 B 独占 StoryCanvas 存量代码阻塞（697 errors / 5 warnings），A 以本轮文件定向 ESLint 通过作为控制平面交付证据；未来集成只接收正式 `dev/*`
-- 最近更新：2026-08-03
+- 阻塞：无 A-04 合入阻塞；全仓 `npm run lint` 的 B/StoryCanvas 既有存量（697 errors / 5 warnings）已作为本轮明确例外接受，后续仍归 B 或专项治理；未来集成只接收正式 `dev/*`
+- 最近更新：2026-08-04
 
 ## 2026-07-30 单前端收口
 
