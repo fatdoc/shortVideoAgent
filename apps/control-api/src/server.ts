@@ -7,6 +7,9 @@ import { LoginRateLimiter } from './auth/rateLimiter.js';
 import { createAuthRouter } from './auth/routes.js';
 import { PostgresContentStore } from './projects/repository.js';
 import { createContentRouter } from './projects/routes.js';
+import { ProjectGrantTokenService } from './production/grantToken.js';
+import { PostgresProductionStore } from './production/repository.js';
+import { createProductionRouter } from './production/routes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -32,12 +35,22 @@ const contentRouter = createContentRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const productionRouter = createProductionRouter({
+  store: new PostgresProductionStore(
+    database,
+    new ProjectGrantTokenService(config.sessionSecret),
+  ),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const app = createApp({
   appVersion: config.appVersion,
   nodeEnv: config.nodeEnv,
   readinessProbe: () => probeDatabase(database),
   authRouter,
   contentRouter,
+  productionRouter,
   trustProxy: config.trustProxy,
 });
 
