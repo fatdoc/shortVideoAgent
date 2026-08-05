@@ -8,9 +8,11 @@ import {
 import { Alert, Button, Form, Input, Tag, Typography } from 'antd';
 import { useState } from 'react';
 import haidilaoLogo from '../../components/brand/assets/haidilao-logo.png';
+import { pilotRuntime } from '../../config/pilotRuntime';
 import { DEMO_IDENTITIES, type DemoIdentity } from '../../domain/demoIdentity';
 import { DEMO_AUTH_NOTICE, DEMO_AUTH_PASSWORD } from '../../services/demoAuth';
 import { useAuthStore } from '../../stores/authStore';
+import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import '../../design/d2-auth.css';
 
 interface LoginValues {
@@ -25,7 +27,7 @@ const identityTone = {
   production: 'cyan',
 } as const;
 
-export function LoginPage() {
+function DemoLoginPage() {
   const [form] = Form.useForm<LoginValues>();
   const login = useAuthStore((state) => state.login);
   const storeError = useAuthStore((state) => state.error);
@@ -188,4 +190,120 @@ export function LoginPage() {
       </section>
     </main>
   );
+}
+
+function PilotLoginPage() {
+  const [form] = Form.useForm<LoginValues>();
+  const login = usePilotAuthStore((state) => state.login);
+  const status = usePilotAuthStore((state) => state.status);
+  const storeError = usePilotAuthStore((state) => state.error);
+  const requestId = usePilotAuthStore((state) => state.requestId);
+  const clearError = usePilotAuthStore((state) => state.clearError);
+
+  const submitLogin = async (values: LoginValues) => {
+    clearError();
+    await login({ email: values.account.trim(), password: values.password });
+  };
+
+  return (
+    <main className="d2-auth-page" data-testid="pilot-login-page">
+      <section className="d2-auth-shell d2-auth-shell--pilot">
+        <header className="d2-auth-productbar">
+          <div className="d2-auth-product">
+            <span className="d2-auth-product-mark">VA</span>
+            <span>
+              <strong>短视频营销 Agent</strong>
+              <small>单客户白名单真实试点</small>
+            </span>
+          </div>
+          <Tag color="success">Pilot 真实环境</Tag>
+        </header>
+
+        <div className="d2-auth-pilot-content">
+          <section className="d2-auth-pilot-intro">
+            <SafetyCertificateOutlined />
+            <Typography.Title level={2}>受控真实试点</Typography.Title>
+            <Typography.Paragraph>
+              此入口仅接受已加入白名单的企业账号。身份和租户由 Control API 验证，会话保存在安全的 HttpOnly Cookie 中。
+            </Typography.Paragraph>
+            <ul>
+              <li>不提供公开注册或演示身份快捷登录</li>
+              <li>服务异常会明确提示，不会切换到 Demo 数据</li>
+              <li>浏览器不会保存密码或 Session Token</li>
+            </ul>
+          </section>
+
+          <section className="d2-auth-login-panel">
+            <div className="d2-auth-login-heading">
+              <Typography.Title level={2}>白名单账号登录</Typography.Title>
+              <Typography.Text type="secondary">使用试点管理员提供的企业账号</Typography.Text>
+            </div>
+
+            {storeError ? (
+              <Alert
+                className="d2-auth-error"
+                type="error"
+                showIcon
+                closable
+                message={storeError}
+                description={requestId ? `请求 ID：${requestId}` : undefined}
+                onClose={clearError}
+                data-testid="pilot-login-error"
+              />
+            ) : null}
+
+            <Form<LoginValues>
+              form={form}
+              layout="vertical"
+              requiredMark={false}
+              onFinish={submitLogin}
+              onValuesChange={clearError}
+            >
+              <Form.Item
+                label="企业邮箱"
+                name="account"
+                rules={[
+                  { required: true, message: '请输入企业邮箱' },
+                  { type: 'email', message: '请输入有效的邮箱地址' },
+                ]}
+              >
+                <Input
+                  size="large"
+                  prefix={<UserOutlined />}
+                  autoComplete="username"
+                  data-testid="pilot-login-email"
+                />
+              </Form.Item>
+              <Form.Item
+                label="密码"
+                name="password"
+                rules={[{ required: true, message: '请输入密码' }]}
+              >
+                <Input.Password
+                  size="large"
+                  prefix={<LockOutlined />}
+                  autoComplete="current-password"
+                  data-testid="pilot-login-password"
+                />
+              </Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                size="large"
+                block
+                loading={status === 'authenticating'}
+                data-testid="pilot-login-submit"
+              >
+                登录真实试点 <ArrowRightOutlined />
+              </Button>
+            </Form>
+          </section>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export function LoginPage() {
+  return pilotRuntime.mode === 'pilot' ? <PilotLoginPage /> : <DemoLoginPage />;
 }

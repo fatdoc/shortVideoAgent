@@ -1,5 +1,7 @@
+import { Alert, Button, Typography } from 'antd';
 import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
+import { pilotRuntime } from '../config/pilotRuntime';
 import { DEMO_PROJECT_ID } from '../domain/constants';
 import { authorizeDemoNavigationRoute } from '../domain/demoRouteAccess';
 import { AppShell } from '../layouts/AppShell';
@@ -29,6 +31,7 @@ import { ScriptEditorPage } from '../pages/script-editor/ScriptEditorPage';
 import { StoryboardPage } from '../pages/storyboard/StoryboardPage';
 import { resolveDemoReturnPath } from '../services/demoAuth';
 import { useAuthStore } from '../stores/authStore';
+import { usePilotAuthStore } from '../stores/pilotAuthStore';
 
 function SessionLoading() {
   return (
@@ -103,7 +106,7 @@ function CanonicalProjectEntry() {
   return <Navigate to={`/projects/${DEMO_PROJECT_ID}/brand`} replace />;
 }
 
-export function AppRouter() {
+function DemoRouter() {
   return (
     <BrowserRouter>
       <Routes>
@@ -309,4 +312,111 @@ export function AppRouter() {
       </Routes>
     </BrowserRouter>
   );
+}
+
+function PilotServiceError() {
+  const error = usePilotAuthStore((state) => state.error);
+  const requestId = usePilotAuthStore((state) => state.requestId);
+  const hydrate = usePilotAuthStore((state) => state.hydrate);
+  return (
+    <main className="d2-auth-page" data-testid="pilot-service-error">
+      <section className="d2-pilot-status-card">
+        <Typography.Title level={2}>Pilot 服务暂时不可用</Typography.Title>
+        <Alert
+          type="error"
+          showIcon
+          message={error ?? '无法恢复 Pilot 会话。'}
+          description={requestId ? `请求 ID：${requestId}` : undefined}
+        />
+        <Button type="primary" onClick={() => void hydrate()}>重新连接</Button>
+      </section>
+    </main>
+  );
+}
+
+function PilotRequireSession() {
+  const status = usePilotAuthStore((state) => state.status);
+  const hydrate = usePilotAuthStore((state) => state.hydrate);
+  const session = usePilotAuthStore((state) => state.session);
+
+  useEffect(() => {
+    if (status === 'idle') void hydrate();
+  }, [hydrate, status]);
+
+  if (status === 'idle' || status === 'hydrating') {
+    return <div className="d2-session-loading" role="status">正在恢复真实会话...</div>;
+  }
+  if (status === 'service_error') return <PilotServiceError />;
+  if (!session) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+
+function PilotLoginEntry() {
+  const status = usePilotAuthStore((state) => state.status);
+  const hydrate = usePilotAuthStore((state) => state.hydrate);
+  const session = usePilotAuthStore((state) => state.session);
+
+  useEffect(() => {
+    if (status === 'idle') void hydrate();
+  }, [hydrate, status]);
+
+  if (status === 'idle' || status === 'hydrating') {
+    return <div className="d2-session-loading" role="status">正在恢复真实会话...</div>;
+  }
+  if (status === 'service_error') return <PilotServiceError />;
+  if (session) return <Navigate to="/pilot" replace />;
+  return <LoginPage />;
+}
+
+function PilotSessionPage() {
+  const session = usePilotAuthStore((state) => state.session);
+  const logout = usePilotAuthStore((state) => state.logout);
+  if (!session) return null;
+
+  return (
+    <main className="d2-auth-page" data-testid="pilot-session-page">
+      <section className="d2-pilot-status-card">
+        <Typography.Text type="success">真实会话已建立</Typography.Text>
+        <Typography.Title level={2}>欢迎，{session.user.displayName}</Typography.Title>
+        <Typography.Paragraph>
+          当前企业：{session.tenant.displayName} · {session.user.email}
+        </Typography.Paragraph>
+        <Typography.Paragraph type="secondary">
+          F01 仅完成真实认证接线。真实项目、生产与额度界面将在 F02 接入，当前不会展示 Demo 业务数据。
+        </Typography.Paragraph>
+        <Button onClick={() => void logout()}>安全退出</Button>
+      </section>
+    </main>
+  );
+}
+
+function PilotConfigurationBlock() {
+  return (
+    <main className="d2-auth-page" data-testid="pilot-configuration-error">
+      <section className="d2-pilot-status-card">
+        <Typography.Title level={2}>运行配置已阻断</Typography.Title>
+        <Alert type="error" showIcon message={pilotRuntime.configurationError} />
+      </section>
+    </main>
+  );
+}
+
+function PilotRouter() {
+  if (pilotRuntime.configurationError) return <PilotConfigurationBlock />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<PilotLoginEntry />} />
+        <Route element={<PilotRequireSession />}>
+          <Route path="/pilot" element={<PilotSessionPage />} />
+          <Route path="*" element={<Navigate to="/pilot" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export function AppRouter() {
+  if (pilotRuntime.mode === null) return <PilotConfigurationBlock />;
+  return pilotRuntime.mode === 'pilot' ? <PilotRouter /> : <DemoRouter />;
 }
