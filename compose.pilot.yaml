@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: videoagent_control
+      POSTGRES_USER: videoagent
+      POSTGRES_PASSWORD: videoagent-local
+    ports:
+      - '127.0.0.1:54329:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U videoagent -d videoagent_control']
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - videoagent_control_pgdata:/var/lib/postgresql/data
+
+volumes:
+  videoagent_control_pgdata:

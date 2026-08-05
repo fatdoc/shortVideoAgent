@@ -23,4 +23,10 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    files: ['apps/control-api/**/*.ts'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 );
