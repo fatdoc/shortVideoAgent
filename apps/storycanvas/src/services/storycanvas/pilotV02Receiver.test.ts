@@ -28,6 +28,7 @@ function refresh(value: Record<string, any>): Record<string, any> {
 function active(overrides: Partial<ActiveGrantContextV02> = {}): ActiveGrantContextV02 {
   return {
     active: true,
+    grantId: "grant-project-pilot-01-v1",
     tenantId: "tenant-pilot-01",
     projectId: "project-pilot-01",
     packageId: "package-project-pilot-01-v1",
@@ -44,10 +45,13 @@ function active(overrides: Partial<ActiveGrantContextV02> = {}): ActiveGrantCont
   };
 }
 
-async function setup(introspector: ActiveGrantIntrospector = { introspect: async () => active() }) {
+async function setup(
+  introspector: ActiveGrantIntrospector = { introspect: async () => active() },
+  nowFn: () => Date = () => now,
+) {
   const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
   await migration.up(database);
-  const receiver = new PilotV02Receiver({ database, introspector, now: () => now, randomId: () => "fixed-id" });
+  const receiver = new PilotV02Receiver({ database, introspector, now: nowFn, randomId: () => "fixed-id" });
   return { database, receiver };
 }
 
@@ -105,6 +109,39 @@ test("scope, capability, expiry, payload tamper, and introspection failures reje
   context.after(() => unavailable.database.destroy());
   await assert.rejects(() => unavailable.receiver.receivePackage(fixture("project-production-package"), token), (error: unknown) => error instanceof PilotV02ReceiverError && error.code === "GRANT_INVALID");
   assert.equal((await unavailable.database("sc_v02_packages")).length, 0);
+
+  const forgedGrant = fixture("project-grant");
+  forgedGrant.grantId = "grant-forged";
+  forgedGrant.tokenDigest = tokenDigest(token);
+  refresh(forgedGrant);
+  await receiver.receivePackage(fixture("project-production-package"), token);
+  await assert.rejects(() => receiver.receiveGrant(forgedGrant, token), (error: unknown) => error instanceof PilotV02ReceiverError && error.code === "GRANT_INVALID");
+  assert.equal((await database("sc_v02_grants")).length, 0);
+});
+
+test("authorization is rechecked immediately before writes and expiry leaves no package or receipt side effect", async (context) => {
+  const expiresAt = new Date("2026-08-05T01:05:06.000Z");
+  let calls = 0;
+  const racingNow = () => calls++ === 0 ? now : new Date("2026-08-05T01:05:02.000Z");
+  const expiring = await setup({ introspect: async () => active({ exp: Math.floor(expiresAt.getTime() / 1000) }) }, racingNow);
+  context.after(() => expiring.database.destroy());
+  await assert.rejects(
+    () => expiring.receiver.receivePackage(fixture("project-production-package"), token),
+    (error: unknown) => error instanceof PilotV02ReceiverError && error.code === "GRANT_EXPIRED",
+  );
+  assert.equal((await expiring.database("sc_v02_packages")).length, 0);
+  assert.equal((await expiring.database("sc_v02_idempotency")).length, 0);
+
+  let current = now;
+  const receiptContext = await setup({ introspect: async () => active() }, () => current);
+  context.after(() => receiptContext.database.destroy());
+  await seed(receiptContext.receiver);
+  current = new Date("2026-08-05T01:09:57.000Z");
+  await assert.rejects(
+    () => receiptContext.receiver.receiveReceipt(fixture("task-receipt"), token),
+    (error: unknown) => error instanceof PilotV02ReceiverError && error.code === "GRANT_EXPIRED",
+  );
+  assert.equal((await receiptContext.database("sc_v02_receipt_inbox")).length, 0);
 });
 
 test("same idempotency key replays and a changed payload conflicts", async (context) => {

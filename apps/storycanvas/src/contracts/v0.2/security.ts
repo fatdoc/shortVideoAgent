@@ -4,7 +4,9 @@ import { tokenDigest } from "./runtime";
 export const PROJECT_GRANT_ISSUER = "videoagent-control-plane";
 export const PROJECT_GRANT_AUDIENCE = "storycanvas-production-plane";
 const CLOCK_TOLERANCE_SECONDS = 5;
+const GRANT_EXPIRY_SAFETY_SECONDS = CLOCK_TOLERANCE_SECONDS;
 const MAX_GRANT_TTL_SECONDS = 900;
+const INTROSPECTION_PATH = "/api/v1/internal/project-grants/introspect";
 const CAPABILITIES = new Set(["image.generate", "video.generate", "audio.tts", "media.export"]);
 const SCOPES = new Set(["production.package.read", "production.task.write", "production.receipt.write", "production.asset.write", "production.export.write"]);
 const CLAIM_KEYS = new Set(["iss", "aud", "jti", "tenantId", "projectId", "packageId", "capabilities", "scopes", "contractVersion", "nonce", "iat", "nbf", "exp"]);
@@ -27,6 +29,7 @@ export type ProjectGrantClaimsV02 = {
 
 export type ActiveGrantContextV02 = {
   active: true;
+  grantId: string;
   tenantId: string;
   projectId: string;
   packageId: string;
@@ -60,15 +63,24 @@ export interface HttpGrantIntrospectorOptions {
   timeoutMs?: number;
   allowInsecureHttp?: boolean;
   fetchImpl?: typeof fetch;
+  now?: () => Date;
 }
 
-function validateActiveContext(value: unknown): ActiveGrantContextV02 {
+export function assertActiveGrantFresh(context: Pick<ActiveGrantContextV02, "exp">, now: Date): void {
+  const nowSeconds = Math.floor(now.getTime() / 1000);
+  if (!Number.isFinite(nowSeconds) || context.exp <= nowSeconds + GRANT_EXPIRY_SAFETY_SECONDS) {
+    throw new GrantSecurityError("GRANT_EXPIRED", 410);
+  }
+}
+
+export function assertActiveGrantContext(value: unknown, now: Date): ActiveGrantContextV02 {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw invalid();
   const context = value as Record<string, unknown>;
-  const keys = ["active", "tenantId", "projectId", "packageId", "capabilities", "scopes", "exp"];
+  const keys = ["active", "grantId", "tenantId", "projectId", "packageId", "capabilities", "scopes", "exp"];
   if (
     Object.keys(context).length !== keys.length || keys.some((key) => !Object.hasOwn(context, key)) ||
-    context.active !== true || typeof context.tenantId !== "string" || !context.tenantId ||
+    context.active !== true || typeof context.grantId !== "string" || !context.grantId ||
+    typeof context.tenantId !== "string" || !context.tenantId ||
     typeof context.projectId !== "string" || !context.projectId || typeof context.packageId !== "string" || !context.packageId ||
     !Array.isArray(context.capabilities) || context.capabilities.length === 0 ||
     context.capabilities.some((item) => typeof item !== "string" || !CAPABILITIES.has(item)) ||
@@ -77,38 +89,48 @@ function validateActiveContext(value: unknown): ActiveGrantContextV02 {
     context.scopes.some((item) => typeof item !== "string" || !SCOPES.has(item)) ||
     new Set(context.scopes).size !== context.scopes.length || !Number.isInteger(context.exp)
   ) throw invalid();
-  return context as ActiveGrantContextV02;
+  const active = context as ActiveGrantContextV02;
+  assertActiveGrantFresh(active, now);
+  return active;
 }
 
 export class HttpActiveGrantIntrospector implements ActiveGrantIntrospector {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
+  private readonly now: () => Date;
+  private readonly url: string;
 
   constructor(private readonly options: HttpGrantIntrospectorOptions) {
     const url = new URL(options.url);
+    if (url.username || url.password || url.search || url.hash || url.pathname !== INTROSPECTION_PATH) {
+      throw new Error("Control API Grant introspection URL is not the fixed internal endpoint");
+    }
     if (url.protocol !== "https:" && !(options.allowInsecureHttp && url.protocol === "http:")) {
       throw new Error("Control API Grant introspection requires HTTPS");
     }
     if (options.internalToken.length < 32) throw new Error("Production-plane internal token is missing or too short");
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 5_000;
+    this.now = options.now ?? (() => new Date());
+    this.url = url.toString();
   }
 
   async introspect(token: string): Promise<ActiveGrantContextV02> {
     try {
-      const response = await this.fetchImpl(this.options.url, {
+      const response = await this.fetchImpl(this.url, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "X-Production-Plane-Internal-Token": this.options.internalToken,
         },
+        redirect: "error",
         signal: AbortSignal.timeout(this.timeoutMs),
       });
       if (!response.ok) {
         if (response.status === 410) throw new GrantSecurityError("GRANT_EXPIRED", 410);
         throw invalid();
       }
-      return validateActiveContext(await response.json());
+      return assertActiveGrantContext(await response.json(), this.now());
     } catch (error) {
       if (error instanceof GrantSecurityError) throw error;
       throw invalid();
@@ -117,13 +139,16 @@ export class HttpActiveGrantIntrospector implements ActiveGrantIntrospector {
 }
 
 export function loadHttpGrantIntrospector(env: NodeJS.ProcessEnv = process.env): ActiveGrantIntrospector {
-  const baseUrl = env.CONTROL_API_BASE_URL?.trim().replace(/\/+$/, "");
-  const url = env.CONTROL_API_GRANT_INTROSPECTION_URL?.trim()
-    || (baseUrl ? `${baseUrl}/api/v1/internal/project-grants/introspect` : "");
+  const baseUrl = env.CONTROL_API_BASE_URL?.trim() || "";
   const internalToken = env.PRODUCTION_PLANE_INTERNAL_TOKEN?.trim() || "";
-  if (!url || !internalToken) return failClosedGrantIntrospector;
+  if (!baseUrl || !internalToken) return failClosedGrantIntrospector;
+  const base = new URL(baseUrl);
+  if (base.username || base.password || base.search || base.hash || (base.pathname !== "/" && base.pathname !== "")) {
+    throw new Error("CONTROL_API_BASE_URL must be an origin without credentials, path, query, or fragment");
+  }
+  base.pathname = INTROSPECTION_PATH;
   return new HttpActiveGrantIntrospector({
-    url,
+    url: base.toString(),
     internalToken,
     allowInsecureHttp: env.NODE_ENV !== "production" && env.STORYCANVAS_ALLOW_INSECURE_INTROSPECTION === "true",
   });

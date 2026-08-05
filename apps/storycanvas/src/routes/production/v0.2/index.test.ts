@@ -22,6 +22,7 @@ function fixture(name: string): Record<string, any> {
 function active(): ActiveGrantContextV02 {
   return {
     active: true,
+    grantId: "grant-project-pilot-01-v1",
     tenantId: "tenant-pilot-01",
     projectId: "project-pilot-01",
     packageId: "package-project-pilot-01-v1",
@@ -94,6 +95,27 @@ test("public v0.2 HTTP routes receive package/grant/command and return non-durab
   assert.equal(replay.response.status, 200);
   assert.equal(replay.response.headers.get("idempotency-replayed"), "true");
 
+  const forgedCommand = fixture("generation-task-command");
+  forgedCommand.grantId = "grant-attacker-controlled";
+  forgedCommand.generationTaskId = "task-forged-grant";
+  forgedCommand.idempotencyKey = "task-command-forged-grant";
+  forgedCommand.payloadDigest = contractPayloadDigest(forgedCommand);
+  const rejectedCommand = await post(baseUrl, "commands", forgedCommand);
+  assert.equal(rejectedCommand.response.status, 401);
+  assert.equal(rejectedCommand.body.error.code, "GRANT_INVALID");
+  assert.equal((await database("sc_v02_generation_commands")).length, 1);
+
+  const wrongScope = fixture("project-production-package");
+  wrongScope.tenantId = "tenant-attacker-controlled";
+  wrongScope.projectId = "project-attacker-controlled";
+  wrongScope.idempotencyKey = "package-wrong-authenticated-scope";
+  wrongScope.payloadDigest = contractPayloadDigest(wrongScope);
+  const scopedError = await post(baseUrl, "packages", wrongScope);
+  assert.equal(scopedError.response.status, 403);
+  assert.equal(scopedError.body.tenantId, active().tenantId);
+  assert.equal(scopedError.body.projectId, active().projectId);
+  assert.notEqual(scopedError.body.tenantId, wrongScope.tenantId);
+
   const unknown = fixture("task-receipt");
   unknown.receiptId = "receipt-task-unknown-http";
   unknown.idempotencyKey = "task-receipt-unknown-http";
@@ -121,12 +143,16 @@ test("public v0.2 HTTP routes reject byte tamper and fail closed with safe C01 S
   const tampered = await post(baseUrl, "packages", productionPackage, { digest: `sha-256=:${Buffer.alloc(32).toString("base64")}:` });
   assert.equal(tampered.response.status, 422);
   assert.equal(tampered.body.error.code, "SCHEMA_INVALID");
+  assert.equal(tampered.body.tenantId, "tenant-unauthenticated");
+  assert.equal(tampered.body.projectId, "project-unauthenticated");
   assertContractObject(tampered.body, "StandardError");
 
   const unavailable = await post(baseUrl, "packages", productionPackage);
   assert.equal(unavailable.response.status, 401);
   assert.equal(unavailable.body.error.code, "GRANT_INVALID");
   assert.equal(unavailable.body.error.message, "Project authorization is invalid.");
+  assert.equal(unavailable.body.tenantId, "tenant-unauthenticated");
+  assert.equal(unavailable.body.projectId, "project-unauthenticated");
   assertContractObject(unavailable.body, "StandardError");
   assert.equal((await database("sc_v02_packages")).length, 0);
 });

@@ -7,10 +7,12 @@ import {
   loadProjectGrantVerifyKeyring,
   ProjectGrantVerifierV02,
   type ActiveGrantIntrospector,
+  type ActiveGrantContextV02,
 } from "@/contracts/v0.2/security";
 import {
   PilotV02Receiver,
   PilotV02ReceiverError,
+  type PilotV02AuthorizationObserver,
 } from "@/services/storycanvas/pilotV02Receiver";
 import type { Knex } from "knex";
 
@@ -31,11 +33,15 @@ export interface ProductionV02RouterOptions {
   now?: () => Date;
 }
 
-function standardError(response: Response, request: Request, error: PilotV02ReceiverError | GrantSecurityError): void {
-  const body = request.body && typeof request.body === "object" ? request.body as Record<string, unknown> : {};
-  const tenantId = typeof body.tenantId === "string" && body.tenantId ? body.tenantId : "unknown-tenant";
-  const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : "unknown-project";
-  const incomingKey = typeof body.idempotencyKey === "string" ? body.idempotencyKey : request.header("idempotency-key");
+function standardError(
+  response: Response,
+  request: Request,
+  error: PilotV02ReceiverError | GrantSecurityError,
+  authenticated?: ActiveGrantContextV02,
+): void {
+  const tenantId = authenticated?.tenantId ?? "tenant-unauthenticated";
+  const projectId = authenticated?.projectId ?? "project-unauthenticated";
+  const incomingKey = request.header("idempotency-key");
   const idempotencyKey = incomingKey && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(incomingKey)
     ? incomingKey
     : `error-${crypto.randomUUID()}`;
@@ -92,26 +98,31 @@ export function createProductionV02Router(options: ProductionV02RouterOptions) {
   const router = express.Router();
   const receiver = new PilotV02Receiver(options);
 
-  const write = (operation: (body: unknown, token: string) => Promise<{ value: Record<string, unknown>; replayed: boolean; httpStatus: number }>) =>
+  const write = (operation: (
+    body: unknown,
+    token: string,
+    onAuthorized: PilotV02AuthorizationObserver,
+  ) => Promise<{ value: Record<string, unknown>; replayed: boolean; httpStatus: number }>) =>
     async (request: RawBodyRequest, response: Response) => {
+      let authenticated: ActiveGrantContextV02 | undefined;
       try {
         verifyTransport(request);
-        const result = await operation(request.body, bearerToken(request));
+        const result = await operation(request.body, bearerToken(request), (context) => { authenticated = context; });
         response.setHeader("idempotency-replayed", String(result.replayed));
         response.status(result.replayed ? 200 : result.httpStatus).json(result.value);
       } catch (error) {
         if (error instanceof PilotV02ReceiverError || error instanceof GrantSecurityError) {
-          standardError(response, request, error);
+          standardError(response, request, error, authenticated);
           return;
         }
-        standardError(response, request, transportError());
+        standardError(response, request, transportError(), authenticated);
       }
     };
 
-  router.post("/packages", write((body, token) => receiver.receivePackage(body, token)));
-  router.post("/grants", write((body, token) => receiver.receiveGrant(body, token)));
-  router.post("/commands", write((body, token) => receiver.receiveCommand(body, token)));
-  router.post("/receipts", write((body, token) => receiver.receiveReceipt(body, token)));
+  router.post("/packages", write((body, token, onAuthorized) => receiver.receivePackage(body, token, onAuthorized)));
+  router.post("/grants", write((body, token, onAuthorized) => receiver.receiveGrant(body, token, onAuthorized)));
+  router.post("/commands", write((body, token, onAuthorized) => receiver.receiveCommand(body, token, onAuthorized)));
+  router.post("/receipts", write((body, token, onAuthorized) => receiver.receiveReceipt(body, token, onAuthorized)));
   return router;
 }
 
