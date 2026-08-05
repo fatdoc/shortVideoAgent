@@ -5,6 +5,8 @@ import { PostgresAuthRepository } from './auth/repository.js';
 import { AuthService } from './auth/service.js';
 import { LoginRateLimiter } from './auth/rateLimiter.js';
 import { createAuthRouter } from './auth/routes.js';
+import { PostgresContentStore } from './projects/repository.js';
+import { createContentRouter } from './projects/routes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -24,11 +26,18 @@ const authRouter = createAuthRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const contentRouter = createContentRouter({
+  store: new PostgresContentStore(database),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const app = createApp({
   appVersion: config.appVersion,
   nodeEnv: config.nodeEnv,
   readinessProbe: () => probeDatabase(database),
   authRouter,
+  contentRouter,
   trustProxy: config.trustProxy,
 });
 

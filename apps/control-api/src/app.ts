@@ -7,6 +7,7 @@ export type ControlApiDependencies = {
   nodeEnv: 'development' | 'test' | 'production';
   readinessProbe: () => Promise<void>;
   authRouter?: Router;
+  contentRouter?: Router;
   trustProxy?: boolean;
 };
 
@@ -49,6 +50,7 @@ export function createApp(dependencies: ControlApiDependencies) {
   });
 
   if (dependencies.authRouter) app.use('/api/v1/auth', dependencies.authRouter);
+  if (dependencies.contentRouter) app.use('/api/v1', dependencies.contentRouter);
 
   app.use((_request, response) => {
     response.status(404).json({
