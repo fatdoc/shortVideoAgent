@@ -1,0 +1,97 @@
+{
+  "policyVersion": "0.2.1",
+  "description": "Machine-executable deny rules for StandardError message/details. Business implementations must still use an allowlist sanitizer before serialization and logging.",
+  "maxMessageLength": 256,
+  "maxDetailStringLength": 256,
+  "messageCatalog": {
+    "SCHEMA_INVALID": ["Request cannot be accepted."],
+    "TENANT_SCOPE_MISMATCH": ["Request scope is not authorized."],
+    "PROJECT_SCOPE_MISMATCH": ["Request scope is not authorized."],
+    "CAPABILITY_SCOPE_DENIED": ["Requested capability is not authorized."],
+    "GRANT_INVALID": ["Project authorization is invalid."],
+    "GRANT_EXPIRED": ["Project authorization has expired."],
+    "IDEMPOTENCY_CONFLICT": ["Request conflicts with an earlier request."],
+    "PROVIDER_FAILED": ["Provider rejected the generation request."],
+    "STORAGE_FAILED": ["Media storage operation failed."],
+    "TASK_TIMEOUT": ["Provider polling deadline exceeded."],
+    "TASK_CANCELLED": ["Task was cancelled before delivery."],
+    "RECEIPT_REPLAY_CONFLICT": ["Receipt conflicts with an earlier receipt."],
+    "RECEIPT_TASK_NOT_FOUND": ["Receipt cannot be accepted."],
+    "CREDIT_SETTLEMENT_FAILED": ["Usage cannot be settled."]
+  },
+  "allowedDetailKeys": [
+    "provider",
+    "providerCode",
+    "operation",
+    "fieldPaths",
+    "retryAfterSeconds",
+    "attempt",
+    "reasonCode",
+    "storageStage",
+    "receiptType",
+    "conflictField"
+  ],
+  "forbiddenDetailKeys": [
+    "url",
+    "signedUrl",
+    "headers",
+    "authorization",
+    "bearerToken",
+    "apiKey",
+    "secret",
+    "accessToken",
+    "credential",
+    "requestBody",
+    "responseBody",
+    "prompt",
+    "promptText",
+    "promptContent",
+    "script",
+    "scriptText",
+    "scriptContent",
+    "fullScript"
+  ],
+  "valueRules": [
+    {
+      "id": "signed_tos_url",
+      "pattern": "(?:x-tos-(?:signature|credential|security-token)|tos-signature)(?:=|%3d|\\s*:)"
+    },
+    {
+      "id": "signed_amz_url",
+      "pattern": "x-amz-[a-z0-9-]+(?:=|%3d|\\s*:)"
+    },
+    {
+      "id": "bearer_credential",
+      "pattern": "\\bbearer\\s+[a-z0-9._~+\\/=-]{8,}"
+    },
+    {
+      "id": "credential_assignment",
+      "pattern": "\\b(?:api[_-]?key|client[_-]?secret|access[_-]?token|secret(?:[_-]?key)?|token)\\s*[:=]\\s*[^\\s,;]{6,}"
+    },
+    {
+      "id": "provider_key_shape",
+      "pattern": "\\b(?:sk-(?:live|test|proj)[-_a-z0-9]{8,}|aklt[a-z0-9]{8,})\\b"
+    },
+    {
+      "id": "private_key_block",
+      "pattern": "-----begin(?:[ a-z0-9_-]+)private key-----"
+    },
+    {
+      "id": "generic_signed_url",
+      "pattern": "https?://[^\\s]*[?&](?:signature|sig|credential|security-token)="
+    },
+    {
+      "id": "prompt_or_script_inline",
+      "pattern": "(?:\\b(?:full[_-]?script|script[_-]?(?:content|text)|prompt[_-]?(?:content|text|body)|input[_-]?prompt)\\s*[:=]|(?:脚本全文|脚本正文|提示词正文|完整提示词)\\s*[:：])"
+    },
+    {
+      "id": "cross_tenant_existence_en",
+      "pattern": "(?:\\b(?:asset|resource|project)\\b.{0,80}\\b(?:exists?|found)\\b.{0,80}\\btenant\\b|\\btenant\\b.{0,80}\\b(?:has|contains|owns)\\b.{0,80}\\b(?:asset|resource|project)\\b)"
+    },
+    {
+      "id": "cross_tenant_existence_zh",
+      "pattern": "(?:租户.{0,80}(?:存在|拥有|包含).{0,80}(?:资源|素材|项目)|(?:资源|素材|项目).{0,80}存在于.{0,80}租户)"
+    }
+  ],
+  "tenantIdentifierPattern": "\\btenant[-_:][a-z0-9._:-]+\\b"
+}

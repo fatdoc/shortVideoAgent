@@ -17,6 +17,7 @@ import { isEletron } from "@/utils/getPath";
 import { ensureThumbnail, ThumbnailSize } from "@/utils/image";
 import { databaseReady, db } from "@/utils/db";
 import { initializeModels } from "@/config/initializeModels";
+import { capturePilotV02RawBody } from "@/routes/production/v0.2";
 
 const app = express();
 const server = http.createServer(app);
@@ -60,7 +61,7 @@ export default async function startServe(randomPort: Boolean = false) {
 
   app.use(logger("dev"));
   app.use(cors({ origin: "*" }));
-  app.use(express.json({ limit: "100mb" }));
+  app.use(express.json({ limit: "100mb", verify: capturePilotV02RawBody }));
   app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
   // oss 静态资源
@@ -165,6 +166,7 @@ export default async function startServe(randomPort: Boolean = false) {
     if (
       req.path === "/api/login/login"
       || req.path.startsWith("/api/production/v0.1/")
+      || req.path.startsWith("/api/production/v0.2/")
     ) {
       return next();
     }

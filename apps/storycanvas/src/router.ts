@@ -83,6 +83,7 @@ import route79 from "./routes/production/storyboard/previewImage";
 import route80 from "./routes/production/storyboard/removeFrame";
 import route81 from "./routes/production/storyboard/updateStoryboardUrl";
 import route82 from "./routes/production/v0.1/index";
+import route82v2 from "./routes/production/v0.2/index";
 import route83 from "./routes/production/workbench/addTrack";
 import route84 from "./routes/production/workbench/batchGeneratePrompt";
 import route85 from "./routes/production/workbench/batchGenerateVideo";
@@ -261,6 +262,7 @@ export default async (app: Express) => {
   app.use("/api/production/storyboard/removeFrame", route80);
   app.use("/api/production/storyboard/updateStoryboardUrl", route81);
   app.use("/api/production/v0.1", route82);
+  app.use("/api/production/v0.2", route82v2);
   app.use("/api/production/workbench/addTrack", route83);
   app.use("/api/production/workbench/batchGeneratePrompt", route84);
   app.use("/api/production/workbench/batchGenerateVideo", route85);

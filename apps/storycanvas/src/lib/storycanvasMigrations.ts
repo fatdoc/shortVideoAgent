@@ -2,12 +2,14 @@ import type { Knex } from "knex";
 import coreMigration from "../../migrations/001_storycanvas_core";
 import continuityMemoryMigration from "../../migrations/002_storycanvas_continuity_memory";
 import productionContractMigration from "../../migrations/003_storycanvas_production_contract";
+import pilotContractV02ReceiverMigration from "../../migrations/004_pilot_contract_v02_receiver";
 import type { StoryCanvasMigration } from "../../migrations/types";
 
 export const storyCanvasMigrations: StoryCanvasMigration[] = [
   coreMigration,
   continuityMemoryMigration,
   productionContractMigration,
+  pilotContractV02ReceiverMigration,
 ];
 
 export async function ensureMigrationRegistry(knex: Knex) {
