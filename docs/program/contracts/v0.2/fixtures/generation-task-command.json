@@ -1,0 +1,31 @@
+{
+  "objectType": "GenerationTaskCommand",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "task-command-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:01:00.000Z",
+  "payloadDigest": "sha256:dfd64b1b74566faa383f7107eac664c83c3b1f0808f368de536c83b91ebdb806",
+  "generationTaskId": "task-pilot-01",
+  "packageId": "package-project-pilot-01-v1",
+  "grantId": "grant-project-pilot-01-v1",
+  "shotId": "shot-pilot-01",
+  "taskType": "video.generate",
+  "capability": "video.generate",
+  "reservationReference": "reservation-pilot-01",
+  "providerRouting": {
+    "provider": "byteplus",
+    "model": "dreamina-seedance-2-0-260128"
+  },
+  "input": {
+    "prompt": "Generate the approved opening shot from the production package.",
+    "negativePrompt": "watermark, unsupported claims",
+    "referenceAssetIds": ["asset-upload-pilot-01"],
+    "parameters": {
+      "durationSeconds": 5,
+      "aspectRatio": "9:16"
+    }
+  },
+  "createdAt": "2026-08-05T01:01:00.000Z",
+  "expiresAt": "2026-08-05T01:09:00.000Z"
+}

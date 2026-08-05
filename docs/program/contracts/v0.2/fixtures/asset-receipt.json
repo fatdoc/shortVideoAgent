@@ -1,0 +1,35 @@
+{
+  "objectType": "AssetReceipt",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "asset-receipt-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:03:06.000Z",
+  "payloadDigest": "sha256:72e24b618b9cdc3c44c51e6f056ae170d07a080d5d56f3aa75708f986bd4565c",
+  "receiptId": "receipt-asset-generated-pilot-01-v1",
+  "assetId": "asset-generated-pilot-01",
+  "generationTaskId": "task-pilot-01",
+  "shotId": "shot-pilot-01",
+  "mediaType": "video",
+  "mimeType": "video/mp4",
+  "dimensions": {
+    "width": 720,
+    "height": 1280
+  },
+  "durationSeconds": 5,
+  "checksum": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "storageReference": "tos://pilot-output/tenant-pilot-01/project-pilot-01/asset-generated-pilot-01.mp4",
+  "source": {
+    "kind": "generated",
+    "provider": "byteplus",
+    "model": "dreamina-seedance-2-0-260128",
+    "promptDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  },
+  "rights": {
+    "basis": "provider_generated",
+    "note": "Internal controlled-pilot generation; external publication requires rights review."
+  },
+  "reviewStatus": "approved",
+  "deliverable": true,
+  "createdAt": "2026-08-05T01:03:06.000Z"
+}

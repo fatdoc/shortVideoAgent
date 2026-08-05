@@ -1,0 +1,34 @@
+{
+  "objectType": "TaskReceipt",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "task-receipt-pilot-01-attempt-1",
+  "occurredAt": "2026-08-05T01:03:05.000Z",
+  "payloadDigest": "sha256:05cfd8c04bf3190af58127129672004d9058fc8200b98976debfac16be27d6ea",
+  "receiptId": "receipt-task-pilot-01-attempt-1",
+  "generationTaskId": "task-pilot-01",
+  "shotId": "shot-pilot-01",
+  "taskType": "video.generate",
+  "status": "succeeded",
+  "progress": 100,
+  "attempt": 1,
+  "providerExecution": {
+    "provider": "byteplus",
+    "model": "dreamina-seedance-2-0-260128",
+    "providerTaskReference": "provider-task-redacted-01",
+    "usage": [
+      {
+        "metric": "video_seconds",
+        "quantity": 5,
+        "unit": "second"
+      }
+    ],
+    "providerCost": null
+  },
+  "outputAssetIds": ["asset-generated-pilot-01"],
+  "error": null,
+  "createdAt": "2026-08-05T01:01:00.000Z",
+  "startedAt": "2026-08-05T01:01:02.000Z",
+  "completedAt": "2026-08-05T01:03:05.000Z"
+}

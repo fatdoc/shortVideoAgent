@@ -1,0 +1,524 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://videoagent.local/contracts/pilot/v0.2/schema.json",
+  "title": "VideoAgent Pilot Cross-plane Contract v0.2",
+  "description": "Canonical control-plane/production-plane payload contract for the controlled pilot.",
+  "oneOf": [
+    { "$ref": "#/$defs/projectProductionPackage" },
+    { "$ref": "#/$defs/projectGrant" },
+    { "$ref": "#/$defs/generationTaskCommand" },
+    { "$ref": "#/$defs/taskReceipt" },
+    { "$ref": "#/$defs/assetReceipt" },
+    { "$ref": "#/$defs/exportReceipt" },
+    { "$ref": "#/$defs/usageReceipt" },
+    { "$ref": "#/$defs/standardError" },
+    { "$ref": "#/$defs/receiptAck" }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amountMinor", "currency"],
+      "properties": {
+        "amountMinor": { "type": "integer", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "required": [
+        "objectType",
+        "contractVersion",
+        "tenantId",
+        "projectId",
+        "idempotencyKey",
+        "occurredAt",
+        "payloadDigest"
+      ],
+      "properties": {
+        "objectType": { "type": "string" },
+        "contractVersion": { "const": "0.2" },
+        "tenantId": { "$ref": "#/$defs/id" },
+        "projectId": { "$ref": "#/$defs/id" },
+        "idempotencyKey": { "$ref": "#/$defs/id" },
+        "occurredAt": { "$ref": "#/$defs/timestamp" },
+        "payloadDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "standardErrorValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable", "category", "details"],
+      "properties": {
+        "code": {
+          "enum": [
+            "SCHEMA_INVALID",
+            "TENANT_SCOPE_MISMATCH",
+            "PROJECT_SCOPE_MISMATCH",
+            "CAPABILITY_SCOPE_DENIED",
+            "GRANT_INVALID",
+            "GRANT_EXPIRED",
+            "IDEMPOTENCY_CONFLICT",
+            "PROVIDER_FAILED",
+            "STORAGE_FAILED",
+            "TASK_TIMEOUT",
+            "TASK_CANCELLED",
+            "RECEIPT_REPLAY_CONFLICT",
+            "CREDIT_SETTLEMENT_FAILED"
+          ]
+        },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "retryable": { "type": "boolean" },
+        "category": {
+          "enum": ["schema", "scope", "grant", "idempotency", "provider", "storage", "task", "receipt", "settlement"]
+        },
+        "details": { "type": "object" }
+      }
+    },
+    "projectProductionPackage": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": [
+            "packageId",
+            "packageVersion",
+            "organizationId",
+            "briefSnapshot",
+            "brandPolicySnapshot",
+            "approvedScript",
+            "storyboard",
+            "target",
+            "capabilityRequirements",
+            "createdAt",
+            "expiresAt"
+          ],
+          "properties": {
+            "objectType": { "const": "ProjectProductionPackage" },
+            "packageId": { "$ref": "#/$defs/id" },
+            "packageVersion": { "type": "integer", "minimum": 1 },
+            "organizationId": { "$ref": "#/$defs/id" },
+            "briefSnapshot": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["briefVersionId", "objective", "audience", "platforms"],
+              "properties": {
+                "briefVersionId": { "$ref": "#/$defs/id" },
+                "objective": { "type": "string", "minLength": 1 },
+                "audience": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "platforms": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+              }
+            },
+            "brandPolicySnapshot": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["facts", "prohibitedTerms", "requiredDisclosures", "sourceDigest"],
+              "properties": {
+                "facts": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["factId", "text", "sourceReference", "approved"],
+                    "properties": {
+                      "factId": { "$ref": "#/$defs/id" },
+                      "text": { "type": "string", "minLength": 1 },
+                      "sourceReference": { "type": "string", "minLength": 1 },
+                      "approved": { "const": true }
+                    }
+                  }
+                },
+                "prohibitedTerms": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "requiredDisclosures": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "sourceDigest": { "$ref": "#/$defs/digest" }
+              }
+            },
+            "approvedScript": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["scriptVersionId", "content", "approvedAt", "approvedBy"],
+              "properties": {
+                "scriptVersionId": { "$ref": "#/$defs/id" },
+                "content": { "type": "string", "minLength": 1 },
+                "approvedAt": { "$ref": "#/$defs/timestamp" },
+                "approvedBy": { "$ref": "#/$defs/id" }
+              }
+            },
+            "storyboard": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["shotId", "sequence", "description", "durationSeconds", "sourceMode"],
+                "properties": {
+                  "shotId": { "$ref": "#/$defs/id" },
+                  "sequence": { "type": "integer", "minimum": 1 },
+                  "description": { "type": "string", "minLength": 1 },
+                  "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+                  "sourceMode": { "enum": ["uploaded", "generated", "mixed"] }
+                }
+              }
+            },
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["aspectRatio", "durationSeconds", "container", "videoCodec"],
+              "properties": {
+                "aspectRatio": { "type": "string", "pattern": "^[1-9][0-9]*:[1-9][0-9]*$" },
+                "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+                "container": { "const": "mp4" },
+                "videoCodec": { "const": "h264" }
+              }
+            },
+            "capabilityRequirements": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "enum": ["image.generate", "video.generate", "audio.tts", "media.export"] }
+            },
+            "createdAt": { "$ref": "#/$defs/timestamp" },
+            "expiresAt": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "projectGrant": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["grantId", "packageId", "capabilities", "scopes", "tokenDigest", "keyId", "issuedAt", "expiresAt"],
+          "properties": {
+            "objectType": { "const": "ProjectGrant" },
+            "grantId": { "$ref": "#/$defs/id" },
+            "packageId": { "$ref": "#/$defs/id" },
+            "capabilities": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "enum": ["image.generate", "video.generate", "audio.tts", "media.export"] }
+            },
+            "scopes": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": { "enum": ["production.package.read", "production.task.write", "production.receipt.write", "production.asset.write", "production.export.write"] }
+            },
+            "tokenDigest": { "$ref": "#/$defs/digest" },
+            "keyId": { "$ref": "#/$defs/id" },
+            "issuedAt": { "$ref": "#/$defs/timestamp" },
+            "expiresAt": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "generationTaskCommand": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["generationTaskId", "packageId", "grantId", "shotId", "taskType", "capability", "reservationReference", "input", "createdAt", "expiresAt"],
+          "properties": {
+            "objectType": { "const": "GenerationTaskCommand" },
+            "generationTaskId": { "$ref": "#/$defs/id" },
+            "packageId": { "$ref": "#/$defs/id" },
+            "grantId": { "$ref": "#/$defs/id" },
+            "shotId": { "$ref": "#/$defs/id" },
+            "taskType": { "enum": ["image.generate", "video.generate", "audio.tts"] },
+            "capability": { "enum": ["image.generate", "video.generate", "audio.tts"] },
+            "reservationReference": { "$ref": "#/$defs/id" },
+            "providerRouting": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["provider", "model"],
+              "properties": {
+                "provider": { "$ref": "#/$defs/id" },
+                "model": { "$ref": "#/$defs/id" }
+              }
+            },
+            "input": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["prompt", "referenceAssetIds", "parameters"],
+              "properties": {
+                "prompt": { "type": "string", "minLength": 1, "maxLength": 20000 },
+                "negativePrompt": { "type": "string", "maxLength": 10000 },
+                "referenceAssetIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+                "parameters": { "type": "object" }
+              }
+            },
+            "createdAt": { "$ref": "#/$defs/timestamp" },
+            "expiresAt": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "taskReceipt": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["receiptId", "generationTaskId", "shotId", "taskType", "status", "progress", "attempt", "providerExecution", "outputAssetIds", "error", "createdAt", "startedAt", "completedAt"],
+          "properties": {
+            "objectType": { "const": "TaskReceipt" },
+            "receiptId": { "$ref": "#/$defs/id" },
+            "generationTaskId": { "$ref": "#/$defs/id" },
+            "shotId": { "$ref": "#/$defs/id" },
+            "taskType": { "enum": ["image.generate", "video.generate", "audio.tts"] },
+            "status": { "enum": ["accepted", "running", "succeeded", "failed", "cancelled", "timed_out"] },
+            "progress": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "attempt": { "type": "integer", "minimum": 1 },
+            "providerExecution": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["provider", "model", "providerTaskReference", "usage", "providerCost"],
+              "properties": {
+                "provider": { "$ref": "#/$defs/id" },
+                "model": { "$ref": "#/$defs/id" },
+                "providerTaskReference": { "type": ["string", "null"] },
+                "usage": { "type": "array", "items": { "$ref": "#/$defs/meteredUsage" } },
+                "providerCost": { "oneOf": [{ "$ref": "#/$defs/money" }, { "type": "null" }] }
+              }
+            },
+            "outputAssetIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+            "error": { "oneOf": [{ "$ref": "#/$defs/standardErrorValue" }, { "type": "null" }] },
+            "createdAt": { "$ref": "#/$defs/timestamp" },
+            "startedAt": { "oneOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] },
+            "completedAt": { "oneOf": [{ "$ref": "#/$defs/timestamp" }, { "type": "null" }] }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "status": { "const": "succeeded" } }, "required": ["status"] },
+              "then": {
+                "properties": { "progress": { "const": 100 }, "outputAssetIds": { "minItems": 1 }, "error": { "type": "null" } },
+                "required": ["completedAt"]
+              }
+            },
+            {
+              "if": { "properties": { "status": { "enum": ["failed", "cancelled", "timed_out"] } }, "required": ["status"] },
+              "then": {
+                "properties": { "outputAssetIds": { "maxItems": 0 }, "error": { "$ref": "#/$defs/standardErrorValue" } }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "assetReceipt": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["receiptId", "assetId", "generationTaskId", "shotId", "mediaType", "mimeType", "checksum", "storageReference", "source", "rights", "reviewStatus", "deliverable", "createdAt"],
+          "properties": {
+            "objectType": { "const": "AssetReceipt" },
+            "receiptId": { "$ref": "#/$defs/id" },
+            "assetId": { "$ref": "#/$defs/id" },
+            "generationTaskId": { "$ref": "#/$defs/id" },
+            "shotId": { "$ref": "#/$defs/id" },
+            "mediaType": { "enum": ["image", "video", "audio"] },
+            "mimeType": { "type": "string", "pattern": "^[a-z0-9.+-]+/[a-z0-9.+-]+$" },
+            "dimensions": {
+              "type": ["object", "null"],
+              "required": ["width", "height"],
+              "properties": { "width": { "type": "integer", "minimum": 1 }, "height": { "type": "integer", "minimum": 1 } },
+              "additionalProperties": false
+            },
+            "durationSeconds": { "type": "number", "minimum": 0 },
+            "checksum": { "$ref": "#/$defs/digest" },
+            "storageReference": { "type": "string", "minLength": 1 },
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "provider", "model", "promptDigest"],
+              "properties": {
+                "kind": { "enum": ["upload", "generated"] },
+                "provider": { "type": ["string", "null"] },
+                "model": { "type": ["string", "null"] },
+                "promptDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] }
+              }
+            },
+            "rights": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["basis", "note"],
+              "properties": { "basis": { "enum": ["customer_upload", "provider_generated", "licensed"] }, "note": { "type": "string", "minLength": 1 } }
+            },
+            "reviewStatus": { "enum": ["registered", "approved", "blocked"] },
+            "deliverable": { "type": "boolean" },
+            "createdAt": { "$ref": "#/$defs/timestamp" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "exportReceipt": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["receiptId", "exportId", "timelineVersionId", "status", "inputAssetIds", "outputAssetId", "media", "storageReference", "checksum", "deliverable", "error", "createdAt", "completedAt"],
+          "properties": {
+            "objectType": { "const": "ExportReceipt" },
+            "receiptId": { "$ref": "#/$defs/id" },
+            "exportId": { "$ref": "#/$defs/id" },
+            "timelineVersionId": { "$ref": "#/$defs/id" },
+            "status": { "enum": ["succeeded", "failed"] },
+            "inputAssetIds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+            "outputAssetId": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+            "media": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["mimeType", "width", "height", "durationSeconds", "videoCodec", "audioCodec"],
+              "properties": {
+                "mimeType": { "const": "video/mp4" },
+                "width": { "type": "integer", "minimum": 1 },
+                "height": { "type": "integer", "minimum": 1 },
+                "durationSeconds": { "type": "number", "exclusiveMinimum": 0 },
+                "videoCodec": { "const": "h264" },
+                "audioCodec": { "enum": ["aac", "none"] }
+              }
+            },
+            "storageReference": { "type": ["string", "null"] },
+            "checksum": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+            "deliverable": { "type": "boolean" },
+            "error": { "oneOf": [{ "$ref": "#/$defs/standardErrorValue" }, { "type": "null" }] },
+            "createdAt": { "$ref": "#/$defs/timestamp" },
+            "completedAt": { "$ref": "#/$defs/timestamp" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "status": { "const": "succeeded" } }, "required": ["status"] },
+              "then": {
+                "properties": { "outputAssetId": { "$ref": "#/$defs/id" }, "storageReference": { "type": "string", "minLength": 1 }, "checksum": { "$ref": "#/$defs/digest" }, "deliverable": { "const": true }, "error": { "type": "null" } }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+              "then": {
+                "properties": { "outputAssetId": { "type": "null" }, "storageReference": { "type": "null" }, "checksum": { "type": "null" }, "deliverable": { "const": false }, "error": { "$ref": "#/$defs/standardErrorValue" } }
+              }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "meteredUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric", "quantity", "unit"],
+      "properties": {
+        "metric": { "enum": ["image", "video_seconds", "tts_characters", "export_seconds"] },
+        "quantity": { "type": "number", "minimum": 0 },
+        "unit": { "enum": ["request", "second", "character"] }
+      }
+    },
+    "usageReceipt": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["receiptId", "generationTaskId", "reservationReference", "deliverableAssetIds", "meteredUsage", "providerCost", "customerSettlement", "createdAt"],
+          "properties": {
+            "objectType": { "const": "UsageReceipt" },
+            "receiptId": { "$ref": "#/$defs/id" },
+            "generationTaskId": { "$ref": "#/$defs/id" },
+            "reservationReference": { "$ref": "#/$defs/id" },
+            "deliverableAssetIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+            "meteredUsage": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/meteredUsage" } },
+            "providerCost": { "oneOf": [{ "$ref": "#/$defs/money" }, { "type": "null" }] },
+            "customerSettlement": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["eligibility", "reason"],
+              "properties": {
+                "eligibility": { "enum": ["eligible", "not_eligible"] },
+                "reason": { "enum": ["deliverable_asset_registered", "no_deliverable_asset"] }
+              }
+            },
+            "createdAt": { "$ref": "#/$defs/timestamp" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "customerSettlement": { "properties": { "eligibility": { "const": "eligible" } }, "required": ["eligibility"] } } },
+              "then": { "properties": { "deliverableAssetIds": { "minItems": 1 } } }
+            },
+            {
+              "if": { "properties": { "customerSettlement": { "properties": { "eligibility": { "const": "not_eligible" } }, "required": ["eligibility"] } } },
+              "then": { "properties": { "deliverableAssetIds": { "maxItems": 0 } } }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "standardError": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["errorId", "requestId", "error"],
+          "properties": {
+            "objectType": { "const": "StandardError" },
+            "errorId": { "$ref": "#/$defs/id" },
+            "requestId": { "$ref": "#/$defs/id" },
+            "error": { "$ref": "#/$defs/standardErrorValue" }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "receiptAck": {
+      "allOf": [
+        { "$ref": "#/$defs/envelope" },
+        {
+          "type": "object",
+          "required": ["ackId", "receiptId", "receiptType", "acknowledgedPayloadDigest", "status", "durablyRecorded", "domainReference", "error", "receivedAt"],
+          "properties": {
+            "objectType": { "const": "ReceiptAck" },
+            "ackId": { "$ref": "#/$defs/id" },
+            "receiptId": { "$ref": "#/$defs/id" },
+            "receiptType": { "enum": ["TaskReceipt", "AssetReceipt", "ExportReceipt", "UsageReceipt"] },
+            "acknowledgedPayloadDigest": { "$ref": "#/$defs/digest" },
+            "status": { "enum": ["accepted", "duplicate", "rejected"] },
+            "durablyRecorded": { "type": "boolean" },
+            "domainReference": { "type": ["string", "null"] },
+            "error": { "oneOf": [{ "$ref": "#/$defs/standardErrorValue" }, { "type": "null" }] },
+            "receivedAt": { "$ref": "#/$defs/timestamp" }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "status": { "enum": ["accepted", "duplicate"] } }, "required": ["status"] },
+              "then": { "properties": { "durablyRecorded": { "const": true }, "error": { "type": "null" } } }
+            },
+            {
+              "if": { "properties": { "status": { "const": "rejected" } }, "required": ["status"] },
+              "then": { "properties": { "durablyRecorded": { "const": false }, "error": { "$ref": "#/$defs/standardErrorValue" } } }
+            }
+          ]
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

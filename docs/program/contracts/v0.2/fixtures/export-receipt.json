@@ -1,0 +1,29 @@
+{
+  "objectType": "ExportReceipt",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "export-receipt-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:10:00.000Z",
+  "payloadDigest": "sha256:2159ef94316c371d413b813be26d89da9602b805f452510cf2fae0a6bf56379d",
+  "receiptId": "receipt-export-pilot-01-v1",
+  "exportId": "export-pilot-01",
+  "timelineVersionId": "timeline-pilot-01-v1",
+  "status": "succeeded",
+  "inputAssetIds": ["asset-generated-pilot-01"],
+  "outputAssetId": "asset-export-pilot-01",
+  "media": {
+    "mimeType": "video/mp4",
+    "width": 720,
+    "height": 1280,
+    "durationSeconds": 15,
+    "videoCodec": "h264",
+    "audioCodec": "aac"
+  },
+  "storageReference": "tos://pilot-output/tenant-pilot-01/project-pilot-01/export-pilot-01.mp4",
+  "checksum": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+  "deliverable": true,
+  "error": null,
+  "createdAt": "2026-08-05T01:08:00.000Z",
+  "completedAt": "2026-08-05T01:10:00.000Z"
+}

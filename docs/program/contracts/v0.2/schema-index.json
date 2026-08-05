@@ -1,0 +1,15 @@
+{
+  "contractVersion": "0.2",
+  "schema": "pilot-contract-v0.2.schema.json",
+  "objects": {
+    "ProjectProductionPackage": "#/$defs/projectProductionPackage",
+    "ProjectGrant": "#/$defs/projectGrant",
+    "GenerationTaskCommand": "#/$defs/generationTaskCommand",
+    "TaskReceipt": "#/$defs/taskReceipt",
+    "AssetReceipt": "#/$defs/assetReceipt",
+    "ExportReceipt": "#/$defs/exportReceipt",
+    "UsageReceipt": "#/$defs/usageReceipt",
+    "StandardError": "#/$defs/standardError",
+    "ReceiptAck": "#/$defs/receiptAck"
+  }
+}

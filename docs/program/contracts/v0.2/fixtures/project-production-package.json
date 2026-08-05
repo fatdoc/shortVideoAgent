@@ -1,0 +1,55 @@
+{
+  "objectType": "ProjectProductionPackage",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "package-project-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:00:00.000Z",
+  "payloadDigest": "sha256:6f9bfd6dfcf6f4b51036e6f6451e800401fa1639bf49dedcb76c961764412b69",
+  "packageId": "package-project-pilot-01-v1",
+  "packageVersion": 1,
+  "organizationId": "organization-pilot-01",
+  "briefSnapshot": {
+    "briefVersionId": "brief-project-pilot-01-v3",
+    "objective": "Produce one controlled-pilot vertical store video.",
+    "audience": ["local-store-visitors"],
+    "platforms": ["douyin"]
+  },
+  "brandPolicySnapshot": {
+    "facts": [
+      {
+        "factId": "fact-pilot-01",
+        "text": "Pilot fact approved from customer-provided source material.",
+        "sourceReference": "customer-material:fact-pilot-01",
+        "approved": true
+      }
+    ],
+    "prohibitedTerms": ["unverified-superlative"],
+    "requiredDisclosures": ["internal-controlled-pilot"],
+    "sourceDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "approvedScript": {
+    "scriptVersionId": "script-project-pilot-01-v2",
+    "content": "Approved pilot script snapshot.",
+    "approvedAt": "2026-08-05T00:55:00.000Z",
+    "approvedBy": "member-pilot-approver-01"
+  },
+  "storyboard": [
+    {
+      "shotId": "shot-pilot-01",
+      "sequence": 1,
+      "description": "Opening store-context shot.",
+      "durationSeconds": 5,
+      "sourceMode": "mixed"
+    }
+  ],
+  "target": {
+    "aspectRatio": "9:16",
+    "durationSeconds": 15,
+    "container": "mp4",
+    "videoCodec": "h264"
+  },
+  "capabilityRequirements": ["image.generate", "video.generate", "audio.tts", "media.export"],
+  "createdAt": "2026-08-05T01:00:00.000Z",
+  "expiresAt": "2026-08-05T07:00:00.000Z"
+}

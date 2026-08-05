@@ -1,0 +1,122 @@
+{
+  "contractVersion": "0.2",
+  "suite": "pilot-cross-plane-negative-vectors",
+  "vectors": [
+    {
+      "caseId": "SCHEMA-001",
+      "operation": "validateEnvelope",
+      "subjectFixture": "generation-task-command.json",
+      "mutations": [{ "op": "remove", "path": "/contractVersion" }],
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "SCOPE-TENANT-001",
+      "operation": "authorizeCommand",
+      "subjectFixture": "generation-task-command.json",
+      "relatedFixture": "project-grant.json",
+      "mutations": [{ "op": "replace", "path": "/tenantId", "value": "tenant-pilot-other" }],
+      "expectedHttpStatus": 403,
+      "expectedCode": "TENANT_SCOPE_MISMATCH"
+    },
+    {
+      "caseId": "SCOPE-PROJECT-001",
+      "operation": "authorizeCommand",
+      "subjectFixture": "generation-task-command.json",
+      "relatedFixture": "project-grant.json",
+      "mutations": [{ "op": "replace", "path": "/projectId", "value": "project-pilot-other" }],
+      "expectedHttpStatus": 403,
+      "expectedCode": "PROJECT_SCOPE_MISMATCH"
+    },
+    {
+      "caseId": "SCOPE-CAPABILITY-001",
+      "operation": "authorizeCommand",
+      "subjectFixture": "generation-task-command.json",
+      "relatedFixture": "project-grant.json",
+      "relatedMutations": [{ "op": "replace", "path": "/capabilities", "value": ["image.generate"] }],
+      "expectedHttpStatus": 403,
+      "expectedCode": "CAPABILITY_SCOPE_DENIED"
+    },
+    {
+      "caseId": "GRANT-INVALID-001",
+      "operation": "authorizeCommand",
+      "subjectFixture": "generation-task-command.json",
+      "relatedFixture": "project-grant.json",
+      "mutations": [{ "op": "replace", "path": "/grantId", "value": "grant-project-other-v1" }],
+      "expectedHttpStatus": 401,
+      "expectedCode": "GRANT_INVALID"
+    },
+    {
+      "caseId": "GRANT-EXPIRED-001",
+      "operation": "authorizeCommand",
+      "subjectFixture": "generation-task-command.json",
+      "relatedFixture": "project-grant.json",
+      "evaluatedAt": "2026-08-05T01:10:02.000Z",
+      "expectedHttpStatus": 410,
+      "expectedCode": "GRANT_EXPIRED"
+    },
+    {
+      "caseId": "IDEMPOTENCY-001",
+      "operation": "replayCommand",
+      "subjectFixture": "generation-task-command.json",
+      "mutations": [{ "op": "replace", "path": "/input/prompt", "value": "Changed payload under the same idempotency key." }],
+      "expectedHttpStatus": 409,
+      "expectedCode": "IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "caseId": "PROVIDER-001",
+      "operation": "mapStandardError",
+      "subjectFixture": "standard-error.json",
+      "expectedHttpStatus": 502,
+      "expectedCode": "PROVIDER_FAILED"
+    },
+    {
+      "caseId": "STORAGE-001",
+      "operation": "registerAsset",
+      "subjectFixture": "asset-receipt.json",
+      "mutations": [{ "op": "replace", "path": "/storageReference", "value": "" }],
+      "expectedHttpStatus": 503,
+      "expectedCode": "STORAGE_FAILED"
+    },
+    {
+      "caseId": "TIMEOUT-001",
+      "operation": "receiveTaskReceipt",
+      "subjectFixture": "task-receipt.json",
+      "mutations": [
+        { "op": "replace", "path": "/status", "value": "timed_out" },
+        { "op": "replace", "path": "/outputAssetIds", "value": [] },
+        { "op": "replace", "path": "/error", "value": { "code": "TASK_TIMEOUT", "message": "Provider polling deadline exceeded.", "retryable": true, "category": "task", "details": {} } }
+      ],
+      "expectedHttpStatus": 504,
+      "expectedCode": "TASK_TIMEOUT"
+    },
+    {
+      "caseId": "CANCEL-001",
+      "operation": "receiveTaskReceipt",
+      "subjectFixture": "task-receipt.json",
+      "mutations": [
+        { "op": "replace", "path": "/status", "value": "cancelled" },
+        { "op": "replace", "path": "/outputAssetIds", "value": [] },
+        { "op": "replace", "path": "/error", "value": { "code": "TASK_CANCELLED", "message": "Task was cancelled before delivery.", "retryable": false, "category": "task", "details": {} } }
+      ],
+      "expectedHttpStatus": 409,
+      "expectedCode": "TASK_CANCELLED"
+    },
+    {
+      "caseId": "RECEIPT-REPLAY-001",
+      "operation": "replayReceipt",
+      "subjectFixture": "asset-receipt.json",
+      "mutations": [{ "op": "replace", "path": "/checksum", "value": "sha256:7777777777777777777777777777777777777777777777777777777777777777" }],
+      "expectedHttpStatus": 409,
+      "expectedCode": "RECEIPT_REPLAY_CONFLICT"
+    },
+    {
+      "caseId": "SETTLEMENT-001",
+      "operation": "settleUsage",
+      "subjectFixture": "usage-receipt.json",
+      "mutations": [{ "op": "replace", "path": "/deliverableAssetIds", "value": [] }],
+      "expectedHttpStatus": 422,
+      "expectedCode": "CREDIT_SETTLEMENT_FAILED"
+    }
+  ]
+}

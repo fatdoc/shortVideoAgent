@@ -1,0 +1,21 @@
+{
+  "objectType": "StandardError",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "error-provider-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:02:00.000Z",
+  "payloadDigest": "sha256:6b4e01ef27f794f37c861ee97e1c035e261d96b48e515de01213138a35e42ae0",
+  "errorId": "error-provider-pilot-01",
+  "requestId": "request-task-pilot-01",
+  "error": {
+    "code": "PROVIDER_FAILED",
+    "message": "Provider rejected the generation request.",
+    "retryable": true,
+    "category": "provider",
+    "details": {
+      "provider": "byteplus",
+      "providerCode": "REDACTED_PROVIDER_CODE"
+    }
+  }
+}

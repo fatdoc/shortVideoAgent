@@ -1,0 +1,18 @@
+{
+  "objectType": "ReceiptAck",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "ack-usage-receipt-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:03:08.000Z",
+  "payloadDigest": "sha256:8333e99081777422c540f5b876d0641a0831ab00ffc4c08d2fa8ffd3f3377bb7",
+  "ackId": "ack-receipt-usage-pilot-01-v1",
+  "receiptId": "receipt-usage-pilot-01-v1",
+  "receiptType": "UsageReceipt",
+  "acknowledgedPayloadDigest": "sha256:d69e51c583dd99b3a38dd8d04d9f5402789fd040698439094e4f0ea0a6f7f5cc",
+  "status": "accepted",
+  "durablyRecorded": true,
+  "domainReference": "inbox-pilot-01",
+  "error": null,
+  "receivedAt": "2026-08-05T01:03:08.000Z"
+}

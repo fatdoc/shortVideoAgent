@@ -1,0 +1,23 @@
+{
+  "objectType": "ProjectGrant",
+  "contractVersion": "0.2",
+  "tenantId": "tenant-pilot-01",
+  "projectId": "project-pilot-01",
+  "idempotencyKey": "grant-project-pilot-01-v1",
+  "occurredAt": "2026-08-05T01:00:01.000Z",
+  "payloadDigest": "sha256:be3c7de963bf0091de4b4355780b0d80f98f727b39bf883b628b944e9dcf9095",
+  "grantId": "grant-project-pilot-01-v1",
+  "packageId": "package-project-pilot-01-v1",
+  "capabilities": ["image.generate", "video.generate", "audio.tts", "media.export"],
+  "scopes": [
+    "production.package.read",
+    "production.task.write",
+    "production.receipt.write",
+    "production.asset.write",
+    "production.export.write"
+  ],
+  "tokenDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "keyId": "pilot-signing-key-01",
+  "issuedAt": "2026-08-05T01:00:01.000Z",
+  "expiresAt": "2026-08-05T01:10:01.000Z"
+}
