@@ -23,6 +23,31 @@ const controlApiA3Gate = path.join(
   "tests/e2e/pilot/control-api-a3-http.gate.ts",
 );
 const controlApiTsx = path.join(repositoryRoot, "apps/control-api/node_modules/.bin/tsx");
+const storycanvasRoot = path.join(repositoryRoot, "apps/storycanvas");
+const storycanvasTsxCli = path.join(storycanvasRoot, "node_modules/tsx/dist/cli.mjs");
+const storycanvasNativeTestNode = [
+  process.env.STORYCANVAS_TEST_NODE,
+  path.join(os.homedir(), ".hermes/node/bin/node"),
+  process.execPath,
+].find((candidate) => candidate && fs.existsSync(candidate));
+const storycanvasV02HttpGate = path.join(
+  storycanvasRoot,
+  "src/routes/production/v0.2/index.test.ts",
+);
+const storycanvasV02ReceiverGate = path.join(
+  storycanvasRoot,
+  "src/services/storycanvas/pilotV02Receiver.test.ts",
+);
+const storycanvasV02RuntimeGate = path.join(
+  storycanvasRoot,
+  "src/contracts/v0.2/runtime.test.ts",
+);
+const storycanvasV02SecurityGate = path.join(
+  storycanvasRoot,
+  "src/contracts/v0.2/security.test.ts",
+);
+const q1ProductionPlaneInternalToken =
+  "q1-production-plane-internal-token-independent-20260805";
 
 function run(command, args, options = {}) {
   const environment = {
@@ -31,6 +56,7 @@ function run(command, args, options = {}) {
     ARK_API_KEY: "",
     BYTEPLUS_TTS_ACCESS_TOKEN: "",
     BYTEPLUS_TTS_APP_ID: "",
+    PRODUCTION_PLANE_INTERNAL_TOKEN: q1ProductionPlaneInternalToken,
   };
   delete environment.NODE_TEST_CONTEXT;
   return spawnSync(command, args, {
@@ -153,8 +179,26 @@ test("A3 live package/grant HTTP and token matrix remains executable", () => {
   assert.ok(fs.existsSync(controlApiTsx), "Control API local tsx runner is required");
   const result = run(controlApiTsx, ["--test", controlApiA3Gate]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /# pass 9/);
+  assert.match(result.stdout, /# pass 10/);
   assert.match(result.stdout, /# fail 0/);
 });
 
-test("B3 live v0.2 command/receipt API matrix is pending its public implementation", { skip: true }, () => {});
+test("B3 live v0.2 public HTTP and durable receiver matrix remains executable", () => {
+  assert.ok(storycanvasNativeTestNode, "A StoryCanvas native-module compatible Node runtime is required");
+  const result = run(
+    storycanvasNativeTestNode,
+    [
+      storycanvasTsxCli,
+      "--test",
+      storycanvasV02RuntimeGate,
+      storycanvasV02SecurityGate,
+      storycanvasV02HttpGate,
+      storycanvasV02ReceiverGate,
+    ],
+    { cwd: storycanvasRoot },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /# pass 13/);
+  assert.match(result.stdout, /# fail 0/);
+  assert.match(result.stdout, /# skipped 0/);
+});

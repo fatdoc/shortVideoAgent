@@ -14,7 +14,7 @@ Current phases:
 - StoryCanvas v0.1 package/grant compatibility and rejection boundary: executable.
 - Test-only transport oracle for command replay, receipt ACK/replay, and reservation settlement: executable.
 - A3 Control API package/grant public API, signed token, and least-privilege policy: executable.
-- B3 StoryCanvas v0.2 task/receipt public API: pending B3 implementation.
+- B3 StoryCanvas v0.2 runtime/security validators, public HTTP routes, and durable task/receipt receiver: executable.
 
 The StandardError mutation tests preserve the original Q1 reproduction and now require the C01.1 machine-readable policy to reject signed URLs, scripts, credentials, and cross-tenant existence disclosures.
 

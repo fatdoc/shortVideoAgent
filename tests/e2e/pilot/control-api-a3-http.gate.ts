@@ -15,6 +15,7 @@ import {
 } from "../../../apps/control-api/src/production/errors.ts";
 import { assertGrantRequestAllowed } from "../../../apps/control-api/src/production/grantPolicy.ts";
 import { productionIdempotencyDigest } from "../../../apps/control-api/src/production/idempotency.ts";
+import { createInternalProjectGrantRouter } from "../../../apps/control-api/src/production/internalRoutes.ts";
 import {
   type ProjectGrantClaims,
   ProjectGrantTokenService,
@@ -42,6 +43,8 @@ const tokenService = new ProjectGrantTokenService(
   "q1-test-kid",
   () => issuedAt,
 );
+const q1ProductionPlaneInternalToken =
+  "q1-production-plane-internal-token-independent-20260805";
 
 function assertAcceptedByC01(standardError: unknown) {
   const source = path.join(process.cwd(), "docs/program/contracts/v0.2");
@@ -383,6 +386,7 @@ test("A3 configuration requires an independent Grant signing secret and active k
     SESSION_SECRET: "q1-session-secret-at-least-32-characters",
     PROJECT_GRANT_SIGNING_SECRET: "q1-grant-secret-independent-at-least-32-characters",
     PROJECT_GRANT_ACTIVE_KID: "q1-kid-v1",
+    PRODUCTION_PLANE_INTERNAL_TOKEN: q1ProductionPlaneInternalToken,
   });
   assert.notEqual(config.projectGrantSigningSecret, config.sessionSecret);
   assert.equal(config.projectGrantActiveKid, "q1-kid-v1");
@@ -391,5 +395,48 @@ test("A3 configuration requires an independent Grant signing secret and active k
     SESSION_SECRET: "q1-shared-secret-at-least-32-characters",
     PROJECT_GRANT_SIGNING_SECRET: "q1-shared-secret-at-least-32-characters",
     PROJECT_GRANT_ACTIVE_KID: "q1-kid-v1",
+    PRODUCTION_PLANE_INTERNAL_TOKEN: q1ProductionPlaneInternalToken,
   }), /must be independent/);
+  assert.notEqual(config.productionPlaneInternalToken, config.sessionSecret);
+  assert.notEqual(config.productionPlaneInternalToken, config.projectGrantSigningSecret);
+});
+
+test("A3 introspection returns grantId only from verified signed claims", async () => {
+  let verificationCount = 0;
+  const internalRouter = createInternalProjectGrantRouter({
+    internalToken: q1ProductionPlaneInternalToken,
+    verifier: {
+      verifyActiveGrantToken: async (token) => {
+        verificationCount += 1;
+        return tokenService.verify(token);
+      },
+    },
+  });
+  const application = createApp({
+    appVersion: "q1-test",
+    nodeEnv: "test",
+    readinessProbe: async () => undefined,
+    internalProductionRouter: internalRouter,
+  });
+  const expected = claims("10000000-0000-4000-8000-000000000088");
+  const grantToken = tokenService.issue(expected);
+  const introspect = () => request(application)
+    .post("/api/v1/internal/project-grants/introspect")
+    .set("x-production-plane-internal-token", q1ProductionPlaneInternalToken)
+    .set("authorization", `Bearer ${grantToken}`);
+
+  const accepted = await introspect();
+  assert.equal(accepted.status, 200);
+  assert.equal(accepted.body.grantId, expected.jti);
+  assert.equal(accepted.body.tenantId, expected.tenantId);
+  assert.equal(accepted.body.projectId, expected.projectId);
+  assert.equal(verificationCount, 1);
+
+  const forgedGrantId = "20000000-0000-4000-8000-000000000099";
+  const rejected = await introspect().send({ grantId: forgedGrantId });
+  assert.equal(rejected.status, 422);
+  assert.equal(rejected.body.error.code, "SCHEMA_INVALID");
+  assert.doesNotMatch(rejected.text, new RegExp(forgedGrantId));
+  assert.doesNotMatch(rejected.text, new RegExp(grantToken.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.equal(verificationCount, 1);
 });
