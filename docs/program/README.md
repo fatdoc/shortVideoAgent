@@ -15,9 +15,10 @@
 9. `docs/program/REPOSITORY_MAP.md`
 10. `docs/program/INTEGRATION_CONTRACT.md`
 11. `docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-12. 自己的 `docs/program/employees/C{n}_RECRUITMENT.md`
-13. 自己的 `docs/program/missions/C{n}_FIRST_MISSION.md`
-14. 自己的 `docs/program/threads/C{n}/STATUS.md` 与上游 HANDOFF
+12. `docs/program/A05_OPEN_SOURCE_FIRST_POLICY.md`
+13. 自己的 `docs/program/employees/C{n}_RECRUITMENT.md`
+14. 自己的 `docs/program/missions/C{n}_FIRST_MISSION.md`
+15. 自己的 `docs/program/threads/C{n}/STATUS.md` 与上游 HANDOFF
 
 ## 新窗口强制运行配置
 

@@ -15,6 +15,7 @@
 
 - 启动基线：`codex/pilot-v0-control-plane` 的最新 G0 Checkpoint。
 - 模型/推理按项目级 `docs/program/README.md` 执行。
+- 所有窗口强制执行 `docs/program/A05_OPEN_SOURCE_FIRST_POLICY.md`，优先复用成熟开源和官方 SDK。
 - 每个窗口只做启动文件指定的一个任务节点。
 - 窗口不直接合并 `main`，不推送，不覆盖其他窗口文件。
 - 交付状态只能是 `READY_FOR_GATE` 或 `BLOCKED`；`ACCEPTED` 由 P0 评审。
