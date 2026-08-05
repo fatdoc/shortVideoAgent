@@ -1,11 +1,12 @@
 # 短视频营销 Agent
 
-企业级 AI 短视频营销与媒体生产 Demo。当前仓库采用单仓、单一用户前端、双平面架构：
+企业级 AI 短视频营销与媒体生产系统。当前仓库采用单仓、单一用户前端、双平面架构：
 
 - 根目录：唯一 SaaS 前端，包含登录、角色、渠道、品牌、额度和内嵌 StoryCanvas。
-- `apps/storycanvas/`：内部媒体生产 API、任务、资产、时间线和导出运行时。
+- `apps/control-api/`：真实 Pilot 控制平面，包含 PostgreSQL、白名单认证、项目/脚本审批、Production Package 和 ProjectGrant。
+- `apps/storycanvas/`：媒体生产平面，包含 v0.2 Package/Grant/Command/Receipt Receiver、任务、资产、时间线和导出运行时。
 
-当前仍以内部 Demo 为目标，不宣称生产级认证、真实 AI、正式计费或商业发布。
+当前阶段是单客户、白名单、受控真实试点 v0，不是公开商业 SaaS。真实注册、邀请、支付、代理提成、正式用户须知、完整媒体 Provider 执行和自动结算仍按任务节点建设；未完成能力不得用 Mock 冒充上线。
 
 ## 项目介绍
 
@@ -50,22 +51,22 @@ StoryCanvas 执行画布编排、生成任务、资产管理和导出
 成功任务消费额度，失败任务释放额度
 ```
 
-### 当前统一 Demo
+### 当前受控试点与演示资料
 
-当前演示项目为 `demo-local-001`，业务主体是海底捞火锅北京三里屯店。Demo 覆盖：
+当前白名单开发和内部演示继续使用 `demo-local-001`，业务主体是海底捞火锅北京三里屯店。该资料只用于内部试点，不代表品牌对外授权。
+
+当前已具备：
 
 - 海底捞品牌资料、套餐、C1—C8 事实、禁用词、老板 IP、引用和风险提醒。
-- 平台、渠道、企业和媒体生产四种登录身份。
-- Brief、脚本、分镜、生产交接、成功任务、失败任务、资产和导出。
-- 额度预留、成功消费、失败释放和回执确认。
-- SaaS 与 StoryCanvas 之间的 package、project-scoped grant 和 receipt 合同。
+- 真实白名单登录、HttpOnly Session、Tenant/Project 隔离、Brief、版本化脚本和审批。
+- PostgreSQL Production Package、短时 ProjectGrant、在线撤销/过期 introspection。
+- StoryCanvas v0.2 Package/Grant/Command/Receipt 持久化接收、幂等和安全错误边界。
+- 平台、渠道、企业和媒体生产的 Demo 只读投影，以及海底捞黄金路径资料。
 - 可播放的 `DEMO_ONLY FALLBACK` 视频，用于内部流程演示。
 
 ### 技术与产品边界
 
-当前版本采用前端 + Mock + LocalStorage 完成老板演示闭环。登录、角色、额度、价格和生产状态可以演示，但不能作为真实资金、正式认证或生产安全证据。
-
-真实商业上线仍需要补充服务端身份认证、RBAC、多租户隔离、数据库、支付结算、供应商密钥管理、任务队列、对象存储、监控和法律授权。
+白名单认证、项目/脚本审批、Package/Grant 和 v0.2 Receiver 已进入真实服务端与数据库；平台/渠道商业投影、公开注册、支付和提成仍未生产化。真实媒体 Provider smoke、完整 FFmpeg 成片、额度结算、云端监控和法律授权必须按各自 Gate 验收，不能从合同测试推导为已经上线。
 
 ## 多线程开发入口
 
@@ -75,9 +76,12 @@ StoryCanvas 执行画布编排、生成任务、资产管理和导出
 
 ## 两人协作入口
 
+- [2026-08-06 A/B 共创开发分工（当前执行依据）](./docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md)
 - [两人开发拆分方案](./docs/collaboration/TWO_PERSON_DEVELOPMENT_SPLIT.md)
 - [媒体生产负责人交接手册](./docs/collaboration/DEVELOPER_B_HANDOFF_MANUAL.md)
 - [媒体生产负责人首轮任务书](./docs/collaboration/DEVELOPER_B_FIRST_TASKS.md)
+
+下一轮共创：工程师 A 负责统一老板/创作工作台、真实组织与权限、三路注册、邀请归因、用户须知、充值和代理提成；工程师 B 负责爆款合规复刻、批准脚本解析、分镜草案、画布持久化和真实媒体任务。
 
 ## 智能体总控交接
 
@@ -126,11 +130,11 @@ npm run validate:governance
 
 ## 技术栈
 
-React · TypeScript · Vite · Ant Design · React Router · Zustand · Recharts · dnd-kit · react-dropzone · LocalStorage · Vitest · Playwright · ESLint · Prettier
+React · TypeScript · Vite · Ant Design · React Router · Zustand · Node.js · Express · PostgreSQL · Knex · Zod · SQLite · FFmpeg · Vitest · Playwright · ESLint · Prettier
 
 ## 当前阶段
 
-D2：内部 Demo 的登录、角色工作台、控制平面与媒体生产闭环。当前仍为前端 + Mock，不代表生产级认证、真实 AI 或正式结算。
+A-05 白名单真实试点 v0：跨平面合同 Gate 已通过；下一阶段进入业务平台注册/代理提成/用户须知与画布爆款复刻/脚本解析/分镜共创。公开商业发布、正式支付结算和真实 Provider 成片仍未完成。
 
 ## 统一 Demo 项目
 
