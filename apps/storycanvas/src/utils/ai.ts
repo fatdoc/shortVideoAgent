@@ -243,6 +243,15 @@ interface ImageConfig {
   aspectRatio: `${number}:${number}`;
 }
 
+interface TtsConfig {
+  text: string;
+  voice: string;
+  speechRate: number;
+  pitchRate: number;
+  volume: number;
+  referenceList?: Extract<ReferenceList, { type: "audio" }>[];
+}
+
 interface TaskRecord {
   taskClass: string; // 任务分类
   describe: string; // 任务描述
@@ -334,17 +343,15 @@ class AiAudio {
   constructor(key: `${string}:${string}`) {
     this.key = key;
   }
-  async run(input: VideoConfig, taskRecord?: TaskRecord) {
+  async run(input: TtsConfig, taskRecord?: TaskRecord) {
     const modelName = await resolveModelName(this.key);
     const exec = async (mn: `${string}:${string}`) => {
-      try {
-        const fn = await getVendorTemplateFn("ttsRequest", mn);
-        await referenceList2imageBase642(mn.split(/:(.+)/)[0], input);
-        this.result = await fn(input);
-
-        if (this.result.startsWith("http")) this.result = await urlToBase64(this.result);
-        return this;
-      } catch (e) {}
+      const fn = await getVendorTemplateFn("ttsRequest", mn);
+      await referenceList2imageBase642(mn.split(/:(.+)/)[0], input);
+      this.result = await fn(input);
+      if (!this.result) throw new Error("TTS_RESPONSE_INVALID：语音供应商没有返回音频数据。");
+      if (this.result.startsWith("http")) this.result = await urlToBase64(this.result);
+      return this;
     };
     if (taskRecord) {
       return withTaskRecord(this.key, taskRecord.taskClass, taskRecord.describe, taskRecord.relatedObjects, taskRecord.projectId, exec);

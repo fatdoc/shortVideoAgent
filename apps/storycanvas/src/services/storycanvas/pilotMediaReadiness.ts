@@ -5,6 +5,10 @@ import { promisify } from "node:util";
 import crypto from "node:crypto";
 import { loadModels, resolveModelTarget } from "@/config/loadModels";
 import getPath from "@/utils/getPath";
+import {
+  inspectBytePlusTtsConfiguration,
+  type BytePlusTtsTransport,
+} from "./byteplusTts";
 
 export type PilotReadinessStatus = "ready" | "degraded" | "unavailable";
 export type PilotCapability = "storage" | "image" | "video" | "tts" | "ffmpeg";
@@ -33,6 +37,7 @@ export interface PilotReadinessDependencies {
   env?: NodeJS.ProcessEnv;
   checkLocalStorage?: () => Promise<boolean>;
   inspectFfmpeg?: () => Promise<{ version: string; hasH264: boolean; hasAac: boolean }>;
+  ttsTransports?: readonly BytePlusTtsTransport[];
   now?: () => Date;
 }
 
@@ -217,13 +222,25 @@ export async function getPilotMediaReadiness(
     checks.push(unavailableModelReadiness("video", cause));
   }
 
+  const tts = inspectBytePlusTtsConfiguration(env, dependencies.ttsTransports);
   checks.push({
     capability: "tts",
-    status: "unavailable",
-    code: "PILOT_TTS_NOT_IMPLEMENTED",
-    configured: false,
-    executable: false,
-    message: "当前模型合同和生产服务中还没有 TTS 供应商实现。",
+    status: tts.code === "BYTEPLUS_TTS_READY" ? "ready" : "unavailable",
+    code: `PILOT_${tts.code}`,
+    configured: tts.configured,
+    executable: tts.executable,
+    message: tts.message,
+    provider: "byteplus",
+    ...(tts.protocol ? { model: tts.protocol } : {}),
+    details: {
+      enabled: tts.enabled,
+      protocolVerified: new Set(["BYTEPLUS_TTS_READY", "BYTEPLUS_TTS_CONFIGURATION_MISSING"]).has(tts.code),
+      requiredEnvironment: tts.requiredEnvironment.join(","),
+      missingEnvironment: tts.missingEnvironment.join(","),
+      verification: tts.code === "BYTEPLUS_TTS_READY"
+        ? "configuration-and-implementation"
+        : "no-paid-request",
+    },
   });
   checks.push(await ffmpegReadiness(dependencies.inspectFfmpeg ?? inspectFfmpeg));
 

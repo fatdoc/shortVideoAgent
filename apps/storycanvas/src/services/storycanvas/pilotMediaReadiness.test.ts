@@ -40,6 +40,31 @@ test("reports implemented providers honestly and keeps current pilot blockers vi
   for (const secret of ["ark-secret-value", "asset-access-secret", "asset-secret-value"]) {
     assert.equal(serialized.includes(secret), false);
   }
+  const tts = result.checks.find((check) => check.capability === "tts");
+  assert.equal(tts?.code, "PILOT_BYTEPLUS_TTS_DISABLED");
+  assert.equal(tts?.details?.protocolVerified, false);
+});
+
+test("marks TTS ready only when a reviewed transport and its server credentials exist", async () => {
+  const result = await getPilotMediaReadiness({
+    env: {
+      ...configuredEnv,
+      BYTEPLUS_TTS_ENABLED: "true",
+      BYTEPLUS_TTS_PROTOCOL: "verified-test-v1",
+      BYTEPLUS_TTS_TEST_TOKEN: "tts-server-secret",
+    },
+    ttsTransports: [{
+      protocol: "verified-test-v1",
+      requiredEnvironment: ["BYTEPLUS_TTS_TEST_TOKEN"],
+      synthesize: async () => ({ audio: new Uint8Array([1]), mimeType: "audio/mpeg" }),
+    }],
+    checkLocalStorage: async () => true,
+    inspectFfmpeg: async () => ({ version: "ffmpeg version test", hasH264: true, hasAac: true }),
+  });
+  const tts = result.checks.find((check) => check.capability === "tts");
+  assert.equal(tts?.status, "ready");
+  assert.equal(tts?.code, "PILOT_BYTEPLUS_TTS_READY");
+  assert.equal(JSON.stringify(tts).includes("tts-server-secret"), false);
 });
 
 test("keeps storage degraded when the remote output adapter is not configured", async () => {

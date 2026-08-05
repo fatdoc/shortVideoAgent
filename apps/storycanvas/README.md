@@ -16,6 +16,7 @@ StoryCanvas AI 是一站式 AI 短视频创作平台。当前项目以 Electron�
 - 阶段 2：11 张 `sc_*` 业务表、迁移、领域 Schema 与媒体路径服务已完成。
 - 真实媒体 MVP：导演画布已接入火山 Seedream/Seedance 服务端任务，支持真实状态轮询、SQLite 恢复、结果回填和可重试失败提示。
 - 尚未完成：有效模型凭证下的成功产物验收、自动剪辑与最终 MP4 导出闭环。
+- 独立 TTS：已落默认关闭的 BytePlus 协议端口、配置门禁、幂等与错误映射；真实协议和凭据未提供前不发起调用，详见 `docs/BYTEPLUS_TTS_PORT.md`。
 
 完整状态见 `docs/当前开发内容.md`，执行顺序见 `docs/后续开发规划.md`。
 
@@ -72,8 +73,12 @@ yarn dev:gui
 ```bash
 MODELS_CONFIG_PATH=config/models.json
 MODELS_AUTO_SEED=1
-ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
-ARK_API_KEY=你的火山方舟API_KEY
+ARK_BASE_URL=https://ark.ap-southeast.bytepluses.com/api/v3
+ARK_API_KEY=你的海外 BytePlus ModelArk API_KEY
+
+# 独立 TTS 与视频音轨不是同一授权；协议核验并单独开通前保持关闭
+BYTEPLUS_TTS_ENABLED=false
+BYTEPLUS_TTS_PROTOCOL=
 ```
 
 启动后进入画布：

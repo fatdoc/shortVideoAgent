@@ -650,8 +650,10 @@ const videoRequest = async (config: VideoConfig, model: VideoModel): Promise<str
   return result.data!;
 };
 
-const ttsRequest = async (config: TTSConfig, model: TTSModel): Promise<string> => {
-  return "";
+const ttsRequest = async (_config: TTSConfig, _model: TTSModel): Promise<string> => {
+  throw new Error(
+    "TTS_PROTOCOL_UNVERIFIED：ModelArk 视频 API Key 不代表独立 TTS 权限；请通过服务端 BytePlus TTS 端口注册已核验协议。",
+  );
 };
 
 const checkForUpdates = async (): Promise<{ hasUpdate: boolean; latestVersion: string; notice: string }> => {
