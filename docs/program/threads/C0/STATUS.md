@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A-05 单客户白名单真实试点 v0
 - 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `WAVE_1_ACCEPTED_WAVE_2_RUNNING`
-- 当前任务：C01 合同已接受；A3 执行 A05 Production Package/Grant，Q1 执行 Package/Grant/Task 跨平面合同测试
+- 当前任务：A05 Production Package/Grant 已接受；B3 执行 StoryCanvas v0.2 Package/Grant/Task/Receipt receiver，关闭 Q1 唯一 skip
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -14,7 +14,7 @@
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：B03 真实付费图片 smoke 缺 `ARK_API_KEY`/TOS 运行配置；B05 独立 TTS 缺单独开通的服务凭据；StoryCanvas 默认全库测试仍受本机 Electron 安装损坏影响。以上不阻塞本地合同、控制平面和 Adapter 开发。
+- 阻塞：Q1 当前唯一合同阻塞为 B3 v0.2 receiver；B03 真实付费图片 smoke 缺 `ARK_API_KEY`/TOS 运行配置；B05 独立 TTS 缺单独开通的服务凭据；StoryCanvas 默认全库测试仍受本机 Electron/SQLite ABI 环境影响。
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`

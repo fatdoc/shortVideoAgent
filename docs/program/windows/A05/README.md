@@ -18,9 +18,16 @@ B03 的 `BLOCKED` 仅指真实付费图片 smoke 尚缺 C01 合同 Gate、`ARK_A
 | 窗口 | 任务                              | 状态                                      |
 | ---- | --------------------------------- | ----------------------------------------- |
 | P0   | C01 合同冻结与集成 Gate           | `ACCEPTED` · `33c3839`                                   |
-| B3   | B05 TTS Adapter / Task 接入骨架   | Adapter 已提交 `3bd7e19`；真实调用 `BLOCKED`             |
-| A3   | A05 Production Package / Grant    | `A3_PACKAGE_GRANT_START.md` · `IN_PROGRESS`               |
-| Q1   | Package/Grant/Task 跨平面合同测试 | `Q1_CONTRACT_GATE_START.md` · `IN_PROGRESS`               |
+| B3   | B05 TTS Adapter / Task 接入骨架   | Adapter `3bd7e19`；真实调用 `BLOCKED`                     |
+| A3   | A05 Production Package / Grant    | `ACCEPTED` · `8a59470` + `e9f6685` + `37f37ab`            |
+| Q1   | Package/Grant/Task 跨平面合同测试 | `bcc0b30` · 34 项通过，B3 v0.2 receiver 使其保持 `BLOCKED` |
+
+## Wave 2.1 当前窗口
+
+| 窗口 | 任务                                           | 状态                         |
+| ---- | ---------------------------------------------- | ---------------------------- |
+| B3   | StoryCanvas v0.2 Package/Grant/Task/Receipt 接收 | `IN_PROGRESS` · `b03_tts_task` |
+| Q1   | 翻转 B3 receiver skip 并重跑跨平面 Gate       | 等待 B3.1 提交               |
 
 ## 统一规则
 

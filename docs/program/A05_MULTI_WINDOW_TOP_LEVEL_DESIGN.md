@@ -106,12 +106,12 @@ flowchart TD
 | C01 | 真实试点合同 `v0.2`                        | P0           | N00           | Schema、fixture、negative vectors、错误码  | `ACCEPTED`                |
 | A03 | Project / Brief / ScriptVersion / Approval | A2           | A02           | Tenant 边界、版本、审批阻断                | `ACCEPTED`                |
 | A04 | 用户上传授权与素材登记                     | A2           | A02           | 签名、prefix/MIME/size/checksum 校验       | `NOT_STARTED`             |
-| A05 | Production Package / Grant                 | A3           | C01, A03      | 审批脚本发包、签名 Grant、幂等             | `IN_PROGRESS`             |
+| A05 | Production Package / Grant                 | A3           | C01, A03      | 审批脚本发包、签名 Grant、幂等             | `ACCEPTED`                |
 | B02 | 远程对象存储与生产素材登记                 | B2           | B01           | 远程 key、checksum、provenance             | `ACCEPTED`                |
 | B03 | 真实图片生成                               | B2           | C01, B02      | 真实 Provider Task + Asset                 | `BLOCKED`                 |
 | B04 | 真实视频任务                               | B3           | C01, B02      | submit/poll/timeout/cancel/retry           | `READY`                   |
 | B05 | 真实 TTS                                   | B3           | C01           | 真实音频 Asset、duration/checksum          | `BLOCKED`                 |
-| X01 | Package 到 Production Task 接线            | P0 + A3 + B3 | A05, B03–B05  | 一个批准镜头可创建真实 Task                | `NOT_STARTED`             |
+| X01 | Package 到 Production Task 接线            | P0 + A3 + B3 | A05, B03–B05  | 一个批准镜头可创建真实 Task                | `IN_PROGRESS`             |
 | B06 | FFmpeg 剪辑、字幕、音频和 MP4              | B4           | X01           | 独立 MP4、ffprobe 证据                     | `NOT_STARTED`             |
 | B07 | Task/Asset/Usage Receipt Outbox            | B4           | X01           | 持久化投递、重试、ACK                      | `NOT_STARTED`             |
 | B08 | Export Receipt                             | B4           | B06           | MP4 Asset + Export Receipt                 | `NOT_STARTED`             |
@@ -119,7 +119,7 @@ flowchart TD
 | A07 | 管理员充值与审计                           | A3           | A06           | 只追加账本、审计人/原因                    | `NOT_STARTED`             |
 | F01 | 前端真实 API Adapter / Demo 隔离           | F1           | N00           | 环境模式明确，不自动 Mock fallback         | `ACCEPTED`                |
 | F02 | 真实项目/生产/额度 UI                      | F1           | A03, A06, F01 | 主流程、失败/空/加载态                     | `NOT_STARTED`             |
-| Q01 | 本地真实黄金路径                           | Q1           | F02, B06, A06 | 完整 E2E 视频、回执和额度证据              | `NOT_STARTED`             |
+| Q01 | 本地真实黄金路径                           | Q1           | F02, B06, A06 | 完整 E2E 视频、回执和额度证据              | `BLOCKED`                 |
 | O01 | 国内云部署                                 | Q1           | Q01           | HTTPS、RDS、存储、日志、备份               | `NOT_STARTED`             |
 | Q02 | 白名单客户验收                             | P0 + Q1      | O01           | 验收单、风险、人工兜底说明                 | `NOT_STARTED`             |
 

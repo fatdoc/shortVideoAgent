@@ -43,3 +43,6 @@
 | 2026-08-05 | 冻结海外 BytePlus/ARK 视频链路、海底捞三里屯内部白名单案例与独立 TTS 凭据边界；启动 C01 合同冻结和 B05 TTS Adapter                       | A05_WAVE2_RUNNING                       |
 | 2026-08-05 | 接受 C01 Pilot Contract v0.2：9 类对象、9 个正向 fixture、13 个负向向量及幂等/replay/ACK 规则通过零依赖机器校验                         | C01_ACCEPTED                            |
 | 2026-08-05 | B05 独立 TTS 安全 Adapter 通过 13 项定向测试；真实 Transport 因尚无已核验协议与独立凭据保持阻断                                           | B05_ADAPTER_READY_ENV_BLOCKED           |
+| 2026-08-05 | C01.1 收紧 StandardError 安全目录并冻结未知任务回执拒绝语义；合同机器校验 6/6 通过                                                       | C01_SECURITY_ACCEPTED                   |
+| 2026-08-05 | A05 Production Package/Grant 完成两轮安全复核与修复；专用 PostgreSQL 13 文件 50/50、合同 6/6、类型与构建全部通过                         | A05_ACCEPTED                            |
+| 2026-08-05 | Q1 跨平面 Gate 完成 34 个逻辑检查；唯一跳过为 StoryCanvas B3 v0.2 receiver，启动 B3.1 关闭该缺口                                         | Q1_BLOCKED_ON_B3_RECEIVER               |
