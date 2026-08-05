@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A-05 单客户白名单真实试点 v0
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `AUTH_AND_MEDIA_READINESS_READY`
-- 当前任务：A-05.2 真实白名单登录已完成，B-05.1 媒体就绪检查已完成；下一步 A 开发 Project/Brief/Script Approval，B 接入真实图片和远程对象存储
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `WAVE_1_RUNNING`
+- 当前任务：G0 Checkpoint 已接受；P0 执行 C01 真实试点合同，A2 执行 A03 Project/Brief/Script Approval，B2 执行 B02 Storage/B03 Image，F1 执行 Pilot API Adapter/Auth UI
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
