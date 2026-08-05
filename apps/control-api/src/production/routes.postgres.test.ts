@@ -454,6 +454,7 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
         payload_digest: `sha256:${'4'.repeat(64)}`,
         nonce: '10000000-0000-4000-8000-000000000032',
         capabilities: JSON.stringify(['tenant.admin']),
+        scopes: JSON.stringify(storedGrant.scopes),
         status: 'active',
         revoked_at: null,
       }),

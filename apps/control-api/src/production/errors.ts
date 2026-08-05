@@ -46,9 +46,18 @@ const safePolicies: Record<
   },
 };
 
-const safeIdentifier = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
-const safeReasonCode = /^[A-Z][A-Z0-9_]{0,63}$/;
-const safeFieldPath = /^[A-Za-z0-9_$.[\]-]{1,128}$/;
+const contractId = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
+const jsonPointer = /^\/(?:[A-Za-z0-9_$.-]|~[01]|\/)*$/;
+const storageStages = new Set(['authorize', 'upload', 'verify', 'register', 'read']);
+const receiptTypes = new Set(['TaskReceipt', 'AssetReceipt', 'ExportReceipt', 'UsageReceipt']);
+const conflictFields = new Set([
+  'idempotencyKey',
+  'payloadDigest',
+  'receiptId',
+  'tenantId',
+  'projectId',
+  'capability',
+]);
 const forbiddenValues = [
   /(?:x-tos-(?:signature|credential|security-token)|tos-signature)(?:=|%3d|\s*:)/i,
   /x-amz-[a-z0-9-]+(?:=|%3d|\s*:)/i,
@@ -76,25 +85,46 @@ function isForbidden(value: string): boolean {
   return value.length > 256 || forbiddenValues.some((pattern) => pattern.test(value));
 }
 
+function safeContractId(value: unknown, maxLength: number): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= maxLength &&
+    contractId.test(value) &&
+    !isForbidden(value)
+  );
+}
+
 function safeDetails(details: Record<string, unknown>): Record<string, unknown> {
   const safe: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
-    if (key === 'reasonCode' && typeof value === 'string' && safeReasonCode.test(value)) {
+    if (key === 'provider' && safeContractId(value, 80)) {
       safe[key] = value;
-    } else if (
-      ['provider', 'providerCode', 'operation', 'storageStage', 'receiptType', 'conflictField'].includes(
-        key,
-      ) &&
-      typeof value === 'string' &&
-      safeIdentifier.test(value) &&
-      !isForbidden(value)
-    ) {
+    } else if (key === 'providerCode' && safeContractId(value, 120)) {
+      safe[key] = value;
+    } else if (key === 'operation' && safeContractId(value, 200)) {
+      safe[key] = value;
+    } else if (key === 'reasonCode' && safeContractId(value, 200)) {
+      safe[key] = value;
+    } else if (key === 'storageStage' && typeof value === 'string' && storageStages.has(value)) {
+      safe[key] = value;
+    } else if (key === 'receiptType' && typeof value === 'string' && receiptTypes.has(value)) {
+      safe[key] = value;
+    } else if (key === 'conflictField' && typeof value === 'string' && conflictFields.has(value)) {
       safe[key] = value;
     } else if (
       key === 'fieldPaths' &&
       Array.isArray(value) &&
-      value.length <= 32 &&
-      value.every((item) => typeof item === 'string' && safeFieldPath.test(item))
+      value.length <= 20 &&
+      new Set(value).size === value.length &&
+      value.every(
+        (item) =>
+          typeof item === 'string' &&
+          item.length >= 1 &&
+          item.length <= 160 &&
+          jsonPointer.test(item) &&
+          !isForbidden(item),
+      )
     ) {
       safe[key] = value;
     } else if (
@@ -108,9 +138,8 @@ function safeDetails(details: Record<string, unknown>): Record<string, unknown> 
     } else if (
       key === 'attempt' &&
       typeof value === 'number' &&
-      Number.isInteger(value) &&
-      value >= 1 &&
-      value <= 1_000
+      Number.isSafeInteger(value) &&
+      value >= 1
     ) {
       safe[key] = value;
     }
