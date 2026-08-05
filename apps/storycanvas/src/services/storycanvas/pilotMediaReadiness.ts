@@ -75,6 +75,23 @@ async function storageReadiness(
       "ARK_ASSET_TOS_BUCKET",
       "ARK_ASSET_TOS_ENDPOINT",
     ]);
+    if (trustedAssetTosConfigured) {
+      return {
+        capability: "storage",
+        status: "ready",
+        code: "PILOT_STORAGE_REMOTE_READY",
+        configured: true,
+        executable: true,
+        message: "远程对象存储 Adapter 已实现且所需服务端配置存在；本检查不发起上传请求。",
+        provider: "byteplus-tos",
+        details: {
+          localWritable,
+          remoteOutputImplemented: true,
+          trustedAssetTosConfigured: true,
+          verification: "configuration-and-implementation",
+        },
+      };
+    }
     return {
       capability: "storage",
       status: "degraded",

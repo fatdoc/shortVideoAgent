@@ -29,7 +29,7 @@ test("reports implemented providers honestly and keeps current pilot blockers vi
   assert.deepEqual(
     Object.fromEntries(result.checks.map((check) => [check.capability, check.status])),
     {
-      storage: "degraded",
+      storage: "ready",
       image: "ready",
       video: "ready",
       tts: "unavailable",
@@ -40,6 +40,18 @@ test("reports implemented providers honestly and keeps current pilot blockers vi
   for (const secret of ["ark-secret-value", "asset-access-secret", "asset-secret-value"]) {
     assert.equal(serialized.includes(secret), false);
   }
+});
+
+test("keeps storage degraded when the remote output adapter is not configured", async () => {
+  const result = await getPilotMediaReadiness({
+    env: { MODELS_CONFIG_PATH: "config/models.json" },
+    checkLocalStorage: async () => true,
+    inspectFfmpeg: async () => ({ version: "ffmpeg version test", hasH264: true, hasAac: true }),
+  });
+  const storage = result.checks.find((check) => check.capability === "storage");
+  assert.equal(storage?.status, "degraded");
+  assert.equal(storage?.code, "PILOT_STORAGE_OUTPUT_LOCAL_ONLY");
+  assert.equal(storage?.details?.remoteOutputImplemented, false);
 });
 
 test("reports missing model credentials and an unavailable ffmpeg binary with stable codes", async () => {

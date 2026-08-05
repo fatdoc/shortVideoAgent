@@ -131,6 +131,8 @@ export function resolveBytePlusTosTarget(
 }
 
 export async function getBytePlusTosUploadTarget(): Promise<BytePlusTosTarget> {
+  const configured = resolveBytePlusTosTarget([], process.env);
+  if (configured) return configured;
   const listing = await listBytePlusAssets();
   const target = resolveBytePlusTosTarget(listing.Items || []);
   if (!target) {
@@ -252,8 +254,7 @@ export async function uploadBytePlusAssetSource(
     signal: AbortSignal.timeout(120_000),
   });
   if (!response.ok) {
-    const body = (await response.text()).slice(0, 500);
-    throw new Error(`Image 2 结果上传海外 TOS 失败（HTTP ${response.status}）：${body || response.statusText}`);
+    throw new Error(`Image 2 结果上传海外 TOS 失败（HTTP ${response.status}）。`);
   }
   return createSignedTosGetUrl(objectKey, config);
 }
