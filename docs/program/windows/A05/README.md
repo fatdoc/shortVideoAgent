@@ -18,9 +18,9 @@ B03 的 `BLOCKED` 仅指真实付费图片 smoke 尚缺 C01 合同 Gate、`ARK_A
 | 窗口 | 任务                              | 状态                                      |
 | ---- | --------------------------------- | ----------------------------------------- |
 | P0   | C01 合同冻结与集成 Gate           | `IN_PROGRESS` · 数字员工 `c01_contract_v02` |
-| B3   | B05 TTS Adapter / Task 接入骨架   | `IN_PROGRESS` · 数字员工 `b03_tts_task`     |
-| A3   | A05 Production Package / Grant    | 等待 C01 `ACCEPTED` 后启动                |
-| Q1   | Package/Grant/Task 跨平面合同测试 | 等待 C01 `ACCEPTED` 后启动                |
+| B3   | B05 TTS Adapter / Task 接入骨架   | `B3_VIDEO_TTS_TASK_START.md` · `IN_PROGRESS` · `b03_tts_task` |
+| A3   | A05 Production Package / Grant    | `A3_PACKAGE_GRANT_START.md` · 等待 C01 `ACCEPTED` 后启动      |
+| Q1   | Package/Grant/Task 跨平面合同测试 | `Q1_CONTRACT_GATE_START.md` · 等待 C01 `ACCEPTED` 后启动      |
 
 ## 统一规则
 
