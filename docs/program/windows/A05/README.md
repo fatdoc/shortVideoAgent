@@ -26,8 +26,10 @@ B03 的 `BLOCKED` 仅指真实付费图片 smoke 尚缺 C01 合同 Gate、`ARK_A
 
 | 窗口 | 任务                                           | 状态                         |
 | ---- | ---------------------------------------------- | ---------------------------- |
-| B3   | StoryCanvas v0.2 Package/Grant/Task/Receipt 接收 | `IN_PROGRESS` · `b03_tts_task` |
-| Q1   | 翻转 B3 receiver skip 并重跑跨平面 Gate       | 等待 B3.1 提交               |
+| B3   | StoryCanvas v0.2 Package/Grant/Task/Receipt 接收 | `ACCEPTED` · `90627d2` + `54e467a` |
+| Q1   | 翻转 B3 receiver skip 并重跑跨平面 Gate       | `ACCEPTED` · `d393f86` · 10/10，0 skip |
+
+Q1 合同 Gate 已关闭，但 `X01` 仍保持 `IN_PROGRESS`：当前 GenerationTaskCommand 已真实持久化且 `providerSubmitted=false`，下一步必须接到既有海外 BytePlus 视频执行与真实 Receipt，不能把“已接收命令”描述成“已生成媒体”。
 
 ## 统一规则
 

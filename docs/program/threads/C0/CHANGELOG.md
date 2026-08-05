@@ -46,3 +46,6 @@
 | 2026-08-05 | C01.1 收紧 StandardError 安全目录并冻结未知任务回执拒绝语义；合同机器校验 6/6 通过                                                       | C01_SECURITY_ACCEPTED                   |
 | 2026-08-05 | A05 Production Package/Grant 完成两轮安全复核与修复；专用 PostgreSQL 13 文件 50/50、合同 6/6、类型与构建全部通过                         | A05_ACCEPTED                            |
 | 2026-08-05 | Q1 跨平面 Gate 完成 34 个逻辑检查；唯一跳过为 StoryCanvas B3 v0.2 receiver，启动 B3.1 关闭该缺口                                         | Q1_BLOCKED_ON_B3_RECEIVER               |
+| 2026-08-05 | A05.3/A05.4 增加双重服务鉴权的 Grant introspection 与权威 grantId 绑定；专用 PostgreSQL Control API 57/57 通过                           | A05_INTROSPECTION_ACCEPTED              |
+| 2026-08-05 | B3.1/B3.2 完成 StoryCanvas v0.2 Package/Grant/Command/Receipt receiver、在线授权、过期写保护与安全错误边界；定向 51/51 通过              | B3_RECEIVER_ACCEPTED                    |
+| 2026-08-05 | Q1 最终跨平面 Gate 10/10、0 skip，展开 48 项合同检查；Root 195/195、Control PostgreSQL 57/57、StoryCanvas 定向 29/29                     | Q1_CONTRACT_GATE_ACCEPTED               |
