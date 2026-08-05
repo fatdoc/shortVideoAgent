@@ -96,6 +96,7 @@ describe('internal ProjectGrant introspection', () => {
     expect(response.headers['cache-control']).toBe('no-store');
     expect(response.body).toEqual({
       active: true,
+      grantId: claims().jti,
       tenantId: claims().tenantId,
       projectId: claims().projectId,
       packageId: claims().packageId,
@@ -147,6 +148,21 @@ describe('internal ProjectGrant introspection', () => {
       details: {},
     });
     expect(response.text).not.toContain(grantToken);
+    expect(context.verifyActiveGrantToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body-supplied grantId instead of letting it override signed claims', async () => {
+    const context = testContext();
+    const grantToken = context.tokens.issue(claims());
+    const forgedGrantId = '20000000-0000-4000-8000-000000000099';
+    const response = await introspect(context.app, grantToken).send({ grantId: forgedGrantId });
+    expect(response.status).toBe(422);
+    expect(response.body.error).toMatchObject({
+      code: 'SCHEMA_INVALID',
+      message: 'Request cannot be accepted.',
+      details: {},
+    });
+    expect(response.text).not.toContain(forgedGrantId);
     expect(context.verifyActiveGrantToken).not.toHaveBeenCalled();
   });
 });

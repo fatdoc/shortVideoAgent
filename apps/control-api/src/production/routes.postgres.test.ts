@@ -419,6 +419,7 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     expect(activeIntrospection.status).toBe(200);
     expect(activeIntrospection.body).toEqual({
       active: true,
+      grantId: created.body.grant.grantId,
       tenantId: tenantA,
       projectId: projectA,
       packageId: grantPayload.packageId,
@@ -426,6 +427,17 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       scopes: ['production.package.read', 'production.task.write'],
       exp: Math.floor(new Date(created.body.grant.expiresAt as string).getTime() / 1000),
     });
+    const forgedGrantId = '10000000-0000-4000-8000-000000000099';
+    const validClaims = tokens.verify(created.body.accessToken as string);
+    const mismatchedGrantToken = tokens.issue({ ...validClaims, jti: forgedGrantId });
+    const grantIdMismatch = await introspectGrant(mismatchedGrantToken);
+    expect(grantIdMismatch.status).toBe(401);
+    expect(grantIdMismatch.body.error).toMatchObject({
+      code: 'GRANT_INVALID',
+      message: 'Project authorization is invalid.',
+      details: {},
+    });
+    expect(grantIdMismatch.text).not.toContain(forgedGrantId);
 
     const replay = await issue();
     expect(replay.status).toBe(200);

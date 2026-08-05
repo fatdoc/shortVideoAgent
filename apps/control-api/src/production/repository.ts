@@ -541,6 +541,7 @@ export class PostgresProductionStore implements ProductionStore {
     if (!row) throw new ProductionDomainError('grant missing', 401, 'GRANT_INVALID', 'grant');
     this.assertGrantRowActive(row);
     if (
+      row.grant_id !== claims.jti ||
       row.token_digest !== tokenDigest(token) ||
       row.nonce !== claims.nonce ||
       JSON.stringify(jsonValue(row.capabilities)) !== JSON.stringify(claims.capabilities) ||

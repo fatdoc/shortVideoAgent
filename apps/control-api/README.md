@@ -43,7 +43,8 @@ npm --prefix apps/control-api run dev
 
 - `POST /api/v1/internal/project-grants/introspect`：仅供私网 StoryCanvas receiver 调用；
   同时要求 `X-Production-Plane-Internal-Token` 和 `Authorization: Bearer <ProjectGrant>`，
-  返回最小 tenant/project/package/capability/scope/expiry，不接受或回显 body token。
+  返回签名 `jti` 与数据库绑定后的 `grantId` 以及最小 tenant/project/package/capability/scope/expiry，
+  不接受或回显 body token/identity。
 
 默认端口：
 

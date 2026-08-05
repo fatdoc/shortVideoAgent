@@ -97,6 +97,7 @@ export function createInternalProjectGrantRouter(
       response.setHeader('cache-control', 'no-store');
       response.status(200).json({
         active: true,
+        grantId: claims.jti,
         tenantId: claims.tenantId,
         projectId: claims.projectId,
         packageId: claims.packageId,
