@@ -1,6 +1,6 @@
 # COMMON MEMORY · 权威共同记忆
 
-> 所有员工只读，仅 C0 修改。更新时间：2026-07-30。
+> 所有员工只读，仅 C0 修改。更新时间：2026-08-05。
 
 ## 已确认事实
 
@@ -18,6 +18,8 @@
 12. 工作台功能由组织类型、成员角色、已购能力和数据权限共同决定，不为每个代理层级复制独立应用。
 13. 用户正式发出启动指令后，C0 可按 `AUTONOMY_PROTOCOL.md` 自主创建和调度 C1—C8，无需用户逐项跟进。
 14. Platform、ChannelOrganization 与企业 Tenant 独立；Tenant 是生产内容隔离边界。项目令牌中的 organizationId 只表示当前操作主体，不能绕过 tenantId 和 Membership。
+15. 2026-08-05 起启动 A-05 受控真实试点 v0，采用模块化 Control API + StoryCanvas 生产平面，只面向单客户白名单。
+16. 现有 D2 `v0.1` 合同和 LocalStorage/Mock 链路继续作为内部 Demo；真实试点后端位于 `apps/control-api/`，不将硬编码 canonical Demo 冒充生产合同。
 
 ## 权威业务对象
 
@@ -51,7 +53,8 @@
 - 新项目级 Gate：T0 已完成；C1—C5 首轮提案已完成。
 - C0 会签：`T1_C0_SYNTHESIS_V0_1.md` 已批准用于 D1 老板 Demo 设计。
 - D1 暂定冻结：四类工作台、基础生成 + 本地生活主产品、海底捞三里屯统一案例、额度预冻结/消费/释放、模块化单体控制平面、StoryCanvas 最小合同适配层。
-- 未启动真实商业 MVP。
+- 已启动单客户白名单真实试点 v0 开发，但尚未上线，也不等于完整商业 MVP。
+- A-05.1 Control API + PostgreSQL 基座已完成并通过实库迁移验证。
 - 未决定生产部署形态和最终授权方案。
 
 ## 主要风险

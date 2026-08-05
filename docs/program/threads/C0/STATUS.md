@@ -1,9 +1,9 @@
 # C0 STATUS
 
 - 岗位：总项目负责人 / 总架构师
-- 当前阶段：D2 身份与角色工作台
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN`
-- 当前任务：A-04 已完成集成、快进与远端 `main` 一致性核对；下一轮 A 任务尚未立项
+- 当前阶段：A-05 单客户白名单真实试点 v0
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `AUTH_AND_MEDIA_READINESS_READY`
+- 当前任务：A-05.2 真实白名单登录已完成，B-05.1 媒体就绪检查已完成；下一步 A 开发 Project/Brief/Script Approval，B 接入真实图片和远程对象存储
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -15,7 +15,10 @@
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
 - 阻塞：无 A-04 合入阻塞；全仓 `npm run lint` 的 B/StoryCanvas 既有存量（697 errors / 5 warnings）已作为本轮明确例外接受，后续仍归 B 或专项治理；未来集成只接收正式 `dev/*`
-- 最近更新：2026-08-04
+- A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
+- A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
+- A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
+- 最近更新：2026-08-05
 
 ## 2026-07-30 单前端收口
 

@@ -14,9 +14,10 @@
 8. `docs/program/AUTONOMY_PROTOCOL.md`
 9. `docs/program/REPOSITORY_MAP.md`
 10. `docs/program/INTEGRATION_CONTRACT.md`
-11. 自己的 `docs/program/employees/C{n}_RECRUITMENT.md`
-12. 自己的 `docs/program/missions/C{n}_FIRST_MISSION.md`
-13. 自己的 `docs/program/threads/C{n}/STATUS.md` 与上游 HANDOFF
+11. `docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
+12. 自己的 `docs/program/employees/C{n}_RECRUITMENT.md`
+13. 自己的 `docs/program/missions/C{n}_FIRST_MISSION.md`
+14. 自己的 `docs/program/threads/C{n}/STATUS.md` 与上游 HANDOFF
 
 ## 新窗口强制运行配置
 
@@ -39,6 +40,6 @@
 
 ## 当前阶段
 
-`Program Gate T0：顶层设计与岗位启动包已建立，等待 C0 分批启动 C1—C8。`
+`A-05：单客户白名单真实试点 v0 已启动，按多窗口任务 DAG 执行。`
 
-当前不要求九个窗口同时编码。第一轮以调查、建模、接口提案和演示路径为主，先消除边界冲突，再进入实现。
+同时最多运行 P0 + 一个 A 窗口 + 一个 B 窗口 + 一个 F/Q 窗口。具体节点、依赖、文件所有权和 Gate 以 `A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md` 为准。
