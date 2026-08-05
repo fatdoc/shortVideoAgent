@@ -1,10 +1,32 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { ProductionDomainError } from './errors.js';
-import type { ProductionCapability, ProductionScope } from './types.js';
+import {
+  productionCapabilities,
+  productionScopes,
+  type ProductionCapability,
+  type ProductionScope,
+} from './types.js';
 
 const ISSUER = 'videoagent-control-plane';
 const AUDIENCE = 'storycanvas-production-plane';
 const CONTRACT_VERSION = '0.2';
+const CLOCK_TOLERANCE_SECONDS = 5;
+const MAX_GRANT_TTL_SECONDS = 900;
+const claimKeys = new Set([
+  'iss',
+  'aud',
+  'jti',
+  'tenantId',
+  'projectId',
+  'packageId',
+  'capabilities',
+  'scopes',
+  'contractVersion',
+  'nonce',
+  'iat',
+  'nbf',
+  'exp',
+]);
 
 export type ProjectGrantClaims = {
   iss: typeof ISSUER;
@@ -70,6 +92,8 @@ export class ProjectGrantTokenService {
       }
       const claims = decodeJson<ProjectGrantClaims>(payloadPart);
       if (
+        Object.keys(claims).length !== claimKeys.size ||
+        Object.keys(claims).some((key) => !claimKeys.has(key)) ||
         claims.iss !== ISSUER ||
         claims.aud !== AUDIENCE ||
         claims.contractVersion !== CONTRACT_VERSION ||
@@ -80,17 +104,27 @@ export class ProjectGrantTokenService {
         !claims.nonce ||
         !Array.isArray(claims.capabilities) ||
         claims.capabilities.length === 0 ||
+        new Set(claims.capabilities).size !== claims.capabilities.length ||
+        claims.capabilities.some(
+          (capability) =>
+            !productionCapabilities.includes(capability as ProductionCapability),
+        ) ||
         !Array.isArray(claims.scopes) ||
         claims.scopes.length === 0 ||
+        new Set(claims.scopes).size !== claims.scopes.length ||
+        claims.scopes.some((scope) => !productionScopes.includes(scope as ProductionScope)) ||
         !Number.isInteger(claims.iat) ||
         !Number.isInteger(claims.nbf) ||
-        !Number.isInteger(claims.exp)
+        !Number.isInteger(claims.exp) ||
+        claims.iat > claims.nbf ||
+        claims.nbf >= claims.exp ||
+        claims.exp - claims.iat > MAX_GRANT_TTL_SECONDS
       ) {
         throw this.invalid();
       }
       const nowSeconds = Math.floor(this.now().getTime() / 1000);
-      if (nowSeconds < claims.nbf) throw this.invalid();
-      if (nowSeconds >= claims.exp) {
+      if (nowSeconds + CLOCK_TOLERANCE_SECONDS < claims.nbf) throw this.invalid();
+      if (nowSeconds - CLOCK_TOLERANCE_SECONDS >= claims.exp) {
         throw new ProductionDomainError('项目授权已过期。', 410, 'GRANT_EXPIRED', 'grant');
       }
       return claims;

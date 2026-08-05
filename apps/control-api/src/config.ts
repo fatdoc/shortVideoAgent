@@ -12,6 +12,8 @@ const environmentSchema = z.object({
     .default('postgres://videoagent:videoagent-local@127.0.0.1:54329/videoagent_control'),
   DATABASE_SSL: z.enum(['disable', 'require']).default('disable'),
   SESSION_SECRET: z.string().min(32).optional(),
+  PROJECT_GRANT_SIGNING_SECRET: z.string().min(32),
+  PROJECT_GRANT_ACTIVE_KID: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/),
   SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(604_800).default(28_800),
   SESSION_ROTATION_SECONDS: z.coerce.number().int().min(60).max(86_400).default(1_800),
   LOGIN_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(100).default(5),
@@ -28,6 +30,8 @@ export type ControlApiConfig = {
   databaseUrl: string;
   databaseSsl: 'disable' | 'require';
   sessionSecret: string;
+  projectGrantSigningSecret: string;
+  projectGrantActiveKid: string;
   sessionTtlSeconds: number;
   sessionRotationSeconds: number;
   loginMaxAttempts: number;
@@ -53,6 +57,10 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     throw new Error('SESSION_ROTATION_SECONDS must be less than SESSION_TTL_SECONDS');
   }
 
+  if (parsed.PROJECT_GRANT_SIGNING_SECRET === sessionSecret) {
+    throw new Error('PROJECT_GRANT_SIGNING_SECRET must be independent from SESSION_SECRET');
+  }
+
   return {
     nodeEnv: parsed.NODE_ENV,
     host: parsed.CONTROL_API_HOST,
@@ -60,6 +68,8 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     databaseUrl: parsed.DATABASE_URL,
     databaseSsl: parsed.DATABASE_SSL,
     sessionSecret,
+    projectGrantSigningSecret: parsed.PROJECT_GRANT_SIGNING_SECRET,
+    projectGrantActiveKid: parsed.PROJECT_GRANT_ACTIVE_KID,
     sessionTtlSeconds: parsed.SESSION_TTL_SECONDS,
     sessionRotationSeconds: parsed.SESSION_ROTATION_SECONDS,
     loginMaxAttempts: parsed.LOGIN_MAX_ATTEMPTS,

@@ -4,6 +4,7 @@ import type { SessionActor } from '../projects/types.js';
 import { contractPayloadDigest, tokenDigest } from './digest.js';
 import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
 import { assertGrantRequestAllowed } from './grantPolicy.js';
+import { productionIdempotencyDigest } from './idempotency.js';
 import {
   type ProjectGrantClaims,
   ProjectGrantTokenService,
@@ -58,10 +59,13 @@ type GrantRow = {
   tenant_id: string;
   project_id: string;
   package_id: string;
+  token_digest?: string;
   capabilities: ProductionCapability[] | string;
   scopes: ProjectGrant['scopes'] | string;
   key_id: string;
   nonce: string;
+  status: 'active' | 'revoked' | 'expired';
+  revoked_at: Date | string | null;
   issued_at: Date | string;
   expires_at: Date | string;
 };
@@ -330,6 +334,13 @@ export class PostgresProductionStore implements ProductionStore {
           created_by: actor.userId,
         });
         return value;
+      }, async (transaction, value) => {
+        await this.assertCurrentlyEligible(
+          transaction,
+          actor,
+          projectId,
+          value.approvedScript.scriptVersionId,
+        );
       });
     } catch (error) {
       if (error instanceof ResourceNotFoundError) return null;
@@ -406,6 +417,8 @@ export class PostgresProductionStore implements ProductionStore {
           scopes: input.requestedScopes,
           key_id: this.tokens.keyId,
           nonce: randomUUID(),
+          status: 'active',
+          revoked_at: null,
           issued_at: issuedAt,
           expires_at: expiresAt,
         };
@@ -446,6 +459,16 @@ export class PostgresProductionStore implements ProductionStore {
           created_by: actor.userId,
         });
         return grant;
+      }, async (transaction, grant) => {
+        await this.assertCurrentlyEligible(
+          transaction,
+          actor,
+          projectId,
+          grant.packageId === input.packageId
+            ? await this.packageScriptVersion(transaction, actor, projectId, grant.packageId)
+            : '',
+        );
+        await this.assertGrantActive(transaction, actor, projectId, grant.grantId);
       });
 
       const grant = persisted.value;
@@ -459,6 +482,8 @@ export class PostgresProductionStore implements ProductionStore {
           'scopes',
           'key_id',
           'nonce',
+          'status',
+          'revoked_at',
           'issued_at',
           'expires_at',
         )
@@ -469,6 +494,10 @@ export class PostgresProductionStore implements ProductionStore {
         })
         .first()) as GrantRow | undefined;
       if (!row) throw new Error('persisted project grant is missing');
+      this.assertGrantRowActive(row);
+      if (row.key_id !== this.tokens.keyId) {
+        throw new ProductionDomainError('grant signing key is no longer active', 401, 'GRANT_INVALID', 'grant');
+      }
       const accessToken = this.tokens.issue(grantClaims(row));
       if (tokenDigest(accessToken) !== grant.tokenDigest) {
         throw new Error('persisted project grant token digest mismatch');
@@ -481,6 +510,45 @@ export class PostgresProductionStore implements ProductionStore {
       if (error instanceof ResourceNotFoundError) return null;
       throw error;
     }
+  }
+
+  async verifyActiveGrantToken(token: string): Promise<ProjectGrantClaims> {
+    const claims = this.tokens.verify(token);
+    const row = (await this.database('control_plane.project_grants')
+      .select(
+        'grant_id',
+        'tenant_id',
+        'project_id',
+        'package_id',
+        'token_digest',
+        'capabilities',
+        'scopes',
+        'key_id',
+        'nonce',
+        'status',
+        'revoked_at',
+        'issued_at',
+        'expires_at',
+      )
+      .where({
+        grant_id: claims.jti,
+        tenant_id: claims.tenantId,
+        project_id: claims.projectId,
+        package_id: claims.packageId,
+        key_id: this.tokens.keyId,
+      })
+      .first()) as GrantRow | undefined;
+    if (!row) throw new ProductionDomainError('grant missing', 401, 'GRANT_INVALID', 'grant');
+    this.assertGrantRowActive(row);
+    if (
+      row.token_digest !== tokenDigest(token) ||
+      row.nonce !== claims.nonce ||
+      JSON.stringify(jsonValue(row.capabilities)) !== JSON.stringify(claims.capabilities) ||
+      JSON.stringify(jsonValue(row.scopes)) !== JSON.stringify(claims.scopes)
+    ) {
+      throw new ProductionDomainError('grant binding mismatch', 401, 'GRANT_INVALID', 'grant');
+    }
+    return claims;
   }
 
   private async assertCurrentlyEligible(
@@ -513,13 +581,53 @@ export class PostgresProductionStore implements ProductionStore {
     if (approval.status !== 'approved') throw eligibilityError('SCRIPT_NOT_APPROVED');
   }
 
+  private async packageScriptVersion(
+    transaction: Knex.Transaction,
+    actor: SessionActor,
+    projectId: string,
+    packageId: string,
+  ): Promise<string> {
+    const row = await transaction('control_plane.production_packages')
+      .select('approved_script_version_id')
+      .where({ tenant_id: actor.tenantId, project_id: projectId, package_id: packageId })
+      .first<{ approved_script_version_id: string }>();
+    if (!row) throw new ResourceNotFoundError();
+    return row.approved_script_version_id;
+  }
+
+  private async assertGrantActive(
+    transaction: Knex.Transaction,
+    actor: SessionActor,
+    projectId: string,
+    grantId: string,
+  ): Promise<void> {
+    const row = (await transaction('control_plane.project_grants')
+      .select('status', 'revoked_at', 'expires_at')
+      .where({ tenant_id: actor.tenantId, project_id: projectId, grant_id: grantId })
+      .first()) as Pick<GrantRow, 'status' | 'revoked_at' | 'expires_at'> | undefined;
+    if (!row) throw new ProductionDomainError('grant missing', 401, 'GRANT_INVALID', 'grant');
+    this.assertGrantRowActive(row);
+  }
+
+  private assertGrantRowActive(
+    row: Pick<GrantRow, 'status' | 'revoked_at' | 'expires_at'>,
+  ): void {
+    if (row.status !== 'active' || row.revoked_at !== null) {
+      throw new ProductionDomainError('grant revoked', 401, 'GRANT_INVALID', 'grant');
+    }
+    if (this.now().getTime() >= new Date(row.expires_at).getTime()) {
+      throw new ProductionDomainError('grant expired', 410, 'GRANT_EXPIRED', 'grant');
+    }
+  }
+
   private async idempotent<T>(
     actor: SessionActor,
     input: IdempotencyInput,
     work: (transaction: Knex.Transaction) => Promise<T>,
+    replayGuard?: (transaction: Knex.Transaction, value: T) => Promise<void>,
   ): Promise<IdempotentResult<T>> {
     return this.database.transaction(async (transaction) => {
-      const digest = contractPayloadDigest(input.payload);
+      const digest = productionIdempotencyDigest(actor.tenantId, input);
       const inserted = await transaction('control_plane.idempotency_records')
         .insert({
           idempotency_record_id: randomUUID(),
@@ -545,7 +653,9 @@ export class PostgresProductionStore implements ProductionStore {
         if (!existing || existing.request_digest !== digest || existing.response_body === null) {
           throw new ProductionIdempotencyConflictError();
         }
-        return { value: jsonValue(existing.response_body), replayed: true };
+        const value = jsonValue(existing.response_body);
+        await replayGuard?.(transaction, value);
+        return { value, replayed: true };
       }
       const value = await work(transaction);
       await transaction('control_plane.idempotency_records')

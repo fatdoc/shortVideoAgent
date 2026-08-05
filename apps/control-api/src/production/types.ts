@@ -113,6 +113,7 @@ export type IssuedProjectGrant = {
 export type IdempotencyInput = {
   operation: string;
   key: string;
+  scope: Record<string, string>;
   payload: unknown;
 };
 

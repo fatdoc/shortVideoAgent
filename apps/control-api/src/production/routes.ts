@@ -6,7 +6,7 @@ import { readCookie, SESSION_COOKIE_NAME } from '../auth/session.js';
 import type { PublicSession } from '../auth/service.js';
 import type { SessionActor } from '../projects/types.js';
 import { contractPayloadDigest } from './digest.js';
-import { ProductionDomainError } from './errors.js';
+import { ProductionDomainError, safeProductionError } from './errors.js';
 import {
   productionCapabilities,
   productionScopes,
@@ -66,6 +66,7 @@ function standardError(
 ): void {
   const actor = response.locals.actor;
   if (!actor) throw new Error('authenticated actor is missing');
+  const safe = safeProductionError(caught);
   const unsigned = {
     objectType: 'StandardError' as const,
     contractVersion: '0.2' as const,
@@ -76,14 +77,14 @@ function standardError(
     errorId: randomUUID(),
     requestId: response.locals.requestId,
     error: {
-      code: caught.code,
-      message: caught.message,
-      retryable: false,
-      category: caught.category,
-      details: caught.details,
+      code: safe.code,
+      message: safe.message,
+      retryable: safe.retryable,
+      category: safe.category,
+      details: safe.details,
     },
   };
-  response.status(caught.status).json({ ...unsigned, payloadDigest: contractPayloadDigest(unsigned) });
+  response.status(safe.status).json({ ...unsigned, payloadDigest: contractPayloadDigest(unsigned) });
 }
 
 function actor(response: ActorResponse): SessionActor {
@@ -189,11 +190,22 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           {
             operation: 'production.package.create',
             key,
+            scope: { projectId: parsedProject.data },
             payload: parsed.data,
           },
         );
         if (!result) {
-          legacyError(response, 404, 'PROJECT_NOT_FOUND', '项目不存在。');
+          standardError(
+            response,
+            new ProductionDomainError(
+              'project lookup failed',
+              403,
+              'PROJECT_SCOPE_MISMATCH',
+              'scope',
+            ),
+            parsedProject.data,
+            key,
+          );
           return;
         }
         response.setHeader('idempotency-replayed', String(result.replayed));
@@ -214,7 +226,12 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
       const parsedProject = uuidSchema.safeParse(request.params.projectId);
       const parsedPackage = uuidSchema.safeParse(request.params.packageId);
       if (!parsedProject.success || !parsedPackage.success) {
-        legacyError(response, 404, 'PRODUCTION_PACKAGE_NOT_FOUND', '生产包不存在。');
+        standardError(
+          response,
+          new ProductionDomainError('invalid path', 422, 'SCHEMA_INVALID', 'schema'),
+          parsedProject.success ? parsedProject.data : 'invalid-project',
+          `read-${response.locals.requestId}`,
+        );
         return;
       }
       try {
@@ -223,8 +240,19 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           parsedProject.data,
           parsedPackage.data,
         );
-        if (!value) legacyError(response, 404, 'PRODUCTION_PACKAGE_NOT_FOUND', '生产包不存在。');
-        else response.status(200).json(value);
+        if (!value) {
+          standardError(
+            response,
+            new ProductionDomainError(
+              'package lookup failed',
+              403,
+              'PROJECT_SCOPE_MISMATCH',
+              'scope',
+            ),
+            parsedProject.data,
+            `read-${response.locals.requestId}`,
+          );
+        } else response.status(200).json(value);
       } catch (error) {
         next(error);
       }
@@ -261,11 +289,22 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           {
             operation: 'production.grant.issue',
             key,
+            scope: { projectId: parsedProject.data },
             payload: parsed.data,
           },
         );
         if (!result) {
-          legacyError(response, 404, 'PRODUCTION_PACKAGE_NOT_FOUND', '生产包不存在。');
+          standardError(
+            response,
+            new ProductionDomainError(
+              'package lookup failed',
+              403,
+              'PROJECT_SCOPE_MISMATCH',
+              'scope',
+            ),
+            parsedProject.data,
+            key,
+          );
           return;
         }
         response.setHeader('cache-control', 'no-store');

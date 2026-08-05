@@ -2,7 +2,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import { contractPayloadDigest } from './digest.js';
-import { ProductionIdempotencyConflictError } from './errors.js';
+import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
 import { createProductionRouter } from './routes.js';
 import type { ProductionStore, ProjectGrant, ProjectProductionPackage } from './types.js';
 
@@ -222,5 +222,47 @@ describe('A05 production HTTP boundary', () => {
       }),
       expect.objectContaining({ operation: 'production.grant.issue', key: 'grant-key-1' }),
     );
+  });
+
+  it('never serializes signed URLs, scripts, cross-tenant values, or unknown details', async () => {
+    const signedUrl = 'https://bucket.example/video.mp4?x-tos-signature=do-not-leak';
+    const app = testApp(
+      store({
+        createPackage: vi.fn(async () => {
+          throw new ProductionDomainError(
+            `脚本正文: private customer script ${signedUrl}`,
+            500,
+            'CAPABILITY_SCOPE_DENIED',
+            'grant',
+            {
+              reasonCode: 'tenant-other-secret',
+              signedUrl,
+              scriptContent: 'private customer script',
+              operation: 'production.package.create',
+              unknownDetail: 'private unknown detail',
+            },
+          );
+        }),
+      }),
+    );
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('idempotency-key', 'safe-error-key-1')
+      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toEqual({
+      code: 'CAPABILITY_SCOPE_DENIED',
+      message: 'Requested capability is not authorized.',
+      retryable: false,
+      category: 'scope',
+      details: { operation: 'production.package.create' },
+    });
+    expect(response.text).not.toContain('do-not-leak');
+    expect(response.text).not.toContain('private customer script');
+    expect(response.text).not.toContain('tenant-other-secret');
+    expect(response.text).not.toContain('private unknown detail');
+    expect(response.body.payloadDigest).toBe(contractPayloadDigest(response.body));
   });
 });

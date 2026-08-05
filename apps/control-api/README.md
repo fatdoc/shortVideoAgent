@@ -12,9 +12,11 @@
 - Node.js 内置 scrypt 密码慢哈希，数据库只保存 Session Token HMAC digest；
 - HttpOnly、SameSite=Lax Cookie（production 强制 Secure）、定时 Session 轮换和登出撤销；
 - 本地 IP + 邮箱维度的登录失败限流，以及仅允许站内路径的安全回跳；
+- 独立的 ProjectGrant 签名密钥与可轮换 `kid`；启动时缺失即拒绝运行，不复用 Session 根密钥；
 - 生产环境秘钥与本地数据库凭据拒绝规则。
 
-这一切片尚未实现 OSS 签名、生产包 HTTP 路由或 StoryCanvas 回执入账，不应公开注册或直接对公网开放。
+这一切片已实现生产包与短时 ProjectGrant HTTP 路由；尚未实现用户上传 OSS 签名和
+StoryCanvas 回执入账，不应公开注册或直接对公网开放。
 
 ## 本地启动
 
@@ -55,6 +57,8 @@ npm --prefix apps/control-api run build
 ## 部署边界
 
 - `SESSION_SECRET` 在 production 必须显式配置且至少 32 字符。
+- `PROJECT_GRANT_SIGNING_SECRET` 与 `PROJECT_GRANT_ACTIVE_KID` 在所有环境都必须显式配置；
+  Grant 密钥不得与 `SESSION_SECRET` 共用，轮换时先为生产平面部署新 `kid` 的验证密钥。
 - production 不存在默认白名单账号、Tenant 或初始化密码。
 - `DATABASE_SSL=require` 时启用 PostgreSQL TLS 证书校验。
 - 应用不记录 `DATABASE_URL`、Session Token、Grant Token 或上游 API Key。

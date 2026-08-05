@@ -58,10 +58,35 @@ describe('ProjectGrant signed token', () => {
     expect(() => tokens.verify(tampered)).toThrowError(
       expect.objectContaining<Partial<ProductionDomainError>>({ code: 'GRANT_INVALID', status: 401 }),
     );
-    now = new Date('2026-08-05T01:10:00.000Z');
+    now = new Date('2026-08-05T01:10:05.000Z');
     expect(() => tokens.verify(token)).toThrowError(
       expect.objectContaining<Partial<ProductionDomainError>>({ code: 'GRANT_EXPIRED', status: 410 }),
     );
+  });
+
+  it('fails closed on unknown, duplicate, or temporally invalid claims', () => {
+    const tokens = new ProjectGrantTokenService(
+      'test-secret-at-least-thirty-two-characters',
+      'kid-1',
+      () => issuedAt,
+    );
+    const invalidClaims = [
+      { ...claims(), capabilities: ['video.generate', 'video.generate'] },
+      { ...claims(), scopes: ['production.package.read', 'production.unknown'] },
+      { ...claims(), nbf: claims().exp },
+      { ...claims(), exp: claims().iat + 901 },
+      { ...claims(), wallet: { balance: 100 } },
+    ];
+
+    for (const invalid of invalidClaims) {
+      const token = tokens.issue(invalid as ProjectGrantClaims);
+      expect(() => tokens.verify(token)).toThrowError(
+        expect.objectContaining<Partial<ProductionDomainError>>({
+          code: 'GRANT_INVALID',
+          status: 401,
+        }),
+      );
+    }
   });
 });
 

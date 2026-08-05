@@ -38,7 +38,10 @@ const contentRouter = createContentRouter({
 const productionRouter = createProductionRouter({
   store: new PostgresProductionStore(
     database,
-    new ProjectGrantTokenService(config.sessionSecret),
+    new ProjectGrantTokenService(
+      config.projectGrantSigningSecret,
+      config.projectGrantActiveKid,
+    ),
   ),
   resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',

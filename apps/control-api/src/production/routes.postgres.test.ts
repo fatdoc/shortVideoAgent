@@ -6,6 +6,7 @@ import { up as createPilotCore } from '../db/migrations/001_pilot_core.js';
 import { up as addSessionRotation } from '../db/migrations/002_auth_session_rotation.js';
 import { up as addContentTenantIntegrity } from '../db/migrations/003_content_tenant_integrity.js';
 import { up as addProductionPackageGrant } from '../db/migrations/004_production_package_grant.js';
+import { up as hardenProductionSecurity } from '../db/migrations/005_production_security_hardening.js';
 import { contractPayloadDigest, tokenDigest } from './digest.js';
 import { ProjectGrantTokenService } from './grantToken.js';
 import { PostgresProductionStore } from './repository.js';
@@ -39,6 +40,7 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
   let database: Knex;
   let app: ReturnType<typeof createApp>;
   let tokens: ProjectGrantTokenService;
+  let productionStore: PostgresProductionStore;
 
   beforeAll(async () => {
     database = knex({ client: 'pg', connection: databaseUrl });
@@ -47,9 +49,11 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     await addSessionRotation(database);
     await addContentTenantIntegrity(database);
     await addProductionPackageGrant(database);
+    await hardenProductionSecurity(database);
     tokens = new ProjectGrantTokenService(signingSecret, 'pilot-test-kid', () => fixedNow);
+    productionStore = new PostgresProductionStore(database, tokens, () => fixedNow);
     const productionRouter = createProductionRouter({
-      store: new PostgresProductionStore(database, tokens, () => fixedNow),
+      store: productionStore,
       resolveSession: async (token) => {
         if (token === 'tenant-a-session') return session(tenantA, userA);
         if (token === 'tenant-b-session') return session(tenantB, userB);
@@ -252,13 +256,61 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     const crossTenant = await request(app)
       .get(`/api/v1/projects/${projectA}/production-packages/${created.body.packageId as string}`)
       .set('cookie', 'videoagent_session=tenant-b-session');
-    expect(crossTenant.status).toBe(404);
+    expect(crossTenant.status).toBe(403);
+    expect(crossTenant.body.error).toMatchObject({
+      code: 'PROJECT_SCOPE_MISMATCH',
+      message: 'Request scope is not authorized.',
+      details: {},
+    });
 
     await expect(
       database('control_plane.production_packages')
         .where({ package_id: created.body.packageId })
         .update({ snapshot: JSON.stringify({ tampered: true }) }),
     ).rejects.toThrow(/immutable/);
+  });
+
+  it('binds idempotency to the path project for package and Grant commands', async () => {
+    const projectB = '10000000-0000-4000-8000-000000000007';
+    const scriptB = '10000000-0000-4000-8000-000000000008';
+    await seedContent(projectA, scriptA, { status: 'approved', factRiskStatus: 'cleared' });
+    await seedContent(projectB, scriptB, { status: 'approved', factRiskStatus: 'cleared' });
+
+    const packageResponse = await packageRequest();
+    expect(packageResponse.status).toBe(201);
+    const packageCrossProject = await request(app)
+      .post(`/api/v1/projects/${projectB}/production-packages`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'package-a-v1')
+      .send({
+        scriptVersionId: scriptA,
+        capabilityRequirements: ['video.generate', 'media.export'],
+        expiresInSeconds: 21_600,
+      });
+    expect(packageCrossProject.status).toBe(409);
+    expect(packageCrossProject.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
+    expect(packageCrossProject.body.projectId).toBe(projectB);
+
+    const grantPayload = {
+      packageId: packageResponse.body.packageId as string,
+      requestedCapabilities: ['video.generate'],
+      requestedScopes: ['production.package.read', 'production.task.write'],
+      ttlSeconds: 600,
+    };
+    const grant = await request(app)
+      .post(`/api/v1/projects/${projectA}/production-grants`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'grant-path-scope-v1')
+      .send(grantPayload);
+    expect(grant.status).toBe(201);
+    const grantCrossProject = await request(app)
+      .post(`/api/v1/projects/${projectB}/production-grants`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'grant-path-scope-v1')
+      .send(grantPayload);
+    expect(grantCrossProject.status).toBe(409);
+    expect(grantCrossProject.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
+    expect(grantCrossProject.body.projectId).toBe(projectB);
   });
 
   it('blocks unapproved, revoked, blocked, and unresolved-risk scripts', async () => {
@@ -346,6 +398,9 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       capabilities: ['video.generate'],
       scopes: ['production.package.read', 'production.task.write'],
     });
+    await expect(
+      productionStore.verifyActiveGrantToken(created.body.accessToken as string),
+    ).resolves.toMatchObject({ jti: created.body.grant.grantId });
 
     const replay = await issue();
     expect(replay.status).toBe(200);
@@ -361,6 +416,48 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     });
     expect(persisted).not.toContain(created.body.accessToken as string);
     expect(persisted).not.toContain(signingSecret);
+
+    await expect(
+      database('control_plane.project_grants')
+        .where({ grant_id: created.body.grant.grantId })
+        .update({ status: 'revoked' }),
+    ).rejects.toThrow(/project_grants_status_revocation_ck/);
+    await database('control_plane.project_grants')
+      .where({ grant_id: created.body.grant.grantId })
+      .update({ status: 'revoked', revoked_at: fixedNow });
+    const revokedGrantReplay = await issue();
+    expect(revokedGrantReplay.status).toBe(401);
+    expect(revokedGrantReplay.body.error).toMatchObject({
+      code: 'GRANT_INVALID',
+      message: 'Project authorization is invalid.',
+      details: {},
+    });
+    await expect(
+      productionStore.verifyActiveGrantToken(created.body.accessToken as string),
+    ).rejects.toMatchObject({ code: 'GRANT_INVALID', status: 401 });
+    await expect(
+      database('control_plane.project_grants')
+        .where({ grant_id: created.body.grant.grantId })
+        .delete(),
+    ).rejects.toThrow(/cannot be deleted/);
+
+    const storedGrant = await database('control_plane.project_grants')
+      .select('*')
+      .where({ grant_id: created.body.grant.grantId })
+      .first();
+    await expect(
+      database('control_plane.project_grants').insert({
+        ...storedGrant,
+        grant_id: '10000000-0000-4000-8000-000000000031',
+        idempotency_key: 'grant-invalid-db-bypass',
+        token_digest: `sha256:${'3'.repeat(64)}`,
+        payload_digest: `sha256:${'4'.repeat(64)}`,
+        nonce: '10000000-0000-4000-8000-000000000032',
+        capabilities: JSON.stringify(['tenant.admin']),
+        status: 'active',
+        revoked_at: null,
+      }),
+    ).rejects.toThrow(/project_grants_capabilities_policy_ck/);
 
     const overScoped = await request(app)
       .post(`/api/v1/projects/${projectA}/production-grants`)
@@ -395,6 +492,14 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       acted_by: userA,
       acted_at: fixedNow,
     });
+    const packageReplayAfterRevoke = await packageRequest();
+    expect(packageReplayAfterRevoke.status).toBe(403);
+    expect(packageReplayAfterRevoke.body.error.details.reasonCode).toBe('APPROVAL_REVOKED');
+    const grantReplayAfterApprovalRevoke = await issue();
+    expect(grantReplayAfterApprovalRevoke.status).toBe(403);
+    expect(grantReplayAfterApprovalRevoke.body.error.details.reasonCode).toBe(
+      'APPROVAL_REVOKED',
+    );
     const revoked = await request(app)
       .post(`/api/v1/projects/${projectA}/production-grants`)
       .set('cookie', 'videoagent_session=tenant-a-session')
