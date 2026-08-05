@@ -39,3 +39,5 @@
 | 2026-08-03 | A-04 定向 51 项、全量串行 181 项测试、Build、Governance 和 A 范围 ESLint 通过；记录 B StoryCanvas 全仓 Lint 存量阻塞                      | A04_READY_FOR_INTEGRATION               |
 | 2026-08-04 | A-04 在短期集成分支完成 51 项定向、181 项全量测试、Build、Governance 和边界审查；接受既有 StoryCanvas Lint 例外                           | A04_INTEGRATION_ACCEPTED                |
 | 2026-08-04 | A-04 已通过 `--ff-only` 进入并推送远端 `main`，核对本地与远端一致；下一轮 A 任务待立项                                                    | A04_MERGED_TO_MAIN                      |
+| 2026-08-05 | A-05 Wave 1 完成集成验收：A03 项目/Brief/脚本审批、B02 远程存储、F01 Pilot Auth 接线进入接受态；根应用 30 文件 195 项全量测试通过          | A05_WAVE1_ACCEPTED                      |
+| 2026-08-05 | 冻结海外 BytePlus/ARK 视频链路、海底捞三里屯内部白名单案例与独立 TTS 凭据边界；启动 C01 合同冻结和 B05 TTS Adapter                       | A05_WAVE2_RUNNING                       |

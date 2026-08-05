@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A-05 单客户白名单真实试点 v0
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `WAVE_1_RUNNING`
-- 当前任务：G0 Checkpoint 已接受；P0 执行 C01 真实试点合同，A2 执行 A03 Project/Brief/Script Approval，B2 执行 B02 Storage/B03 Image，F1 执行 Pilot API Adapter/Auth UI
+- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `WAVE_1_ACCEPTED_WAVE_2_RUNNING`
+- 当前任务：C01 合同冻结与 B05 TTS Adapter 并行执行；C01 接受后立即启动 A05 Package/Grant 与 Q1 跨平面合同测试
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -14,7 +14,7 @@
 - SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：无 A-04 合入阻塞；全仓 `npm run lint` 的 B/StoryCanvas 既有存量（697 errors / 5 warnings）已作为本轮明确例外接受，后续仍归 B 或专项治理；未来集成只接收正式 `dev/*`
+- 阻塞：B03 真实付费图片 smoke 缺 `ARK_API_KEY`/TOS 运行配置；B05 独立 TTS 缺单独开通的服务凭据；StoryCanvas 默认全库测试仍受本机 Electron 安装损坏影响。以上不阻塞本地合同、控制平面和 Adapter 开发。
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
