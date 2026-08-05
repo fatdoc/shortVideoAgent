@@ -94,9 +94,9 @@ v0.2 所有跨平面对象必须包含：
 
 错误包络统一为 `StandardError`，其 code 冻结为：
 
-`SCHEMA_INVALID`、`TENANT_SCOPE_MISMATCH`、`PROJECT_SCOPE_MISMATCH`、`CAPABILITY_SCOPE_DENIED`、`GRANT_INVALID`、`GRANT_EXPIRED`、`IDEMPOTENCY_CONFLICT`、`PROVIDER_FAILED`、`STORAGE_FAILED`、`TASK_TIMEOUT`、`TASK_CANCELLED`、`RECEIPT_REPLAY_CONFLICT`、`CREDIT_SETTLEMENT_FAILED`。
+`SCHEMA_INVALID`、`TENANT_SCOPE_MISMATCH`、`PROJECT_SCOPE_MISMATCH`、`CAPABILITY_SCOPE_DENIED`、`GRANT_INVALID`、`GRANT_EXPIRED`、`IDEMPOTENCY_CONFLICT`、`PROVIDER_FAILED`、`STORAGE_FAILED`、`TASK_TIMEOUT`、`TASK_CANCELLED`、`RECEIPT_REPLAY_CONFLICT`、`RECEIPT_TASK_NOT_FOUND`、`CREDIT_SETTLEMENT_FAILED`。
 
-错误不得包含密钥、明文 Token、完整 Provider 请求/响应或客户商业信息。
+错误不得包含密钥、明文 Token、签名 URL、完整 Provider 请求/响应、Prompt/脚本正文、跨租户资源存在性或客户商业信息。`message` 使用短消息目录，`details` 使用 Schema 允许列表，机器规则见 `contracts/v0.2/error-safety-policy.json`。正则仅是合同 Gate，业务 API、Worker、Provider Adapter 和日志仍必须经过 allowlist sanitizer。
 
 ## 额度状态机
 
@@ -122,6 +122,7 @@ requested -> reserved -> consumed
 - 相同幂等键不同 digest 返回 `409 IDEMPOTENCY_CONFLICT`。
 - 相同 receipt ID 不同 digest 返回 `409 RECEIPT_REPLAY_CONFLICT`。
 - `ReceiptAck(accepted|duplicate)` 只代表回执已持久写入 Inbox，不代表任务、资产审核或额度结算完成。
+- 回执引用未知任务时固定返回 `404 RECEIPT_TASK_NOT_FOUND` 和 `ReceiptAck(rejected, durablyRecorded=false)`；不写入 durable Inbox，不产生任何额度动作。对外消息固定为 `Receipt cannot be accepted.`，不回显 task/tenant 存在性。
 - 完整 HTTP header、Content-Digest、重放和状态码规则见 `contracts/v0.2/TRANSPORT_AND_REPLAY.md`。
 
 ## Demo Adapter

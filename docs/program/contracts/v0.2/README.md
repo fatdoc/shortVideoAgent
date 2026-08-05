@@ -12,6 +12,7 @@ This directory is the machine-readable boundary between the SaaS control plane (
 
 - `pilot-contract-v0.2.schema.json`: JSON Schema 2020-12 definitions for every cross-plane object.
 - `schema-index.json`: stable object name to schema pointer mapping.
+- `error-safety-policy.json`: machine-readable StandardError detail allowlist and sensitive-value deny rules (policy revision `0.2.1`).
 - `TRANSPORT_AND_REPLAY.md`: HTTP headers, digest, idempotency, replay, ACK, and settlement semantics.
 - `fixtures/*.json`: one valid fixture per contract object.
 - `negative-vectors.json`: schema, scope, grant, idempotency, provider, storage, timeout, cancellation, replay, and settlement failures.
@@ -37,6 +38,14 @@ ProjectProductionPackage + ProjectGrant
 
 Task success is not credit consumption. If no deliverable asset exists, usage is `not_eligible` and the reservation must be released according to the control-plane ledger policy.
 
+## Safe errors
+
+`StandardError.message` is a short catalog message, not a debug dump. `details` only accepts the keys frozen in `safeErrorDetails`; signed URLs, authorization headers, credential/token shapes, raw request/response bodies, prompt or script bodies, and cross-tenant existence disclosures are rejected by the executable policy.
+
+The policy patterns are a contract/test gate, not a substitute for log redaction. Every business endpoint and worker must build external errors through an allowlist sanitizer before response serialization and before logging. Raw provider exceptions remain in access-controlled internal telemetry only, under its own redaction and retention controls.
+
+An otherwise valid receipt for an unknown task returns HTTP `404` with `RECEIPT_TASK_NOT_FOUND` inside a rejected ACK. Its public message is exactly `Receipt cannot be accepted.` It is not written to the durable receipt Inbox and cannot reserve, consume, or release customer credits.
+
 ## Validation
 
 From the repository root:
@@ -45,7 +54,7 @@ From the repository root:
 node --test docs/program/contracts/v0.2/validate-contract.mjs
 ```
 
-The validator parses the JSON Schema and every fixture, verifies all envelope digests and cross-object scopes/references, rejects forbidden secret/commercial fields, and proves the canonical negative vectors return their expected standard errors. It adds no runtime dependency.
+The validator parses the JSON Schema, safety policy, and every fixture; verifies all envelope digests and cross-object scopes/references; rejects forbidden secret/commercial/error values; and proves the canonical negative vectors return their expected standard errors and ACK decisions. It adds no runtime dependency.
 
 ## Standards used
 

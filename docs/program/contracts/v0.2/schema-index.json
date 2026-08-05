@@ -1,6 +1,7 @@
 {
   "contractVersion": "0.2",
   "schema": "pilot-contract-v0.2.schema.json",
+  "errorSafetyPolicy": "error-safety-policy.json",
   "objects": {
     "ProjectProductionPackage": "#/$defs/projectProductionPackage",
     "ProjectGrant": "#/$defs/projectGrant",

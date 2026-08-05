@@ -33,6 +33,8 @@ Idempotency records live at least as long as the pilot data retention period. A 
 - `duplicate` means the identical receipt was already durably present.
 - `rejected` means no Inbox record or domain side effect was committed.
 - An ACK is not proof that a media task succeeded, an asset passed review, or customer credits were consumed.
+- A receipt whose `generationTaskId` is not known inside the authorized tenant/project scope returns HTTP `404` with `ReceiptAck.status=rejected`, `durablyRecorded=false`, and `error.code=RECEIPT_TASK_NOT_FOUND`. It MUST NOT enter the durable receipt Inbox or trigger any credit action.
+- The unknown-task public message is exactly `Receipt cannot be accepted.` The response MUST NOT reveal whether a task, asset, project, or tenant exists outside the caller's scope.
 - A `TaskReceipt(status=succeeded)` never authorizes customer consumption by itself.
 - Customer consumption becomes eligible only after a deliverable `AssetReceipt` or successful deliverable `ExportReceipt` is durably recorded and a matching `UsageReceipt.customerSettlement.eligibility=eligible` is accepted.
 - The control plane owns rate cards, wallet mutations, and final settlement. The production plane reports meter quantities and optional provider cost only.
@@ -46,10 +48,22 @@ Idempotency records live at least as long as the pilot data retention period. A 
 | `400` | Malformed JSON/header/digest |
 | `401` | Missing or invalid project token |
 | `403` | Tenant/project/capability scope denied |
+| `404` | Receipt task unavailable; rejected ACK, no durable Inbox write |
 | `409` | Idempotency or receipt replay conflict |
 | `410` | Grant expired |
 | `422` | Schema or semantic validation failed |
 | `429` | Provider/control throttling; retry policy applies |
 | `500/502/503/504` | Internal/provider/timeout failure with `StandardError` |
 
-Every non-2xx body uses `StandardError`. Retry behavior comes from `error.retryable`; HTTP status alone is insufficient.
+Receipt-write failures use a rejected `ReceiptAck` containing `standardErrorValue`; other non-2xx bodies use the `StandardError` envelope. Retry behavior comes from `error.retryable`; HTTP status alone is insufficient.
+
+## Error disclosure safety
+
+- `StandardError.message` is selected from a short external catalog and is limited to 256 characters.
+- `details` is an allowlist, not a pass-through object. Raw provider request/response bodies, URLs, headers, prompts, scripts, credentials, tokens, and secrets are forbidden.
+- Signed URL markers including `X-Tos-Signature`, `X-Tos-Credential`, `X-Tos-Security-Token`, and `X-Amz-*` signing parameters are forbidden in both message and details.
+- Bearer/API-key/secret/token/private-key shapes and inline prompt/script bodies are forbidden.
+- Errors must not disclose cross-tenant identifiers or whether resources exist outside the authorized scope.
+- `error-safety-policy.json` and the negative vectors are the executable contract gate.
+
+Pattern matching is defense in depth only. Every API, worker, provider adapter, and logger still MUST use an allowlist sanitizer before serializing or logging business errors; the regex rules cannot prove that arbitrary text is safe.

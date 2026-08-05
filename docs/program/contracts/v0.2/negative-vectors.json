@@ -117,6 +117,130 @@
       "mutations": [{ "op": "replace", "path": "/deliverableAssetIds", "value": [] }],
       "expectedHttpStatus": 422,
       "expectedCode": "CREDIT_SETTLEMENT_FAILED"
+    },
+    {
+      "caseId": "RECEIPT-UNKNOWN-TASK-001",
+      "operation": "receiveUnknownTaskReceipt",
+      "riskClass": "resource_enumeration",
+      "subjectFixture": "task-receipt.json",
+      "mutations": [{ "op": "replace", "path": "/generationTaskId", "value": "task-pilot-unknown" }],
+      "knownGenerationTaskIds": ["task-pilot-01"],
+      "expectedAckStatus": "rejected",
+      "expectedDurablyRecorded": false,
+      "expectedCreditAction": "none",
+      "expectedExternalMessage": "Receipt cannot be accepted.",
+      "expectedHttpStatus": 404,
+      "expectedCode": "RECEIPT_TASK_NOT_FOUND"
+    },
+    {
+      "caseId": "ERROR-SIGNED-TOS-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "signed_url",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "Upload failed: https://storage.invalid/object?X-Tos-Signature=REDACTED" }],
+      "expectedPolicyRule": "signed_tos_url",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-SIGNED-AMZ-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "signed_url",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/details/providerCode", "value": "https://storage.invalid/object?X-Amz-Credential=REDACTED" }],
+      "expectedPolicyRule": "signed_amz_url",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-BEARER-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "credential_shape",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/details/providerCode", "value": "Bearer redacted-token-value" }],
+      "expectedPolicyRule": "bearer_credential",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-API-KEY-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "credential_shape",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "Provider rejected api_key=redacted_example_value" }],
+      "expectedPolicyRule": "credential_assignment",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-PROVIDER-KEY-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "credential_shape",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "Rejected key sk-test_examplevalue123" }],
+      "expectedPolicyRule": "provider_key_shape",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-PRIVATE-KEY-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "credential_shape",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "-----BEGIN PRIVATE KEY----- REDACTED" }],
+      "expectedPolicyRule": "private_key_block",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-PROMPT-KEY-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "content_body",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "add", "path": "/error/details/promptText", "value": "Full generation prompt must never enter an error." }],
+      "expectedPolicyRule": "details_allowlist",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-SCRIPT-INLINE-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "content_body",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "scriptContent: complete customer script body" }],
+      "expectedPolicyRule": "prompt_or_script_inline",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-UNCATALOGUED-CONTENT-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "content_body",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "A complete uncatalogued customer content sentence must not be echoed." }],
+      "expectedPolicyRule": "message_catalog",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-CROSS-TENANT-EXISTENCE-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "cross_tenant_existence",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/message", "value": "Asset asset-other exists in tenant tenant-pilot-other." }],
+      "expectedPolicyRule": "cross_tenant_existence_en",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
+    },
+    {
+      "caseId": "ERROR-CROSS-TENANT-ID-001",
+      "operation": "validateErrorSafety",
+      "riskClass": "cross_tenant_existence",
+      "subjectFixture": "standard-error.json",
+      "mutations": [{ "op": "replace", "path": "/error/details/providerCode", "value": "tenant-pilot-other" }],
+      "expectedPolicyRule": "cross_tenant_identifier",
+      "expectedHttpStatus": 422,
+      "expectedCode": "SCHEMA_INVALID"
     }
   ]
 }

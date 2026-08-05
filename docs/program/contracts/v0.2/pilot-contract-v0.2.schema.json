@@ -78,15 +78,37 @@
             "TASK_TIMEOUT",
             "TASK_CANCELLED",
             "RECEIPT_REPLAY_CONFLICT",
+            "RECEIPT_TASK_NOT_FOUND",
             "CREDIT_SETTLEMENT_FAILED"
           ]
         },
-        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 256 },
         "retryable": { "type": "boolean" },
         "category": {
           "enum": ["schema", "scope", "grant", "idempotency", "provider", "storage", "task", "receipt", "settlement"]
         },
-        "details": { "type": "object" }
+        "details": { "$ref": "#/$defs/safeErrorDetails" }
+      }
+    },
+    "safeErrorDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "providerCode": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "operation": { "$ref": "#/$defs/id" },
+        "fieldPaths": {
+          "type": "array",
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 160, "pattern": "^/" }
+        },
+        "retryAfterSeconds": { "type": "integer", "minimum": 0, "maximum": 86400 },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "reasonCode": { "$ref": "#/$defs/id" },
+        "storageStage": { "enum": ["authorize", "upload", "verify", "register", "read"] },
+        "receiptType": { "enum": ["TaskReceipt", "AssetReceipt", "ExportReceipt", "UsageReceipt"] },
+        "conflictField": { "enum": ["idempotencyKey", "payloadDigest", "receiptId", "tenantId", "projectId", "capability"] }
       }
     },
     "projectProductionPackage": {

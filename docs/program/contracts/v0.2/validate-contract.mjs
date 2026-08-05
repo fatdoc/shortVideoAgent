@@ -44,6 +44,7 @@ const standardErrorCodes = new Set([
   "TASK_TIMEOUT",
   "TASK_CANCELLED",
   "RECEIPT_REPLAY_CONFLICT",
+  "RECEIPT_TASK_NOT_FOUND",
   "CREDIT_SETTLEMENT_FAILED",
 ]);
 
@@ -54,6 +55,13 @@ function loadJson(relativePath) {
 function loadFixture(fileName) {
   return loadJson(path.join("fixtures", fileName));
 }
+
+const errorSafetyPolicy = loadJson("error-safety-policy.json");
+const errorValueRules = errorSafetyPolicy.valueRules.map((rule) => ({
+  ...rule,
+  regex: new RegExp(rule.pattern, "iu"),
+}));
+const allowedErrorDetailKeys = new Set(errorSafetyPolicy.allowedDetailKeys);
 
 function canonicalize(value) {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -82,13 +90,59 @@ function requireTimestamp(value, field) {
   assert.ok(Number.isFinite(Date.parse(value)), `${field} must parse as a date`);
 }
 
-function validateStandardErrorValue(error) {
+function rejectUnsafeError(ruleId, message) {
+  const error = new Error(message);
+  error.safetyRuleId = ruleId;
+  throw error;
+}
+
+function errorDetailStrings(value, pathName = "error.details") {
+  if (typeof value === "string") return [{ pathName, value }];
+  if (Array.isArray(value)) return value.flatMap((item, index) => errorDetailStrings(item, `${pathName}[${index}]`));
+  if (!value || typeof value !== "object") return [];
+  return Object.entries(value).flatMap(([key, child]) => errorDetailStrings(child, `${pathName}.${key}`));
+}
+
+function validateErrorSafety(error, envelope) {
+  if (error.message.length > errorSafetyPolicy.maxMessageLength) {
+    rejectUnsafeError("message_length", "StandardError.message exceeds the safe length");
+  }
+  for (const key of Object.keys(error.details)) {
+    if (!allowedErrorDetailKeys.has(key)) {
+      rejectUnsafeError("details_allowlist", `StandardError.details.${key} is not allowlisted`);
+    }
+  }
+
+  const strings = [
+    { pathName: "error.message", value: error.message },
+    ...errorDetailStrings(error.details),
+  ];
+  for (const item of strings) {
+    if (item.pathName !== "error.message" && item.value.length > errorSafetyPolicy.maxDetailStringLength) {
+      rejectUnsafeError("detail_string_length", `${item.pathName} exceeds the safe length`);
+    }
+    for (const rule of errorValueRules) {
+      if (rule.regex.test(item.value)) rejectUnsafeError(rule.id, `${item.pathName} contains denied content`);
+    }
+    const tenantMatches = item.value.match(new RegExp(errorSafetyPolicy.tenantIdentifierPattern, "giu")) ?? [];
+    if (tenantMatches.some((tenantId) => tenantId.toLowerCase() !== envelope.tenantId.toLowerCase())) {
+      rejectUnsafeError("cross_tenant_identifier", `${item.pathName} exposes a cross-tenant identifier`);
+    }
+  }
+  const allowedMessages = errorSafetyPolicy.messageCatalog[error.code] ?? [];
+  if (!allowedMessages.includes(error.message)) {
+    rejectUnsafeError("message_catalog", "StandardError.message is not in the external message catalog");
+  }
+}
+
+function validateStandardErrorValue(error, envelope) {
   assert.ok(error && typeof error === "object", "error must be an object");
   assert.ok(standardErrorCodes.has(error.code), `unknown StandardError code ${error.code}`);
   requireString(error.message, "error.message");
   assert.equal(typeof error.retryable, "boolean", "error.retryable must be boolean");
   requireString(error.category, "error.category");
   assert.ok(error.details && typeof error.details === "object" && !Array.isArray(error.details));
+  validateErrorSafety(error, envelope);
 }
 
 function assertNoForbiddenData(value, pathName = "payload") {
@@ -174,7 +228,7 @@ function validateFixture(value) {
         requireTimestamp(value.completedAt, "completedAt");
       } else if (["failed", "cancelled", "timed_out"].includes(value.status)) {
         assert.deepEqual(value.outputAssetIds, []);
-        validateStandardErrorValue(value.error);
+        validateStandardErrorValue(value.error, value);
       }
       assert.ok(!Object.hasOwn(value, "customerCredits"));
       break;
@@ -197,7 +251,7 @@ function validateFixture(value) {
         assert.equal(value.error, null);
       } else {
         assert.equal(value.deliverable, false);
-        validateStandardErrorValue(value.error);
+        validateStandardErrorValue(value.error, value);
       }
       break;
     }
@@ -217,7 +271,7 @@ function validateFixture(value) {
     }
     case "StandardError":
       for (const key of ["errorId", "requestId"]) requireString(value[key], key);
-      validateStandardErrorValue(value.error);
+      validateStandardErrorValue(value.error, value);
       break;
     case "ReceiptAck":
       for (const key of ["ackId", "receiptId"]) requireString(value[key], key);
@@ -227,7 +281,7 @@ function validateFixture(value) {
         assert.equal(value.error, null);
       } else {
         assert.equal(value.durablyRecorded, false);
-        validateStandardErrorValue(value.error);
+        validateStandardErrorValue(value.error, value);
       }
       break;
     default:
@@ -248,11 +302,38 @@ function applyMutations(source, mutations = []) {
     let parent = value;
     for (const part of parts) parent = parent[part];
     if (mutation.op === "remove") delete parent[leaf];
-    else if (mutation.op === "replace") parent[leaf] = structuredClone(mutation.value);
+    else if (mutation.op === "replace" || mutation.op === "add") parent[leaf] = structuredClone(mutation.value);
     else assert.fail(`unsupported mutation ${mutation.op}`);
   }
   if (Object.hasOwn(value, "payloadDigest")) value.payloadDigest = digestPayload(value);
   return value;
+}
+
+function decideReceiptTaskAcceptance(receipt, knownGenerationTaskIds) {
+  if (knownGenerationTaskIds.includes(receipt.generationTaskId)) {
+    return { ackStatus: "accepted", durablyRecorded: true, creditAction: "deferred" };
+  }
+  const externalError = {
+    code: "RECEIPT_TASK_NOT_FOUND",
+    message: "Receipt cannot be accepted.",
+    retryable: false,
+    category: "receipt",
+    details: {
+      receiptType: receipt.objectType,
+      reasonCode: "receipt_not_accepted",
+    },
+  };
+  validateStandardErrorValue(externalError, receipt);
+  assert.ok(!externalError.message.includes(receipt.generationTaskId));
+  assert.ok(!externalError.message.includes(receipt.tenantId));
+  return {
+    code: externalError.code,
+    httpStatus: 404,
+    ackStatus: "rejected",
+    durablyRecorded: false,
+    creditAction: "none",
+    externalMessage: externalError.message,
+  };
 }
 
 function evaluateNegativeVector(vector) {
@@ -293,6 +374,18 @@ function evaluateNegativeVector(vector) {
     case "receiveTaskReceipt":
       validateFixture(subject);
       return { code: subject.error.code, httpStatus: subject.status === "timed_out" ? 504 : 409 };
+    case "receiveUnknownTaskReceipt":
+      validateFixture(subject);
+      return decideReceiptTaskAcceptance(subject, vector.knownGenerationTaskIds);
+    case "validateErrorSafety":
+      try {
+        validateFixture(subject);
+      } catch (error) {
+        assert.equal(error.safetyRuleId, vector.expectedPolicyRule, vector.caseId);
+        return { code: "SCHEMA_INVALID", httpStatus: 422, policyRule: error.safetyRuleId };
+      }
+      assert.fail("unsafe StandardError unexpectedly passed");
+      break;
     case "replayReceipt":
       assert.equal(subject.receiptId, original.receiptId);
       assert.notEqual(subject.payloadDigest, original.payloadDigest);
@@ -319,6 +412,18 @@ test("schema and index expose the complete frozen v0.2 surface", () => {
     assert.ok(schema.$defs[definition], `missing schema definition ${definition}`);
   }
   assert.deepEqual(new Set(schema.$defs.standardErrorValue.properties.code.enum), standardErrorCodes);
+  assert.equal(schema.$defs.standardErrorValue.properties.message.maxLength, errorSafetyPolicy.maxMessageLength);
+  assert.equal(schema.$defs.standardErrorValue.properties.details.$ref, "#/$defs/safeErrorDetails");
+  assert.deepEqual(new Set(Object.keys(schema.$defs.safeErrorDetails.properties)), allowedErrorDetailKeys);
+});
+
+test("StandardError safety policy is machine-readable and deny/allow lists do not overlap", () => {
+  assert.equal(errorSafetyPolicy.policyVersion, "0.2.1");
+  assert.ok(errorValueRules.length >= 8);
+  assert.ok(errorValueRules.every((rule) => rule.regex instanceof RegExp));
+  assert.deepEqual(new Set(Object.keys(errorSafetyPolicy.messageCatalog)), standardErrorCodes);
+  const forbidden = new Set(errorSafetyPolicy.forbiddenDetailKeys.map((key) => key.toLowerCase()));
+  for (const key of allowedErrorDetailKeys) assert.ok(!forbidden.has(key.toLowerCase()));
 });
 
 test("all positive fixtures satisfy envelope, digest, security, and object invariants", () => {
@@ -368,7 +473,13 @@ test("negative vectors deterministically cover every frozen StandardError code",
   const seen = new Set();
   for (const vector of suite.vectors) {
     const actual = evaluateNegativeVector(vector);
-    assert.deepEqual(actual, { code: vector.expectedCode, httpStatus: vector.expectedHttpStatus }, vector.caseId);
+    const expected = { code: vector.expectedCode, httpStatus: vector.expectedHttpStatus };
+    if (vector.expectedPolicyRule) expected.policyRule = vector.expectedPolicyRule;
+    if (vector.expectedAckStatus) expected.ackStatus = vector.expectedAckStatus;
+    if (Object.hasOwn(vector, "expectedDurablyRecorded")) expected.durablyRecorded = vector.expectedDurablyRecorded;
+    if (vector.expectedCreditAction) expected.creditAction = vector.expectedCreditAction;
+    if (vector.expectedExternalMessage) expected.externalMessage = vector.expectedExternalMessage;
+    assert.deepEqual(actual, expected, vector.caseId);
     seen.add(vector.expectedCode);
   }
   assert.deepEqual(seen, standardErrorCodes);
