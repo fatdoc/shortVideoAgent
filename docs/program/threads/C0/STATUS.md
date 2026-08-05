@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A-05 单客户白名单真实试点 v0
 - 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `WAVE_1_ACCEPTED_WAVE_2_RUNNING`
-- 当前任务：C01 合同冻结与 B05 TTS Adapter 并行执行；C01 接受后立即启动 A05 Package/Grant 与 Q1 跨平面合同测试
+- 当前任务：C01 合同已接受；A3 执行 A05 Production Package/Grant，Q1 执行 Package/Grant/Task 跨平面合同测试
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`

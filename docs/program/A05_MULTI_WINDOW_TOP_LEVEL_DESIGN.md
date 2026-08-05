@@ -103,14 +103,14 @@ flowchart TD
 | A01 | Control API + PostgreSQL 基座              | A1           | 无            | 19 表迁移、health 200、append-only Trigger | `ACCEPTED`                |
 | A02 | 白名单 Auth / Session / Tenant             | A1           | A01           | 20/20，实库 login/session/logout           | `ACCEPTED`                |
 | B01 | Media Readiness                            | B1           | 无            | 10/10，安全 readiness endpoint             | `ACCEPTED`                |
-| C01 | 真实试点合同 `v0.2`                        | P0           | N00           | Schema、fixture、negative vectors、错误码  | `IN_PROGRESS`             |
+| C01 | 真实试点合同 `v0.2`                        | P0           | N00           | Schema、fixture、negative vectors、错误码  | `ACCEPTED`                |
 | A03 | Project / Brief / ScriptVersion / Approval | A2           | A02           | Tenant 边界、版本、审批阻断                | `ACCEPTED`                |
 | A04 | 用户上传授权与素材登记                     | A2           | A02           | 签名、prefix/MIME/size/checksum 校验       | `NOT_STARTED`             |
-| A05 | Production Package / Grant                 | A3           | C01, A03      | 审批脚本发包、签名 Grant、幂等             | `NOT_STARTED`             |
+| A05 | Production Package / Grant                 | A3           | C01, A03      | 审批脚本发包、签名 Grant、幂等             | `IN_PROGRESS`             |
 | B02 | 远程对象存储与生产素材登记                 | B2           | B01           | 远程 key、checksum、provenance             | `ACCEPTED`                |
 | B03 | 真实图片生成                               | B2           | C01, B02      | 真实 Provider Task + Asset                 | `BLOCKED`                 |
 | B04 | 真实视频任务                               | B3           | C01, B02      | submit/poll/timeout/cancel/retry           | `READY`                   |
-| B05 | 真实 TTS                                   | B3           | C01           | 真实音频 Asset、duration/checksum          | `IN_PROGRESS`             |
+| B05 | 真实 TTS                                   | B3           | C01           | 真实音频 Asset、duration/checksum          | `BLOCKED`                 |
 | X01 | Package 到 Production Task 接线            | P0 + A3 + B3 | A05, B03–B05  | 一个批准镜头可创建真实 Task                | `NOT_STARTED`             |
 | B06 | FFmpeg 剪辑、字幕、音频和 MP4              | B4           | X01           | 独立 MP4、ffprobe 证据                     | `NOT_STARTED`             |
 | B07 | Task/Asset/Usage Receipt Outbox            | B4           | X01           | 持久化投递、重试、ACK                      | `NOT_STARTED`             |

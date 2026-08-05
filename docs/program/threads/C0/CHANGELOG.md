@@ -41,3 +41,5 @@
 | 2026-08-04 | A-04 已通过 `--ff-only` 进入并推送远端 `main`，核对本地与远端一致；下一轮 A 任务待立项                                                    | A04_MERGED_TO_MAIN                      |
 | 2026-08-05 | A-05 Wave 1 完成集成验收：A03 项目/Brief/脚本审批、B02 远程存储、F01 Pilot Auth 接线进入接受态；根应用 30 文件 195 项全量测试通过          | A05_WAVE1_ACCEPTED                      |
 | 2026-08-05 | 冻结海外 BytePlus/ARK 视频链路、海底捞三里屯内部白名单案例与独立 TTS 凭据边界；启动 C01 合同冻结和 B05 TTS Adapter                       | A05_WAVE2_RUNNING                       |
+| 2026-08-05 | 接受 C01 Pilot Contract v0.2：9 类对象、9 个正向 fixture、13 个负向向量及幂等/replay/ACK 规则通过零依赖机器校验                         | C01_ACCEPTED                            |
+| 2026-08-05 | B05 独立 TTS 安全 Adapter 通过 13 项定向测试；真实 Transport 因尚无已核验协议与独立凭据保持阻断                                           | B05_ADAPTER_READY_ENV_BLOCKED           |

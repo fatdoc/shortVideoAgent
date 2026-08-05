@@ -6,7 +6,7 @@
 
 | 窗口 | 任务                                    | 启动文件                       | 状态                                                   |
 | ---- | --------------------------------------- | ------------------------------ | ------------------------------------------------------ |
-| P0   | C01 Pilot Contract v0.2                 | `P0_CONTRACT_V02_START.md`     | `IN_PROGRESS` · 数字员工 `c01_contract_v02`             |
+| P0   | C01 Pilot Contract v0.2                 | `P0_CONTRACT_V02_START.md`     | `ACCEPTED` · 集成提交 `33c3839`                         |
 | A2   | A03 Project / Brief / Script / Approval | `A2_PROJECT_WORKFLOW_START.md` | `ACCEPTED` · 集成提交 `8e1c61e`                         |
 | B2   | B02 Storage + B03 Image                 | `B2_STORAGE_IMAGE_START.md`    | B02 `ACCEPTED` · `40e4ab6`；B03 `BLOCKED`               |
 | F1   | F01 Pilot API Adapter / Auth UI         | `F1_REAL_API_ADAPTER_START.md` | `ACCEPTED` · 集成提交 `9e2cec1`                         |
@@ -17,10 +17,10 @@ B03 的 `BLOCKED` 仅指真实付费图片 smoke 尚缺 C01 合同 Gate、`ARK_A
 
 | 窗口 | 任务                              | 状态                                      |
 | ---- | --------------------------------- | ----------------------------------------- |
-| P0   | C01 合同冻结与集成 Gate           | `IN_PROGRESS` · 数字员工 `c01_contract_v02` |
-| B3   | B05 TTS Adapter / Task 接入骨架   | `B3_VIDEO_TTS_TASK_START.md` · `IN_PROGRESS` · `b03_tts_task` |
-| A3   | A05 Production Package / Grant    | `A3_PACKAGE_GRANT_START.md` · 等待 C01 `ACCEPTED` 后启动      |
-| Q1   | Package/Grant/Task 跨平面合同测试 | `Q1_CONTRACT_GATE_START.md` · 等待 C01 `ACCEPTED` 后启动      |
+| P0   | C01 合同冻结与集成 Gate           | `ACCEPTED` · `33c3839`                                   |
+| B3   | B05 TTS Adapter / Task 接入骨架   | Adapter 已提交 `3bd7e19`；真实调用 `BLOCKED`             |
+| A3   | A05 Production Package / Grant    | `A3_PACKAGE_GRANT_START.md` · `IN_PROGRESS`               |
+| Q1   | Package/Grant/Task 跨平面合同测试 | `Q1_CONTRACT_GATE_START.md` · `IN_PROGRESS`               |
 
 ## 统一规则
 
