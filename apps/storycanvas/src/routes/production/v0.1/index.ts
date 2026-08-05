@@ -16,8 +16,31 @@ import {
   registerFallbackExport,
   runDeterministicDemoScenario,
 } from "@/services/storycanvas/productionContractAdapter";
+import {
+  authorizePilotInternalRequest,
+  getPilotMediaReadiness,
+} from "@/services/storycanvas/pilotMediaReadiness";
 
 const router = express.Router();
+
+router.get("/readiness", async (req, res) => {
+  const authorization = authorizePilotInternalRequest(req.header("x-storycanvas-internal-token"));
+  if (!authorization.authorized) {
+    const status = authorization.code === "PILOT_INTERNAL_TOKEN_NOT_CONFIGURED" ? 503 : 401;
+    res.status(status).send({
+      schemaVersion: "pilot-media-readiness.v1",
+      status: "blocked",
+      code: authorization.code,
+      message: status === 503
+        ? "StoryCanvas 内部 readiness token 未安全配置。"
+        : "StoryCanvas 内部 readiness token 无效。",
+    });
+    return;
+  }
+
+  const result = await getPilotMediaReadiness();
+  res.status(result.status === "ready" ? 200 : 503).send(result);
+});
 
 function explicitGrantFromHeader(req: Request) {
   const encoded = req.header("x-storycanvas-demo-grant");
