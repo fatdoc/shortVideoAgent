@@ -39,6 +39,12 @@ npm --prefix apps/control-api run dev
 - `GET /api/v1/auth/session`：返回当前用户、唯一 Tenant、角色和到期时间；
 - `POST /api/v1/auth/logout`：撤销服务端 Session 并清除 Cookie。
 
+生产平面内部授权接口：
+
+- `POST /api/v1/internal/project-grants/introspect`：仅供私网 StoryCanvas receiver 调用；
+  同时要求 `X-Production-Plane-Internal-Token` 和 `Authorization: Bearer <ProjectGrant>`，
+  返回最小 tenant/project/package/capability/scope/expiry，不接受或回显 body token。
+
 默认端口：
 
 - Control API: `127.0.0.1:10600`
@@ -58,7 +64,10 @@ npm --prefix apps/control-api run build
 
 - `SESSION_SECRET` 在 production 必须显式配置且至少 32 字符。
 - `PROJECT_GRANT_SIGNING_SECRET` 与 `PROJECT_GRANT_ACTIVE_KID` 在所有环境都必须显式配置；
-  Grant 密钥不得与 `SESSION_SECRET` 共用，轮换时先为生产平面部署新 `kid` 的验证密钥。
+  Grant 密钥不得与 `SESSION_SECRET` 共用。生产平面默认通过 introspection 验证，不取得签名密钥；
+  若后续增加本地验签，只能使用独立 Grant keyring，并按 `kid` 先部署验证键再轮换。
+- `PRODUCTION_PLANE_INTERNAL_TOKEN` 必须至少 32 bytes，且不得复用 Session 或 ProjectGrant 密钥；
+  仅通过私网 Secret 注入给生产平面，不写入 URL、请求体、日志或回执。
 - production 不存在默认白名单账号、Tenant 或初始化密码。
 - `DATABASE_SSL=require` 时启用 PostgreSQL TLS 证书校验。
 - 应用不记录 `DATABASE_URL`、Session Token、Grant Token 或上游 API Key。

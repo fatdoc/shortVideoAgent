@@ -9,6 +9,7 @@ import { up as addProductionPackageGrant } from '../db/migrations/004_production
 import { up as hardenProductionSecurity } from '../db/migrations/005_production_security_hardening.js';
 import { contractPayloadDigest, tokenDigest } from './digest.js';
 import { ProjectGrantTokenService } from './grantToken.js';
+import { createInternalProjectGrantRouter } from './internalRoutes.js';
 import { PostgresProductionStore } from './repository.js';
 import { createProductionRouter } from './routes.js';
 
@@ -24,6 +25,7 @@ const briefA = '10000000-0000-4000-8000-000000000005';
 const scriptA = '10000000-0000-4000-8000-000000000006';
 const fixedNow = new Date('2026-08-05T01:00:00.000Z');
 const signingSecret = 'postgres-test-project-grant-secret-at-least-32-chars';
+const productionPlaneInternalToken = 'postgres-test-production-plane-internal-token-32-bytes';
 
 function session(tenantId: string, userId: string) {
   return {
@@ -52,6 +54,10 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     await hardenProductionSecurity(database);
     tokens = new ProjectGrantTokenService(signingSecret, 'pilot-test-kid', () => fixedNow);
     productionStore = new PostgresProductionStore(database, tokens, () => fixedNow);
+    const internalProductionRouter = createInternalProjectGrantRouter({
+      internalToken: productionPlaneInternalToken,
+      verifier: productionStore,
+    });
     const productionRouter = createProductionRouter({
       store: productionStore,
       resolveSession: async (token) => {
@@ -66,6 +72,7 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       appVersion: 'test',
       nodeEnv: 'test',
       readinessProbe: async () => undefined,
+      internalProductionRouter,
       productionRouter,
     });
   });
@@ -216,6 +223,13 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
         capabilityRequirements: ['video.generate', 'media.export'],
         expiresInSeconds: 21_600,
       });
+  }
+
+  function introspectGrant(grantToken: string) {
+    return request(app)
+      .post('/api/v1/internal/project-grants/introspect')
+      .set('x-production-plane-internal-token', productionPlaneInternalToken)
+      .set('authorization', `Bearer ${grantToken}`);
   }
 
   it('persists an immutable approved package and safely replays or rejects the command', async () => {
@@ -401,6 +415,17 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     await expect(
       productionStore.verifyActiveGrantToken(created.body.accessToken as string),
     ).resolves.toMatchObject({ jti: created.body.grant.grantId });
+    const activeIntrospection = await introspectGrant(created.body.accessToken as string);
+    expect(activeIntrospection.status).toBe(200);
+    expect(activeIntrospection.body).toEqual({
+      active: true,
+      tenantId: tenantA,
+      projectId: projectA,
+      packageId: grantPayload.packageId,
+      capabilities: ['video.generate'],
+      scopes: ['production.package.read', 'production.task.write'],
+      exp: Math.floor(new Date(created.body.grant.expiresAt as string).getTime() / 1000),
+    });
 
     const replay = await issue();
     expect(replay.status).toBe(200);
@@ -416,6 +441,38 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     });
     expect(persisted).not.toContain(created.body.accessToken as string);
     expect(persisted).not.toContain(signingSecret);
+
+    await database.raw(
+      'alter table control_plane.project_grants disable trigger project_grants_scope_immutable',
+    );
+    try {
+      await database('control_plane.project_grants')
+        .where({ grant_id: created.body.grant.grantId })
+        .update({ token_digest: `sha256:${'9'.repeat(64)}` });
+    } finally {
+      await database.raw(
+        'alter table control_plane.project_grants enable trigger project_grants_scope_immutable',
+      );
+    }
+    const digestMismatch = await introspectGrant(created.body.accessToken as string);
+    expect(digestMismatch.status).toBe(401);
+    expect(digestMismatch.body.error).toMatchObject({
+      code: 'GRANT_INVALID',
+      message: 'Project authorization is invalid.',
+      details: {},
+    });
+    await database.raw(
+      'alter table control_plane.project_grants disable trigger project_grants_scope_immutable',
+    );
+    try {
+      await database('control_plane.project_grants')
+        .where({ grant_id: created.body.grant.grantId })
+        .update({ token_digest: created.body.grant.tokenDigest });
+    } finally {
+      await database.raw(
+        'alter table control_plane.project_grants enable trigger project_grants_scope_immutable',
+      );
+    }
 
     await expect(
       database('control_plane.project_grants')
@@ -435,6 +492,13 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     await expect(
       productionStore.verifyActiveGrantToken(created.body.accessToken as string),
     ).rejects.toMatchObject({ code: 'GRANT_INVALID', status: 401 });
+    const revokedIntrospection = await introspectGrant(created.body.accessToken as string);
+    expect(revokedIntrospection.status).toBe(401);
+    expect(revokedIntrospection.body.error).toMatchObject({
+      code: 'GRANT_INVALID',
+      message: 'Project authorization is invalid.',
+      details: {},
+    });
     await expect(
       database('control_plane.project_grants')
         .where({ grant_id: created.body.grant.grantId })

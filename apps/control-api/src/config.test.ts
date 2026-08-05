@@ -5,6 +5,7 @@ describe('loadConfig', () => {
   const projectGrantConfig = {
     PROJECT_GRANT_SIGNING_SECRET: 'independent-project-grant-signing-secret-for-tests',
     PROJECT_GRANT_ACTIVE_KID: 'pilot-test-kid-1',
+    PRODUCTION_PLANE_INTERNAL_TOKEN: 'independent-production-plane-internal-token-for-tests',
   };
 
   it('provides safe local pilot defaults', () => {
@@ -17,6 +18,26 @@ describe('loadConfig', () => {
       projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
     );
     expect(config.projectGrantActiveKid).toBe('pilot-test-kid-1');
+    expect(config.productionPlaneInternalToken).toBe(
+      projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
+    );
+  });
+
+  it('fails closed when the production-plane internal token is missing or too short', () => {
+    const withoutInternalToken = {
+      PROJECT_GRANT_SIGNING_SECRET: projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
+      PROJECT_GRANT_ACTIVE_KID: projectGrantConfig.PROJECT_GRANT_ACTIVE_KID,
+    };
+    expect(() => loadConfig({ NODE_ENV: 'test', ...withoutInternalToken })).toThrow(
+      'PRODUCTION_PLANE_INTERNAL_TOKEN',
+    );
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...withoutInternalToken,
+        PRODUCTION_PLANE_INTERNAL_TOKEN: 'too-short',
+      }),
+    ).toThrow('at least 32 bytes');
   });
 
   it('fails closed when the independent project Grant signing configuration is missing', () => {
@@ -37,8 +58,27 @@ describe('loadConfig', () => {
         SESSION_SECRET: sharedSecret,
         PROJECT_GRANT_SIGNING_SECRET: sharedSecret,
         PROJECT_GRANT_ACTIVE_KID: 'pilot-test-kid-1',
+        PRODUCTION_PLANE_INTERNAL_TOKEN:
+          projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
       }),
     ).toThrow('must be independent');
+  });
+
+  it('rejects reuse of Session or Grant secrets as the production-plane internal token', () => {
+    const sessionSecret = 'session-secret-that-must-remain-in-control-plane-only';
+    for (const internalToken of [
+      sessionSecret,
+      projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
+    ]) {
+      expect(() =>
+        loadConfig({
+          NODE_ENV: 'test',
+          ...projectGrantConfig,
+          SESSION_SECRET: sessionSecret,
+          PRODUCTION_PLANE_INTERNAL_TOKEN: internalToken,
+        }),
+      ).toThrow('must be independent');
+    }
   });
 
   it('requires an explicit production session secret', () => {

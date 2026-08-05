@@ -1,6 +1,10 @@
 import { z } from 'zod';
 
 const DEVELOPMENT_SESSION_SECRET = 'local-development-only-change-before-deploying';
+const secretWithAtLeast32Bytes = z.string().refine(
+  (value) => Buffer.byteLength(value, 'utf8') >= 32,
+  'must contain at least 32 bytes',
+);
 
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -14,6 +18,7 @@ const environmentSchema = z.object({
   SESSION_SECRET: z.string().min(32).optional(),
   PROJECT_GRANT_SIGNING_SECRET: z.string().min(32),
   PROJECT_GRANT_ACTIVE_KID: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/),
+  PRODUCTION_PLANE_INTERNAL_TOKEN: secretWithAtLeast32Bytes,
   SESSION_TTL_SECONDS: z.coerce.number().int().min(300).max(604_800).default(28_800),
   SESSION_ROTATION_SECONDS: z.coerce.number().int().min(60).max(86_400).default(1_800),
   LOGIN_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(100).default(5),
@@ -32,6 +37,7 @@ export type ControlApiConfig = {
   sessionSecret: string;
   projectGrantSigningSecret: string;
   projectGrantActiveKid: string;
+  productionPlaneInternalToken: string;
   sessionTtlSeconds: number;
   sessionRotationSeconds: number;
   loginMaxAttempts: number;
@@ -61,6 +67,15 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     throw new Error('PROJECT_GRANT_SIGNING_SECRET must be independent from SESSION_SECRET');
   }
 
+  if (
+    parsed.PRODUCTION_PLANE_INTERNAL_TOKEN === sessionSecret ||
+    parsed.PRODUCTION_PLANE_INTERNAL_TOKEN === parsed.PROJECT_GRANT_SIGNING_SECRET
+  ) {
+    throw new Error(
+      'PRODUCTION_PLANE_INTERNAL_TOKEN must be independent from Session and ProjectGrant secrets',
+    );
+  }
+
   return {
     nodeEnv: parsed.NODE_ENV,
     host: parsed.CONTROL_API_HOST,
@@ -70,6 +85,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     sessionSecret,
     projectGrantSigningSecret: parsed.PROJECT_GRANT_SIGNING_SECRET,
     projectGrantActiveKid: parsed.PROJECT_GRANT_ACTIVE_KID,
+    productionPlaneInternalToken: parsed.PRODUCTION_PLANE_INTERNAL_TOKEN,
     sessionTtlSeconds: parsed.SESSION_TTL_SECONDS,
     sessionRotationSeconds: parsed.SESSION_ROTATION_SECONDS,
     loginMaxAttempts: parsed.LOGIN_MAX_ATTEMPTS,

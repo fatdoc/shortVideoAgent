@@ -10,6 +10,7 @@ import { createContentRouter } from './projects/routes.js';
 import { ProjectGrantTokenService } from './production/grantToken.js';
 import { PostgresProductionStore } from './production/repository.js';
 import { createProductionRouter } from './production/routes.js';
+import { createInternalProjectGrantRouter } from './production/internalRoutes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -35,14 +36,17 @@ const contentRouter = createContentRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const projectGrantTokens = new ProjectGrantTokenService(
+  config.projectGrantSigningSecret,
+  config.projectGrantActiveKid,
+);
+const productionStore = new PostgresProductionStore(database, projectGrantTokens);
+const internalProductionRouter = createInternalProjectGrantRouter({
+  internalToken: config.productionPlaneInternalToken,
+  verifier: productionStore,
+});
 const productionRouter = createProductionRouter({
-  store: new PostgresProductionStore(
-    database,
-    new ProjectGrantTokenService(
-      config.projectGrantSigningSecret,
-      config.projectGrantActiveKid,
-    ),
-  ),
+  store: productionStore,
   resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
@@ -52,6 +56,7 @@ const app = createApp({
   nodeEnv: config.nodeEnv,
   readinessProbe: () => probeDatabase(database),
   authRouter,
+  internalProductionRouter,
   contentRouter,
   productionRouter,
   trustProxy: config.trustProxy,
