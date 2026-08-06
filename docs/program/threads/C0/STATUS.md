@@ -209,3 +209,14 @@
 - 全仓 Lint 仍为 702 problems（697 errors、5 warnings），集中于 B 独占的 `apps/storycanvas/src/`、`apps/storycanvas/data/vendor/` 与生成文件，不由 A 越界修复。
 - StoryCanvas API 运行时生成的未跟踪空文件 `apps/storycanvas/data/vendor/byteplus.ts` 属于 B 范围，不纳入 A 提交。
 - 当前状态：`A04_READY_FOR_INTEGRATION`。
+
+## 2026-08-06 · A 业务平台线最新 Main 重规划
+
+- 最新基线：`main == origin/main == 705a134`。
+- 当前执行依据：`docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md`。
+- A 职责已升级为业务平台事实源；旧 D2/A-05 Mock 控制平面计划不能直接继续。
+- 本机复验：Root 单 worker 30 files / 195 tests PASS；Build、Governance、diff-check、Control API typecheck/build PASS；Control API 51 PASS / 6 PostgreSQL SKIP。
+- Q1 canonical runner 因 StoryCanvas `tsx 4.21.0` 与当前 Node 22 测试模式兼容问题为 9/10；不改业务代码、改用 `tsx 4.23.6` 的临时 runner 为 10/10。
+- 当前建议状态：`A_BIZ_PLAN_PROPOSED / WAITING_FOR_WAVE_0_FREEZE`。
+- 详细计划：`docs/program/threads/C0/A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`。
+- 下一步：用户确认后从最新 main 创建 `dev/business-plane`，先完成 Gate/PostgreSQL 基线和权限/组织 ADR，不直接写死 migration 006 业务规则。

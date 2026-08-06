@@ -203,3 +203,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 运行时文件：未跟踪的 `apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交、未删除或修改。
 - 权威记录：`docs/collaboration/integration/D2_A04_INTEGRATION_2026-08-04.md`。
 - 最终结果：推送前确认 `origin/main@8594e21` 未前移；本地 `main` 已以 `--ff-only` 快进并推送，核对 `main == origin/main@1df2bd1`。下一轮 A 任务尚未立项。
+
+## A 业务平台线重规划交接（2026-08-06）
+
+- 上游已在 A-04 之后引入 27 个提交和真实 Pilot 控制平面；A 由旧 Demo 控制平面升级为业务平台负责人。
+- 最新权威分工为 `docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md`，推荐 A 分支改为 `dev/business-plane`。
+- 当前真实 Auth 仍是单 Tenant `LoginIdentity`；organizations/channels/registrations/invitations/terms/billing/commissions 尚未实现。
+- 实施必须先完成 Wave 0：权限矩阵、多组织 Session、注册归因、Terms、支付/佣金口径 ADR 和 fixture，再进入 migration 006+。
+- Root 单 worker 195/195、Build、Governance、Control API typecheck/build 已通过；Control API 6 个 PostgreSQL 测试待专用数据库恢复；Q1 canonical runner 存在 StoryCanvas tsx 版本兼容问题，业务合同用兼容 runner 复验 10/10。
+- A 必须继续排除未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`，禁止修改、删除或提交。
+- 详细切片、验收和 Git 纪律见 `docs/program/threads/C0/A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`。

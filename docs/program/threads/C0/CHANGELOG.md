@@ -49,3 +49,4 @@
 | 2026-08-05 | A05.3/A05.4 增加双重服务鉴权的 Grant introspection 与权威 grantId 绑定；专用 PostgreSQL Control API 57/57 通过                           | A05_INTROSPECTION_ACCEPTED              |
 | 2026-08-05 | B3.1/B3.2 完成 StoryCanvas v0.2 Package/Grant/Command/Receipt receiver、在线授权、过期写保护与安全错误边界；定向 51/51 通过              | B3_RECEIVER_ACCEPTED                    |
 | 2026-08-05 | Q1 最终跨平面 Gate 10/10、0 skip，展开 48 项合同检查；Root 195/195、Control PostgreSQL 57/57、StoryCanvas 定向 29/29                     | Q1_CONTRACT_GATE_ACCEPTED               |
+| 2026-08-06 | 审计最新 `main@705a134`，确认 A 升级为业务平台线；完成 Root 195/195、Build、Governance、Control API 基线与 Q1 runner 兼容性定位，并提出 Wave 0～4 新计划 | A_BIZ_PLAN_PROPOSED |
