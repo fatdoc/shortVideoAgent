@@ -3,7 +3,7 @@
 > 基线：`main@705a134`（与 `origin/main` 一致）
 > 当前执行依据：`docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md`
 > 负责人：工程师 A（业务平台）
-> 计划状态：`PROPOSED / WAITING_FOR_WAVE_0_FREEZE`
+> 计划状态：`IN_PROGRESS / WAVE_0_GATE_READY / WAITING_FOR_SCOPE_FREEZE`
 > 推荐开发分支：`dev/business-plane`
 
 ## 1. 为什么必须重规划
@@ -56,7 +56,7 @@
 | Governance | PASS | 无治理缺口 |
 | `git diff --check` | PASS | 工作树只有 B 运行时未跟踪文件 |
 | Control API typecheck/build | PASS | 安装锁定依赖后通过 |
-| Control API Test | `51 PASS / 6 SKIP` | 6 项 PostgreSQL 集成测试因当前未配置专用数据库而跳过；开工前需恢复 57/57 Gate |
+| Control API Test | `14 files / 57 tests PASS / 0 SKIP` | 已使用 PostgreSQL 16.14 和专用 `_test` 数据库恢复完整 Gate；两个 PostgreSQL suite 共用 schema，当前本机基线使用单 worker 串行执行 |
 | Q1 canonical runner | `9/10 PASS` | StoryCanvas 自带 `tsx 4.21.0` + 当前 Node 22 的 `--test` 命名导出兼容问题 |
 | Q1 临时兼容 runner | `10/10 PASS` | 仅改用 `tsx 4.23.6`，不改业务代码；证明合同与 A/B 实现本身通过 |
 
@@ -64,7 +64,7 @@
 
 1. 统一 Root Gate 应使用单 worker，或由共享测试维护者调整并发/timeout，避免把机器负载误报为功能回归。
 2. Q1 runner 应由共享 Gate/B 负责人独立修复：升级 StoryCanvas `tsx` 或让 runner 显式选择兼容版本。A 不直接修改 `apps/storycanvas/**`。
-3. A 开始数据库迁移前必须准备专用 PostgreSQL 测试库，先取得 Control API 57/57，不在 6 个集成测试跳过的状态下改 Schema。
+3. 专用 PostgreSQL 测试库已就绪并取得 Control API 57/57；后续数据库切片继续使用 `_test` 数据库和单 worker Gate，不把并发重建同一 schema 的竞争误报为业务回归。
 4. `apps/storycanvas/data/vendor/byteplus.ts` 是 B 运行时生成的未跟踪文件；A 不修改、不删除、不暂存、不提交。
 
 ## 4. 总体实施原则

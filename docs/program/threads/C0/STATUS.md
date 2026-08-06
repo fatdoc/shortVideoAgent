@@ -220,3 +220,13 @@
 - 当前建议状态：`A_BIZ_PLAN_PROPOSED / WAITING_FOR_WAVE_0_FREEZE`。
 - 详细计划：`docs/program/threads/C0/A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`。
 - 下一步：用户确认后从最新 main 创建 `dev/business-plane`，先完成 Gate/PostgreSQL 基线和权限/组织 ADR，不直接写死 migration 006 业务规则。
+
+
+## 2026-08-06 A-BIZ-00.1 PostgreSQL 完整 Gate 恢复
+
+- 本机已安装并初始化 PostgreSQL 16.14，Homebrew 服务正常监听 `127.0.0.1:5432`。
+- 已创建仅供测试使用、名称以 `_test` 结尾的隔离数据库；本地凭据未写入仓库。
+- 沙箱内首次执行因本地 socket/listen 权限返回 `EPERM`，属于执行环境限制，不是代码失败。
+- 沙箱外并发执行出现两个 PostgreSQL suite 同时重建 `control_plane` schema 的竞争，结果为 53 PASS / 4 SKIP；错误为 `pg_namespace_nspname_index` 唯一键冲突。
+- 改为单 worker 串行执行后，Control API 达到 14 files / 57 tests PASS / 0 SKIP。
+- 当前状态：`A_BIZ_POSTGRES_GATE_READY`；下一步进入 A-BIZ-00.2 多组织权限与组织模型 ADR，不直接实现 migration `006`。

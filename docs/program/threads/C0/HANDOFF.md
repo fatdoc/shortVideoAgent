@@ -213,3 +213,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Root 单 worker 195/195、Build、Governance、Control API typecheck/build 已通过；Control API 6 个 PostgreSQL 测试待专用数据库恢复；Q1 canonical runner 存在 StoryCanvas tsx 版本兼容问题，业务合同用兼容 runner 复验 10/10。
 - A 必须继续排除未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`，禁止修改、删除或提交。
 - 详细切片、验收和 Git 纪律见 `docs/program/threads/C0/A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`。
+
+
+## A-BIZ-00.1 PostgreSQL Gate 交接（2026-08-06）
+
+- PostgreSQL 16.14 已在本机完成初始化并作为 Homebrew 服务运行；专用数据库必须保持 `_test` 后缀，因为测试会删除并重建 `control_plane` schema。
+- 完整 Gate 命令需要通过临时 `CONTROL_API_TEST_DATABASE_URL` 指向隔离测试库，不向仓库提交数据库密码或本地环境文件。
+- 当前稳定验证命令：`npm --prefix apps/control-api test -- --pool=forks --maxWorkers=1`，结果为 14 files / 57 tests PASS / 0 SKIP。
+- 不建议直接并发运行两个 PostgreSQL suite：它们共享同一测试 schema，并发初始化可触发 `pg_namespace_nspname_index` 竞争；该现象不代表业务合同失败。
+- A 仍须排除 B 运行时文件 `apps/storycanvas/data/vendor/byteplus.ts`。
+- 下一交付：A-BIZ-00.2 权限/组织 ADR、老板/工作人员矩阵、多组织 Session 上下文和跨组织拒绝语义；未冻结字段保持 `TBD`。
