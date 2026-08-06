@@ -223,3 +223,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 不建议直接并发运行两个 PostgreSQL suite：它们共享同一测试 schema，并发初始化可触发 `pg_namespace_nspname_index` 竞争；该现象不代表业务合同失败。
 - A 仍须排除 B 运行时文件 `apps/storycanvas/data/vendor/byteplus.ts`。
 - 下一交付：A-BIZ-00.2 权限/组织 ADR、老板/工作人员矩阵、多组织 Session 上下文和跨组织拒绝语义；未冻结字段保持 `TBD`。
+
+
+## A-BIZ-00.2 多组织权限 ADR 交接（2026-08-06）
+
+- 提案文档：`docs/program/threads/C0/A_BIZ_00_2_MULTI_ORG_RBAC_ADR.md`。
+- 推荐方向：新增 Organization 授权根，保留 Tenant 业务实体并增加 Channel 扩展；Membership 绑定 Organization；Session 绑定单一 Active Membership Context；Content Operator 必须按 Project Assignment 收口。
+- 外部拒绝语义：未认证/Context 失效为 401；已知资源类别但缺动作权限为 403；跨组织、跨 Tenant、未授权项目和伪造 Scope 统一 404；业务状态/幂等冲突为 409。
+- 兼容策略：migration `006+` 仅允许增量加表/nullable 字段、Pilot 回填、双写/Shadow Policy 和独立清理 migration，不允许立即替换现有 Tenant/Package/Grant 合同。
+- 必须会签：一人多组织/多角色、`pilot_support`、工作人员是否创建项目、历史 Content Operator Assignment 回填、Platform 唯一性和代理层级表达。
+- 对 B 的边界：B 继续只消费 A 已授权的 Project/Grant Context，不读取或修改 Membership；本切片没有触碰 StoryCanvas。
+- 下一步：C0/产品/B 审阅并接受或修订 ADR；完成范围冻结前不实现 migration `006`。

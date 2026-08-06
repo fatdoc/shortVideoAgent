@@ -230,3 +230,13 @@
 - 沙箱外并发执行出现两个 PostgreSQL suite 同时重建 `control_plane` schema 的竞争，结果为 53 PASS / 4 SKIP；错误为 `pg_namespace_nspname_index` 唯一键冲突。
 - 改为单 worker 串行执行后，Control API 达到 14 files / 57 tests PASS / 0 SKIP。
 - 当前状态：`A_BIZ_POSTGRES_GATE_READY`；下一步进入 A-BIZ-00.2 多组织权限与组织模型 ADR，不直接实现 migration `006`。
+
+
+## 2026-08-06 A-BIZ-00.2 多组织权限 ADR 草案
+
+- 已完成现有 Pilot Auth、Membership、Session、Project Repository、migrations 001～005 和 Demo 权限模型审计。
+- 已确认当前服务端仍为单 Tenant Session；多 Tenant Membership 会导致登录身份聚合失败；`content_operator` 当前被放大为 Tenant 全项目写权限。
+- 新增 `A_BIZ_00_2_MULTI_ORG_RBAC_ADR.md`，推荐采用 Organization 授权根 + Tenant/Channel 类型扩展，Session 绑定单一 Active Membership Context，并以 Project Assignment 收紧工作人员范围。
+- ADR 已包含权限矩阵、401/403/404、Route Manifest、正反 fixture、migration `006+` 草图、渐进发布和回滚条件。
+- 一人多组织/多角色、`pilot_support`、工作人员创建项目、历史项目授权回填、平台唯一性和代理层级均保持 `TBD`，等待 C0/产品/B 会签。
+- 当前状态：`A_BIZ_00_2_ADR_PROPOSED / WAITING_FOR_SCOPE_SIGN_OFF`；未创建 migration `006`，未修改业务代码或 B 独占目录。
