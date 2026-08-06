@@ -9,7 +9,7 @@
 ## 两套资料的关系
 
 - `docs/program/**`：当前顶层设计、共同记忆、员工招聘说明书和首轮任务书，具有项目级权威。
-- 2026-08-06 起，`docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md` 和 `docs/collaboration/A_ENGINEER_BUSINESS_DECISION_CORRECTION_2026-08-06.md` 是 A/B 共创的最新业务执行依据。
+- 2026-08-06 起，`docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md`、`docs/collaboration/A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md` 和 `docs/collaboration/A_ENGINEER_BUSINESS_DECISION_CORRECTION_2026-08-06.md` 是 A/B 共创的最新业务执行依据。
 - `docs/memory/**`、`docs/agents/**`、`docs/prompts/**`、`docs/threads/**`、`docs/tasks/GATE_*`：原前端 Demo Gate 0—2 的历史治理和交付证据，继续保留。
 - 历史文档与项目级共同记忆冲突时，以 `docs/program/COMMON_MEMORY.md`、上述 2026-08-06 纠偏决策和 C0 最新决策为准。历史“四类工作台”“企业/C 端分开”“三路注册”描述不得指导新开发。
 

@@ -78,6 +78,7 @@ StoryCanvas 执行画布编排、生成任务、资产管理和导出
 ## 两人协作入口
 
 - [2026-08-06 A/B 共创开发分工（当前执行依据）](./docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md)
+- [给工程师 A：Wave 0 老板完整决策回复（实施依据）](./docs/collaboration/A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md)
 - [给工程师 A：企业/个人统一模型纠偏决策（立即生效）](./docs/collaboration/A_ENGINEER_BUSINESS_DECISION_CORRECTION_2026-08-06.md)
 - [两人开发拆分方案](./docs/collaboration/TWO_PERSON_DEVELOPMENT_SPLIT.md)
 - [媒体生产负责人交接手册](./docs/collaboration/DEVELOPER_B_HANDOFF_MANUAL.md)

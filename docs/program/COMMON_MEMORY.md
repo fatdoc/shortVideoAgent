@@ -22,6 +22,10 @@
 16. 现有 D2 `v0.1` 合同和 LocalStorage/Mock 链路继续作为内部 Demo；真实试点后端位于 `apps/control-api/`，不将硬编码 canonical Demo 冒充生产合同。
 17. 企业与个人终端用户不分产品端、不分 Tenant 类型、不分注册 API。直接注册在同一事务创建单人 Tenant 和 `tenant_admin` Membership；补企业资料或添加成员后原地成长为多人企业 Tenant，不迁移账号、项目或资产。
 18. 平台邀请、代理邀请/分享、用户直接注册只是三种获客来源，不是三套注册系统。禁止新增 `consumer` 组织类型、C 端角色、C 端工作台或 C 端注册 API。
+19. Wave 0 组织权限冻结：Schema 支持多组织和多角色，首版只开放单一活动组织与单一主角色；`pilot_support` 兼容保留但跨 Tenant 必须使用限时 Support Grant；`content_operator` 首版不能创建项目；仅对白名单 Pilot 显式回填项目权限。
+20. Wave 0 渠道注册冻结：首版单一 Platform、Schema 保留未来多平台；代理层级使用 Channel Relationship，不做角色枚举；同时支持7天单次定向邀请和30天/默认100次代理分享链接；代理归因默认保护12个月。
+21. Wave 0 商业底座冻结：首版以单级直接归因佣金替代旧批发差价；只接 TEST Payment 和管理员人工充值；充值购买版本化额度 SKU；购买额度不过期、赠送额度90天；只建佣金计提/冲正账，不开放提现和自动打款。
+22. 用户须知使用版本化 `mustReaccept`；正式正文、真实支付资料、SKU 价格、佣金百分比、退款观察期、税务/KYC/提现规则未授权，对应正式能力保持 fail closed。
 
 ## 权威业务对象
 
