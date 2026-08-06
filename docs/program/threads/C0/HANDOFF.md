@@ -234,3 +234,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 必须会签：一人多组织/多角色、`pilot_support`、工作人员是否创建项目、历史 Content Operator Assignment 回填、Platform 唯一性和代理层级表达。
 - 对 B 的边界：B 继续只消费 A 已授权的 Project/Grant Context，不读取或修改 Membership；本切片没有触碰 StoryCanvas。
 - 下一步：C0/产品/B 审阅并接受或修订 ADR；完成范围冻结前不实现 migration `006`。
+
+
+## A-BIZ-00.3 注册、须知与账务 ADR 交接（2026-08-06）
+
+- 提案文档：`docs/program/threads/C0/A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`。
+- 推荐顺序：Terms 发布能力 → Invitation → 三路 Registration/Attribution → TEST Recharge/Payment Inbox → Credit Issuance → Commission Shadow/Accrual。
+- 注册事务必须共同写入 User、Organization/Membership、Consent、Invitation Usage、Referral Attribution、审计与幂等结果；缺 PUBLISHED Terms 或 C 端组织归属未冻结时 fail closed。
+- 三账分离：Payment/Recharge 使用钱的最小单位与币种；AI Credit 使用 append-only Credit Ledger；Commission 使用 Accrual/Reversal/Settlement，任一事件重放不得重复副作用。
+- 规则冲突：旧 C3 的逐边批发差价与最新充值佣金要求不是同一模型，必须书面决定二者关系并防止重复收益。
+- 未冻结边界：正式须知、邀请/归因保护、真实支付、退款、额度换算、佣金、税务、KYC、提现和自动打款全部 `TBD`。
+- 下一步：C0、产品/业务、财务/法务和 B 审阅两份 Wave 0 ADR；会签前不写 migration `006+` 和公开注册/资金代码。

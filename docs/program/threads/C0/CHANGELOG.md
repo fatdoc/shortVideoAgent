@@ -52,3 +52,4 @@
 | 2026-08-06 | 审计最新 `main@705a134`，确认 A 升级为业务平台线；完成 Root 195/195、Build、Governance、Control API 基线与 Q1 runner 兼容性定位，并提出 Wave 0～4 新计划 | A_BIZ_PLAN_PROPOSED |
 | 2026-08-06 | 初始化本机 PostgreSQL 16.14 与专用 `_test` 数据库；Control API 单 worker 完整 Gate 14 files / 57 tests、0 skip 通过 | A_BIZ_POSTGRES_GATE_READY |
 | 2026-08-06 | 完成多组织 Auth/RBAC 审计并提出 A-BIZ-00.2 ADR：Organization 授权根、Active Membership Session、项目级 Assignment、稳定拒绝语义与 migration 006+ 草图；待业务会签 | A_BIZ_00_2_ADR_PROPOSED |
+| 2026-08-06 | 提出 A-BIZ-00.3 ADR，冻结 Terms→邀请→三路注册顺序、不可伪造归因、充值/额度/佣金三账、幂等与冲正；暴露旧批发差价和新充值佣金冲突，待业务/财务/法务会签 | A_BIZ_00_3_ADR_PROPOSED |

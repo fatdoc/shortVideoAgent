@@ -3,7 +3,7 @@
 > 基线：`main@705a134`（与 `origin/main` 一致）
 > 当前执行依据：`docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md`
 > 负责人：工程师 A（业务平台）
-> 计划状态：`IN_PROGRESS / A_BIZ_00_2_ADR_PROPOSED / WAITING_FOR_SCOPE_SIGN_OFF`
+> 计划状态：`IN_PROGRESS / WAVE_0_ADRS_PROPOSED / WAITING_FOR_BUSINESS_SIGN_OFF`
 > 推荐开发分支：`dev/business-plane`
 
 ## 1. 为什么必须重规划

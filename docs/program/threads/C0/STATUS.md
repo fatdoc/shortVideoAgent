@@ -240,3 +240,12 @@
 - ADR 已包含权限矩阵、401/403/404、Route Manifest、正反 fixture、migration `006+` 草图、渐进发布和回滚条件。
 - 一人多组织/多角色、`pilot_support`、工作人员创建项目、历史项目授权回填、平台唯一性和代理层级均保持 `TBD`，等待 C0/产品/B 会签。
 - 当前状态：`A_BIZ_00_2_ADR_PROPOSED / WAITING_FOR_SCOPE_SIGN_OFF`；未创建 migration `006`，未修改业务代码或 B 独占目录。
+
+
+## 2026-08-06 A-BIZ-00.3 注册、须知与账务 ADR 草案
+
+- 已完成现有 Pilot 白名单注册边界、Terms 缺口、Wallet/Credit Ledger、C3 v0.1 价格结算提案和支付幂等模式审计。
+- 新增 `A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`，覆盖版本化 Terms、邀请生命周期、三路注册、不可伪造归因、充值/支付事件、AI 额度和佣金三账、正反 fixture、API manifest、migration `006+` 顺序与回滚。
+- 识别并显式记录规则冲突：旧 C3 采用逐级额度批发差价且不默认抽佣，最新老板决策要求归因用户充值产生代理提成；必须由产品/财务决定替代、并存或按产品区分，禁止重复收益。
+- 正式须知正文、C 端 Tenant 归属、邀请期限/次数/改绑、支付渠道/金额/退款、额度换算、佣金比例/基数/周期、税务/KYC/提现均保持 `TBD`。
+- 当前状态：`WAVE_0_ADRS_PROPOSED / WAITING_FOR_BUSINESS_SIGN_OFF`；未创建 migration、未实现注册/支付、未修改 B 独占目录。
