@@ -587,3 +587,16 @@
 - 本切片修改共享 `apps/control-api/src/app.ts` 与 `apps/control-api/src/server.ts`，提交后必须通知 B 同步对应 commit。
 - 当前状态：`A_BIZ_02_1C_COMPLETE / A_BIZ_02_1_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 02.1C；业务/法务提供正式正文并完成发布审批前，正式 Terms 发布和公开注册继续 fail closed。
+
+## 2026-08-07 A-BIZ-02.2 Invitation 生命周期计划冻结
+
+- A-BIZ-02.1 Terms 已收口，按 `Terms → Invitation → Registration` 进入 A-BIZ-02.2。
+- 冻结 PLATFORM 7 天单次定向邀请、CHANNEL 30 天/默认 100 次分享邀请、TENANT_MEMBER 7 天单次 `content_operator` 定向成员邀请。
+- 冻结 migration 012 的 Invitation/Usage、版本化 Token digest、服务端 Scope、撤销/过期/耗尽、append-only Usage、并发最后名额和 fail-closed rollback。
+- Public Preview 改用 body Token 的 POST 路由，避免 Token 进入 URL/浏览历史/常规 access log；所有无效状态统一 `INVITATION_UNAVAILABLE`。
+- 02.2 只建立 Invitation 生命周期和供 Registration 使用的内部消费合同，不开放半成品注册，不创建 User/Tenant/Membership/Consent/Attribution。
+- 不新增第三方依赖，复用 Node crypto、PostgreSQL 行锁、现有 Session 与 limiter 模式。
+- 详细计划：`A_BIZ_02_2_INVITATION_LIFECYCLE_PLAN.md`。
+- B 独占目录继续不修改；`apps/storycanvas/data/vendor/byteplus.ts` 保持未跟踪且不暂存。
+- 当前状态：`A_BIZ_02_2_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+- 下一步：独立提交计划；随后新增 migration 012 PostgreSQL 合同测试并确认模块缺失 RED。

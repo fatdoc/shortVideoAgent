@@ -81,3 +81,4 @@
 | 2026-08-07 | A-BIZ-02.1A 完成 migration 011 TermsDocument/Version/UserConsent、SHA-256 正文约束、发布状态机、supersedes Scope、append-only Consent 与 fail-closed 回滚；Control API 124/124 通过           | A_BIZ_02_1A_COMPLETE                    |
 | 2026-08-07 | A-BIZ-02.1B 完成 Terms Repository/Service、平台管理员写权限、事务发布与稳定 replay/conflict、Public current fail-closed、current Consent 校验和最小 evidence 白名单；Control API 28 files / 134 tests 通过 | A_BIZ_02_1B_COMPLETE                    |
 | 2026-08-07 | A-BIZ-02.1C 完成 Public current 与 PLATFORM Terms 管理 API、Session 权限/轮换、严格输入白名单、稳定 401/403/404/409/503 和独立 Bootstrap；Control API 29 files / 144 tests 通过 | A_BIZ_02_1_COMPLETE                     |
+| 2026-08-07 | 冻结 A-BIZ-02.2 Invitation 生命周期：三类可信邀请、7 天单次/30 天 100 次、版本化 Token digest、Scope 隔离、Public Preview、防枚举、原子 Usage 与注册内部消费合同 | A_BIZ_02_2_PLAN_FROZEN                  |
