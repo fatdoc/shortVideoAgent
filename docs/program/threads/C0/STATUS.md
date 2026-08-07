@@ -347,3 +347,14 @@
 - B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_01_1_009A_COMPLETE / READY_TO_COMMIT`。
 - 下一步：009A 独立提交后进入 009B 显式 Pilot manifest backfill runner；不提前切换 SessionActor 或 Project Policy。
+
+## 2026-08-07 A-BIZ-01.1 009B 显式回填 Runner 计划冻结
+
+- 009B 文件边界冻结为核心 runner、独立 CLI、PostgreSQL 合同测试和一个 Control API npm script，不新增依赖。
+- CLI 只接受 `PROJECT_ASSIGNMENT_MANIFEST_PATH` 指向的显式 UTF-8 JSON；缺失、非法或未知字段均 fail closed，不从数据库或 Demo 数据推断授权。
+- digest 对排序后的业务载荷计算并排除 `manifestId`；同 ID/同 payload replay，同 ID/不同 payload 和不同 ID/同 digest 均拒绝。
+- Runner 在单一事务内验证 active TENANT、active tenant_admin 批准人、同 Tenant active content_operator Membership 和 Project，再写入 run + assignments。
+- 成功结果和日志只包含 manifest ID、digest、数量、replay；失败日志不包含原始 manifest、Zod issues、SQL、连接串或客户内容。
+- 详细计划：`A_BIZ_01_1_009B_PROJECT_ASSIGNMENT_BACKFILL_PLAN.md`。
+- 当前状态：`A_BIZ_01_1_009B_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+- 下一步：先创建 runner PostgreSQL 合同测试，确认 module/行为缺失时有效 RED，再实现最小 runner。

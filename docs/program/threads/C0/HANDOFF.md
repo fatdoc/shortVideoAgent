@@ -350,3 +350,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证：定向 7/7；完整 PostgreSQL 18 files / 79 tests；typecheck、build、009 ESLint、Governance、diff-check 全 PASS。
 - 兼容边界：Auth Session、Project Router/Repository、Production、009B runner 和 StoryCanvas 均未修改。
 - 下一步：009B 实现严格 manifest schema、canonical digest、批准人/目标/Project 验证、单事务写入和 replay 幂等。
+
+## A-BIZ-01.1 009B 显式回填 Runner 计划交接（2026-08-07）
+
+- 计划文件：`docs/program/threads/C0/A_BIZ_01_1_009B_PROJECT_ASSIGNMENT_BACKFILL_PLAN.md`。
+- 核心模块负责严格 Zod Schema、重复 pair 拒绝、canonical digest、事务验证、幂等 replay 和安全结果。
+- digest 排除独立 `manifestId`，Assignments 按 Membership/Project/access 排序；这使 ID 冲突与 digest 复用冲突可以分别识别。
+- CLI 只读 `PROJECT_ASSIGNMENT_MANIFEST_PATH`，不接受隐式默认或自动扫描；成功输出安全摘要，失败输出通用消息。
+- 009A Schema/FK/trigger 保持第二层 fail-closed 保护，009B 不改 migration 历史。
+- 下一步 Test-first 覆盖原子写入、replay、ID/digest 冲突、批准人/目标/Project 拒绝、零部分写入和日志不泄漏。
