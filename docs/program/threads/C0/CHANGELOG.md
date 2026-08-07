@@ -62,3 +62,6 @@
 | 2026-08-07 | A-BIZ-01.1 009A 建立 Project Assignment 7 项 PostgreSQL 合同测试与无 Schema 副作用 migration 骨架；单 worker 7/7 因新表不存在按预期 RED | A_BIZ_01_1_009A_RED_CONFIRMED |
 | 2026-08-07 | A-BIZ-01.1 009A 建立 Project Assignment/backfill evidence Schema、跨 Tenant 复合约束、active content_operator eligibility 与不可变生命周期；完整 PostgreSQL Gate 18 files / 79 tests 通过 | A_BIZ_01_1_009A_COMPLETE |
 | 2026-08-07 | 冻结 A-BIZ-01.1 009B 显式 Project Assignment manifest runner：严格 Schema、排除 manifestId 的 canonical digest、active 管理员/工作人员/Project 校验、原子写入与安全 replay | A_BIZ_01_1_009B_PLAN_FROZEN |
+| 2026-08-07 | A-BIZ-01.1 009B 建立显式 Project Assignment manifest runner 骨架与 8 项 PostgreSQL 合同测试；单 worker 8/8 因 parser/digest/runner 未实现按预期 RED | A_BIZ_01_1_009B_RED_CONFIRMED |
+| 2026-08-07 | A-BIZ-01.1 009B 核心 runner 实现严格 manifest、canonical digest、事务 advisory locks、授权范围校验与原子 replay；定向 PostgreSQL 8/8 通过 | A_BIZ_01_1_009B_CORE_GREEN |
+| 2026-08-07 | A-BIZ-01.1 009B 完成显式 Project Assignment manifest runner、CLI、安全日志与并发 replay；Control API 完整单 worker Gate 20 files / 93 tests 通过 | A_BIZ_01_1_009B_COMPLETE |

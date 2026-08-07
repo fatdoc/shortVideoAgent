@@ -358,3 +358,35 @@
 - 详细计划：`A_BIZ_01_1_009B_PROJECT_ASSIGNMENT_BACKFILL_PLAN.md`。
 - 当前状态：`A_BIZ_01_1_009B_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
 - 下一步：先创建 runner PostgreSQL 合同测试，确认 module/行为缺失时有效 RED，再实现最小 runner。
+
+## 2026-08-07 A-BIZ-01.1 009B Project Assignment Backfill Test-first RED
+
+- 新增可编译但明确未实现的核心骨架 `apps/control-api/src/projects/projectAssignmentBackfill.ts`，冻结 manifest/result/logger 类型与三个公开 API。
+- 新增 `apps/control-api/src/projects/projectAssignmentBackfill.postgres.test.ts`，固定 8 项合同：原子写入、canonical digest/replay、ID/digest/schema/重复 pair 冲突、批准人拒绝、Membership/Project 范围拒绝、Tenant/非法输入 fail closed、安全日志和并发 replay。
+- 专用 `videoagent_control_test`、单 worker 定向结果：1 file / 8 tests 全部按预期 RED；失败点均为 runner/parser/digest 明确未实现，不是 fixture、migration 或数据库连接故障。
+- Control API typecheck PASS；009B 两个新增文件定向 ESLint、Prettier 与 `git diff --check` PASS。
+- B 边界保持：`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_1_009B_RED_CONFIRMED`。
+- 下一步：实现严格 Zod Schema、canonical SHA-256、稳定安全错误、事务级幂等保护、批准人/目标/Project 校验及原子写入，使 8 项测试转绿；Green 前不提交。
+
+## 2026-08-07 A-BIZ-01.1 009B Project Assignment Backfill 核心 Green
+
+- `projectAssignmentBackfill.ts` 已实现严格 Zod Schema、UUID/manifest ID 规范化、重复 pair 拒绝及不携带原始输入的稳定错误码。
+- canonical SHA-256 排除 `manifestId`，Assignments 按 Membership、Project、Access Level 排序并对对象键排序。
+- 单事务 runner 使用排序后的双事务级 advisory lock 串行保护 manifest ID 与 digest；同 ID/同 payload replay，同 ID/不同 payload及不同 ID/同 payload分别稳定拒绝。
+- 事务内验证 active TENANT/Organization、active User + Membership + tenant_admin 批准人、active User + Membership + content_operator 目标以及同 Tenant Project，失败零部分写入。
+- run evidence 与全部 `pilot_backfill` Assignment 在同一事务写入，UUID 由 `node:crypto.randomUUID` 生成；日志只接收固定 event 和安全结果字段。
+- 定向 PostgreSQL：1 file / 8 tests PASS。首次 Green 运行的唯一失败来自当前 Vitest/Chai 不支持 `toHaveSize`，改用 `Set.size` 后通过，不是业务实现故障。
+- 当前状态：`A_BIZ_01_1_009B_CORE_GREEN / CLI_AND_FULL_GATE_PENDING`。
+- 下一步：补齐只读显式文件的 CLI 与 npm script，新增 CLI 安全边界测试，然后运行完整 Gate；完整转绿前不提交。
+
+## 2026-08-07 A-BIZ-01.1 009B Project Assignment Backfill 完成
+
+- 新增 `projectAssignmentBackfillCli.ts`：只读取 `PROJECT_ASSIGNMENT_MANIFEST_PATH` 指向的 UTF-8 JSON，不接受 stdin、默认路径或数据库扫描；缺少路径、空文件、非法 JSON、配置/数据库/runner 失败统一返回通用消息和非零退出码。
+- CLI 成功只输出固定 completed/replayed event 与 manifest ID、digest、数量、replay；失败不输出路径、原始 manifest、Error、Zod issues、SQL、连接串、邮箱、Token、密码或内容正文，并始终释放已打开数据库连接。
+- `apps/control-api/package.json` 新增 `project-assignment:backfill` script，不新增依赖，也未产生 package-lock 变更。
+- CLI 安全边界测试 1 file / 6 tests PASS；009B PostgreSQL 合同 1 file / 8 tests PASS。
+- Control API 完整单 worker Gate：20 files / 93 tests PASS / 0 SKIP；typecheck、build、009B 定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_1_009B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：形成 009B 独立 `feat(control-api)` 提交；随后回到 A-BIZ-01.1 收口检查，再规划 A-BIZ-01.2 Active Membership Context，不能直接在本提交切 Session/Auth/Project Policy。

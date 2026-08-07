@@ -359,3 +359,30 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - CLI 只读 `PROJECT_ASSIGNMENT_MANIFEST_PATH`，不接受隐式默认或自动扫描；成功输出安全摘要，失败输出通用消息。
 - 009A Schema/FK/trigger 保持第二层 fail-closed 保护，009B 不改 migration 历史。
 - 下一步 Test-first 覆盖原子写入、replay、ID/digest 冲突、批准人/目标/Project 拒绝、零部分写入和日志不泄漏。
+
+## A-BIZ-01.1 009B Project Assignment Backfill RED 交接（2026-08-07）
+
+- 骨架：`apps/control-api/src/projects/projectAssignmentBackfill.ts`；当前公开类型和 API 可编译，但 parser、digest、runner 都明确抛出未实现错误。
+- 合同测试：`apps/control-api/src/projects/projectAssignmentBackfill.postgres.test.ts`，共 8 项，覆盖原子写入、顺序无关 digest/replay、冲突与严格 Schema、授权范围、零部分写入、安全日志和并发序列化。
+- RED 证据：专用 `_test` PostgreSQL 单 worker 运行 1 file / 8 tests，8 项均因对应行为未实现而失败；001/006/008/009 fixture 正常完成。
+- 静态证据：Control API typecheck、009B 定向 ESLint、Prettier、`git diff --check` 均通过。
+- 下一步只实现 009B 最小核心 runner，再补 CLI 与 npm script；不修改 migration 009A、SessionActor、Auth、Project Router/Repository、Production 或 StoryCanvas。
+- 版本策略：RED 文件暂不独立提交；009B 转绿并完成完整 Gate 后，与 CLI、script 和 C0 记忆一起形成单独 `feat(control-api)` 提交。
+
+## A-BIZ-01.1 009B Project Assignment Backfill 核心 Green 交接（2026-08-07）
+
+- 核心 runner 已从明确未实现骨架转绿：严格 manifest、canonical digest、安全错误、事务 advisory locks、授权/范围校验、run + assignments 原子写入和 replay 均已实现。
+- advisory lock 同时覆盖 manifest ID 与 digest，并按 lock key 排序，避免同 ID 不同 digest 或不同 ID 同 digest 的并发竞态与锁顺序死锁。
+- replay 按冻结算法在既有 run 检查阶段返回，不重复验证或写入；失败路径在 evidence 写入前完成，009A FK/trigger 仍作为第二层保护。
+- 定向 PostgreSQL 8/8 PASS；Control API typecheck、009B 定向 ESLint、Prettier、`git diff --check` PASS。
+- 尚未完成：`projectAssignmentBackfillCli.ts`、Control API npm script、CLI 安全测试、完整 PostgreSQL Gate、build/governance 和最终提交。
+
+## A-BIZ-01.1 009B Project Assignment Backfill 完成交接（2026-08-07）
+
+- 核心：`apps/control-api/src/projects/projectAssignmentBackfill.ts`；测试：`projectAssignmentBackfill.postgres.test.ts`。
+- CLI：`apps/control-api/src/projects/projectAssignmentBackfillCli.ts`；安全测试：`projectAssignmentBackfillCli.test.ts`；调用 script：`npm --prefix apps/control-api run project-assignment:backfill`。
+- 运维必须显式设置 `PROJECT_ASSIGNMENT_MANIFEST_PATH`；仓库不包含真实 manifest，CLI 不从 stdin、数据库、邮箱、项目名或 Demo 默认值推断 Assignment。
+- 核心合同：严格 manifest、排除 manifest ID 的 canonical digest、双 advisory lock、稳定冲突码、active Tenant/Admin/Operator 与同 Tenant Project 校验、run + assignments 单事务写入、安全 replay。
+- CLI 合同：成功只打印安全摘要；任何失败只打印 `项目授权回填失败。` 并返回 1，已打开数据库始终 destroy。
+- Gate：009B PostgreSQL 8/8、CLI 6/6、Control API 全量 20 files / 93 tests、typecheck、build、定向 ESLint、Prettier、Governance 和 diff-check 全 PASS。
+- 明确未做：真实 manifest、Session Active Membership、Auth 切流、Project Policy/Repository 切流、一般 Assignment CRUD、Production 或 StoryCanvas 修改。

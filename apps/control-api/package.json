@@ -14,7 +14,8 @@
     "db:rollback": "tsx src/db/rollback.ts",
     "auth:bootstrap": "tsx src/auth/bootstrap.ts",
     "test": "vitest run --config vitest.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "project-assignment:backfill": "tsx src/projects/projectAssignmentBackfillCli.ts"
   },
   "dependencies": {
     "express": "5.2.1",
