@@ -271,3 +271,17 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 测试证据：RED 4/4；Green 定向 PostgreSQL 4/4；Control API 完整单 worker Gate 15 files / 61 tests PASS / 0 SKIP，typecheck/build/定向 ESLint/Governance/`git diff --check` PASS；本切片使用独立 `feat(control-api)` 提交交付。
 - B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续作为 B 的未跟踪运行时文件排除。
 - 下一切片：007 Channel 扩展表及其 Organization 类型一致性，不写死总代理/一级/二级层级，也不写死价格和佣金。
+
+## A-BIZ-01.1 007 Channel Foundation 交接（2026-08-07）
+
+- 实现文件：`apps/control-api/src/db/migrations/007_channel_foundation.ts`。
+- 测试文件：`apps/control-api/src/db/channelFoundation.postgres.test.ts`；继续放在 `src/db/`，避免 Knex migration loader 将测试文件误识别为 migration。
+- 数据模型：`control_plane.channels` 是 `CHANNEL` Organization 的一对一类型扩展，只包含 Channel UUID、唯一 Organization UUID 和时间戳。
+- 类型约束：写入 Channel 时必须引用现存 `CHANNEL` Organization；Organization 已有关联 Channel 后不得改成 `PLATFORM` 或 `TENANT`。
+- 层级边界：组织父子树支持任意深度，但不自动产生授权；Schema 不包含固定总代理/一级/二级、tier、depth、price 或 commission。
+- 商业边界：首版固定三级属于产品开放规则；价格、佣金和真实代理关系版本属于后续 Channel Relationship/商业规则切片。
+- 数据与回滚：无历史 Channel 数据，不做伪造回填；down 只删除 Channel 表、触发器和函数，保留 Organization/Tenant。
+- 测试证据：RED 4/4；Green 定向 PostgreSQL 4/4；完整 Control API 单 worker Gate 16 files / 65 tests PASS / 0 SKIP。
+- 工程 Gate：typecheck、build、007 定向 ESLint、Governance、`git diff --check` 全部 PASS。
+- B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 仍是 B 的未跟踪运行时文件，禁止纳入 A 提交。
+- 下一切片：先审计并冻结 Organization Membership/Role 的演进路径、旧 Tenant Membership 兼容/回填、多角色表和组织类型约束，再 test-first 实现 migration `008`；Session Active Context 与 Project Assignment 保持后续独立切片。

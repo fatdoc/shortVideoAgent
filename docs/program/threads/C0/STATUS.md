@@ -272,3 +272,15 @@
 - 验证：Control API typecheck、build、定向 ESLint、Governance、`git diff --check` PASS；完整 PostgreSQL Gate 15 files / 61 tests PASS / 0 SKIP。
 - B 边界：未修改、未暂存 `apps/storycanvas/data/vendor/byteplus.ts`，未触碰 StoryCanvas tracked 文件。
 - 下一步：进入 007 Channel Organization 扩展，不写死代理层级、价格或佣金规则。
+
+## 2026-08-07 A-BIZ-01.1 007 Channel Foundation
+
+- 新增 `007_channel_foundation.ts`，建立 `control_plane.channels`，作为 `CHANNEL` Organization 的最小一对一类型扩展。
+- Channel 仅保存 `channel_id`、唯一 `organization_id` 和时间戳；未写死总代理/一级/二级、层级深度、价格或佣金字段。
+- 新增双向类型保护：Channel 只能引用 `CHANNEL` Organization，已被 Channel 扩展的 Organization 不得改为其他类型。
+- Organization 的 `parent_organization_id` 可表达任意深度组织树，但父子关系本身不自动授予权限；首版固定三级仍是产品开放规则，不进入 Schema。
+- 不伪造历史 Channel 数据；down migration 只移除 Channel 扩展，保留 Organization 和 Tenant。
+- Test-first 证据：空实现时 4/4 按预期 RED；最小实现后定向 PostgreSQL 4/4 PASS。
+- 验证：Control API 完整 PostgreSQL Gate 16 files / 65 tests PASS / 0 SKIP；typecheck、build、007 定向 ESLint、Governance、`git diff --check` PASS。
+- B 边界：StoryCanvas tracked diff 为零；未修改、未暂存 `apps/storycanvas/data/vendor/byteplus.ts`。
+- 当前状态：`A_BIZ_01_1_007_COMPLETE`；下一切片先冻结 Organization Membership/Role 的兼容与回填合同，再进入 migration `008`，不提前修改 Session Active Context。
