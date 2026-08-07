@@ -297,3 +297,19 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Test-first 至少覆盖回填、类型矩阵、多角色/单主角色、旧表同步、歧义拒绝、反向类型保护和 down 保留旧数据。
 - 详细计划：`docs/program/threads/C0/A_BIZ_01_1_008_ORGANIZATION_MEMBERSHIP_PLAN.md`。
 - 下一步：创建 `organizationMembership.postgres.test.ts`，先确认 migration 缺失时按预期 RED，再实现 `008_organization_membership.ts`。
+
+## A-BIZ-01.1 008 Organization Membership / Role 交接（2026-08-07）
+
+- 实现文件：`apps/control-api/src/db/migrations/008_organization_membership.ts`。
+- 测试文件：`apps/control-api/src/db/organizationMembership.postgres.test.ts`；继续位于 `src/db/`，避免被 Knex migration loader 误扫描。
+- 数据模型：新增 canonical `organization_memberships` 与 `organization_membership_roles`；同一 User/Organization 唯一，Membership 支持多角色且只有一个明确 `primary_role_code`。
+- 一致性约束：可延迟复合 FK 保证主角色属于角色集合；Role/Organization 类型矩阵和 Organization 反向改型均由数据库 trigger fail closed。
+- 历史回填：保留旧 Tenant Membership UUID、状态和时间戳，version 初始化为 1；旧多角色、Tenant `pilot_support` 或非法 Organization 映射在创建新表前拒绝。
+- 兼容策略：当前 Auth Repository、bootstrap 和 Session 继续读写旧 `memberships`；旧表 insert/update/delete 单向 Shadow 到新表；新表到旧表反向写入尚未开放。
+- 更新与回滚：legacy update 使用同一 statement 内 delete + reinsert，失败时 PostgreSQL 整体回滚；down 移除 008 trigger/function、复合 FK 和两张新表，保留 001/006/007 模型与历史数据。
+- 测试证据：有效 RED 7/7；定向 Green 7/7；完整 PostgreSQL 单 worker Gate 17 files / 72 tests PASS / 0 SKIP。
+- 工程 Gate：Control API typecheck、build、008 定向 ESLint、Governance、`git diff --check` 全部 PASS。
+- 明确未做：Auth/Session 切流、Membership version 自动递增、Project Assignment、Support Grant、组织切换 UI、代理层级、价格和佣金。
+- B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 仍是 B 的未跟踪运行时文件，禁止纳入 A 提交。
+- 当前状态：`A_BIZ_01_1_008_COMPLETE / READY_TO_COMMIT`。
+- 下一切片：先冻结 migration 009 的 Project Assignment 与 Pilot 显式回填合同；完成 A-BIZ-01.1 剩余 Schema 后再进入 A-BIZ-01.2 多上下文 Session。

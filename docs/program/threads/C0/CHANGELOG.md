@@ -57,3 +57,4 @@
 | 2026-08-07 | A-BIZ-01.1 首个 test-first 切片完成：migration 006 建立 Organization 授权根、Tenant 同 UUID 回填、双向类型保护与可回滚边界；定向 PostgreSQL 4/4 通过 | A_BIZ_01_1_006A_READY |
 | 2026-08-07 | A-BIZ-01.1 migration 007 建立 Channel 一对一 Organization 扩展与双向类型保护；不写死层级、价格或佣金；完整 PostgreSQL Gate 16 files / 65 tests 通过 | A_BIZ_01_1_007_COMPLETE |
 | 2026-08-07 | 冻结 A-BIZ-01.1 migration 008：新增 Organization Membership/Role、单一主角色、多角色 Schema、旧表单向 Shadow 同步与歧义回填拒绝 | A_BIZ_01_1_008_PLAN_FROZEN |
+| 2026-08-07 | A-BIZ-01.1 migration 008 建立 Organization Membership/Role、多角色单主角色约束、旧 Membership 单向 Shadow 与歧义回填拒绝；完整 PostgreSQL Gate 17 files / 72 tests 通过 | A_BIZ_01_1_008_COMPLETE |

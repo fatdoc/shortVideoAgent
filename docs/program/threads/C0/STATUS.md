@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 006A `COMPLETE`
-- 当前任务：A-BIZ-01.1 migration `006+`；006A Organization 骨架与 Tenant 同 UUID 兼容回填已转绿，下一切片为 Channel 扩展
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 migration 008 `COMPLETE`
+- 当前任务：A-BIZ-01.1 migration `006+`；Organization、Channel、Organization Membership/Role 底座已完成，下一切片先冻结 Project Assignment 与 Pilot 显式回填边界
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -295,3 +295,17 @@
 - 008 不修改 Session Active Context、Project Assignment、Support Grant、代理层级、价格或佣金。
 - 详细计划：`A_BIZ_01_1_008_ORGANIZATION_MEMBERSHIP_PLAN.md`。
 - 当前状态：`A_BIZ_01_1_008_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+
+## 2026-08-07 A-BIZ-01.1 008 Organization Membership / Role 完成
+
+- 新增 `control_plane.organization_memberships` 与 `control_plane.organization_membership_roles`，以 `user_id + organization_id` 保证同一用户在同一组织仅有一个 Membership，并以可延迟复合外键保证明确主角色属于角色集合。
+- 角色与组织类型矩阵已由数据库双向保护：`platform_admin` / `pilot_support` 仅 PLATFORM，`channel_admin` 仅 CHANNEL，`tenant_admin` / `content_operator` 仅 TENANT；Organization 反向改型也会 fail closed。
+- 旧 Tenant Membership 保留 UUID、状态和时间戳并显式回填；旧同 User/Tenant 多角色、Tenant `pilot_support` 和非法 Tenant→Organization 映射会在建表前拒绝，不做隐式角色推断。
+- 兼容期继续以旧 `control_plane.memberships` 作为当前 Auth/bootstrap 写入口；insert/update/delete 通过数据库 trigger 单向 Shadow 到新模型，旧表第二角色行由新唯一约束拒绝。
+- Test-first 证据：有效 RED 7/7；最小实现后定向 Green 7/7；完整 Control API PostgreSQL 单 worker Gate 17 files / 72 tests PASS / 0 SKIP。
+- 工程 Gate：Control API typecheck、build、008 定向 ESLint、Governance、`git diff --check` 全部 PASS。
+- 复核结论：旧表 update 的 delete + reinsert 位于同一 PostgreSQL statement/transaction，延迟主角色 FK 在提交时校验；失败写入整体回滚；Organization 类型保护与 006/007 triggers 可共存；down 先移除 trigger/function 和复合 FK，再删除新表，保留旧 Membership/User/Tenant/Organization/Channel。
+- 边界：未切换 Auth Repository、Session Active Context 或项目授权；未实现 Project Assignment、Support Grant、代理层级、价格或佣金；`version` 仅初始化为 1。
+- B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存。
+- 当前状态：`A_BIZ_01_1_008_COMPLETE / READY_TO_COMMIT`。
+- 下一步：008 独立提交后，先冻结 migration 009 的 Project Assignment 与 Pilot 显式回填合同；A-BIZ-01.2 Session Active Context 不提前切流。
