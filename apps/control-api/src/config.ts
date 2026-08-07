@@ -1,10 +1,9 @@
 import { z } from 'zod';
 
 const DEVELOPMENT_SESSION_SECRET = 'local-development-only-change-before-deploying';
-const secretWithAtLeast32Bytes = z.string().refine(
-  (value) => Buffer.byteLength(value, 'utf8') >= 32,
-  'must contain at least 32 bytes',
-);
+const secretWithAtLeast32Bytes = z
+  .string()
+  .refine((value) => Buffer.byteLength(value, 'utf8') >= 32, 'must contain at least 32 bytes');
 
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -24,6 +23,9 @@ const environmentSchema = z.object({
   LOGIN_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(100).default(5),
   LOGIN_WINDOW_SECONDS: z.coerce.number().int().min(60).max(86_400).default(900),
   LOGIN_BLOCK_SECONDS: z.coerce.number().int().min(60).max(86_400).default(900),
+  INVITATION_PREVIEW_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(1_000).default(20),
+  INVITATION_PREVIEW_WINDOW_SECONDS: z.coerce.number().int().min(10).max(86_400).default(60),
+  INVITATION_PREVIEW_BLOCK_SECONDS: z.coerce.number().int().min(10).max(86_400).default(300),
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   APP_VERSION: z.string().min(1).default('pilot-v0-dev'),
 });
@@ -43,6 +45,9 @@ export type ControlApiConfig = {
   loginMaxAttempts: number;
   loginWindowSeconds: number;
   loginBlockSeconds: number;
+  invitationPreviewMaxAttempts: number;
+  invitationPreviewWindowSeconds: number;
+  invitationPreviewBlockSeconds: number;
   trustProxy: boolean;
   appVersion: string;
 };
@@ -91,6 +96,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     loginMaxAttempts: parsed.LOGIN_MAX_ATTEMPTS,
     loginWindowSeconds: parsed.LOGIN_WINDOW_SECONDS,
     loginBlockSeconds: parsed.LOGIN_BLOCK_SECONDS,
+    invitationPreviewMaxAttempts: parsed.INVITATION_PREVIEW_MAX_ATTEMPTS,
+    invitationPreviewWindowSeconds: parsed.INVITATION_PREVIEW_WINDOW_SECONDS,
+    invitationPreviewBlockSeconds: parsed.INVITATION_PREVIEW_BLOCK_SECONDS,
     trustProxy: parsed.TRUST_PROXY === 'true',
     appVersion: parsed.APP_VERSION,
   };

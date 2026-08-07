@@ -69,4 +69,23 @@ describe('Control API health contract', () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ mounted: true });
   });
+
+  it('mounts the independent Invitation router under /api/v1', async () => {
+    const invitationRouter = Router();
+    invitationRouter.post('/public/invitations/preview', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      invitationRouter,
+    });
+
+    const response = await request(application)
+      .post('/api/v1/public/invitations/preview')
+      .send({ token: 'test' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
 });

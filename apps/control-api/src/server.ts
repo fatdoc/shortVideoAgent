@@ -15,6 +15,10 @@ import { createInternalProjectGrantRouter } from './production/internalRoutes.js
 import { PostgresTermsRepository } from './terms/repository.js';
 import { TermsService } from './terms/service.js';
 import { createTermsRouter } from './terms/routes.js';
+import { PostgresInvitationRepository } from './invitations/repository.js';
+import { InvitationService } from './invitations/service.js';
+import { InvitationPreviewRateLimiter } from './invitations/previewRateLimiter.js';
+import { createInvitationRouter } from './invitations/routes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -38,6 +42,21 @@ const termsService = new TermsService(new PostgresTermsRepository(database));
 const termsRouter = createTermsRouter({
   service: termsService,
   resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
+const invitationRepository = new PostgresInvitationRepository(database);
+const invitationService = new InvitationService(invitationRepository);
+const invitationRouter = createInvitationRouter({
+  service: invitationService,
+  limiter: new InvitationPreviewRateLimiter(
+    config.invitationPreviewMaxAttempts,
+    config.invitationPreviewWindowSeconds * 1000,
+    config.invitationPreviewBlockSeconds * 1000,
+  ),
+  resolveSession: (token) => authService.resolve(token),
+  resolveChannelIdForOrganization: (organizationId) =>
+    invitationRepository.resolveChannelIdForOrganization(organizationId),
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
@@ -71,6 +90,7 @@ const app = createApp({
   readinessProbe: () => probeDatabase(database),
   authRouter,
   termsRouter,
+  invitationRouter,
   internalProductionRouter,
   contentRouter,
   productionRouter,

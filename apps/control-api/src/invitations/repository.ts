@@ -126,6 +126,14 @@ export class PostgresInvitationRepository implements InvitationStore {
     private readonly newId: (entity: 'invitation' | 'usage') => string = () => randomUUID(),
   ) {}
 
+  async resolveChannelIdForOrganization(organizationId: string): Promise<string | null> {
+    const channel = (await this.database('control_plane.channels')
+      .select('channel_id')
+      .where({ organization_id: organizationId })
+      .first()) as { channel_id: string } | undefined;
+    return channel?.channel_id ?? null;
+  }
+
   async create(input: CreateInvitationRecord): Promise<ReplayableResult<Invitation>> {
     const existing = await this.findByCreationKey(
       this.database,

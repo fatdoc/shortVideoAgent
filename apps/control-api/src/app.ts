@@ -8,6 +8,7 @@ export type ControlApiDependencies = {
   readinessProbe: () => Promise<void>;
   authRouter?: Router;
   termsRouter?: Router;
+  invitationRouter?: Router;
   internalProductionRouter?: Router;
   contentRouter?: Router;
   productionRouter?: Router;
@@ -54,6 +55,7 @@ export function createApp(dependencies: ControlApiDependencies) {
 
   if (dependencies.authRouter) app.use('/api/v1/auth', dependencies.authRouter);
   if (dependencies.termsRouter) app.use('/api/v1', dependencies.termsRouter);
+  if (dependencies.invitationRouter) app.use('/api/v1', dependencies.invitationRouter);
   if (dependencies.internalProductionRouter) {
     app.use('/api/v1/internal', dependencies.internalProductionRouter);
   }

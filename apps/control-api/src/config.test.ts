@@ -14,13 +14,28 @@ describe('loadConfig', () => {
     expect(config.port).toBe(10_600);
     expect(config.databaseUrl).toContain('127.0.0.1:54329');
     expect(config.sessionSecret.length).toBeGreaterThanOrEqual(32);
-    expect(config.projectGrantSigningSecret).toBe(
-      projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
-    );
+    expect(config.projectGrantSigningSecret).toBe(projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET);
     expect(config.projectGrantActiveKid).toBe('pilot-test-kid-1');
     expect(config.productionPlaneInternalToken).toBe(
       projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
     );
+    expect(config.invitationPreviewMaxAttempts).toBe(20);
+    expect(config.invitationPreviewWindowSeconds).toBe(60);
+    expect(config.invitationPreviewBlockSeconds).toBe(300);
+  });
+
+  it('loads explicit Invitation Preview rate-limit policy', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      ...projectGrantConfig,
+      INVITATION_PREVIEW_MAX_ATTEMPTS: '7',
+      INVITATION_PREVIEW_WINDOW_SECONDS: '120',
+      INVITATION_PREVIEW_BLOCK_SECONDS: '600',
+    });
+
+    expect(config.invitationPreviewMaxAttempts).toBe(7);
+    expect(config.invitationPreviewWindowSeconds).toBe(120);
+    expect(config.invitationPreviewBlockSeconds).toBe(600);
   });
 
   it('fails closed when the production-plane internal token is missing or too short', () => {
@@ -58,18 +73,14 @@ describe('loadConfig', () => {
         SESSION_SECRET: sharedSecret,
         PROJECT_GRANT_SIGNING_SECRET: sharedSecret,
         PROJECT_GRANT_ACTIVE_KID: 'pilot-test-kid-1',
-        PRODUCTION_PLANE_INTERNAL_TOKEN:
-          projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
+        PRODUCTION_PLANE_INTERNAL_TOKEN: projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
       }),
     ).toThrow('must be independent');
   });
 
   it('rejects reuse of Session or Grant secrets as the production-plane internal token', () => {
     const sessionSecret = 'session-secret-that-must-remain-in-control-plane-only';
-    for (const internalToken of [
-      sessionSecret,
-      projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
-    ]) {
+    for (const internalToken of [sessionSecret, projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET]) {
       expect(() =>
         loadConfig({
           NODE_ENV: 'test',

@@ -212,6 +212,13 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresInvitationRepository', () => {
   });
 
   it('creates all three types, derives the Channel id, and lists only the issuer scope', async () => {
+    await expect(repository.resolveChannelIdForOrganization(channelOrganizationId)).resolves.toBe(
+      channelId,
+    );
+    await expect(
+      repository.resolveChannelIdForOrganization(platformOrganizationId),
+    ).resolves.toBeNull();
+
     const platform = await repository.create(creation('PLATFORM'));
     const channel = await repository.create(creation('CHANNEL'));
     const tenant = await repository.create(creation('TENANT_MEMBER'));

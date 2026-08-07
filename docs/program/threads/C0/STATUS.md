@@ -627,3 +627,19 @@
 - B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_2B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 02.2B；随后进入 02.2C HTTP API / Bootstrap，先写 Public Preview、三 Scope 管理路由、Session/限流/错误映射和 Bootstrap 合同测试，再单独修改共享 `app.ts` / `server.ts` 并通知 B。
+
+## 2026-08-07 A-BIZ-02.2C Invitation HTTP API / Bootstrap 完成
+
+- Test-first RED 已确认：`routes.test.ts` 与 `previewRateLimiter.test.ts` 首次因 Router/Limiter 模块不存在而失败，Config/Bootstrap 合同也在字段与挂载实现前失败，随后才实现最小闭环。
+- 新增 Public Preview：`POST /api/v1/public/invitations/preview` 只从严格 body 接收 Token，统一设置 `cache-control: no-store`；不把 Token 放入 URL，不返回目标邮箱、issuer Membership、撤销人、幂等事实或 Token digest。
+- Preview 对畸形、不存在、撤销、过期和耗尽继续统一返回 `404 INVITATION_UNAVAILABLE`；按来源地址与 Token 的 SHA-256 不可逆组合键执行可注入内存限流，稳定返回 `429 INVITATION_RATE_LIMITED` 与 `retry-after`。
+- 新增 PLATFORM、CHANNEL、TENANT 三 Scope 的创建/列表 API 和 issuer Scope 撤销 API；所有 body 使用严格白名单，客户端不能提交 issuer、期限、次数、Role、状态、digest 或审计事实。
+- 管理 API 复用真实 Session resolve/rotation；无 Cookie/失效 Session 返回稳定 401，错误角色返回 403。CHANNEL 路径 ID 由当前 Organization 服务端反查后比对，TENANT 路径同时匹配 Organization/Tenant，无法解析或不匹配均 fail closed。
+- 创建首次返回 201 与一次性明文 Token，安全 replay 返回 200、`token: null`；创建和撤销均使用 `idempotency-replayed` 暴露稳定 replay 事实。
+- 稳定映射 Invitation 400/403/404/409，未知异常交给全局 500 Handler；Public 与管理响应均使用显式字段白名单，不泄漏数据库 constraint 或内部身份事实。
+- Bootstrap 完成 `PostgresInvitationRepository → InvitationService → InvitationPreviewRateLimiter → createInvitationRouter → createApp`；新增三项显式 Preview 限流环境变量，默认值仅用于本地试点，不表述为正式公网安全参数。
+- Gate：02.2C 定向 4 files / 27 tests PASS；Control API 全量单 worker 34 files / 181 tests PASS / 0 SKIP；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- B 独占文件 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 本切片修改共享 `apps/control-api/src/app.ts` 与 `apps/control-api/src/server.ts`，提交后必须通知 B 同步对应 commit。
+- 当前状态：`A_BIZ_02_2C_COMPLETE / A_BIZ_02_2_COMPLETE / COMMITTED`。
+- 下一步：通知 B 同步本切片的共享 Bootstrap 提交；随后单独冻结 A-BIZ-02.3 Registration/Consent/Attribution 计划，不在本切片开放半成品注册或真实支付能力。

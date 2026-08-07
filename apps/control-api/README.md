@@ -12,6 +12,7 @@
 - Node.js 内置 scrypt 密码慢哈希，数据库只保存 Session Token HMAC digest；
 - HttpOnly、SameSite=Lax Cookie（production 强制 Secure）、定时 Session 轮换和登出撤销；
 - 本地 IP + 邮箱维度的登录失败限流，以及仅允许站内路径的安全回跳；
+- 三类 Invitation 生命周期、body Token Public Preview、组织范围管理与不可逆 Preview 限流键；
 - 独立的 ProjectGrant 签名密钥与可轮换 `kid`；启动时缺失即拒绝运行，不复用 Session 根密钥；
 - 生产环境秘钥与本地数据库凭据拒绝规则。
 
@@ -38,6 +39,18 @@ npm --prefix apps/control-api run dev
 - `POST /api/v1/auth/login`：邮箱、密码及可选站内 `returnTo`；
 - `GET /api/v1/auth/session`：返回当前用户、唯一 Tenant、角色和到期时间；
 - `POST /api/v1/auth/logout`：撤销服务端 Session 并清除 Cookie。
+
+邀请接口：
+
+- `POST /api/v1/public/invitations/preview`：只从 body 接收 Token，并返回注册展示所需的最小白名单字段；
+- `POST/GET /api/v1/platform/invitations`：PLATFORM 管理员创建和列出邀请；
+- `POST/GET /api/v1/channels/:channelId/invitations`：CHANNEL 管理员在服务端校验后的 Channel Scope 内创建和列出邀请；
+- `POST/GET /api/v1/tenants/:tenantId/invitations`：TENANT 管理员创建和列出固定 `content_operator` 成员邀请；
+- `POST /api/v1/invitations/:invitationId/revoke`：按当前 issuer Organization 撤销邀请。
+
+Public Preview 限流通过 `INVITATION_PREVIEW_MAX_ATTEMPTS`、
+`INVITATION_PREVIEW_WINDOW_SECONDS` 和 `INVITATION_PREVIEW_BLOCK_SECONDS` 显式配置；
+本地默认值不是正式公网安全参数，多实例部署前需替换为共享限流基础设施。
 
 生产平面内部授权接口：
 
