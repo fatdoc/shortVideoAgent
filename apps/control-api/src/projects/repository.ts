@@ -144,12 +144,16 @@ export class PostgresContentStore implements ContentStore {
     });
   }
 
-  async listProjects(actor: SessionActor): Promise<Project[]> {
-    const rows = (await this.database('control_plane.projects')
+  async listProjects(
+    actor: SessionActor,
+    projectIds: readonly string[] | null,
+  ): Promise<Project[]> {
+    if (projectIds?.length === 0) return [];
+    const query = this.database('control_plane.projects')
       .select('*')
-      .where({ tenant_id: actor.tenantId })
-      .orderBy('updated_at', 'desc')
-      .orderBy('project_id')) as ProjectRow[];
+      .where({ tenant_id: actor.tenantId });
+    if (projectIds) query.whereIn('project_id', projectIds);
+    const rows = (await query.orderBy('updated_at', 'desc').orderBy('project_id')) as ProjectRow[];
     return rows.map(projectFromRow);
   }
 

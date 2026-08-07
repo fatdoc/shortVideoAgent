@@ -5,6 +5,7 @@ import { createApp } from '../app.js';
 import { up as createPilotCore } from '../db/migrations/001_pilot_core.js';
 import { up as addSessionRotation } from '../db/migrations/002_auth_session_rotation.js';
 import { up as addContentTenantIntegrity } from '../db/migrations/003_content_tenant_integrity.js';
+import type { ProjectPolicy } from './policy.js';
 import { createContentRouter } from './routes.js';
 import { PostgresContentStore } from './repository.js';
 
@@ -47,8 +48,14 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     await createPilotCore(database);
     await addSessionRotation(database);
     await addContentTenantIntegrity(database);
+    const projectPolicy: ProjectPolicy = {
+      canCreateProject: async () => true,
+      listVisibleProjectIds: async () => null,
+      resolveProjectAccess: async () => 'manager',
+    };
     const contentRouter = createContentRouter({
       store: new PostgresContentStore(database),
+      policy: projectPolicy,
       resolveSession: async (token) => {
         if (token === 'tenant-a-session') return session(tenantA, userA);
         if (token === 'tenant-b-session') return session(tenantB, userB);

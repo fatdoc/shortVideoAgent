@@ -1,8 +1,13 @@
-import type { RoleCode } from '../auth/types.js';
+import type { OrganizationType, RoleCode } from '../auth/types.js';
 
 export type SessionActor = {
   userId: string;
+  membershipId: string;
+  organizationId: string;
+  organizationType: Extract<OrganizationType, 'TENANT'>;
   tenantId: string;
+  membershipVersion: number;
+  primaryRole: RoleCode;
   roles: RoleCode[];
 };
 
@@ -98,7 +103,7 @@ export interface ContentStore {
     input: CreateProjectInput,
     idempotency: IdempotencyInput,
   ): Promise<IdempotentResult<Project>>;
-  listProjects(actor: SessionActor): Promise<Project[]>;
+  listProjects(actor: SessionActor, projectIds: readonly string[] | null): Promise<Project[]>;
   getProject(actor: SessionActor, projectId: string): Promise<Project | null>;
   updateProject(
     actor: SessionActor,

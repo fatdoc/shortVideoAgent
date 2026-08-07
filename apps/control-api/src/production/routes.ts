@@ -4,6 +4,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { readCookie, SESSION_COOKIE_NAME } from '../auth/session.js';
 import type { PublicSession } from '../auth/service.js';
+import { allowsProjectAction, type ProjectAction, type ProjectPolicy } from '../projects/policy.js';
 import type { SessionActor } from '../projects/types.js';
 import { contractPayloadDigest } from './digest.js';
 import { ProductionDomainError, safeProductionError } from './errors.js';
@@ -43,6 +44,7 @@ type SessionResolution = { token?: string; session: PublicSession };
 
 export type ProductionRouterOptions = {
   store: ProductionStore;
+  policy: ProjectPolicy;
   resolveSession: (token: string) => Promise<SessionResolution | null>;
   secureCookies: boolean;
   sessionTtlSeconds: number;
@@ -88,6 +90,35 @@ function standardError(
 function actor(response: ActorResponse): SessionActor {
   if (!response.locals.actor) throw new Error('authenticated actor is missing');
   return response.locals.actor;
+}
+
+async function authorizeProject(
+  response: ActorResponse,
+  options: ProductionRouterOptions,
+  projectId: string,
+  action: ProjectAction,
+  idempotencyKey: string,
+): Promise<boolean> {
+  const access = await options.policy.resolveProjectAccess(actor(response), projectId);
+  if (!access) {
+    standardError(
+      response,
+      new ProductionDomainError('project scope denied', 403, 'PROJECT_SCOPE_MISMATCH', 'scope'),
+      projectId,
+      idempotencyKey,
+    );
+    return false;
+  }
+  if (!allowsProjectAction(access, action)) {
+    standardError(
+      response,
+      new ProductionDomainError('project action denied', 403, 'CAPABILITY_SCOPE_DENIED', 'scope'),
+      projectId,
+      idempotencyKey,
+    );
+    return false;
+  }
+  return true;
 }
 
 function idempotency(response: Response, value: string | undefined): string | null {
@@ -142,10 +173,23 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         legacyError(response, 403, 'TENANT_CONTEXT_REQUIRED', '当前组织不能访问生产内容。');
         return;
       }
+      const context = resolved.session.activeContext;
+      if (
+        context.organizationType !== 'TENANT' ||
+        context.tenantId !== resolved.session.tenant.id
+      ) {
+        legacyError(response, 401, 'SESSION_INVALID', '会话上下文无效，请重新登录。');
+        return;
+      }
       response.locals.actor = {
         userId: resolved.session.user.id,
+        membershipId: context.membershipId,
+        organizationId: context.organizationId,
+        organizationType: context.organizationType,
         tenantId: resolved.session.tenant.id,
-        roles: resolved.session.roles,
+        membershipVersion: context.membershipVersion,
+        primaryRole: context.primaryRole,
+        roles: context.roles,
       };
       next();
     } catch (error) {
@@ -189,6 +233,16 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         return;
       }
       try {
+        if (
+          !(await authorizeProject(
+            response,
+            options,
+            parsedProject.data,
+            'project.production.write',
+            key,
+          ))
+        )
+          return;
         const result = await options.store.createPackage(
           actor(response),
           parsedProject.data,
@@ -241,6 +295,17 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         return;
       }
       try {
+        const readKey = `read-${response.locals.requestId}`;
+        if (
+          !(await authorizeProject(
+            response,
+            options,
+            parsedProject.data,
+            'project.production.read',
+            readKey,
+          ))
+        )
+          return;
         const value = await options.store.getPackage(
           actor(response),
           parsedProject.data,
@@ -256,7 +321,7 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
               'scope',
             ),
             parsedProject.data,
-            `read-${response.locals.requestId}`,
+            readKey,
           );
         } else response.status(200).json(value);
       } catch (error) {
@@ -288,6 +353,16 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         return;
       }
       try {
+        if (
+          !(await authorizeProject(
+            response,
+            options,
+            parsedProject.data,
+            'project.production.write',
+            key,
+          ))
+        )
+          return;
         const result = await options.store.issueGrant(
           actor(response),
           parsedProject.data,

@@ -2,6 +2,7 @@ import knex, { type Knex } from 'knex';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
+import type { ProjectPolicy } from '../projects/policy.js';
 import { up as createPilotCore } from '../db/migrations/001_pilot_core.js';
 import { up as addSessionRotation } from '../db/migrations/002_auth_session_rotation.js';
 import { up as addContentTenantIntegrity } from '../db/migrations/003_content_tenant_integrity.js';
@@ -68,8 +69,14 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       internalToken: productionPlaneInternalToken,
       verifier: productionStore,
     });
+    const projectPolicy: ProjectPolicy = {
+      canCreateProject: async () => true,
+      listVisibleProjectIds: async () => null,
+      resolveProjectAccess: async () => 'manager',
+    };
     const productionRouter = createProductionRouter({
       store: productionStore,
+      policy: projectPolicy,
       resolveSession: async (token) => {
         if (token === 'tenant-a-session') return session(tenantA, userA);
         if (token === 'tenant-b-session') return session(tenantB, userB);

@@ -7,6 +7,7 @@ import { approvalSchema } from '../approvals/schema.js';
 import { briefVersionSchema } from '../briefs/schema.js';
 import { scriptVersionSchema } from '../scripts/schema.js';
 import { ContentConflictError, IdempotencyConflictError } from './errors.js';
+import { allowsProjectAction, type ProjectAction, type ProjectPolicy } from './policy.js';
 import type { ContentStore, SessionActor } from './types.js';
 
 const projectStatus = z.enum(['draft', 'active', 'production', 'completed', 'archived']);
@@ -36,6 +37,7 @@ type SessionResolution = {
 
 export type ContentRouterOptions = {
   store: ContentStore;
+  policy: ProjectPolicy;
   resolveSession: (token: string) => Promise<SessionResolution | null>;
   secureCookies: boolean;
   sessionTtlSeconds: number;
@@ -52,6 +54,24 @@ function error(response: Response, status: number, code: string, message: string
 function actor(response: ActorResponse): SessionActor {
   if (!response.locals.actor) throw new Error('authenticated actor is missing');
   return response.locals.actor;
+}
+
+async function authorizeProject(
+  response: ActorResponse,
+  options: ContentRouterOptions,
+  id: string,
+  action: ProjectAction,
+): Promise<boolean> {
+  const access = await options.policy.resolveProjectAccess(actor(response), id);
+  if (!access) {
+    error(response, 404, 'PROJECT_NOT_FOUND', '项目不存在。');
+    return false;
+  }
+  if (!allowsProjectAction(access, action)) {
+    error(response, 403, 'PERMISSION_DENIED', '当前角色无权执行此项目操作。');
+    return false;
+  }
+  return true;
 }
 
 function projectId(value: string | undefined): string | null {
@@ -107,28 +127,28 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         error(response, 403, 'TENANT_CONTEXT_REQUIRED', '当前组织不能访问项目内容。');
         return;
       }
+      const context = resolved.session.activeContext;
+      if (
+        context.organizationType !== 'TENANT' ||
+        context.tenantId !== resolved.session.tenant.id
+      ) {
+        error(response, 401, 'SESSION_INVALID', '会话上下文无效，请重新登录。');
+        return;
+      }
       response.locals.actor = {
         userId: resolved.session.user.id,
+        membershipId: context.membershipId,
+        organizationId: context.organizationId,
+        organizationType: context.organizationType,
         tenantId: resolved.session.tenant.id,
-        roles: resolved.session.roles,
+        membershipVersion: context.membershipVersion,
+        primaryRole: context.primaryRole,
+        roles: context.roles,
       };
       next();
     } catch (caught) {
       next(caught);
     }
-  });
-
-  router.use((request, response: ActorResponse, next) => {
-    if (!['POST', 'PATCH'].includes(request.method)) {
-      next();
-      return;
-    }
-    const roles = actor(response).roles;
-    if (!roles.includes('tenant_admin') && !roles.includes('content_operator')) {
-      error(response, 403, 'CONTENT_WRITE_FORBIDDEN', '当前角色不能修改项目内容。');
-      return;
-    }
-    next();
   });
 
   router.post('/projects', async (request, response: ActorResponse, next) => {
@@ -139,6 +159,10 @@ export function createContentRouter(options: ContentRouterOptions): Router {
       return;
     }
     try {
+      if (!(await options.policy.canCreateProject(actor(response)))) {
+        error(response, 403, 'PERMISSION_DENIED', '当前角色无权创建项目。');
+        return;
+      }
       const result = await options.store.createProject(actor(response), parsed.data, {
         operation: 'project.create',
         key,
@@ -152,7 +176,10 @@ export function createContentRouter(options: ContentRouterOptions): Router {
 
   router.get('/projects', async (_request, response: ActorResponse, next) => {
     try {
-      response.status(200).json({ projects: await options.store.listProjects(actor(response)) });
+      const visibleProjectIds = await options.policy.listVisibleProjectIds(actor(response));
+      response.status(200).json({
+        projects: await options.store.listProjects(actor(response), visibleProjectIds),
+      });
     } catch (caught) {
       next(caught);
     }
@@ -165,6 +192,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
       return;
     }
     try {
+      if (!(await authorizeProject(response, options, id, 'project.read'))) return;
       const project = await options.store.getProject(actor(response), id);
       if (!project) error(response, 404, 'PROJECT_NOT_FOUND', '项目不存在。');
       else response.status(200).json(project);
@@ -183,6 +211,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
       return;
     }
     try {
+      if (!(await authorizeProject(response, options, id, 'project.manage'))) return;
       const result = await options.store.updateProject(actor(response), id, parsed.data, {
         operation: `project.update:${id}`,
         key,
@@ -207,6 +236,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
+        if (!(await authorizeProject(response, options, id, 'project.content.write'))) return;
         const result = await options.store.createBriefVersion(
           actor(response),
           id,
@@ -234,6 +264,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
+        if (!(await authorizeProject(response, options, id, 'project.content.read'))) return;
         const versions = await options.store.listBriefVersions(actor(response), id);
         if (!versions) error(response, 404, 'PROJECT_NOT_FOUND', '项目不存在。');
         else response.status(200).json({ briefVersions: versions });
@@ -255,6 +286,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
+        if (!(await authorizeProject(response, options, id, 'project.content.write'))) return;
         const result = await options.store.createScriptVersion(
           actor(response),
           id,
@@ -282,6 +314,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
+        if (!(await authorizeProject(response, options, id, 'project.content.read'))) return;
         const versions = await options.store.listScriptVersions(actor(response), id);
         if (!versions) error(response, 404, 'PROJECT_NOT_FOUND', '项目不存在。');
         else response.status(200).json({ scriptVersions: versions });
@@ -305,6 +338,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
+        if (!(await authorizeProject(response, options, id, 'project.content.write'))) return;
         const result = await options.store.createApproval(
           actor(response),
           id,
@@ -329,6 +363,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
+        if (!(await authorizeProject(response, options, id, 'project.production.read'))) return;
         const result = await options.store.getProductionEligibility(actor(response), id);
         if (!result) error(response, 404, 'PROJECT_NOT_FOUND', '项目不存在。');
         else response.status(200).json(result);

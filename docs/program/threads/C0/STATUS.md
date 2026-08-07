@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1～01.2 `COMPLETE`
-- 当前任务：A-BIZ-01.3 服务端 RBAC/Project Scope 计划待冻结；下一切片先审计 Project Assignment Policy、Actor Context 与稳定拒绝语义，不直接修改运行代码
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1～01.3 `COMPLETE`
+- 当前任务：A-BIZ-01.3 Membership-bound Project Scope 已完成并通过完整 Gate；下一业务平台切片待按最新主计划冻结，不提前扩张成员、账务、渠道或 Support Grant API
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -442,3 +442,18 @@
 - Assignment 不进入 Session，每次 Project 请求实时验证 Membership、Role、Organization 和 Assignment；失效或未授权 Project 对工作人员统一隐藏为 404。
 - PLATFORM/CHANNEL/`pilot_support` 继续 fail closed；Support Grant、成员、账务和渠道 API 不混入本切片。
 - 当前状态：`A_BIZ_01_3_PLAN_FROZEN / READY_FOR_RED`；下一步建立 Router + PostgreSQL 行为级 RED，再执行 Content/Production 原子切流。
+
+## 2026-08-07 A-BIZ-01.3 Membership-bound Project Scope 完成
+
+- 新增共享 `PostgresProjectPolicy`，以当前 Membership、Role、Organization、Tenant、Membership Version 与 active Project Assignment 实时解析 Project 可见范围和 `viewer` / `editor` / `manager` access；Assignment 不进入 Session。
+- `tenant_admin` 无需 Assignment 即可管理当前 Tenant 全部项目；`content_operator + viewer` 只读已分配项目；`content_operator + editor` 可写 Brief/Script/Approval 与 Production，但不能创建或管理 Project 元数据。
+- Content Router 从已验证 `activeContext` 构造完整 Membership-bound Actor；项目列表在 SQL 查询前应用可见 ID Scope，空 Scope 不加载 Tenant 全项目。
+- 未分配、跨 Tenant、失效 Assignment、Membership/Role/Organization/Version 不一致均 fail closed；Content 路径返回 `404 PROJECT_NOT_FOUND`，已可见但动作不足返回 `403 PERMISSION_DENIED`，Policy 拒绝时不调用领域 Store。
+- Production Router 使用同一 Policy：Package GET 需要 `project.production.read`，Package 创建和 Grant 签发需要 `project.production.write`，拒绝发生在 Production Store、签名和幂等副作用之前。
+- Production v0.2 合同兼容例外：为避免修改 B 已冻结的 StandardError Schema/安全目录，生产路径对不可见项目继续返回 `403 PROJECT_SCOPE_MISMATCH`，viewer 写入继续返回 `403 CAPABILITY_SCOPE_DENIED`；Content 路径维持冻结的 404/403 语义。
+- 新增 PostgreSQL 与 HTTP 回归，覆盖 Tenant Admin 无 Assignment、viewer/editor 动作矩阵、Assignment/Membership/Role/Organization/Version 即时失效、同用户其他 Membership 不扩张当前 Context、跨 Tenant 隐藏、editor Project 元数据拒绝和 viewer Production 读取。
+- 定向 Gate：HTTP 2 files / 13 tests PASS；PostgreSQL 3 files / 10 tests PASS。
+- 完整 Control API 单 worker Gate：25 files / 116 tests PASS / 0 SKIP；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_01_3_COMPLETE / COMMITTED`。
+- 功能切片按 `feat(control-api): enforce membership-bound project policy` 独立提交；下一步按最新业务平台主计划冻结后续切片，不直接扩大 A-BIZ-01.3 范围。

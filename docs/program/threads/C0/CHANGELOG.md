@@ -70,3 +70,4 @@
 | 2026-08-07 | A-BIZ-01.2 010A 完成 Session Membership/Organization/Version Schema、安全回填、Version Trigger、Shadow 兼容与非 TENANT 回滚保护；Control API 22 files / 99 tests 通过                     | A_BIZ_01_2_010A_COMPLETE                |
 | 2026-08-07 | A-BIZ-01.2 010B 将登录、resolve、rotation 和 Public Session 切到唯一 Membership Context；非 TENANT Project/Production Router fail closed；Control API 24 files / 106 tests 通过           | A_BIZ_01_2_COMPLETE                     |
 | 2026-08-07 | 冻结 A-BIZ-01.3 Membership-bound Project Scope：完整 Actor、实时 Assignment、viewer/editor 动作矩阵及 401/403/404 防泄漏语义                                                              | A_BIZ_01_3_PLAN_FROZEN                  |
+| 2026-08-07 | A-BIZ-01.3 完成 Membership-bound Project Policy、Assignment 实时 Scope 与 viewer/editor 动作切流；Control API 25 files / 116 tests 通过                                                   | A_BIZ_01_3_COMPLETE                     |

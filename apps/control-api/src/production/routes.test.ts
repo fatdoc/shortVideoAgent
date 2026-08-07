@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
+import type { ProjectPolicy } from '../projects/policy.js';
 import { contractPayloadDigest } from './digest.js';
 import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
 import { createProductionRouter } from './routes.js';
@@ -83,9 +84,16 @@ function grantFixture(): ProjectGrant {
   return { ...unsigned, payloadDigest: contractPayloadDigest(unsigned) };
 }
 
-function testApp(store: ProductionStore) {
+const managerPolicy: ProjectPolicy = {
+  canCreateProject: async () => true,
+  listVisibleProjectIds: async () => null,
+  resolveProjectAccess: async () => 'manager',
+};
+
+function testApp(store: ProductionStore, policy: ProjectPolicy = managerPolicy) {
   const productionRouter = createProductionRouter({
     store,
+    policy,
     resolveSession: async (token) => {
       if (token === 'valid-session') {
         return {
@@ -269,6 +277,46 @@ describe('A05 production HTTP boundary', () => {
       }),
       expect.objectContaining({ operation: 'production.grant.issue', key: 'grant-key-1' }),
     );
+  });
+
+  it('allows a viewer to read an assigned production package', async () => {
+    const getPackage = vi.fn<ProductionStore['getPackage']>().mockResolvedValue(packageFixture());
+    const viewerPolicy: ProjectPolicy = {
+      canCreateProject: async () => false,
+      listVisibleProjectIds: async () => [projectId],
+      resolveProjectAccess: async () => 'viewer',
+    };
+    const app = testApp(store({ getPackage }), viewerPolicy);
+    const response = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-packages/${packageId}`)
+      .set('cookie', 'videoagent_session=valid-session');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(packageFixture());
+    expect(getPackage).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId, userId }),
+      projectId,
+      packageId,
+    );
+  });
+
+  it('rejects viewer production writes before invoking the Production Store', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>();
+    const viewerPolicy: ProjectPolicy = {
+      canCreateProject: async () => false,
+      listVisibleProjectIds: async () => [projectId],
+      resolveProjectAccess: async () => 'viewer',
+    };
+    const app = testApp(store({ createPackage }), viewerPolicy);
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('idempotency-key', 'viewer-package-1')
+      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('CAPABILITY_SCOPE_DENIED');
+    expect(createPackage).not.toHaveBeenCalled();
   });
 
   it('never serializes signed URLs, scripts, cross-tenant values, or unknown details', async () => {

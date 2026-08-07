@@ -5,6 +5,7 @@ import { PostgresAuthRepository } from './auth/repository.js';
 import { AuthService } from './auth/service.js';
 import { LoginRateLimiter } from './auth/rateLimiter.js';
 import { createAuthRouter } from './auth/routes.js';
+import { PostgresProjectPolicy } from './projects/policy.js';
 import { PostgresContentStore } from './projects/repository.js';
 import { createContentRouter } from './projects/routes.js';
 import { ProjectGrantTokenService } from './production/grantToken.js';
@@ -30,8 +31,10 @@ const authRouter = createAuthRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const projectPolicy = new PostgresProjectPolicy(database);
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
+  policy: projectPolicy,
   resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
@@ -47,6 +50,7 @@ const internalProductionRouter = createInternalProjectGrantRouter({
 });
 const productionRouter = createProductionRouter({
   store: productionStore,
+  policy: projectPolicy,
   resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
