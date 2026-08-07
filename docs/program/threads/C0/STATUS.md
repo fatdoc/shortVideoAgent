@@ -2,7 +2,7 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `COMPLETE` / A-BIZ-01.2 `PLAN_PENDING`
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `COMPLETE` / A-BIZ-01.2 `PLAN_FROZEN`
 - 当前任务：A-BIZ-01.2 Active Membership Context；先冻结 Session Schema、唯一上下文选择、Membership version 与 fail-closed 合同，再 test-first 实现，不混入 A-BIZ-01.3 Project Policy 切流
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
@@ -396,3 +396,14 @@
 - B 边界保持：`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_01_1_COMPLETE / A_BIZ_01_2_PLAN_PENDING`。
 - 下一步：冻结 A-BIZ-01.2 Active Membership Context 计划，再建立 migration 010 与 Auth Repository/Service 的行为级 RED。
+
+## 2026-08-07 A-BIZ-01.2 Active Membership Context 计划冻结
+
+- 冻结 migration 010：Session 增加 Membership/Organization/Version Context，Tenant 字段只用于 TENANT 兼容；安全回填失败的历史 Session 撤销而不猜测。
+- 冻结 Membership Version：状态、主角色、Role 集合及旧 Membership Shadow 的安全事实变化必须使 version 严格增加。
+- 登录只接受服务端唯一 active Membership；零个、多个或不一致候选统一按无效凭据 fail closed。
+- Public Session 新增最小 `activeContext`，保留顶层 roles 与 TENANT tenant 兼容字段；不返回 `availableContexts`。
+- PLATFORM/CHANNEL Context 不伪造 Tenant；旧 Project/Production Router 只做明确拒绝，正式 Project Assignment Policy 留在 A-BIZ-01.3。
+- 计划拆分为 010A Schema/Version 与 010B Auth Repository/Service 两个独立 test-first 功能提交。
+- 计划文件：`A_BIZ_01_2_ACTIVE_MEMBERSHIP_CONTEXT_PLAN.md`。
+- 当前状态：`A_BIZ_01_2_PLAN_FROZEN / READY_FOR_010A_RED`。
