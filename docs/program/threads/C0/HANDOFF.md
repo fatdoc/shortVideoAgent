@@ -285,3 +285,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 工程 Gate：typecheck、build、007 定向 ESLint、Governance、`git diff --check` 全部 PASS。
 - B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 仍是 B 的未跟踪运行时文件，禁止纳入 A 提交。
 - 下一切片：先审计并冻结 Organization Membership/Role 的演进路径、旧 Tenant Membership 兼容/回填、多角色表和组织类型约束，再 test-first 实现 migration `008`；Session Active Context 与 Project Assignment 保持后续独立切片。
+
+## A-BIZ-01.1 008 Organization Membership / Role 计划交接（2026-08-07）
+
+- 技术选择：不原地替换旧 `control_plane.memberships`；新增 canonical Organization Membership/Role 表，降低对当前 Auth、bootstrap、fixture 和 rollback 的影响。
+- 新 Membership 以 `user_id + organization_id` 唯一，保留原 Membership UUID、状态和时间戳；`version` 从 1 开始。
+- `primary_role_code` 使用可延迟复合外键保证主角色属于角色集合；Role 表支持未来多角色。
+- 迁移回填只接受无歧义的单角色 Tenant Membership；旧多角色和 Tenant `pilot_support` 必须先人工审计，migration fail closed。
+- 兼容策略：旧表继续承接当前运行时写入，并通过触发器单向同步新表；新表写入与 Auth/Session 切流属于后续服务切片。
+- 类型矩阵和 Organization 反向类型保护必须由数据库验证，组织父子树不产生授权。
+- Test-first 至少覆盖回填、类型矩阵、多角色/单主角色、旧表同步、歧义拒绝、反向类型保护和 down 保留旧数据。
+- 详细计划：`docs/program/threads/C0/A_BIZ_01_1_008_ORGANIZATION_MEMBERSHIP_PLAN.md`。
+- 下一步：创建 `organizationMembership.postgres.test.ts`，先确认 migration 缺失时按预期 RED，再实现 `008_organization_membership.ts`。

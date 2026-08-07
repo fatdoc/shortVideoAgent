@@ -56,3 +56,4 @@
 | 2026-08-07 | 接受老板 Wave 0 完整业务决策，更新多组织/RBAC 与注册/账务两份 ADR；统一 Tenant、单一活动 Membership、项目 Assignment、TEST Payment 和单级佣金获准进入实现 | A_BIZ_WAVE0_DECISIONS_ACCEPTED |
 | 2026-08-07 | A-BIZ-01.1 首个 test-first 切片完成：migration 006 建立 Organization 授权根、Tenant 同 UUID 回填、双向类型保护与可回滚边界；定向 PostgreSQL 4/4 通过 | A_BIZ_01_1_006A_READY |
 | 2026-08-07 | A-BIZ-01.1 migration 007 建立 Channel 一对一 Organization 扩展与双向类型保护；不写死层级、价格或佣金；完整 PostgreSQL Gate 16 files / 65 tests 通过 | A_BIZ_01_1_007_COMPLETE |
+| 2026-08-07 | 冻结 A-BIZ-01.1 migration 008：新增 Organization Membership/Role、单一主角色、多角色 Schema、旧表单向 Shadow 同步与歧义回填拒绝 | A_BIZ_01_1_008_PLAN_FROZEN |

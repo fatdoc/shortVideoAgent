@@ -284,3 +284,14 @@
 - 验证：Control API 完整 PostgreSQL Gate 16 files / 65 tests PASS / 0 SKIP；typecheck、build、007 定向 ESLint、Governance、`git diff --check` PASS。
 - B 边界：StoryCanvas tracked diff 为零；未修改、未暂存 `apps/storycanvas/data/vendor/byteplus.ts`。
 - 当前状态：`A_BIZ_01_1_007_COMPLETE`；下一切片先冻结 Organization Membership/Role 的兼容与回填合同，再进入 migration `008`，不提前修改 Session Active Context。
+
+## 2026-08-07 A-BIZ-01.1 008 Organization Membership / Role 计划冻结
+
+- 已审计旧 `memberships`、Auth Repository、bootstrap、Session 和 PostgreSQL fixture；旧表仍是 Tenant-only 运行时事实，不能在本切片直接替换。
+- 008 选择新增 `organization_memberships` 与 `organization_membership_roles`，保留旧 Membership UUID，并用一个明确 `primary_role_code` + 多角色集合表达首版主角色和未来多角色。
+- 角色类型冻结：`platform_admin` / `pilot_support` 仅 PLATFORM，`channel_admin` 仅 CHANNEL，`tenant_admin` / `content_operator` 仅 TENANT。
+- 迁移前对旧同 User/Tenant 多角色和 Tenant `pilot_support` fail closed，不用排序或 Demo 规则猜测主角色。
+- 兼容期保留旧表读写；数据库只做旧表到新表的单向 Shadow 同步，不提前切换 Auth/Session，也不允许生产代码只写新表。
+- 008 不修改 Session Active Context、Project Assignment、Support Grant、代理层级、价格或佣金。
+- 详细计划：`A_BIZ_01_1_008_ORGANIZATION_MEMBERSHIP_PLAN.md`。
+- 当前状态：`A_BIZ_01_1_008_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
