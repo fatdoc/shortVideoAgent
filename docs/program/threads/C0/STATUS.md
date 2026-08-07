@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `COMPLETE` / A-BIZ-01.2 `PLAN_FROZEN`
-- 当前任务：A-BIZ-01.2 Active Membership Context；先冻结 Session Schema、唯一上下文选择、Membership version 与 fail-closed 合同，再 test-first 实现，不混入 A-BIZ-01.3 Project Policy 切流
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `COMPLETE` / A-BIZ-01.2 010A `COMPLETE`
+- 当前任务：A-BIZ-01.2 010B Auth Repository/Service；将登录、resolve、rotation 和 Public Session 切到唯一 Membership Context，不混入 A-BIZ-01.3 Project Policy 切流
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -407,3 +407,16 @@
 - 计划拆分为 010A Schema/Version 与 010B Auth Repository/Service 两个独立 test-first 功能提交。
 - 计划文件：`A_BIZ_01_2_ACTIVE_MEMBERSHIP_CONTEXT_PLAN.md`。
 - 当前状态：`A_BIZ_01_2_PLAN_FROZEN / READY_FOR_010A_RED`。
+
+## 2026-08-07 A-BIZ-01.2 010A Session Context Schema 与 Version 完成
+
+- 新增 migration `010_session_active_context.ts`：Auth Session 增加 Membership/Organization/Version Context，`tenant_id` 改为仅 TENANT Context 使用的 nullable 兼容字段。
+- 唯一 active TENANT Membership 可安全回填；无法回填的历史 Session 被撤销且不猜测上下文。
+- 数据库约束校验 Context 全有或全无、Session User/Membership/Organization 一致、Membership Version 一致及 TENANT 扩展匹配；PLATFORM/CHANNEL Context 禁止携带 Tenant。
+- Membership status/主角色及 Role 集合变化会使 version 严格增加；旧 Membership Shadow 更新改为保留 Membership ID 和 version 的受控更新。
+- 回滚仅允许 TENANT-only Session；存在非 TENANT Session 时在任何 Schema 修改前 fail closed。
+- Test-first RED 已确认；Green 后定向 PostgreSQL 2 files / 6 tests PASS。
+- Control API 完整单 worker Gate：22 files / 99 tests PASS / 0 SKIP；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_2_010A_COMPLETE / READY_FOR_010B_RED`。
+- 下一步：建立 Auth Repository/Service PostgreSQL 与 HTTP 行为 RED，再实现唯一 Membership 登录、Version resolve、Public activeContext 和非 TENANT Router fail closed。

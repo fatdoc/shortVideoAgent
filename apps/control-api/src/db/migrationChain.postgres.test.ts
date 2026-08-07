@@ -16,6 +16,7 @@ const expectedMigrations = [
   '007_channel_foundation.ts',
   '008_organization_membership.ts',
   '009_project_assignment.ts',
+  '010_session_active_context.ts',
 ];
 
 const expectedTables = [
@@ -60,7 +61,7 @@ describe.runIf(hasDedicatedTestDatabase)('Control API migration chain', () => {
     await database.destroy();
   });
 
-  it('loads migrations 001 through 009 from an empty database and is idempotent on replay', async () => {
+  it('loads migrations 001 through 010 from an empty database and is idempotent on replay', async () => {
     const config = migrationConfig(import.meta.url);
     const [batch, migrations] = await database.migrate.latest(config);
 

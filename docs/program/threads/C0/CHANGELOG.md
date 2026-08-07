@@ -67,3 +67,4 @@
 | 2026-08-07 | A-BIZ-01.1 009B 完成显式 Project Assignment manifest runner、CLI、安全日志与并发 replay；Control API 完整单 worker Gate 20 files / 93 tests 通过                                          | A_BIZ_01_1_009B_COMPLETE                |
 | 2026-08-07 | A-BIZ-01.1 通过真实 Knex loader 从空 `_test` 数据库完成 001～009 迁移链收口；9 个 migration、11 张核心表及重复 latest no-op 验证通过                                                      | A_BIZ_01_1_COMPLETE                     |
 | 2026-08-07 | 冻结 A-BIZ-01.2 Active Membership Context：migration 010、Membership Version、唯一上下文登录、最小 Public Session 与非 TENANT Router fail-closed 边界 | A_BIZ_01_2_PLAN_FROZEN |
+| 2026-08-07 | A-BIZ-01.2 010A 完成 Session Membership/Organization/Version Schema、安全回填、Version Trigger、Shadow 兼容与非 TENANT 回滚保护；Control API 22 files / 99 tests 通过 | A_BIZ_01_2_010A_COMPLETE |
