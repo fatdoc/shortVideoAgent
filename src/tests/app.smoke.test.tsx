@@ -104,7 +104,7 @@ describe('app smoke', () => {
     expect(useAuthStore.getState().identity).toBeNull();
   });
 
-  it('lets the content operator enter the read-only enterprise workbench', async () => {
+  it('lets the content operator use one read-only creation workbench', async () => {
     const user = userEvent.setup();
     useAuthStore.getState().logout();
     loginWithDemoAccount({
@@ -118,9 +118,10 @@ describe('app smoke', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
-    await user.click(await screen.findByText('企业客户工作台'));
+    expect(screen.getByRole('combobox', { name: '切换工作台' })).toBeDisabled();
+    expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
 
+    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
     });
@@ -130,21 +131,22 @@ describe('app smoke', () => {
     expect(screen.queryByRole('menuitem', { name: /企业工作台/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /已购能力/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /新建 \/ Brief/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /品牌大脑/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /脚本编辑/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /分镜生产单/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /任务 \/ 交付/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /生产概览/ })).toBeInTheDocument();
   });
 
-  it('lets the enterprise admin switch between both authorized workbenches', async () => {
+  it('keeps enterprise administration and production routes in one workbench', async () => {
     const user = userEvent.setup();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
     await screen.findByRole('heading', { level: 3, name: '工作台' });
-    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
-    await user.click(await screen.findByText('媒体生产工作台'));
+    expect(screen.getByRole('combobox', { name: '切换工作台' })).toBeDisabled();
+    expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
 
+    await user.click(screen.getByRole('menuitem', { name: /生产概览/ }));
     await waitFor(() => {
       expect(window.location.pathname).toBe('/production/overview');
     });
@@ -152,9 +154,7 @@ describe('app smoke', () => {
       await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('combobox', { name: '切换工作台' }));
-    await user.click(await screen.findByText('企业客户工作台'));
-
+    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
     });

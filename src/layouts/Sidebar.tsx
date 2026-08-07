@@ -6,6 +6,7 @@ import {
   ClusterOutlined,
   FileDoneOutlined,
   FileTextOutlined,
+  FolderOpenOutlined,
   FundViewOutlined,
   InboxOutlined,
   PlusSquareOutlined,
@@ -14,18 +15,32 @@ import {
   VideoCameraOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
-import { Layout, Menu, Typography } from 'antd';
+import { Layout, Menu, Typography, type MenuProps } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resolveWorkbenchKind, WORKBENCH_OPTIONS } from '../components/workbench/workbench';
+import { pilotRuntime } from '../config/pilotRuntime';
 import { colors, layout, zIndex } from '../design/tokens';
 import { DEMO_PROJECT_ID, ROUTES } from '../domain/constants';
 import { canAccessDemoRoute, type DemoRoutePermission } from '../domain/demoIdentity';
+import {
+  buildTenantMenu,
+  type TenantMenuItem,
+  type TenantWorkbenchRole,
+} from '../domain/unifiedTenantWorkbench';
 import { useAuthStore } from '../stores/authStore';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
+import { usePilotAuthStore } from '../stores/pilotAuthStore';
+import { usePilotProjectContextStore } from '../stores/pilotProjectContextStore';
 
 const { Sider } = Layout;
 
-const menuByWorkbench = {
+interface ShellMenuItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+}
+
+const legacyMenuByWorkbench = {
   platform: [
     {
       key: ROUTES.platformOverview,
@@ -72,90 +87,8 @@ const menuByWorkbench = {
       label: '企业客户',
     },
   ],
-  tenant: [
-    {
-      key: ROUTES.dashboard,
-      permission: 'enterprise.dashboard',
-      icon: <AppstoreOutlined />,
-      label: '企业工作台',
-    },
-    {
-      key: ROUTES.enterpriseProducts,
-      permission: 'enterprise.products',
-      icon: <AppstoreAddOutlined />,
-      label: '已购能力',
-    },
-    {
-      key: ROUTES.projectNew,
-      permission: 'enterprise.project-create',
-      icon: <PlusSquareOutlined />,
-      label: '新建 / Brief',
-    },
-    {
-      key: ROUTES.brand(DEMO_PROJECT_ID),
-      permission: 'enterprise.brand-read',
-      icon: <ClusterOutlined />,
-      label: '品牌大脑',
-    },
-    {
-      key: ROUTES.script(DEMO_PROJECT_ID),
-      permission: 'enterprise.script',
-      icon: <FileTextOutlined />,
-      label: '脚本编辑',
-    },
-    {
-      key: ROUTES.storyboard(DEMO_PROJECT_ID),
-      permission: 'enterprise.storyboard',
-      icon: <VideoCameraOutlined />,
-      label: '分镜生产单',
-    },
-    {
-      key: ROUTES.roughCut(DEMO_PROJECT_ID),
-      permission: 'enterprise.rough-cut',
-      icon: <FundViewOutlined />,
-      label: '任务 / 交付',
-    },
-  ],
-  production: [
-    {
-      key: ROUTES.productionOverview,
-      permission: 'production.overview',
-      icon: <AppstoreOutlined />,
-      label: '生产概览',
-    },
-    {
-      key: ROUTES.productionInbox(DEMO_PROJECT_ID),
-      permission: 'production.inbox',
-      icon: <InboxOutlined />,
-      label: '生产包',
-    },
-    {
-      key: ROUTES.productionCanvas(DEMO_PROJECT_ID),
-      permission: 'production.canvas',
-      icon: <ApiOutlined />,
-      label: 'StoryCanvas',
-    },
-    {
-      key: ROUTES.productionTasks(DEMO_PROJECT_ID),
-      permission: 'production.tasks',
-      icon: <VideoCameraOutlined />,
-      label: '生成任务',
-    },
-    {
-      key: ROUTES.productionAssets(DEMO_PROJECT_ID),
-      permission: 'production.assets',
-      icon: <FileDoneOutlined />,
-      label: '媒体资产',
-    },
-    {
-      key: ROUTES.productionExport(DEMO_PROJECT_ID),
-      permission: 'production.export',
-      icon: <WalletOutlined />,
-      label: '导出 / 来源链',
-    },
-  ],
 } as const satisfies Record<
-  (typeof WORKBENCH_OPTIONS)[number]['kind'],
+  'platform' | 'channel',
   readonly {
     key: string;
     permission: DemoRoutePermission;
@@ -163,6 +96,31 @@ const menuByWorkbench = {
     label: string;
   }[]
 >;
+
+const iconByTenantMenuKey: Record<string, React.ReactNode> = {
+  projects: <FolderOpenOutlined />,
+  dashboard: <AppstoreOutlined />,
+  products: <AppstoreAddOutlined />,
+  'project-create': <PlusSquareOutlined />,
+  brand: <ClusterOutlined />,
+  script: <FileTextOutlined />,
+  storyboard: <VideoCameraOutlined />,
+  'rough-cut': <FundViewOutlined />,
+  'production-overview': <AppstoreOutlined />,
+  'production-inbox': <InboxOutlined />,
+  'production-canvas': <ApiOutlined />,
+  'production-tasks': <VideoCameraOutlined />,
+  'production-assets': <FileDoneOutlined />,
+  'production-export': <WalletOutlined />,
+};
+
+function shellItems(items: readonly TenantMenuItem[]): ShellMenuItem[] {
+  return items.map((item) => ({
+    key: item.path,
+    icon: iconByTenantMenuKey[item.key] ?? <FolderOpenOutlined />,
+    label: item.label,
+  }));
+}
 
 function selectedMenuKey(pathname: string, items: readonly { key: string }[]) {
   const exact = items.find((item) => item.key === pathname);
@@ -174,16 +132,17 @@ function selectedMenuKey(pathname: string, items: readonly { key: string }[]) {
   return items[0]?.key;
 }
 
-export function Sidebar() {
+function SidebarFrame({
+  subtitle,
+  items,
+  footer,
+}: {
+  subtitle: string;
+  items: readonly ShellMenuItem[];
+  footer: React.ReactNode;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
-  const identity = useAuthStore((state) => state.identity);
-  const snapshot = useControlPlaneStore((state) => state.snapshot);
-  const kind = resolveWorkbenchKind(location.pathname);
-  const workbench = WORKBENCH_OPTIONS.find((item) => item.kind === kind)!;
-  const items = menuByWorkbench[kind].filter((item) =>
-    canAccessDemoRoute(identity, item.permission),
-  );
   const selected = selectedMenuKey(location.pathname, items);
 
   return (
@@ -205,22 +164,95 @@ export function Sidebar() {
         <div className="sidebar-brand-mark">VA</div>
         <div>
           <div className="sidebar-brand-title">短视频 Agent</div>
-          <div className="sidebar-brand-sub">{workbench.shortLabel}</div>
+          <div className="sidebar-brand-sub">{subtitle}</div>
         </div>
       </div>
       <Menu
         theme="dark"
         mode="inline"
         selectedKeys={selected ? [selected] : []}
-        items={[...items]}
+        items={[...items] as MenuProps['items']}
         onClick={({ key }) => navigate(key)}
         style={{ borderInlineEnd: 0, marginTop: 12, paddingBottom: 96 }}
       />
-      <div className="sidebar-footer">
-        <Typography.Text className="sidebar-footer-state">{snapshot.stateName}</Typography.Text>
-        <div>{snapshot.fixtureId}</div>
-        <small>{snapshot.truthManifest.disclaimer}</small>
-      </div>
+      <div className="sidebar-footer">{footer}</div>
     </Sider>
   );
+}
+
+function demoTenantRoles(accountKind: string | undefined): TenantWorkbenchRole[] {
+  if (accountKind === 'tenant') return ['tenant_admin'];
+  if (accountKind === 'production') return ['content_operator'];
+  return [];
+}
+
+function DemoSidebar() {
+  const location = useLocation();
+  const identity = useAuthStore((state) => state.identity);
+  const snapshot = useControlPlaneStore((state) => state.snapshot);
+  const kind = resolveWorkbenchKind(location.pathname);
+  const unifiedTenant = kind === 'tenant' || kind === 'production';
+  const legacyWorkbench = WORKBENCH_OPTIONS.find((item) => item.kind === kind)!;
+  const items: ShellMenuItem[] = unifiedTenant
+    ? shellItems(
+        buildTenantMenu({
+          roleCodes: demoTenantRoles(identity?.accountKind),
+          projectId: DEMO_PROJECT_ID,
+        }),
+      )
+    : legacyMenuByWorkbench[kind].filter((item) => canAccessDemoRoute(identity, item.permission));
+
+  return (
+    <SidebarFrame
+      subtitle={unifiedTenant ? '统一创作工作台' : legacyWorkbench.shortLabel}
+      items={items}
+      footer={
+        <>
+          <Typography.Text className="sidebar-footer-state">{snapshot.stateName}</Typography.Text>
+          <div>{snapshot.fixtureId}</div>
+          <small>{snapshot.truthManifest.disclaimer}</small>
+        </>
+      }
+    />
+  );
+}
+
+function PilotSidebar() {
+  const session = usePilotAuthStore((state) => state.session);
+  const activeProjectId = usePilotProjectContextStore((state) => state.activeProjectId);
+  const status = usePilotProjectContextStore((state) => state.status);
+  const context = usePilotProjectContextStore((state) => state.context);
+  const items = session
+    ? [
+        {
+          key: '/projects',
+          icon: iconByTenantMenuKey.projects,
+          label: '项目',
+        },
+        ...shellItems(
+          buildTenantMenu({
+            roleCodes: session.roles,
+            projectId: activeProjectId,
+          }),
+        ),
+      ]
+    : [];
+
+  return (
+    <SidebarFrame
+      subtitle="统一创作工作台"
+      items={items}
+      footer={
+        <>
+          <Typography.Text className="sidebar-footer-state">PILOT · {status}</Typography.Text>
+          <div>{session?.activeContext.organizationDisplayName ?? '组织上下文不可用'}</div>
+          <small>{context ? `${context.projectName} · ${context.projectId}` : '未选择项目'}</small>
+        </>
+      }
+    />
+  );
+}
+
+export function Sidebar() {
+  return pilotRuntime.mode === 'pilot' ? <PilotSidebar /> : <DemoSidebar />;
 }

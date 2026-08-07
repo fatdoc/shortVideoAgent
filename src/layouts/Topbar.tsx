@@ -1,20 +1,21 @@
 import { LogoutOutlined, ReloadOutlined, UserOutlined } from '@ant-design/icons';
-import { App, Breadcrumb, Button, Layout, Space, Tag, Typography } from 'antd';
+import { App, Breadcrumb, Button, Layout, Select, Space, Tag, Typography } from 'antd';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { WorkbenchSwitcher } from '../components/workbench/WorkbenchChrome';
-import {
-  resolveWorkbenchKind,
-  WORKBENCH_OPTIONS,
-} from '../components/workbench/workbench';
+import { resolveWorkbenchKind, WORKBENCH_OPTIONS } from '../components/workbench/workbench';
+import { pilotRuntime } from '../config/pilotRuntime';
 import { layout, zIndex } from '../design/tokens';
-import { PROJECT_STATUS_LABEL } from '../domain/constants';
+import { PROJECT_STATUS_LABEL, ROUTES } from '../domain/constants';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAuthStore } from '../stores/authStore';
+import { usePilotAuthStore } from '../stores/pilotAuthStore';
+import { usePilotProjectContextStore } from '../stores/pilotProjectContextStore';
 
 const { Header } = Layout;
 
 function pageTitle(pathname: string) {
+  if (pathname === '/projects') return '项目';
   if (pathname === '/platform/overview') return '平台概览';
   if (pathname === '/platform/catalog') return '产品与演示 RateCard';
   if (pathname === '/platform/organizations') return '渠道与企业组织';
@@ -39,7 +40,58 @@ function pageTitle(pathname: string) {
   if (pathname.startsWith('/production')) return '媒体生产概览';
   return 'D1 Demo';
 }
-export function Topbar() {
+
+function HeaderFrame({
+  home,
+  workbenchLabel,
+  title,
+  children,
+}: {
+  home: string;
+  workbenchLabel: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const navigate = useNavigate();
+  return (
+    <Header
+      className="d1-topbar"
+      style={{
+        position: 'fixed',
+        top: 0,
+        right: 0,
+        left: layout.sidebarWidth,
+        zIndex: zIndex.topbar,
+      }}
+    >
+      <div className="d1-topbar-title">
+        <Breadcrumb
+          items={[
+            {
+              title: (
+                <a
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate(home);
+                  }}
+                >
+                  {workbenchLabel}
+                </a>
+              ),
+            },
+            { title },
+          ]}
+        />
+        <Typography.Text strong>{title}</Typography.Text>
+      </div>
+      <Space size={12} className="d1-topbar-actions">
+        {children}
+      </Space>
+    </Header>
+  );
+}
+
+function DemoTopbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { message } = App.useApp();
@@ -50,7 +102,12 @@ export function Topbar() {
   const identity = useAuthStore((state) => state.identity);
   const logout = useAuthStore((state) => state.logout);
   const kind = resolveWorkbenchKind(location.pathname);
-  const workbench = WORKBENCH_OPTIONS.find((item) => item.kind === kind)!;
+  const tenantRoute =
+    identity?.activeOrganization.organizationType === 'TENANT' &&
+    (kind === 'tenant' || kind === 'production');
+  const workbench = WORKBENCH_OPTIONS.find(
+    (item) => item.kind === (tenantRoute ? 'tenant' : kind),
+  )!;
   const title = pageTitle(location.pathname);
   const statusLabel = PROJECT_STATUS_LABEL[project.status] ?? project.status;
 
@@ -71,62 +128,79 @@ export function Topbar() {
   };
 
   return (
-    <Header
-      className="d1-topbar"
-      style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        left: layout.sidebarWidth,
-        zIndex: zIndex.topbar,
-      }}
-    >
-      <div className="d1-topbar-title">
-        <Breadcrumb
-          items={[
-            {
-              title: (
-                <a
-                  onClick={(event) => {
-                    event.preventDefault();
-                    navigate(workbench.home);
-                  }}
-                >
-                  {workbench.shortLabel}
-                </a>
-              ),
-            },
-            { title },
-          ]}
-        />
-        <Typography.Text strong>{title}</Typography.Text>
-      </div>
-
-      <Space size={12} className="d1-topbar-actions">
-        <WorkbenchSwitcher />
-        <Tag icon={<UserOutlined />} color="cyan">
-          {identity?.displayName} · {identity?.roleLabel}
-        </Tag>
-        <Tag color="blue">{statusLabel}</Tag>
-        <Button
-          size="small"
-          icon={<ReloadOutlined />}
-          loading={loading || controlLoading}
-          onClick={() => void handleReset()}
-        >
-          重置 Demo
-        </Button>
-        <Button
-          size="small"
-          icon={<LogoutOutlined />}
-          onClick={() => {
-            logout();
-            navigate('/login', { replace: true });
-          }}
-        >
-          退出
-        </Button>
-      </Space>
-    </Header>
+    <HeaderFrame home={workbench.home} workbenchLabel={workbench.shortLabel} title={title}>
+      <WorkbenchSwitcher />
+      <Tag icon={<UserOutlined />} color="cyan">
+        {identity?.displayName} · {identity?.roleLabel}
+      </Tag>
+      <Tag color="blue">{statusLabel}</Tag>
+      <Button
+        size="small"
+        icon={<ReloadOutlined />}
+        loading={loading || controlLoading}
+        onClick={() => void handleReset()}
+      >
+        重置 Demo
+      </Button>
+      <Button
+        size="small"
+        icon={<LogoutOutlined />}
+        onClick={() => {
+          logout();
+          navigate('/login', { replace: true });
+        }}
+      >
+        退出
+      </Button>
+    </HeaderFrame>
   );
+}
+
+function PilotTopbar() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const session = usePilotAuthStore((state) => state.session);
+  const logout = usePilotAuthStore((state) => state.logout);
+  const selectProject = usePilotAuthStore((state) => state.selectProject);
+  const projects = usePilotProjectContextStore((state) => state.projects);
+  const activeProjectId = usePilotProjectContextStore((state) => state.activeProjectId);
+  const projectStatus = usePilotProjectContextStore((state) => state.status);
+  const title = pageTitle(location.pathname);
+
+  return (
+    <HeaderFrame home="/pilot" workbenchLabel="统一创作工作台" title={title}>
+      <Select
+        aria-label="当前 Pilot 项目"
+        size="small"
+        value={activeProjectId ?? undefined}
+        placeholder="未选择项目"
+        loading={projectStatus === 'loading'}
+        disabled={projects.length === 0 || projectStatus === 'loading'}
+        popupMatchSelectWidth={260}
+        options={projects.map((project) => ({ value: project.id, label: project.name }))}
+        onChange={(projectId) => {
+          void selectProject(projectId).then((result) => {
+            if (result?.status === 'ready') navigate(ROUTES.brand(projectId));
+          });
+        }}
+      />
+      <Tag icon={<UserOutlined />} color="cyan">
+        {session?.user.displayName ?? '未登录'} · {session?.activeContext.primaryRole ?? '无角色'}
+      </Tag>
+      <Tag color="blue">{session?.activeContext.organizationDisplayName ?? '组织不可用'}</Tag>
+      <Button
+        size="small"
+        icon={<LogoutOutlined />}
+        onClick={() => {
+          void logout().finally(() => navigate('/login', { replace: true }));
+        }}
+      >
+        安全退出
+      </Button>
+    </HeaderFrame>
+  );
+}
+
+export function Topbar() {
+  return pilotRuntime.mode === 'pilot' ? <PilotTopbar /> : <DemoTopbar />;
 }

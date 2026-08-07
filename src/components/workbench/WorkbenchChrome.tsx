@@ -12,11 +12,25 @@ export function WorkbenchSwitcher() {
   const location = useLocation();
   const identity = useAuthStore((state) => state.identity);
   const kind = resolveWorkbenchKind(location.pathname);
-  const allowedOptions = WORKBENCH_OPTIONS.filter(
-    (option) =>
+  const unifiedTenant =
+    identity?.activeOrganization.organizationType === 'TENANT' &&
+    (kind === 'tenant' || kind === 'production');
+  const selectedKind = unifiedTenant ? 'tenant' : kind;
+  const allowedOptions = WORKBENCH_OPTIONS.filter((option) => {
+    if (identity?.activeOrganization.organizationType === 'TENANT') {
+      return (
+        option.kind === 'tenant' &&
+        identity.allowedWorkbenches.some(
+          (workbench) => workbench === 'tenant' || workbench === 'production',
+        ) &&
+        authorizeDemoNavigationRoute(identity, option.home).status === 'allowed'
+      );
+    }
+    return (
       identity?.allowedWorkbenches.includes(option.kind) &&
-      authorizeDemoNavigationRoute(identity, option.home).status === 'allowed',
-  );
+      authorizeDemoNavigationRoute(identity, option.home).status === 'allowed'
+    );
+  });
 
   return (
     <div className="d1-context-switcher">
@@ -24,7 +38,7 @@ export function WorkbenchSwitcher() {
         <Select
           aria-label="切换工作台"
           size="small"
-          value={kind}
+          value={selectedKind}
           popupMatchSelectWidth={240}
           onChange={(nextKind) => {
             const target = WORKBENCH_OPTIONS.find((item) => item.kind === nextKind);
@@ -61,7 +75,7 @@ export function WorkbenchSwitcher() {
         <Typography.Text type="secondary" ellipsis>
           Organization [{identity?.activeOrganization.organizationType ?? 'UNRESOLVED'}]{' '}
           {identity?.activeOrganization.organizationId ?? 'unresolved'}
-          {' · '}Workbench {kind}
+          {' · '}Workbench {selectedKind}
         </Typography.Text>
         <Typography.Text type="secondary" ellipsis>
           Membership {identity?.activeMembership.membershipId ?? 'N/A'}

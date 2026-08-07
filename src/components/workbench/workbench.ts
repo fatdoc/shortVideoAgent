@@ -37,8 +37,8 @@ export const WORKBENCH_OPTIONS: WorkbenchOption[] = [
   },
   {
     kind: 'tenant',
-    label: '企业客户工作台',
-    shortLabel: '企业客户',
+    label: '统一创作工作台',
+    shortLabel: '统一创作工作台',
     home: ROUTES.brand(DEMO_PROJECT_ID),
   },
   {

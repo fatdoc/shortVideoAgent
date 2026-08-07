@@ -496,3 +496,16 @@
 - B 独占目录 tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_01_4B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 Pilot API/Auth/Project Context 与本次项目记忆；随后进入 01.4C，共享 Router/Sidebar/Shell 接入统一 Route Manifest，继续按共享文件独立提交并通知 B。
+
+## 2026-08-07 A-BIZ-01.4C 统一 Router / Sidebar / Shell 接入完成
+
+- Test-first 从旧 `/pilot` 成功卡片出发确认 6/6 RED；最终新增 `src/app/Router.pilot.test.tsx`，以 8 项测试覆盖统一 Shell、服务端默认 Project、空 Scope、非 Tenant fail closed、角色拒绝、Project 404/5xx、安全 returnTo 与无 Demo 回退。
+- Pilot `/pilot`、登录恢复和直接 URL 现统一经过 `TENANT_ROUTE_MANIFEST` 与 `authorizeTenantWorkbenchRoute()`；默认 Project 只取服务端可见 Scope，外部、不安全、越权或未分配 returnTo 均安全回退，非 Tenant Context 明确拒绝。
+- `AppShell` 已拆分 Demo/Pilot：Pilot 使用统一 Sidebar/Topbar，但不 hydrate Demo Store、不显示 Demo Truth Bar；未接真实 Pilot 数据的已授权页面只展示 handoff/unavailable，不渲染 Demo 页面或伪造成功。
+- Demo Tenant 与历史 Production URL 在 UI 中合并为单一“统一创作工作台”；`tenant_admin` 同一菜单可访问企业、创作和生产入口，`content_operator` 隐藏 Dashboard、已购能力和项目创建入口。Platform/Channel Demo 行为保持兼容。
+- Pilot Topbar 使用真实组织、角色和服务端 Project Select；切换 Project 通过 read API 复核，退出清理真实 Session。Project 5xx 保留已认证 Session，401 仍回到登录。
+- Gate：Pilot 8/8 PASS；联合定向 7 files / 87 tests PASS；Root 串行完整测试 33 files / 233 tests PASS；TypeScript/build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。Build 仅保留既有大 chunk 警告。
+- B 独占目录 tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 本切片修改共享 `Router`、`AppShell`、`Sidebar`、`Topbar`，必须作为独立共享 Shell 提交通知 B。
+- 当前状态：`A_BIZ_01_4C_COMPLETE / READY_TO_COMMIT`。
+- 下一步：完成 01.4C 独立提交并通知 B；随后进入 01.4D，只做 B 页面接线合同、handoff 边界和跨平面回归，不直接修改 B 独占页面源码。
