@@ -519,3 +519,15 @@
 - 详细计划：`A_BIZ_01_4D_B_PAGE_HANDOFF_PLAN.md`。
 - 当前状态：`A_BIZ_01_4D_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
 - 下一步：独立提交计划，然后先新增 12 项纯函数合同测试并确认有效 RED，再实现最小 resolver。
+
+## 2026-08-07 A-BIZ-01.4D B 页面 Context 合同与 Handoff 完成
+
+- 新增 `src/domain/tenantPageHandoff.ts`，冻结六字段 Pilot 页面 Context：`projectId`、`tenantId`、`sessionMembershipId`、`roleCodes`、`runtimeMode`、`controlApiBaseUrl`。
+- Resolver 对非 Pilot、Control API 配置缺失或不安全、非 Tenant、Project Context 缺失、Project/Tenant/Membership/Role 不一致及未知 Role 全部返回明确 `unavailable`；不读 Demo Store/LocalStorage，不发网络请求，不缓存权限结论。
+- Ready Context 只包含六个冻结字段，Role 按稳定顺序去重；Context 与 Role 数组均克隆并冻结，后续输入变化不能扩大已生成 Scope。合同不携带 Secret、Assignment、access level、用户/组织展示信息或虚构 Task/Asset/Export 状态。
+- Test-first RED：模块缺失导致合同套件有效失败；最小实现后 15/15 GREEN。与 Pilot Router 联合定向 2 files / 23 tests PASS。
+- 新增给 B 的正式交接：`docs/collaboration/A_BIZ_01_4D_B_PAGE_HANDOFF.md`，写明字段来源、resolver 示例、unavailable 行为、401/403/404/409/5xx 边界、Demo/Pilot 硬边界、文件所有权和 B 回传清单。
+- Root 串行完整 Gate：34 files / 248 tests PASS；TypeScript/build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。Build 仅保留既有大 chunk 警告。
+- 本切片未修改共享 Router/Layout，也未修改 B 独占源码；B 边界 tracked diff 为零，`apps/storycanvas/data/vendor/byteplus.ts` 仍未修改、未暂存。
+- 当前状态：`A_BIZ_01_4D_COMPLETE / A_BIZ_01_4_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 01.4D；通知 B 同步共享 Shell `ade3e54` 与本 Context/Handoff 提交后，按一个页面一个切片回传测试和 commit。A 随后依据最新业务平台主计划冻结下一业务节点。

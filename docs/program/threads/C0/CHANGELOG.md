@@ -76,3 +76,4 @@
 | 2026-08-07 | A-BIZ-01.4B 完成 Pilot 完整 Active Context、真实 Project list/read、内存 Project Context 与登录/hydrate Scope 刷新；Root 串行 225/225 通过；Router nullable 兼容独立提交 `00355c1`            | A_BIZ_01_4B_COMPLETE                    |
 | 2026-08-07 | A-BIZ-01.4C 将 Demo Tenant/Production UI 合并为单一创作工作台，并把 Pilot 接入真实 Project Scope、统一 Shell、Manifest 路由、安全 returnTo 与明确拒绝/空/服务错误状态；Root 串行 233/233 通过 | A_BIZ_01_4C_COMPLETE                    |
 | 2026-08-07 | 冻结 A-BIZ-01.4D B 页面接线合同：六字段 Pilot Context、fail-closed resolver、无 Secret/Assignment/Demo fallback、正式 handoff 与联合回归边界                                                  | A_BIZ_01_4D_PLAN_FROZEN                 |
+| 2026-08-07 | A-BIZ-01.4D 完成六字段 Pilot 页面 Context、15 项 fail-closed 合同测试和给 B 的正式 Handoff；Root 串行 34 files / 248 tests 通过，A-BIZ-01.4 收口                                              | A_BIZ_01_4_COMPLETE                     |
