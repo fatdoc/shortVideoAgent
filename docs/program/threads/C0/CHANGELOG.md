@@ -79,3 +79,4 @@
 | 2026-08-07 | A-BIZ-01.4D 完成六字段 Pilot 页面 Context、15 项 fail-closed 合同测试和给 B 的正式 Handoff；Root 串行 34 files / 248 tests 通过，A-BIZ-01.4 收口                                              | A_BIZ_01_4_COMPLETE                     |
 | 2026-08-07 | 冻结 A-BIZ-02.1 Terms 版本与发布：migration 011、SHA-256 正文一致性、发布状态机、Public current、append-only Consent、平台管理员 API 与 fail-closed 回滚边界                                  | A_BIZ_02_1_PLAN_FROZEN                  |
 | 2026-08-07 | A-BIZ-02.1A 完成 migration 011 TermsDocument/Version/UserConsent、SHA-256 正文约束、发布状态机、supersedes Scope、append-only Consent 与 fail-closed 回滚；Control API 124/124 通过           | A_BIZ_02_1A_COMPLETE                    |
+| 2026-08-07 | A-BIZ-02.1B 完成 Terms Repository/Service、平台管理员写权限、事务发布与稳定 replay/conflict、Public current fail-closed、current Consent 校验和最小 evidence 白名单；Control API 28 files / 134 tests 通过 | A_BIZ_02_1B_COMPLETE                    |

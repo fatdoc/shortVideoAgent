@@ -558,3 +558,17 @@
 - B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存。
 - 当前状态：`A_BIZ_02_1A_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 migration 011；随后进入 02.1B Terms Repository / Service，先冻结纯领域错误、current 选择、发布事务与 Consent 写入测试。
+
+## 2026-08-07 A-BIZ-02.1B Terms Repository / Service 完成
+
+- Test-first RED 已确认：`service.test.ts` 与 `repository.postgres.test.ts` 首次因 `errors.js`、`repository.js` 等领域模块不存在而按预期失败，随后才补最小实现。
+- 新增 Terms 领域类型、稳定错误、UTF-8 SHA-256 摘要、`TermsService` 与 `PostgresTermsRepository`；不接收客户端 digest、发布人或发布时间等服务端事实。
+- 所有 Terms 写操作使用事务和统一 Document→Version 锁顺序；发布支持相同命令安全 replay，不同发布事实或同 Document/locale/effectiveAt 竞争统一返回 `409 TERMS_PUBLISH_CONFLICT`。
+- 只有 PLATFORM Context 的 `platform_admin` 可以创建、编辑、发布和退休 Terms；CHANNEL、TENANT 及其他角色在调用 Store 前 fail closed。
+- Public current 严格选择 active Document、精确 locale、已生效 PUBLISHED Version，并按 effectiveAt/publishedAt/version ID 稳定排序；无 current 由 Service 返回 `503 TERMS_NOT_AVAILABLE`，不回退 DRAFT、RETIRED、旧 locale 或硬编码正文。
+- Consent 必须显式接受，只允许 `web/admin/api + explicitAccepted + optional requestId` 最小 evidence；Repository 在事务中锁定 Document、重新选择 current 并校验 Version/digest，过期或伪造快照返回 `409 TERMS_VERSION_STALE`。
+- 修正 test-only SHA-256 夹具和按 entity 分配的 UUID 注入器；生产摘要继续使用标准 UTF-8 SHA-256，未为错误 fixture 修改算法。
+- Gate：Terms 定向 2 files / 10 tests PASS；Control API 全量单 worker 28 files / 134 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_1B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：02.1B 独立提交后进入 02.1C HTTP API；`apps/control-api/src/app.ts` 作为共享 bootstrap 只在独立小提交中修改，并通知 B 同步。
