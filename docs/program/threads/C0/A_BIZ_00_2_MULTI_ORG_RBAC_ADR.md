@@ -1,16 +1,18 @@
 # ADR-A-BIZ-00.2 · 多组织身份、活动上下文与项目级授权
 
-- 状态：PROPOSED / WAITING_FOR_C0_AND_PRODUCT_SIGN_OFF
+- 状态：ACCEPTED / IMPLEMENTATION_AUTHORIZED
 - 日期：2026-08-06
 - 提案人：工程师 A（业务平台）
-- 会签人：工程师 B（剪辑画布）、产品/业务负责人（TBD）
+- 会签人：C0 / 产品业务负责人；工程师 B 按跨平面边界知会
 - 决策人：C0
+- 接受日期：2026-08-06
+- 决策依据：`docs/collaboration/A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`
 - 适用范围：A-BIZ-00.2；后续 migration `006+`、Auth、RBAC、Project Scope 与统一工作台
 - 不适用范围：注册归因、用户须知正文、充值、佣金、支付和 B 侧画布运行时
 
 ## 1. 背景
 
-最新 `main@705a134` 已具备 PostgreSQL Pilot 控制平面、白名单认证、Tenant 项目、脚本审批以及 Production Package/Grant，但服务端权限模型仍是单 Tenant Pilot 形态：
+接受时基线 `main@3f74c76` 已具备 PostgreSQL Pilot 控制平面、白名单认证、Tenant 项目、脚本审批以及 Production Package/Grant，但服务端权限模型仍是单 Tenant Pilot 形态：
 
 - `LoginIdentity`、`StoredSession`、`PublicSession` 和 `SessionActor` 都只携带一个 `tenantId`；
 - `memberships` 直接绑定 `tenant_id`，角色只有 `tenant_admin`、`content_operator`、`pilot_support`；
@@ -21,7 +23,7 @@
 
 新业务要求 A 成为 User、Organization、Tenant、Membership、Referral、Terms、Recharge、Commission 和 Script Approval 的事实源，并支持平台、代理商、企业老板和内容工作人员。统一工作台只合并使用体验，不得取消服务端边界。
 
-本 ADR 的目标是在写 migration `006` 之前冻结可安全实现的组织与授权骨架，同时保留尚未确认的业务规则为 `TBD`。
+本 ADR 已冻结 migration `006+` 可安全实现的组织与授权骨架。真实商业数值、正式合规资料和后续产品扩展仍保持 `TBD` 或 fail closed，但不再阻塞 A-BIZ-01.1。
 
 ## 2. 当前缺口与约束
 
@@ -73,7 +75,7 @@
 
 **代价：** 兼容期需要同时维护 `organization_id` 与 `tenant_id` 的一致性；Repository 必须通过 Policy 层消除调用方自行拼 Scope 的风险。
 
-**结论：** 推荐，待 C0/产品会签后接受。
+**结论：** 接受。按方案 C 实施，使用增量迁移、双写、Shadow Policy 和显式 Pilot 回填。
 
 ## 4. 推荐决策
 
@@ -107,9 +109,9 @@ Tenant（保留现有业务实体）
 
 1. 每个 Tenant 对应且只对应一个 `TENANT` Organization。
 2. 每个 Channel 对应且只对应一个 `CHANNEL` Organization。
-3. Platform Organization 是否数据库层强制唯一：`TBD`；在确认前由 bootstrap/config fail closed，不写死不可逆唯一规则。
+3. 首版运行时只允许一个 active Platform Organization；由 bootstrap/config fail closed 保证，Schema 保留未来多 Platform 能力，不建立不可迁移的数据库全局唯一约束。
 4. `parentOrganizationId` 只表达组织树，不自动授予访问权限。
-5. Channel 层级深度、总代理/一级/二级代理的编码和价格差异：`TBD`；本 ADR 不将层级数量写死为角色码或列。
+5. 代理统一使用 `channel_admin` 角色；层级属于 Channel Relationship，价格和提成属于版本化商业规则。Schema 不写死固定三级，首版产品规则最多开放总代理、一级代理、二级代理。
 6. Tenant 与 Channel 的服务/归因关系应由版本化关系或归因域表达，不能只依赖可任意改写的 `parentOrganizationId`；具体模型在 A-BIZ-00.3 冻结。
 
 ### 4.2 Membership 与角色
@@ -138,14 +140,14 @@ MembershipRole
 | `channel_admin` | CHANNEL | 管理自身 Channel 业务范围；不得自动读取其他 Channel |
 | `tenant_admin` | TENANT | 管理本 Tenant 成员、业务资料、项目与被授予的商业能力 |
 | `content_operator` | TENANT | 使用统一创作工作台，只访问被授权项目；无成员、充值、佣金、渠道管理权限 |
-| `pilot_support` | TBD | 现有 Pilot 兼容/内部支持；是否保留及具体组织范围必须单独会签 |
+| `pilot_support` | PLATFORM | 兼容保留为平台支持角色；默认没有跨 Tenant 内容权限，跨 Tenant 协助必须依赖显式、限时、带原因、可撤销、可审计的 Support Grant |
 
 冻结的安全规则：
 
 - Permission 由服务端 Role/Policy 映射产生，前端菜单不能定义权限。
 - 组织树关系本身不等于 Membership，也不自动产生 Permission。
-- 一名自然人是否允许同时拥有多个 Organization Membership：`TBD`。
-- 一个 Membership 是否允许多个 Role：`TBD`。Schema 草图应可支持多角色，但首轮 API 可在会签后施加更窄约束。
+- Schema 允许一名自然人拥有多个 Organization Membership；首版产品只开放一个活动 Membership Context，不交付完整组织切换 UI。
+- Schema 允许一个 Membership 绑定多个 Role；首版只允许一个主角色，服务端拒绝未知角色和不受支持的角色组合。
 - 未知角色、停用/过期 Membership、角色集合为空均 fail closed。
 
 ### 4.3 Session 与活动组织上下文
@@ -164,7 +166,7 @@ AuthSession
 PublicSession
 - user
 - activeContext { membershipId, organizationId, organizationType, roles }
-- availableContexts: 摘要是否返回 TBD
+- availableContexts: 首版默认不返回完整列表；后续若开放组织切换，使用独立最小化查询与分页合同
 ```
 
 请求授权流程：
@@ -179,8 +181,9 @@ PublicSession
 
 - 切换目标必须来自当前用户可用且 active 的 Membership，不能只接受任意 `organizationId`。
 - 切换成功时必须创建或轮换 Session Token，旧上下文不得继续用于写请求。
-- 是否允许多组织和如何选择默认组织，取决于“一人多组织”业务结论，当前为 `TBD`。
-- 默认组织只能由服务端稳定策略决定；客户端 `returnTo` 仍需通过目标 Context 的 route/scope 校验。
+- Schema 支持多组织；首版登录只进入一个由服务端可信规则确定的活动 Membership，不交付完整组织切换 UI。
+- 若候选活动 Membership 无法唯一确定，必须 fail closed，不得按客户端 organizationId/tenantId 静默选择。
+- 后续开放切换时必须轮换 Session；客户端 `returnTo` 仍需通过目标 Context 的 route/scope 校验。
 
 ### 4.4 Actor 与授权 Policy
 
@@ -217,7 +220,7 @@ ProjectAssignment（草图）
 - projectAssignmentId
 - projectId
 - membershipId
-- accessLevel: viewer | editor（最终枚举 TBD）
+- accessLevel: viewer | editor
 - status
 - createdBy
 - createdAt / updatedAt
@@ -228,10 +231,10 @@ ProjectAssignment（草图）
 | Actor | Project 列表/读取 | Project 创建/管理 | Brief/Script/Storyboard/Canvas | 成员/充值/佣金 |
 |---|---|---|---|---|
 | `tenant_admin` | 本 Tenant 全部项目 | 本 Tenant，允许 | 本 Tenant 全部项目，允许 | 按对应 Permission 允许 |
-| `content_operator` | 仅 active Assignment 项目 | 默认拒绝；是否可创建项目 `TBD` | 仅 active Assignment 且满足动作级别 | 始终拒绝 |
+| `content_operator` | 仅 active Assignment 项目 | 首版始终拒绝创建/管理项目 | 仅 active Assignment 且满足动作级别 | 始终拒绝 |
 | `channel_admin` | 仅经显式业务 Permission 和 Scope 授予；默认拒绝内容正文 | 默认拒绝 | 默认拒绝 | 仅自身 Channel 商业范围 |
 | `platform_admin` | 管理面默认只读元数据；读取内容正文需独立高敏 Permission | 默认拒绝代替 Tenant 创作 | 默认拒绝 | 平台运营 Permission 范围 |
-| `pilot_support` | `TBD`，默认无跨 Tenant 内容权限 | 默认拒绝 | 默认拒绝 | 默认拒绝 |
+| `pilot_support` | 默认无跨 Tenant 内容权限；仅显式 active Support Grant 范围 | 默认拒绝 | 仅 Grant 明确允许的限时协助动作 | 默认拒绝 |
 
 额外规则：
 
@@ -322,7 +325,7 @@ ProjectAssignment（草图）
 - 为现有每个 `tenant` 创建同 UUID 或确定性映射的 `TENANT` Organization；具体 ID 策略在迁移评审冻结。
 - `tenants` 新增 nullable `organization_id`，完成回填与一致性校验后再设 NOT NULL/UNIQUE。
 - 新增 `channels` 扩展表，但不写死代理层级和价格规则。
-- 创建 Platform Organization 的 bootstrap 策略；数据库唯一约束是否启用保持 `TBD`。
+- 创建 Platform Organization 的 bootstrap 策略；运行时只允许一个 active Platform，数据库不建立不可迁移的全局唯一约束。
 
 ### 006B · Organization Membership 与角色
 
@@ -337,13 +340,13 @@ ProjectAssignment（草图）
 - `auth_sessions` 增加 nullable `active_membership_id`、`active_organization_id`、`membership_version`。
 - 用现有 `user_id + tenant_id` 回填唯一活动 Membership。
 - 双读期仍保留 `tenant_id`；新 Session 必须同时写入并校验两套字段。
-- 多 Membership 用户在默认策略未冻结前不得静默选取，必须 fail closed 或进入显式选择流程。
+- 多 Membership 用户首版只进入服务端可唯一确定的活动 Membership；无法唯一确定时 fail closed。完整选择/切换 UI 延后。
 
 ### 006D · Project Assignment 与 Policy 切流
 
 - 新增 Project Assignment 表和跨 Tenant 一致性约束。
 - Tenant Admin 继续通过管理 Permission 访问全项目；Content Operator 必须有 Assignment。
-- 兼容回填策略 `TBD`：不能自动把现有所有 Content Operator 永久授权给全部项目，需由业务确认一次性回填范围。
+- 只对白名单 Pilot 用户和项目执行显式 Assignment 回填；不得自动把全部历史 Content Operator 永久授权给全部项目，回填清单和结果必须可审计。
 - Policy 与 Repository 双重验证通过后，移除旧“只看 role + actor.tenantId”的写权限路径。
 
 ### 006E · 清理（后续独立 migration）
@@ -395,32 +398,39 @@ ProjectAssignment（草图）
 ### 成本与风险
 
 - 兼容期需要双写、Shadow Policy 和一致性审计。
-- 多组织默认选择、角色组合和历史 Content Operator 回填未冻结前不能完成最终 Schema 约束。
+- 首版多组织只开放单一活动 Context、多角色只开放一个主角色；未来扩展必须保持 Session 轮换和 fail-closed 约束。
 - Platform/Channel 内容访问需要额外高敏 Permission 设计，不能因管理员身份自动放开。
 - 组织树、邀请归因和佣金服务范围不是同一概念，后续 ADR 必须避免复用一个父子字段承载全部业务语义。
 
-## 11. 待会签决策（TBD）
+## 11. 已会签决策与延期边界
 
-本 ADR 接受前必须明确或明确延期：
+本 ADR 的 P0 决策已由 `A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md` 全部会签：
 
-1. 是否允许一人多 Organization；若允许，登录后的默认 Context 选择顺序。
-2. 一个 Membership 是否允许多角色，角色冲突如何处理。
-3. `pilot_support` 是否保留、属于何种 Organization、是否允许临时提权。
-4. Content Operator 是否可创建项目，以及 Assignment 的 `viewer/editor` 最终枚举。
-5. 现有 Content Operator 项目授权的安全回填清单。
-6. Platform Organization 是否强制全局唯一。
-7. Channel 层级是否固定，以及总代理/一级/二级代理是组织属性、关系类型还是产品策略。
-8. `availableContexts` 是否随 Session 响应返回；若返回，字段最小化与分页策略。
+1. User/Schema 支持多 Organization Membership；首版只开放单一活动 Membership Context。
+2. Membership/Role Schema 支持多角色；首版限制一个主角色。
+3. `pilot_support` 兼容保留为 PLATFORM 支持角色，默认无跨 Tenant 内容权限；跨 Tenant 必须使用限时 Support Grant。
+4. `content_operator` 首版不能创建项目，只能操作 active Project Assignment。
+5. 历史工作人员只对白名单 Pilot 用户和项目做显式、可审计回填。
+6. 首版运行时只允许一个 active Platform，Schema 保留未来多 Platform 能力。
+7. 代理统一为 `channel_admin`；层级属于 Channel Relationship，价格和佣金属于版本化商业规则，首版产品最多开放三级但 Schema 不写死三级。
+8. 首版不返回完整 `availableContexts`、不交付组织切换 UI；未来开放时另行冻结最小字段、分页和 Session 轮换合同。
 
-以下问题转入 A-BIZ-00.3，本 ADR 不作决定：C 端注册 Tenant 归属；邀请有效期/次数/改绑/保护期；用户须知发布与再次同意；支付、额度换算；佣金、冲正、税务、提现和 KYC。
+以下事项不阻塞 migration `006+`，但在对应能力开放前继续 fail closed：
+
+- 正式跨 Tenant Support Grant 的审批人、最长时限和高敏动作白名单；
+- 完整组织切换 UI 与 availableContexts 查询合同；
+- Channel Relationship 的真实商业价格、佣金和签约参数；
+- 非白名单历史账号的批量 Assignment 回填。
+
+A-BIZ-00.3 负责注册、邀请、Terms、TEST Payment、额度和佣金边界；其中真实商业数值与正式合规资料仍按其 ADR 的延期边界处理。
 
 ## 12. 验收与下一步
 
-本 ADR 的完成标准：
+本 ADR 已满足接受条件：
 
-- C0、产品/业务负责人和 B 对组织/Session/Project Scope 边界完成会签；
-- 第 11 节问题具有明确答案或明确延期及 fail-closed 行为；
-- 正反 fixture、错误语义、Route Manifest 和 migration 草图被接受；
-- 未创建 migration `006`，未修改业务代码，未触碰 B 独占目录。
+- C0/产品业务负责人已书面确认组织、Session、Project Scope 和代理层级口径；
+- P0 决策均已明确，延期项具有 fail-closed 行为且不阻塞底座；
+- 正反 fixture、错误语义、Route Manifest 和 migration 草图获准进入实现；
+- 接受过程未创建 migration、未修改业务代码、未触碰 B 独占目录。
 
-会签后下一切片为 A-BIZ-00.3；只有 Wave 0 冻结完成后，才进入 A-BIZ-01.1 的 test-first migration `006+`。
+下一切片进入 A-BIZ-01.1：先写真实 PostgreSQL migration 失败测试，再实现 Organization、Channel/Tenant 扩展、Organization Membership/Role、Project Assignment 和白名单 Pilot 显式回填。每个 migration 切片必须独立提交，并保留旧 Tenant-only 路径用于双写、Shadow Policy 和回滚。

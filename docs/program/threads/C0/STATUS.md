@@ -1,9 +1,9 @@
 # C0 STATUS
 
 - 岗位：总项目负责人 / 总架构师
-- 当前阶段：A-05 单客户白名单真实试点 v0
-- 当前状态：D1 `GO_FOR_INTERNAL_DEMO` / D2 `A04_MERGED_TO_MAIN` / A-05 `WAVE_2_CONTRACT_GATE_ACCEPTED`
-- 当前任务：C01/A05/B3 receiver/Q1 合同 Gate 已接受；下一节点 B04 将 v0.2 Command 接入既有海外 BytePlus 视频任务并产生真实 Task/Asset/Usage Receipt
+- 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `READY_TO_START`
+- 当前任务：A-BIZ-01.1 test-first migration `006+`，实现 Organization、Channel/Tenant 扩展、Organization Membership/Role、Project Assignment 与白名单 Pilot 显式回填
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -11,14 +11,14 @@
 - D2 规格：`docs/program/specs/C0_D2_IDENTITY_ROLE_WORKBENCHES.md`
 - D2 范围：四身份、统一登录、Mock 会话、路由保护、差异化工作台、越权拒绝
 - D2 边界：前端 + Mock；不是生产认证，不是服务端 RBAC，不承诺真实租户安全隔离
-- SaaS 当前工作树：本仓库根目录；A 分支：`dev/control-plane`
+- SaaS 当前工作树：本仓库根目录；A 分支：`dev/business-plane`
 - StoryCanvas 已并入：`apps/storycanvas/`，来源提交 `46fc8d0`
 - 演示材料：`docs/program/specs/C8_D1_DEMO_PACK_V0_1.md`
-- 阻塞：B03/B04 真实付费 smoke 需要运行环境中的 `ARK_API_KEY`/TOS 配置；B05 独立 TTS 缺单独开通的服务协议与凭据；StoryCanvas 默认全库测试仍受本机 Electron/SQLite ABI 环境影响。合同与本地持久化开发无阻塞。
+- 阻塞：A-BIZ-01.1 无业务会签阻塞；正式 Terms、真实支付、真实 SKU/佣金比例、税务/KYC/提现仅阻塞对应能力上线并保持 fail closed。B 的真实媒体/TTS 环境阻塞不阻止 A 的 Schema/RBAC 开发。
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-05
+- 最近更新：2026-08-07
 
 ## 2026-07-30 单前端收口
 
@@ -249,3 +249,12 @@
 - 识别并显式记录规则冲突：旧 C3 采用逐级额度批发差价且不默认抽佣，最新老板决策要求归因用户充值产生代理提成；必须由产品/财务决定替代、并存或按产品区分，禁止重复收益。
 - 正式须知正文、C 端 Tenant 归属、邀请期限/次数/改绑、支付渠道/金额/退款、额度换算、佣金比例/基数/周期、税务/KYC/提现均保持 `TBD`。
 - 当前状态：`WAVE_0_ADRS_PROPOSED / WAITING_FOR_BUSINESS_SIGN_OFF`；未创建 migration、未实现注册/支付、未修改 B 独占目录。
+
+## 2026-08-07 Wave 0 业务决策会签收口
+
+- `origin/main@3f74c76` 已合入企业/个人统一 Tenant 纠偏和老板 Wave 0 完整决策；A 分支已无冲突 rebase 到该基线。
+- A-BIZ-00.2 已接受：Organization 为授权根，Tenant/Channel 为类型扩展；Schema 支持多组织/多角色，首版单一活动 Membership/主角色；Content Operator 仅 Assignment 项目且不能创建项目。
+- A-BIZ-00.3 已接受：单一注册流程、单人普通 Tenant、定向邀请与代理分享链接、12 个月归因、TEST Payment、版本化额度 SKU、单级直接归因佣金和 append-only 冲正。
+- 旧批发差价首版停用，充值佣金成为唯一代理收益模型；正式佣金比例未发布前不得计提真实商业结果。
+- 正式 Terms、真实支付、真实 SKU/佣金、税务/KYC/提现继续 fail closed，但不阻塞多组织 Schema/RBAC 底座。
+- 下一步：A-BIZ-01.1 先写 PostgreSQL migration 失败测试，再实现 migration `006+`；每个切片独立提交，继续排除 B 未跟踪文件。

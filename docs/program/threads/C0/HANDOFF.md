@@ -245,3 +245,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 规则冲突：旧 C3 的逐边批发差价与最新充值佣金要求不是同一模型，必须书面决定二者关系并防止重复收益。
 - 未冻结边界：正式须知、邀请/归因保护、真实支付、退款、额度换算、佣金、税务、KYC、提现和自动打款全部 `TBD`。
 - 下一步：C0、产品/业务、财务/法务和 B 审阅两份 Wave 0 ADR；会签前不写 migration `006+` 和公开注册/资金代码。
+
+## Wave 0 业务决策接受交接（2026-08-07）
+
+- 权威决策：`docs/collaboration/A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`；企业/个人统一模型补充：`docs/collaboration/A_ENGINEER_BUSINESS_DECISION_CORRECTION_2026-08-06.md`。
+- 两份 ADR 已从 `PROPOSED` 更新为 `ACCEPTED / IMPLEMENTATION_AUTHORIZED`：`A_BIZ_00_2_MULTI_ORG_RBAC_ADR.md`、`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`。
+- A-BIZ-01.1 已解除业务阻塞：允许开始 migration `006+`、Organization/Membership/Role、Project Assignment 和 Pilot 白名单回填。
+- 统一模型：个人与企业共用普通 Tenant、Membership 和统一创作工作台；直接/平台邀请/代理邀请创建单人 Tenant，企业成员邀请加入既有 Tenant。
+- 权限模型：Schema 支持多组织/多角色，首版单一活动 Membership/一个主角色；`content_operator` 不创建项目，只访问 active Assignment；`pilot_support` 跨 Tenant 必须显式限时 Support Grant。
+- 商业模型：首版充值佣金替代旧批发差价，只做直接归因单级佣金；TEST Payment、额度 SKU、Accrual/Reversal 和 Settlement Draft 可建底座。
+- 仍 fail closed：正式 Terms 正文、真实支付商户、真实 SKU 售价/额度、佣金比例/观察期、税务/KYC/提现/出款。不得用 Demo 数字补缺。
+- Git/边界：当前 A 分支 `dev/business-plane`；继续禁止暂存或修改 `apps/storycanvas/data/vendor/byteplus.ts`，禁止 `git add .`。
+- 下一交付：A-BIZ-01.1 test-first PostgreSQL migration；先失败测试，再最小实现和显式回填，独立 commit。

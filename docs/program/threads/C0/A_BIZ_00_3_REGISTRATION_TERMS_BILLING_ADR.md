@@ -1,10 +1,12 @@
 # ADR-A-BIZ-00.3 · 注册归因、用户须知与充值佣金账
 
-- 状态：PROPOSED / WAITING_FOR_C0_PRODUCT_FINANCE_LEGAL_SIGN_OFF
+- 状态：ACCEPTED / IMPLEMENTATION_AUTHORIZED_WITH_FAIL_CLOSED_COMMERCIAL_GATES
 - 日期：2026-08-06
 - 提案人：工程师 A（业务平台）
-- 会签人：产品/业务负责人、财务/法务负责人、工程师 B（跨平面边界）
+- 会签结果：C0 / 产品业务口径已批准；财务法务真实上线资料延期并保持 fail closed；工程师 B 按跨平面边界知会
 - 决策人：C0
+- 接受日期：2026-08-06
+- 决策依据：`docs/collaboration/A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`、`docs/collaboration/A_ENGINEER_BUSINESS_DECISION_CORRECTION_2026-08-06.md`
 - 前置 ADR：`A_BIZ_00_2_MULTI_ORG_RBAC_ADR.md`
 - 适用范围：Terms、Invitation、Registration、Referral Attribution、Recharge、Payment Event、Credit Issuance、Commission Ledger
 - 不适用范围：正式协议正文、真实支付渠道接入、开票/税务/KYC/自动打款、B 侧媒体任务实现
@@ -15,7 +17,7 @@
 
 1. 平台邀请注册；
 2. 代理商邀请和分享链接注册；
-3. C 端不带邀请直接注册；
+3. 用户不带邀请直接注册，并在同一事务中创建单人普通 Tenant；
 4. 注册时主动勾选当前已发布用户须知，并保存版本化同意证据；
 5. 注册时冻结获客来源和代理归因，不允许客户端任意改绑；
 6. 充值到账后增加 AI 额度，并按冻结规则产生代理佣金；
@@ -28,7 +30,7 @@
 - 幂等记录、payload digest 和跨平面 Receipt Inbox；
 - Demo 商业投影和 C3 v0.1 额度/价格提案，但全部是演示或待会签语义。
 
-因此不能直接把 Demo 价格、旧渠道差价算例或测试支付写入生产 Schema。本 ADR 先冻结安全状态机、事实边界、事务顺序、错误语义和审计证据，未确认的商业值保持 `TBD`。
+因此不能直接把 Demo 价格、旧渠道差价算例或测试支付写入生产规则。本 ADR 已冻结安全状态机、事实边界、事务顺序、错误语义和审计证据；老板未提供的正式正文、真实支付资料、SKU 售价、佣金比例和结算合规参数继续保持 `TBD` 或 fail closed。
 
 ## 2. 已发现的规则冲突
 
@@ -43,17 +45,15 @@
 - 代理商通过邀请形成用户归因；
 - 归因用户充值后产生代理提成。
 
-二者不是同一账务模型。必须由产品/财务确认以下一种：
+老板已书面选择：**首版充值佣金替代旧批发差价**。
 
-1. **佣金替代批发差价**；
-2. **佣金与批发差价并存，但适用于不同产品/订单类型**；
-3. **佣金只是旧差价模型的展示名称，底层仍按销售边结算**。
+冻结规则：
 
-在该问题会签前：
-
-- Schema 可以支持版本化 Commission Rule 和快照；
-- 不写默认佣金比例、计提基数或自动结算；
-- 不把旧 Demo 数字迁入正式规则；
+- 一笔订单只能进入一种代理收益模型；
+- 首版不启用旧批发差价正式账，历史 Demo 数据保持 `NON_QUOTE`，不迁入正式佣金账；
+- 首版只有直接归因代理受益，不做多级分佣；
+- Schema 使用版本化 Commission Rule 和快照；
+- 佣金具体比例、舍入和退款观察期未授权前，正式 Rule 保持未发布，不得用 Demo 数字替代；
 - 不允许同一充值既按差价又按佣金重复收益。
 
 ## 3. 设计原则
@@ -67,7 +67,7 @@
 7. **外部事件至少一次，内部副作用恰好一次。** 同一支付事件重放不得重复加额度或计提佣金。
 8. **测试支付不冒充真实收款。** Adapter、页面、审计和导出必须明确标记 `TEST`。
 9. **最小化敏感数据。** Token 只存 digest；密码只存强哈希；支付签名/原始敏感体不进普通日志。
-10. **未冻结规则不以默认值落库。** 金额、期限、比例、保护期和正式文案一律 `TBD`。
+10. **未冻结规则不以默认值落库。** 已书面批准的试点期限和状态机可以版本化落库；正式金额、SKU 售价、佣金比例、退款观察期、支付商户资料和正式文案仍为 `TBD`。
 
 ## 4. 备选方案
 
@@ -94,7 +94,7 @@
 - 每个外部/客户端命令通过业务范围内的幂等键和 payload digest 去重；
 - 状态表仅保存可重建摘要，账本/事件为事实源。
 
-**结论：** 推荐，待会签接受。
+**结论：** 接受。按方案 C 实施；真实资金、正式报价、提现和自动出款继续受独立 fail-closed Gate 约束。
 
 ## 5. 用户须知模型
 
@@ -143,7 +143,7 @@ UserConsent
 - 事务内重新读取当前版本并比较 digest，不能信任客户端缓存的正文或版本状态。
 - 无当前发布版本、版本已替换或 `accepted != true` 时注册失败，不创建半成品账号。
 - UserConsent append-only；撤回、再次同意或版本升级另建事件，不更新原记录。
-- 正式正文、发布人权限、生效策略、再次同意条件和多语言范围：`TBD`。
+- 版本发布时由业务设置 `mustReaccept`；重大版本要求再次同意后才能继续受限操作。正式正文、document code/locale、发布人和法务审批仍为 `TBD`。
 - 工程提交不得用空字符串、Lorem Ipsum 或自拟条款冒充正式协议。
 
 ### 5.3 同意证据最小集
@@ -166,7 +166,7 @@ Invitation
 - invitationId
 - issuerMembershipId
 - issuerOrganizationId
-- invitationType: PLATFORM | CHANNEL | TENANT_MEMBER（是否首轮支持 TBD）
+- invitationType: PLATFORM | CHANNEL | TENANT_MEMBER
 - targetOrganizationId: nullable
 - targetRoleCode: nullable / constrained
 - attributionChannelId: nullable
@@ -202,20 +202,23 @@ InvitationUsage
 - 撤销只影响未发生的使用；历史 Usage 和 Attribution 不删除。
 - 使用次数必须通过行锁/原子更新或约束保证，并发不能超卖。
 - 同一注册重放返回原结果，不重复增加 `usedCount`。
-- 有效期、最大次数、是否允许指定邮箱、是否允许撤销后恢复、是否允许改绑：`TBD`。
+- 定向成员邀请绑定邮箱、7 天有效、单次使用；代理分享链接 30 天有效、默认最多 100 次，平台可降低次数或提前撤销。撤销后不能恢复，必须重新发新邀请。
 - 邀请不得保存或返回用户密码；受邀用户必须自己设置凭据并通过密码策略。
 
-## 7. 三路注册与归因
+## 7. 单一注册流程与归因
 
-### 7.1 注册路径
+### 7.1 注册来源
 
-| 路径 | 可信输入 | 服务端冻结来源 | 禁止行为 |
+公开端只有一个注册端点和一套注册事务。企业与个人不拆分 User、Tenant、Membership、API、Router 或工作台。
+
+| 来源 | 可信输入 | 服务端冻结来源 | 注册结果 |
 |---|---|---|---|
-| 平台邀请 | Invitation Token | `PLATFORM_INVITE` 或经授权指定 Channel | 客户端指定任意 referrer |
-| 代理邀请 | Invitation Token | `CHANNEL_INVITE` + Token 对应 Channel | 改成其他 Channel |
-| C 端直注 | 无 Invitation Token | `DIRECT_PLATFORM` | 注册后补 URL 参数改绑 |
+| 直接注册 | 无 Invitation Token | `DIRECT` | 创建 User、单人普通 Tenant 和本人 `tenant_admin` Membership |
+| 平台获客邀请 | Invitation Token | `PLATFORM_INVITATION` | 创建单人普通 Tenant；归因平台直营或经授权指定 Channel |
+| 代理获客邀请 | Invitation Token | `CHANNEL_INVITATION` + Token 对应 Channel | 创建单人普通 Tenant；归因 Token 对应 Channel |
+| 企业成员邀请 | Invitation Token | `TENANT_MEMBER_INVITATION` + 服务端可信目标 Tenant/Role | 加入已有 Tenant，不创建新 Tenant |
 
-`acquisitionSource` 最终枚举和命名可在 API 评审调整，但语义必须稳定区分三路。
+客户端不得提交或覆盖可信的 `acquisitionSource`、`referrerChannelId`、目标 Tenant 或目标 Role。
 
 ### 7.2 建议实体
 
@@ -263,33 +266,32 @@ ReferralAttributionEvent
 2. 对 normalized email 做防枚举的存在性处理。
 3. 若有 Token，锁定并验证 Invitation active/有效期/次数/Scope。
 4. 锁定并验证当前 PUBLISHED Terms；校验显式同意和版本/digest。
-5. 创建 User 和密码哈希。
-6. 按已冻结业务规则创建或关联 Organization/Tenant/Membership。
-7. 写入 UserConsent。
-8. 写入 InvitationUsage（如适用）。
-9. 写入不可由客户端覆盖的 ReferralAttribution 与创建事件。
-10. 写入审计和幂等结果，提交事务。
-11. 会话签发应在事务结果可见后进行；失败重试不得重复创建 User/Membership。
+5. 完成邮箱验证、密码强度与慢哈希；平台管理员注册/激活还必须满足 MFA Gate。
+6. 创建 User。
+7. 对 DIRECT/PLATFORM_INVITATION/CHANNEL_INVITATION 创建单人普通 Tenant、本人 `tenant_admin` Membership；对 TENANT_MEMBER_INVITATION 加入 Token 指定 Tenant 并创建指定 Membership。
+8. 写入 UserConsent。
+9. 写入 InvitationUsage（如适用）。
+10. 写入不可由客户端覆盖的 ReferralAttribution 与创建事件。
+11. 写入审计和幂等结果，提交事务。
+12. 会话签发应在事务结果可见后进行；失败重试不得重复创建 User/Tenant/Membership。
 
 同 key + 同 digest 返回原结果；同 key + 不同 digest 返回 409。账号已存在、Token 无效等公开响应不得帮助攻击者确认邮箱是否注册。
 
-### 7.4 C 端注册后的组织归属
+### 7.4 统一 Tenant 归属
 
-以下问题仍为 `TBD`：
-
-- 为每个直注用户创建个人 Tenant；
-- 创建个人 Organization 但延迟创建 Tenant；
-- 仅创建 User，待购买/建项目时创建 Tenant；
-- 允许申请加入现有企业。
-
-在该问题会签前，不实现公开注册写路径。Schema 可以允许 Registration 暂存结果引用，但生产 API 必须 fail closed，不能随机选择 Tenant 归属。
+- “单人 Tenant”只是当前只有一个成员的普通 Tenant，不是独立 `consumer` 类型。
+- 直接、平台邀请和代理邀请注册均创建 User、Tenant、本人 `tenant_admin` Membership、Consent 和 Attribution，并在一个数据库事务中共同成功或回滚。
+- 单人 Tenant 后续补充企业/品牌资料或增加成员时原地成长为多人企业 Tenant，不迁移账号、项目、资产、钱包或账本。
+- 企业成员邀请绑定服务端可信目标 Tenant；激活后加入该 Tenant，不再创建 Tenant。
+- 不新增 C 端角色、C 端工作台、C 端 Router 或 C 端注册 API。
 
 ### 7.5 归因保护与纠错
 
-- 首次 Attribution 是不可覆盖事实；后续纠错使用事件，不更新/删除原记录。
+- 首次 Attribution 是不可覆盖事实；默认保护期为注册成功后 12 个月，规则版本和到期时间写入归因快照。
 - “服务代理商”“账单卖方”“佣金受益方”“最初获客方”可能不同，不能都压缩为一个 `currentChannelId`。
-- 改绑、保护期、离职/渠道停用、企业转移、归因纠错审批和历史订单归属：`TBD`。
-- 任何纠错只能影响明确生效时间之后的业务，是否追溯历史充值必须由财务规则决定。
+- 首次归因不可覆盖；纠错只能追加带原因、操作人和生效时间的事件。
+- 改绑不追溯修改历史充值、历史额度或历史佣金。
+- 保护期后的续期、转直营或重新签约必须使用新版本化商业规则；规则未发布时 fail closed。
 
 ## 8. 三账模型
 
@@ -328,7 +330,7 @@ PaymentEvent
 - Provider Event 的唯一键至少包含 provider + providerEventId；同事件重放返回已处理结果。
 - PaymentEvent 是接收事实，RechargeOrder 是业务摘要；原始事件不得因订单状态更新而删除。
 - 签名、卡号、支付凭据和不必要原始体不进入普通日志；是否加密保存原始回调由支付合规 `TBD`。
-- 真实支付渠道、最低充值金额、订单超时、退款窗口和部分退款规则：`TBD`。
+- 首版只提供明确标记的 TEST Payment Adapter 和管理员人工充值；真实支付渠道、币种、最低/最高金额、订单有效期和退款周期继续 `TBD` 并 fail closed。
 
 ### 8.2 AI 额度账
 
@@ -338,8 +340,9 @@ PaymentEvent
 - 每次发行保存 RechargeOrder、PaymentEvent、额度换算规则版本和快照引用；
 - 重放同一 PaymentEvent 不产生第二组 posting group；
 - 退款时通过追加退款/回收/调整分录处理，不删除发行分录；
-- 额度已经消费或转出时，退款处理为全部回收、部分回收、拒绝或人工审核：`TBD`；
-- 充值金额到 AI 额度的换算规则、赠送额度、有效期和批次消耗顺序：`TBD`。
+- 充值订单购买版本化额度 SKU，不保存可提现人民币余额；具体 SKU 售价和额度数量未确认前只允许测试 SKU。
+- 购买额度默认不过期，赠送额度默认 90 天到期，按最早到期批次优先消耗。
+- 退款只冲正原订单尚未消费的额度；已消费导致不足时进入人工处理，不制造负余额绕过。
 
 ### 8.3 代理佣金账
 
@@ -383,7 +386,7 @@ CommissionSettlement
 - period
 - includedAccrualIds / reversalIds
 - amountMinor / currency
-- status: draft | reviewed | approved | paid（是否支持 paid TBD）
+- status: draft | reviewed | approved | paid（首版禁止进入 paid）
 - snapshot
 ```
 
@@ -395,7 +398,7 @@ CommissionSettlement
 - 同一 Payment Event + Rule Scope 只能产生一次对应 Accrual。
 - Commission Settlement 是对账/结算批次，不等于已经打款。
 - 在提现、KYC、税务、开票和支付出款未冻结前，不启用自动打款，不向页面承诺“可提现”。
-- 比例、基数（实付/未税/净额等）、封顶、周期、舍入、负结算、跨币种和多级受益人：`TBD`。
+- 首版仅直接归因代理受益，基数为实际支付净额；佣金先进入 pending，超过退款观察期后才可结算，按自然月生成 Settlement 草稿。比例、舍入和退款观察期必须来自版本化 Rule；未授权前正式 Rule 保持未发布。
 
 ### 8.4 三账不可混合
 
@@ -431,9 +434,9 @@ CommissionSettlement
 |---|---|---|---|---|---|
 | Platform Admin | 草稿/发布/统计，需具体 Permission | 平台邀请、经授权 Channel 归因邀请 | 全局运营只读/人工处理 | 全局审计与异常处理 | 全局规则/计提/冲正/结算审计 |
 | Channel Admin | 只读当前公开 Terms | 自身 Channel Scope 创建/撤销/查看 | 仅自身归因结果摘要 | 仅自身归因范围的允许视图 | 仅自身受益范围，不得看其他 Channel |
-| Tenant Admin | 只读公开 Terms | 企业成员邀请是否首轮支持 TBD | 自身 Tenant 成员结果 | 自身 Tenant 下单/记录 | 不可查看代理佣金 |
-| Content Operator | 只读公开 Terms | 禁止管理邀请 | 无管理权限 | 禁止充值管理（是否允许个人发起支付 TBD） | 始终禁止 |
-| Public | 只读 current PUBLISHED | 仅 Token Preview | 三路注册 | 不开放管理 API | 不开放 |
+| Tenant Admin | 只读公开 Terms | 可创建绑定邮箱、7 天、单次使用的企业成员邀请 | 自身 Tenant 成员结果 | 自身 Tenant 下单/记录 | 不可查看代理佣金 |
+| Content Operator | 只读公开 Terms | 禁止管理邀请 | 无管理权限 | 禁止充值管理 | 始终禁止 |
+| Public | 只读 current PUBLISHED | 仅 Token Preview | 单一注册流程 | 不开放管理 API | 不开放 |
 
 所有平台、Channel、Tenant 查询必须复用 A-BIZ-00.2 Active Context 和 Scope 规则。跨 Scope 资源统一 404；已知范围内缺动作 Permission 返回 403。
 
@@ -503,7 +506,7 @@ POST   /api/v1/platform/commission-settlements
 2. 平台直营邀请注册：Consent、Usage、平台直营 Attribution 同事务落库。
 3. 平台指定 Channel 归因邀请注册：权限和归因一致。
 4. Channel 自身邀请注册：Token 归因不可被请求体覆盖。
-5. C 端直注：无 Token，归因平台直营；组织归属按会签规则。
+5. 直接注册：无 Token，创建单人普通 Tenant 和本人 `tenant_admin` Membership，归因平台直营。
 6. 同注册 key + 同 payload 重放返回同一 User/Registration。
 7. TEST Recharge Payment succeeded：订单 paid、额度发行一次、佣金计提一次且均标记测试。
 8. 同 Payment Event 重放：三账均无重复。
@@ -523,7 +526,7 @@ POST   /api/v1/platform/commission-settlements
 9. Payment 签名错误、金额/币种与订单不匹配、事件乱序。
 10. succeeded/failed 或 refund/chargeback 冲突事件。
 11. 同 Payment identity 不同 digest。
-12. 额度已消费后退款；按未冻结规则进入人工异常，不制造负余额。
+12. 额度已消费导致可回收额度不足时进入人工异常，不制造负余额。
 13. 停用 Channel 产生新邀请或新佣金。
 14. Attribution 在保护期内被客户端或普通管理员改绑。
 15. Channel 查询其他 Channel Accrual/Settlement。
@@ -547,7 +550,7 @@ POST   /api/v1/platform/commission-settlements
 - 新增 `invitations`、`invitation_usages`、`registrations`、`referral_attributions`、`referral_attribution_events`。
 - Token digest 唯一；Usage 对 registration/invitation 唯一；Attribution 证据 append-only。
 - 外键连接 A-BIZ-00.2 Organization/Membership。
-- C 端 Tenant 归属未冻结前不启用 public registration 写路由。
+- public registration 写路由使用统一 Tenant 模型；没有正式 PUBLISHED Terms、邮箱验证或安全 Gate 未满足时继续 fail closed。
 
 ### 阶段 C · Recharge / Payment Inbox
 
@@ -559,7 +562,7 @@ POST   /api/v1/platform/commission-settlements
 
 - 扩展现有 Credit Ledger operation/reference，不破坏现有 production reserve/consume/release。
 - 发行 posting group 关联 RechargeOrder、PaymentEvent、转换规则版本。
-- 新增退款/回收操作前必须冻结“额度已使用时退款”规则。
+- 退款只回收原订单尚未消费额度；不足部分进入人工异常，不制造负余额。
 
 ### 阶段 E · Commission ledger
 
@@ -579,7 +582,7 @@ POST   /api/v1/platform/commission-settlements
 
 1. Terms 管理能力；没有正式发布版本时注册关闭。
 2. Invitation 生命周期与 Preview；注册仍可 feature flag 关闭。
-3. 三路注册白名单/测试环境，验证事务和枚举保护。
+3. 单一注册流程在白名单/测试环境验证四种来源、统一 Tenant 事务和枚举保护。
 4. TEST Recharge Adapter 和 Payment Inbox。
 5. 额度发行与退款演练。
 6. Commission Shadow Calculation，只审计不结算。
@@ -614,60 +617,51 @@ POST   /api/v1/platform/commission-settlements
 
 回滚方式优先关闭 public registration/payment/commission feature flag，保留已产生的 append-only 证据供审计。已经确认的资金/额度记录不得通过删除回滚，只能追加冲正。
 
-## 16. 必须会签的 TBD
+## 16. 已批准决策与仍需 fail closed 的商业 Gate
 
-### 16.1 注册与组织
+### 16.1 已批准、可立即实现
 
-1. C 端注册后创建个人 Tenant、延迟创建 Tenant，还是申请加入已有 Tenant。
-2. 邀请是否可以直接加入已有 Tenant，以及目标角色白名单。
-3. 邮箱验证、手机号验证、验证码、MFA 和密码策略的首轮范围。
+1. 直接、平台邀请和代理邀请统一创建单人普通 Tenant；企业成员邀请加入已有 Tenant。
+2. 定向成员邀请绑定邮箱、7 天、单次使用；代理分享链接 30 天、默认最多 100 次，可提前撤销且撤销后不可恢复。
+3. 归因默认保护 12 个月；纠错 append-only 且不追溯历史充值、额度和佣金。
+4. Terms 由业务在发布时设置 `mustReaccept`；没有 PUBLISHED Terms 时注册 fail closed。
+5. 受控试点必须包含邮箱验证、密码强度与慢哈希、找回密码、注册/登录/邀请限流、人机验证适配点、平台管理员 MFA、枚举保护和安全审计。
+6. 首版只做明确标记的 TEST Payment Adapter 和管理员人工充值，不接真实收款。
+7. 充值购买版本化额度 SKU；购买额度默认不过期，赠送额度默认 90 天，按最早到期优先消费。
+8. 首版充值佣金替代旧批发差价，只对直接归因代理单级计提；退款/撤单/拒付使用追加冲正。
+9. 佣金按实际支付净额计算，先 pending，超过退款观察期后进入可结算状态，按自然月生成 Settlement 草稿。
+10. 首版不开放提现、不自动打款，Settlement 不得标记真实 paid。
 
-### 16.2 邀请与归因
+### 16.2 不阻塞底座、但阻塞对应能力正式上线
 
-4. Invitation 默认/最大有效期、最大次数、是否绑定邮箱。
-5. 归因保护期、允许改绑的角色和审批证据。
-6. Channel 停用、转移、合并或退出时，新旧 Attribution 如何处理。
-7. 平台指定 Channel 归因的审批和审计要求。
+- 用户须知正式正文、document code/locale、发布人和法务审批；
+- 真实微信/支付宝等支付主体、商户配置、币种、金额范围、订单有效期和退款周期；
+- 真实 SKU 售价、包含额度和赠送活动；
+- 佣金具体百分比、舍入方式和退款观察期；
+- 税务、开票、KYC、提现、出款、结算审批和失败处理；
+- IP/User-Agent/设备证据的必要性、保存期限和隐私说明；
+- Channel 停用、合并、转移后的新签约规则和审批流程。
 
-### 16.3 用户须知
-
-8. 正式正文、document code、locale 和发布人。
-9. 生效时间、旧版本宽限期和何时强制再次同意。
-10. IP/User-Agent/设备证据的必要性、保存期限与隐私说明。
-
-### 16.4 支付与额度
-
-11. 支付渠道、签约主体、最低金额、订单超时和退款周期。
-12. 金额到 AI 额度的换算、赠送、有效期和退款时的额度回收。
-13. 部分退款、已消费/已转出额度和拒付的处理方式。
-14. LIVE 支付所需合规、密钥托管和原始事件保存策略。
-
-### 16.5 佣金与结算
-
-15. 新佣金模型与旧逐级批发差价模型的关系。
-16. 佣金比例、基数、舍入、封顶、周期、冲正和负结算。
-17. 单级还是多级受益人；禁止多层重复计提的规则。
-18. 税务、开票、KYC、提现门槛、出款渠道和失败处理。
-19. Settlement 何时可标记 paid，以及谁拥有审批权限。
+上述未决项不得由工程师填写 Demo 数字或自拟正式规则。对应正式 Rule/Adapter/文案未发布时必须 fail closed。
 
 ## 17. 验收与下一步
 
-本 ADR 完成标准：
+本 ADR 已满足 Wave 0 接受条件：
 
-- 产品/业务、财务/法务、C0 对第 16 节给出答案或明确延期/fail-closed 行为；
-- 新佣金与旧批发差价冲突得到书面决策；
-- Terms、Invitation、Registration、Payment 和 Commission 状态机、fixture、错误与幂等语义被接受；
-- migration 仍未实现，正式条款、价格和比例没有被工程师自行填充；
-- B 确认只消费 A 已授权的 Project/Grant 和额度结算结果，不读取支付/佣金敏感事实。
+- C0/产品业务负责人已书面批准统一 Tenant、邀请、归因、Terms、TEST Payment、额度和单级佣金口径；
+- 新佣金与旧批发差价冲突已裁决为“首版佣金替代差价”，并禁止重复收益；
+- Terms、Invitation、Registration、Payment、Credit 和 Commission 状态机、fixture、错误与幂等语义获准进入实现；
+- 正式条款、真实支付、真实 SKU、佣金比例和出款合规仍明确 fail closed；
+- B 继续只消费 A 已授权的 Project/Grant 和额度结果，不读取支付/佣金敏感事实。
 
-Wave 0 两份 ADR 会签后，实施顺序保持：
+Wave 0 已收口，实施顺序为：
 
-1. A-BIZ-01.1 多组织 Schema；
-2. A-BIZ-01.2 Session/RBAC；
+1. A-BIZ-01.1 多组织 Schema、Organization Membership/Role、Project Assignment 和 Pilot 显式回填；
+2. A-BIZ-01.2 Session Membership Context、项目级 RBAC 和 Support Grant；
 3. Terms；
 4. Invitation；
-5. Registration；
+5. 统一 Registration/Attribution；
 6. TEST Recharge/Payment；
 7. Credit Issuance；
-8. Commission Shadow/Accrual；
+8. Commission Rule/Accrual/Reversal/Settlement Draft；
 9. 联合安全 Gate。
