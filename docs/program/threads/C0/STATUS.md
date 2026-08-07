@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `COMPLETE` / A-BIZ-01.2 010A `COMPLETE`
-- 当前任务：A-BIZ-01.2 010B Auth Repository/Service；将登录、resolve、rotation 和 Public Session 切到唯一 Membership Context，不混入 A-BIZ-01.3 Project Policy 切流
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1～01.2 `COMPLETE`
+- 当前任务：A-BIZ-01.3 服务端 RBAC/Project Scope 计划待冻结；下一切片先审计 Project Assignment Policy、Actor Context 与稳定拒绝语义，不直接修改运行代码
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -420,3 +420,16 @@
 - StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_01_2_010A_COMPLETE / READY_FOR_010B_RED`。
 - 下一步：建立 Auth Repository/Service PostgreSQL 与 HTTP 行为 RED，再实现唯一 Membership 登录、Version resolve、Public activeContext 和非 TENANT Router fail closed。
+
+## 2026-08-07 A-BIZ-01.2 010B Membership-bound Auth 完成
+
+- Auth Repository 已从旧 Tenant Membership 切到唯一 active Organization Membership；登录候选为零个、多个或上下文不一致时统一 fail closed。
+- 新 Session 固化 Membership、Organization 与 Membership Version；每次 resolve 重新验证 active User、Organization、Membership、Role 集合、主角色、Tenant 扩展和 Version。
+- Session rotation 保持刚验证的 Membership Context；同一 User + Membership 的旧登录 Session 会被撤销，旧 Token 立即失效。
+- Public Session 新增最小 `activeContext`，保留顶层 `roles` 和 TENANT `tenant` 兼容；PLATFORM/CHANNEL 返回 `tenant: null`，不返回 `availableContexts`。
+- Project/Production Router 对非 TENANT Context 在构造 Actor、调用 Store 前返回 `403 TENANT_CONTEXT_REQUIRED`，不把 Organization ID 伪装成 Tenant ID。
+- 新增 PostgreSQL Auth Repository 合同测试、PLATFORM HTTP Session 测试及 Project/Production 非 TENANT 边界测试；Test-first RED 的 5 个预期失败均已转绿。
+- Control API 完整单 worker Gate：24 files / 106 tests PASS / 0 SKIP；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_2_COMPLETE / COMMITTED`。
+- 下一步：010B 独立提交后冻结 A-BIZ-01.3 服务端 RBAC/Project Scope 计划；Project Assignment Policy 必须作为后续原子切流，不混入本提交。

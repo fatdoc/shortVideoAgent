@@ -7,11 +7,7 @@ import type { PublicSession } from '../auth/service.js';
 import type { SessionActor } from '../projects/types.js';
 import { contractPayloadDigest } from './digest.js';
 import { ProductionDomainError, safeProductionError } from './errors.js';
-import {
-  productionCapabilities,
-  productionScopes,
-  type ProductionStore,
-} from './types.js';
+import { productionCapabilities, productionScopes, type ProductionStore } from './types.js';
 
 const uuidSchema = z.string().uuid();
 const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/);
@@ -84,7 +80,9 @@ function standardError(
       details: safe.details,
     },
   };
-  response.status(safe.status).json({ ...unsigned, payloadDigest: contractPayloadDigest(unsigned) });
+  response
+    .status(safe.status)
+    .json({ ...unsigned, payloadDigest: contractPayloadDigest(unsigned) });
 }
 
 function actor(response: ActorResponse): SessionActor {
@@ -106,7 +104,11 @@ function idempotency(response: Response, value: string | undefined): string | nu
   return parsed.data;
 }
 
-function setRotatedCookie(response: Response, token: string, options: ProductionRouterOptions): void {
+function setRotatedCookie(
+  response: Response,
+  token: string,
+  options: ProductionRouterOptions,
+): void {
   response.cookie(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: options.secureCookies,
@@ -136,6 +138,10 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         return;
       }
       if (resolved.token) setRotatedCookie(response, resolved.token, options);
+      if (!resolved.session.tenant) {
+        legacyError(response, 403, 'TENANT_CONTEXT_REQUIRED', '当前组织不能访问生产内容。');
+        return;
+      }
       response.locals.actor = {
         userId: resolved.session.user.id,
         tenantId: resolved.session.tenant.id,

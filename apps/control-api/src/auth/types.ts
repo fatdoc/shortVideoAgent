@@ -1,13 +1,25 @@
-export type RoleCode = 'tenant_admin' | 'content_operator' | 'pilot_support';
+export type RoleCode =
+  'platform_admin' | 'channel_admin' | 'tenant_admin' | 'content_operator' | 'pilot_support';
 
-export type LoginIdentity = {
+export type OrganizationType = 'PLATFORM' | 'CHANNEL' | 'TENANT';
+
+export type MembershipContext = {
+  membershipId: string;
+  organizationId: string;
+  organizationType: OrganizationType;
+  organizationDisplayName: string;
+  membershipVersion: number;
+  primaryRole: RoleCode;
+  roles: RoleCode[];
+  tenantId: string | null;
+  tenantDisplayName: string | null;
+};
+
+export type LoginIdentity = MembershipContext & {
   userId: string;
-  tenantId: string;
   email: string;
   displayName: string;
-  tenantDisplayName: string;
   passwordHash: string;
-  roles: RoleCode[];
 };
 
 export type StoredSession = Omit<LoginIdentity, 'passwordHash'> & {
@@ -20,7 +32,10 @@ export type StoredSession = Omit<LoginIdentity, 'passwordHash'> & {
 export type NewSession = {
   sessionId: string;
   userId: string;
-  tenantId: string;
+  tenantId: string | null;
+  activeMembershipId: string;
+  activeOrganizationId: string;
+  membershipVersion: number;
   tokenDigest: string;
   expiresAt: Date;
   rotationDueAt: Date;

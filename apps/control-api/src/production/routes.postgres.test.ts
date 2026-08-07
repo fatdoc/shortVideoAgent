@@ -33,6 +33,16 @@ function session(tenantId: string, userId: string) {
       user: { id: userId, email: `${userId}@example.com`, displayName: 'Pilot User' },
       tenant: { id: tenantId, displayName: 'Pilot Tenant' },
       roles: ['tenant_admin'] as const,
+      activeContext: {
+        membershipId: `${userId}-membership`,
+        organizationId: tenantId,
+        organizationType: 'TENANT' as const,
+        organizationDisplayName: 'Pilot Tenant',
+        membershipVersion: 1,
+        primaryRole: 'tenant_admin' as const,
+        roles: ['tenant_admin'] as const,
+        tenantId,
+      },
       expiresAt: new Date(fixedNow.getTime() + 60_000).toISOString(),
     },
   };
@@ -138,7 +148,10 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
   async function seedContent(
     projectId: string,
     scriptId: string,
-    approval?: { status: 'approved' | 'revoked' | 'blocked'; factRiskStatus: 'cleared' | 'unresolved' },
+    approval?: {
+      status: 'approved' | 'revoked' | 'blocked';
+      factRiskStatus: 'cleared' | 'unresolved';
+    },
   ) {
     const suffix = projectId.slice(-1);
     await database('control_plane.projects').insert({
@@ -574,9 +587,7 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     expect(packageReplayAfterRevoke.body.error.details.reasonCode).toBe('APPROVAL_REVOKED');
     const grantReplayAfterApprovalRevoke = await issue();
     expect(grantReplayAfterApprovalRevoke.status).toBe(403);
-    expect(grantReplayAfterApprovalRevoke.body.error.details.reasonCode).toBe(
-      'APPROVAL_REVOKED',
-    );
+    expect(grantReplayAfterApprovalRevoke.body.error.details.reasonCode).toBe('APPROVAL_REVOKED');
     const revoked = await request(app)
       .post(`/api/v1/projects/${projectA}/production-grants`)
       .set('cookie', 'videoagent_session=tenant-a-session')

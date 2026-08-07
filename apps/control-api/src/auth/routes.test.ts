@@ -21,7 +21,11 @@ class MemoryAuthRepository implements AuthRepository {
 
   async replaceLoginSessions(session: NewSession): Promise<void> {
     for (const stored of this.sessions.values()) {
-      if (stored.userId === session.userId && stored.tenantId === session.tenantId && !stored.revokedAt) {
+      if (
+        stored.userId === session.userId &&
+        stored.membershipId === session.activeMembershipId &&
+        !stored.revokedAt
+      ) {
         stored.revokedAt = new Date();
       }
     }
@@ -57,9 +61,15 @@ class MemoryAuthRepository implements AuthRepository {
       sessionId: session.sessionId,
       userId: session.userId,
       tenantId: session.tenantId,
+      tenantDisplayName: this.identity.tenantDisplayName,
+      membershipId: session.activeMembershipId,
+      organizationId: session.activeOrganizationId,
+      organizationType: this.identity.organizationType,
+      organizationDisplayName: this.identity.organizationDisplayName,
+      membershipVersion: session.membershipVersion,
+      primaryRole: this.identity.primaryRole,
       email: this.identity.email,
       displayName: this.identity.displayName,
-      tenantDisplayName: this.identity.tenantDisplayName,
       roles: this.identity.roles,
       expiresAt: session.expiresAt,
       rotationDueAt: session.rotationDueAt,
@@ -85,14 +95,26 @@ function fixture(
   repository.identity = {
     userId: '00000000-0000-4000-8000-000000000001',
     tenantId: '00000000-0000-4000-8000-000000000002',
+    tenantDisplayName: 'Pilot Tenant',
+    membershipId: '00000000-0000-4000-8000-000000000003',
+    organizationId: '00000000-0000-4000-8000-000000000002',
+    organizationType: 'TENANT',
+    organizationDisplayName: 'Pilot Tenant',
+    membershipVersion: 1,
+    primaryRole: 'tenant_admin',
     email: 'pilot@example.com',
     displayName: 'Pilot Admin',
-    tenantDisplayName: 'Pilot Tenant',
     passwordHash,
     roles: ['tenant_admin'],
   };
   const authRouter = createAuthRouter({
-    service: new AuthService(repository, SECRET, 28_800, options.rotationSeconds ?? 1_800, options.now),
+    service: new AuthService(
+      repository,
+      SECRET,
+      28_800,
+      options.rotationSeconds ?? 1_800,
+      options.now,
+    ),
     limiter: new LoginRateLimiter(options.maximumAttempts ?? 5, 60_000, 60_000),
     secureCookies: options.secureCookies ?? false,
     sessionTtlSeconds: 28_800,
@@ -124,6 +146,15 @@ describe('auth HTTP integration', () => {
         user: { email: 'pilot@example.com' },
         tenant: { id: '00000000-0000-4000-8000-000000000002' },
         roles: ['tenant_admin'],
+        activeContext: {
+          membershipId: '00000000-0000-4000-8000-000000000003',
+          organizationId: '00000000-0000-4000-8000-000000000002',
+          organizationType: 'TENANT',
+          membershipVersion: 1,
+          primaryRole: 'tenant_admin',
+          roles: ['tenant_admin'],
+          tenantId: '00000000-0000-4000-8000-000000000002',
+        },
       },
       returnTo: '/projects',
     });
@@ -142,6 +173,48 @@ describe('auth HTTP integration', () => {
     expect((await agent.post('/api/v1/auth/logout')).status).toBe(204);
     expect((await agent.get('/api/v1/auth/session')).status).toBe(401);
     expect([...repository.sessions.values()].every((session) => session.revokedAt)).toBe(true);
+  });
+
+  it('returns a minimal PLATFORM active context without inventing Tenant scope or context choices', async () => {
+    const { app, repository } = fixture();
+    repository.identity = {
+      userId: '10000000-0000-4000-8000-000000000001',
+      tenantId: null,
+      tenantDisplayName: null,
+      membershipId: '10000000-0000-4000-8000-000000000002',
+      organizationId: '10000000-0000-4000-8000-000000000003',
+      organizationType: 'PLATFORM',
+      organizationDisplayName: 'Pilot Platform',
+      membershipVersion: 7,
+      primaryRole: 'platform_admin',
+      email: 'platform@example.com',
+      displayName: 'Platform Admin',
+      passwordHash,
+      roles: ['platform_admin'],
+    };
+
+    const response = await request(app).post('/api/v1/auth/login').send({
+      email: 'platform@example.com',
+      password: 'a-strong-pilot-password',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.session).toMatchObject({
+      user: { email: 'platform@example.com' },
+      tenant: null,
+      roles: ['platform_admin'],
+      activeContext: {
+        membershipId: '10000000-0000-4000-8000-000000000002',
+        organizationId: '10000000-0000-4000-8000-000000000003',
+        organizationType: 'PLATFORM',
+        organizationDisplayName: 'Pilot Platform',
+        membershipVersion: 7,
+        primaryRole: 'platform_admin',
+        roles: ['platform_admin'],
+        tenantId: null,
+      },
+    });
+    expect(response.body.session).not.toHaveProperty('availableContexts');
   });
 
   it('rejects open redirects and does not create a session', async () => {
@@ -190,7 +263,11 @@ describe('auth HTTP integration', () => {
     expect(rotated.status).toBe(200);
     const newCookie = rotated.headers['set-cookie']?.[0]?.split(';')[0] ?? '';
     expect(newCookie).not.toBe(oldCookie);
-    expect((await request(app).get('/api/v1/auth/session').set('cookie', oldCookie)).status).toBe(401);
-    expect((await request(app).get('/api/v1/auth/session').set('cookie', newCookie)).status).toBe(200);
+    expect((await request(app).get('/api/v1/auth/session').set('cookie', oldCookie)).status).toBe(
+      401,
+    );
+    expect((await request(app).get('/api/v1/auth/session').set('cookie', newCookie)).status).toBe(
+      200,
+    );
   });
 });

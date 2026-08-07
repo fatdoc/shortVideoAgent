@@ -4,8 +4,18 @@ import { createSessionToken, digestSessionToken, newSessionId } from './session.
 
 export type PublicSession = {
   user: { id: string; email: string; displayName: string };
-  tenant: { id: string; displayName: string };
+  tenant: { id: string; displayName: string } | null;
   roles: StoredSession['roles'];
+  activeContext: {
+    membershipId: string;
+    organizationId: string;
+    organizationType: StoredSession['organizationType'];
+    organizationDisplayName: string;
+    membershipVersion: number;
+    primaryRole: StoredSession['primaryRole'];
+    roles: StoredSession['roles'];
+    tenantId: string | null;
+  };
   expiresAt: string;
 };
 
@@ -19,8 +29,21 @@ type IssuedSession = {
 function publicSession(session: StoredSession): PublicSession {
   return {
     user: { id: session.userId, email: session.email, displayName: session.displayName },
-    tenant: { id: session.tenantId, displayName: session.tenantDisplayName },
+    tenant:
+      session.tenantId && session.tenantDisplayName
+        ? { id: session.tenantId, displayName: session.tenantDisplayName }
+        : null,
     roles: session.roles,
+    activeContext: {
+      membershipId: session.membershipId,
+      organizationId: session.organizationId,
+      organizationType: session.organizationType,
+      organizationDisplayName: session.organizationDisplayName,
+      membershipVersion: session.membershipVersion,
+      primaryRole: session.primaryRole,
+      roles: session.roles,
+      tenantId: session.tenantId,
+    },
     expiresAt: session.expiresAt.toISOString(),
   };
 }
@@ -46,7 +69,9 @@ export class AuthService {
   }
 
   async resolve(token: string): Promise<{ token?: string; session: PublicSession } | null> {
-    const current = await this.repository.findSession(digestSessionToken(token, this.sessionSecret));
+    const current = await this.repository.findSession(
+      digestSessionToken(token, this.sessionSecret),
+    );
     if (!current) return null;
 
     const now = this.now();
@@ -66,7 +91,9 @@ export class AuthService {
 
   async logout(token: string | undefined): Promise<void> {
     if (!token) return;
-    const session = await this.repository.findSession(digestSessionToken(token, this.sessionSecret));
+    const session = await this.repository.findSession(
+      digestSessionToken(token, this.sessionSecret),
+    );
     if (session) await this.repository.revokeSession(session.sessionId, this.now());
   }
 
@@ -82,11 +109,17 @@ export class AuthService {
       session: {
         sessionId: newSessionId(),
         userId: identity.userId,
-        tenantId: identity.tenantId,
         email: identity.email,
         displayName: identity.displayName,
-        tenantDisplayName: identity.tenantDisplayName,
+        membershipId: identity.membershipId,
+        organizationId: identity.organizationId,
+        organizationType: identity.organizationType,
+        organizationDisplayName: identity.organizationDisplayName,
+        membershipVersion: identity.membershipVersion,
+        primaryRole: identity.primaryRole,
         roles: identity.roles,
+        tenantId: identity.tenantId,
+        tenantDisplayName: identity.tenantDisplayName,
         createdAt: now,
         expiresAt,
         rotationDueAt,
@@ -103,6 +136,9 @@ export class AuthService {
       sessionId: issued.session.sessionId,
       userId: identity.userId,
       tenantId: identity.tenantId,
+      activeMembershipId: identity.membershipId,
+      activeOrganizationId: identity.organizationId,
+      membershipVersion: identity.membershipVersion,
       tokenDigest: digestSessionToken(issued.token, this.sessionSecret),
       expiresAt: issued.session.expiresAt,
       rotationDueAt: issued.session.rotationDueAt,

@@ -22,6 +22,16 @@ function session(tenantId: string, userId: string) {
       user: { id: userId, email: `${userId}@example.com`, displayName: 'Pilot User' },
       tenant: { id: tenantId, displayName: 'Pilot Tenant' },
       roles: ['tenant_admin'] as const,
+      activeContext: {
+        membershipId: `${userId}-membership`,
+        organizationId: tenantId,
+        organizationType: 'TENANT' as const,
+        organizationDisplayName: 'Pilot Tenant',
+        membershipVersion: 1,
+        primaryRole: 'tenant_admin' as const,
+        roles: ['tenant_admin'] as const,
+        tenantId,
+      },
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     },
   };

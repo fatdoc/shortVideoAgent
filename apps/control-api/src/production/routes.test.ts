@@ -86,17 +86,49 @@ function grantFixture(): ProjectGrant {
 function testApp(store: ProductionStore) {
   const productionRouter = createProductionRouter({
     store,
-    resolveSession: async (token) =>
-      token === 'valid-session'
-        ? {
-            session: {
-              user: { id: userId, email: 'pilot@example.com', displayName: 'Pilot User' },
-              tenant: { id: tenantId, displayName: 'Pilot Tenant' },
-              roles: ['tenant_admin'],
-              expiresAt: '2026-08-05T08:00:00.000Z',
+    resolveSession: async (token) => {
+      if (token === 'valid-session') {
+        return {
+          session: {
+            user: { id: userId, email: 'pilot@example.com', displayName: 'Pilot User' },
+            tenant: { id: tenantId, displayName: 'Pilot Tenant' },
+            roles: ['tenant_admin'] as const,
+            activeContext: {
+              membershipId: '10000000-0000-4000-8000-000000000006',
+              organizationId: tenantId,
+              organizationType: 'TENANT' as const,
+              organizationDisplayName: 'Pilot Tenant',
+              membershipVersion: 1,
+              primaryRole: 'tenant_admin' as const,
+              roles: ['tenant_admin'] as const,
+              tenantId,
             },
-          }
-        : null,
+            expiresAt: '2026-08-05T08:00:00.000Z',
+          },
+        };
+      }
+      if (token === 'platform-session') {
+        return {
+          session: {
+            user: { id: userId, email: 'platform@example.com', displayName: 'Platform Admin' },
+            tenant: null,
+            roles: ['platform_admin'] as const,
+            activeContext: {
+              membershipId: '20000000-0000-4000-8000-000000000006',
+              organizationId: '20000000-0000-4000-8000-000000000007',
+              organizationType: 'PLATFORM' as const,
+              organizationDisplayName: 'Pilot Platform',
+              membershipVersion: 1,
+              primaryRole: 'platform_admin' as const,
+              roles: ['platform_admin'] as const,
+              tenantId: null,
+            },
+            expiresAt: '2026-08-05T08:00:00.000Z',
+          },
+        };
+      }
+      return null;
+    },
     secureCookies: false,
     sessionTtlSeconds: 28_800,
   });
@@ -118,6 +150,21 @@ function store(overrides: Partial<ProductionStore> = {}): ProductionStore {
 }
 
 describe('A05 production HTTP boundary', () => {
+  it('rejects a PLATFORM context before invoking the Tenant production store', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>();
+    const app = testApp(store({ createPackage }));
+
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=platform-session')
+      .set('idempotency-key', 'platform-package-key')
+      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error.code).toBe('TENANT_CONTEXT_REQUIRED');
+    expect(createPackage).not.toHaveBeenCalled();
+  });
+
   it('requires a real session and a strict v0.2 package command', async () => {
     const app = testApp(store());
     const unauthenticated = await request(app)

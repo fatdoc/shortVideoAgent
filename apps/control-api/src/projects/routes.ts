@@ -103,6 +103,10 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       if (resolved.token) setRotatedCookie(response, resolved.token, options);
+      if (!resolved.session.tenant) {
+        error(response, 403, 'TENANT_CONTEXT_REQUIRED', '当前组织不能访问项目内容。');
+        return;
+      }
       response.locals.actor = {
         userId: resolved.session.user.id,
         tenantId: resolved.session.tenant.id,
