@@ -600,3 +600,16 @@
 - B 独占目录继续不修改；`apps/storycanvas/data/vendor/byteplus.ts` 保持未跟踪且不暂存。
 - 当前状态：`A_BIZ_02_2_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
 - 下一步：独立提交计划；随后新增 migration 012 PostgreSQL 合同测试并确认模块缺失 RED。
+
+## 2026-08-07 A-BIZ-02.2A Invitation Schema 完成
+
+- Test-first RED 已确认：PostgreSQL 合同测试首次因 `012_invitation_lifecycle.js` 模块不存在而按预期失败，随后才实现 migration。
+- 新增 `control_plane.invitations` 与 `control_plane.invitation_usages`；不 seed Token、邀请或注册凭据，`registration_id` 暂保留为 02.3 建表前的跨切片事实 ID。
+- 数据库双层约束三类邀请：PLATFORM 7 天单次定向邮箱、CHANNEL 30 天且最多 100 次并绑定自身 Channel、TENANT_MEMBER 7 天单次且目标 Role 固定 `content_operator`。
+- Token 仅允许 `sha256:v1:<64 lowercase hex>` digest；创建幂等按 issuer Organization 隔离，Invitation identity/scope/time/token 不可变，revoked/exhausted/expired 为不可逆终态。
+- Usage 为 append-only 审计事实；插入时行锁 Invitation，重新验证 active/有效期/剩余次数，原子递增 `used_count`，最后名额转为 exhausted，并发竞争只能成功一次。
+- rollback 只允许空表；存在 Invitation 或 Usage 事实时 fail closed，避免删除审计证据。
+- Gate：Invitation 定向 1 file / 9 tests PASS；与 migration 001～012 chain 联合 2 files / 10 tests PASS；Control API 全量单 worker 30 files / 153 tests PASS / 0 SKIP；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_2A_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 02.2A；随后进入 02.2B Domain / Repository / Service，先冻结服务层调用合同并完成 Test-first RED，不提前修改共享 Bootstrap。
