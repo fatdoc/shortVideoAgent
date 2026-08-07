@@ -613,3 +613,17 @@
 - B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_2A_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 02.2A；随后进入 02.2B Domain / Repository / Service，先冻结服务层调用合同并完成 Test-first RED，不提前修改共享 Bootstrap。
+
+## 2026-08-07 A-BIZ-02.2B Invitation Domain / Repository / Service 完成
+
+- Test-first RED 已确认：Service 与 PostgreSQL Repository 合同测试首次均因 `invitations/errors.js` 等领域模块不存在而按预期失败，随后才实现最小闭环。
+- 新增 32-byte CSPRNG base64url Token、`sha256:v1` digest 和稳定创建请求摘要；数据库与领域对象不暴露明文 Token，首次创建返回一次，安全 replay 返回 `token: null`。
+- Service 分别冻结 PLATFORM、CHANNEL、TENANT_MEMBER 创建入口；issuer Membership/Organization、期限、次数、目标 Tenant/Role 均由可信 Actor 派生，邮箱、UUID、幂等键和请求摘要在 Store 前规范化验证。
+- 权限严格限制为当前 Scope 的 `platform_admin`、`channel_admin`、`tenant_admin`；列表、撤销均绑定当前 issuer Organization，错误角色在调用 Repository 前 fail closed。
+- Repository 在事务内实现创建 replay/conflict；CHANNEL attribution Channel 由当前 Organization 反查派生，客户端不能覆盖。列表对已过期但尚未物化状态的记录安全投影为 expired。
+- Public Preview 只以原始 Token 进入 Service；畸形、不存在、撤销、过期或耗尽统一为 `INVITATION_UNAVAILABLE`，Store 和返回对象均不暴露 Token digest。
+- Registration 内部消费合同在同一事务锁定 Invitation，先处理安全 replay，再复核目标邮箱、active、有效期和剩余次数，最后写入 append-only Usage；相同命令不重复计数，不同事实复用幂等键返回稳定冲突。
+- Gate：02.2B 定向 2 files / 14 tests PASS；Control API 全量单 worker 32 files / 167 tests PASS / 0 SKIP；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_2B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 02.2B；随后进入 02.2C HTTP API / Bootstrap，先写 Public Preview、三 Scope 管理路由、Session/限流/错误映射和 Bootstrap 合同测试，再单独修改共享 `app.ts` / `server.ts` 并通知 B。

@@ -83,3 +83,4 @@
 | 2026-08-07 | A-BIZ-02.1C 完成 Public current 与 PLATFORM Terms 管理 API、Session 权限/轮换、严格输入白名单、稳定 401/403/404/409/503 和独立 Bootstrap；Control API 29 files / 144 tests 通过 | A_BIZ_02_1_COMPLETE                     |
 | 2026-08-07 | 冻结 A-BIZ-02.2 Invitation 生命周期：三类可信邀请、7 天单次/30 天 100 次、版本化 Token digest、Scope 隔离、Public Preview、防枚举、原子 Usage 与注册内部消费合同 | A_BIZ_02_2_PLAN_FROZEN                  |
 | 2026-08-07 | A-BIZ-02.2A 完成 migration 012 Invitation/Usage Schema、三类 Scope 与时限约束、Token digest、不可逆生命周期、append-only 原子 Usage、并发末位名额和 fail-closed rollback；Control API 30 files / 153 tests 通过 | A_BIZ_02_2A_COMPLETE                    |
+| 2026-08-07 | A-BIZ-02.2B 完成 Invitation Token/Domain/Service/PostgreSQL Repository、三 Scope 服务端派生、首次明文 Token、安全创建/撤销/消费 replay、Public unavailable 与原子 Usage 合同；Control API 32 files / 167 tests 通过 | A_BIZ_02_2B_COMPLETE                    |
