@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 migration 009 `PLAN_FROZEN`
-- 当前任务：A-BIZ-01.1 migration 009；先 test-first 建立 Project Assignment，再实现显式 Pilot manifest backfill，不提前切换 Session/Project Policy
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `COMPLETE` / A-BIZ-01.2 `PLAN_PENDING`
+- 当前任务：A-BIZ-01.2 Active Membership Context；先冻结 Session Schema、唯一上下文选择、Membership version 与 fail-closed 合同，再 test-first 实现，不混入 A-BIZ-01.3 Project Policy 切流
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -221,7 +221,6 @@
 - 详细计划：`docs/program/threads/C0/A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`。
 - 下一步：用户确认后从最新 main 创建 `dev/business-plane`，先完成 Gate/PostgreSQL 基线和权限/组织 ADR，不直接写死 migration 006 业务规则。
 
-
 ## 2026-08-06 A-BIZ-00.1 PostgreSQL 完整 Gate 恢复
 
 - 本机已安装并初始化 PostgreSQL 16.14，Homebrew 服务正常监听 `127.0.0.1:5432`。
@@ -231,7 +230,6 @@
 - 改为单 worker 串行执行后，Control API 达到 14 files / 57 tests PASS / 0 SKIP。
 - 当前状态：`A_BIZ_POSTGRES_GATE_READY`；下一步进入 A-BIZ-00.2 多组织权限与组织模型 ADR，不直接实现 migration `006`。
 
-
 ## 2026-08-06 A-BIZ-00.2 多组织权限 ADR 草案
 
 - 已完成现有 Pilot Auth、Membership、Session、Project Repository、migrations 001～005 和 Demo 权限模型审计。
@@ -240,7 +238,6 @@
 - ADR 已包含权限矩阵、401/403/404、Route Manifest、正反 fixture、migration `006+` 草图、渐进发布和回滚条件。
 - 一人多组织/多角色、`pilot_support`、工作人员创建项目、历史项目授权回填、平台唯一性和代理层级均保持 `TBD`，等待 C0/产品/B 会签。
 - 当前状态：`A_BIZ_00_2_ADR_PROPOSED / WAITING_FOR_SCOPE_SIGN_OFF`；未创建 migration `006`，未修改业务代码或 B 独占目录。
-
 
 ## 2026-08-06 A-BIZ-00.3 注册、须知与账务 ADR 草案
 
@@ -258,7 +255,6 @@
 - 旧批发差价首版停用，充值佣金成为唯一代理收益模型；正式佣金比例未发布前不得计提真实商业结果。
 - 正式 Terms、真实支付、真实 SKU/佣金、税务/KYC/提现继续 fail closed，但不阻塞多组织 Schema/RBAC 底座。
 - 下一步：A-BIZ-01.1 先写 PostgreSQL migration 失败测试，再实现 migration `006+`；每个切片独立提交，继续排除 B 未跟踪文件。
-
 
 ## 2026-08-07 A-BIZ-01.1 006A Organization Foundation
 
@@ -390,3 +386,13 @@
 - StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_01_1_009B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：形成 009B 独立 `feat(control-api)` 提交；随后回到 A-BIZ-01.1 收口检查，再规划 A-BIZ-01.2 Active Membership Context，不能直接在本提交切 Session/Auth/Project Policy。
+
+## 2026-08-07 A-BIZ-01.1 迁移链正式收口
+
+- 新增 `apps/control-api/src/db/migrationChain.postgres.test.ts`，通过真实 Knex migration loader 从空 `_test` 数据库按文件顺序执行 `001`～`009`。
+- 验证 9 个 migration 全部登记、Organization/Membership/Project Assignment 等 11 张核心表存在，并确认再次 `migrate.latest()` 不重复执行。
+- 专用 `videoagent_control_test`、单 worker 定向结果：1 file / 1 test PASS；Prettier 与 `git diff --check` PASS。
+- 测试清理只允许数据库名以 `_test` 结尾，并在前后删除专用 `control_plane` Schema 与 migration metadata，不触碰非测试库。
+- B 边界保持：`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_1_COMPLETE / A_BIZ_01_2_PLAN_PENDING`。
+- 下一步：冻结 A-BIZ-01.2 Active Membership Context 计划，再建立 migration 010 与 Auth Repository/Service 的行为级 RED。
