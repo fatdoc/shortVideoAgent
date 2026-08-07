@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 `READY_TO_START`
-- 当前任务：A-BIZ-01.1 test-first migration `006+`，实现 Organization、Channel/Tenant 扩展、Organization Membership/Role、Project Assignment 与白名单 Pilot 显式回填
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 006A `COMPLETE`
+- 当前任务：A-BIZ-01.1 migration `006+`；006A Organization 骨架与 Tenant 同 UUID 兼容回填已转绿，下一切片为 Channel 扩展
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -258,3 +258,17 @@
 - 旧批发差价首版停用，充值佣金成为唯一代理收益模型；正式佣金比例未发布前不得计提真实商业结果。
 - 正式 Terms、真实支付、真实 SKU/佣金、税务/KYC/提现继续 fail closed，但不阻塞多组织 Schema/RBAC 底座。
 - 下一步：A-BIZ-01.1 先写 PostgreSQL migration 失败测试，再实现 migration `006+`；每个切片独立提交，继续排除 B 未跟踪文件。
+
+
+## 2026-08-07 A-BIZ-01.1 006A Organization Foundation
+
+- 新增 `006_organization_foundation.ts`，建立 `control_plane.organizations` 授权根，类型冻结为 `PLATFORM / CHANNEL / TENANT`，状态冻结为 `active / suspended / archived`。
+- `parent_organization_id` 只建立组织树外键，并拒绝组织自指；本切片不从父子关系推导任何权限。
+- 现有每个 Tenant 使用原 `tenant_id` 作为 Organization UUID 显式回填，`tenants.organization_id` 在审计通过后收紧为 NOT NULL、UNIQUE 和 FK，不修改任何既有 Tenant UUID。
+- 新增双向类型保护：Tenant 只能引用 `TENANT` Organization，已被 Tenant 扩展的 Organization 不允许改成其他类型。
+- 不自动创建 Platform 商业数据，不建立 active Platform 全局唯一约束；首版单 active Platform 仍由后续 bootstrap/config fail closed 保证。
+- down migration 只移除 Organization Foundation，保留既有 Tenant 行；migration 测试文件放在 `src/db/`，避免被 Knex migration loader 误扫描。
+- Test-first 证据：空 migration 时 4/4 按预期 RED；最小实现后定向 PostgreSQL 4/4 PASS。
+- 验证：Control API typecheck、build、定向 ESLint、Governance、`git diff --check` PASS；完整 PostgreSQL Gate 15 files / 61 tests PASS / 0 SKIP。
+- B 边界：未修改、未暂存 `apps/storycanvas/data/vendor/byteplus.ts`，未触碰 StoryCanvas tracked 文件。
+- 下一步：进入 007 Channel Organization 扩展，不写死代理层级、价格或佣金规则。

@@ -257,3 +257,17 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 仍 fail closed：正式 Terms 正文、真实支付商户、真实 SKU 售价/额度、佣金比例/观察期、税务/KYC/提现/出款。不得用 Demo 数字补缺。
 - Git/边界：当前 A 分支 `dev/business-plane`；继续禁止暂存或修改 `apps/storycanvas/data/vendor/byteplus.ts`，禁止 `git add .`。
 - 下一交付：A-BIZ-01.1 test-first PostgreSQL migration；先失败测试，再最小实现和显式回填，独立 commit。
+
+
+## A-BIZ-01.1 006A Organization Foundation 交接（2026-08-07）
+
+- 实现文件：`apps/control-api/src/db/migrations/006_organization_foundation.ts`。
+- 测试文件：`apps/control-api/src/db/organizationFoundation.postgres.test.ts`；特意不放入 migrations 目录，避免 Knex 将测试当作 migration 加载。
+- 兼容策略：每个历史 Tenant 使用同 UUID 创建 `TENANT` Organization，并写入 NOT NULL/UNIQUE/FK 的 `tenants.organization_id`；旧 Tenant ID、Project 外键和跨平面 Tenant 合同均不改变。
+- 数据库约束：Organization type/status、parent FK、自指拒绝、Tenant 一对一映射、Tenant 扩展类型双向保护。
+- 明确未做：Channel 扩展、Membership/Role、Session Active Context、Project Assignment、Platform bootstrap、真实商业规则。
+- Platform 策略：migration 不写入品牌/商业名称，不建立数据库全局唯一 active Platform 约束；运行时唯一性留给后续 bootstrap/config。
+- 回滚：先移除类型保护触发器与 Tenant 新列，再删除 organizations；历史 tenants 保留。
+- 测试证据：RED 4/4；Green 定向 PostgreSQL 4/4；Control API 完整单 worker Gate 15 files / 61 tests PASS / 0 SKIP，typecheck/build/定向 ESLint/Governance/`git diff --check` PASS；本切片使用独立 `feat(control-api)` 提交交付。
+- B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续作为 B 的未跟踪运行时文件排除。
+- 下一切片：007 Channel 扩展表及其 Organization 类型一致性，不写死总代理/一级/二级层级，也不写死价格和佣金。

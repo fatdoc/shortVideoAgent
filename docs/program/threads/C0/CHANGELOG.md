@@ -54,3 +54,4 @@
 | 2026-08-06 | 完成多组织 Auth/RBAC 审计并提出 A-BIZ-00.2 ADR：Organization 授权根、Active Membership Session、项目级 Assignment、稳定拒绝语义与 migration 006+ 草图；待业务会签 | A_BIZ_00_2_ADR_PROPOSED |
 | 2026-08-06 | 提出 A-BIZ-00.3 ADR，冻结 Terms→邀请→三路注册顺序、不可伪造归因、充值/额度/佣金三账、幂等与冲正；暴露旧批发差价和新充值佣金冲突，待业务/财务/法务会签 | A_BIZ_00_3_ADR_PROPOSED |
 | 2026-08-07 | 接受老板 Wave 0 完整业务决策，更新多组织/RBAC 与注册/账务两份 ADR；统一 Tenant、单一活动 Membership、项目 Assignment、TEST Payment 和单级佣金获准进入实现 | A_BIZ_WAVE0_DECISIONS_ACCEPTED |
+| 2026-08-07 | A-BIZ-01.1 首个 test-first 切片完成：migration 006 建立 Organization 授权根、Tenant 同 UUID 回填、双向类型保护与可回滚边界；定向 PostgreSQL 4/4 通过 | A_BIZ_01_1_006A_READY |
