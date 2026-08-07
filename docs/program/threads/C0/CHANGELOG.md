@@ -73,3 +73,4 @@
 | 2026-08-07 | A-BIZ-01.3 完成 Membership-bound Project Policy、Assignment 实时 Scope 与 viewer/editor 动作切流；Control API 25 files / 116 tests 通过                                                   | A_BIZ_01_3_COMPLETE                     |
 | 2026-08-07 | 冻结 A-BIZ-01.4 统一企业创作工作台：单一 Tenant 创作导航、Pilot Project Context、角色菜单、默认路由及 B 页面安全接线边界                                                                  | A_BIZ_01_4_PLAN_FROZEN                  |
 | 2026-08-07 | A-BIZ-01.4A 完成统一 Tenant Route Manifest/Policy、单一工作台、角色菜单、Demo/Pilot 默认路由和 Project 可见性 fail-closed；Root 串行 209/209 通过                                         | A_BIZ_01_4A_COMPLETE                    |
+| 2026-08-07 | A-BIZ-01.4B 完成 Pilot 完整 Active Context、真实 Project list/read、内存 Project Context 与登录/hydrate Scope 刷新；Root 串行 225/225 通过；Router nullable 兼容独立提交 `00355c1`        | A_BIZ_01_4B_COMPLETE                    |

@@ -482,3 +482,17 @@
 - StoryCanvas/B 独占 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续保持 B 的未跟踪文件，未修改、未暂存。
 - 当前状态：`A_BIZ_01_4A_COMPLETE / READY_TO_COMMIT`。
 - 下一步：01.4A 独立提交后进入 01.4B Pilot Session / Project Context；先写 Session activeContext 与 Project list/read 合同 RED，不提前修改共享 Router/Sidebar。
+
+## 2026-08-07 A-BIZ-01.4B Pilot Membership-bound Project Context 完成
+
+- 根前端 Pilot Session 已严格解析完整 `activeContext`，支持 TENANT Session 和 `tenant: null` 的 PLATFORM/CHANNEL Session；顶层 Role、主角色、Membership Version、Organization/Tenant 一致性不满足时 fail closed。
+- 新增真实 Pilot Project list/read API 解析，不接受无效 Project ID、状态、时长或日期；未引入 Demo/硬编码客户回退。
+- 新增纯内存 `pilotProjectContextStore`：TENANT Context 才加载服务端可见项目，按 ID 稳定选择默认 Project；非 TENANT、空 Scope、401/403/404/5xx 均进入明确状态。
+- Pilot 登录与 hydrate 成功后自动刷新 Project Scope；Project API 401 清理 Session，403/404/5xx 保留已认证 Session；logout 同时清理 Auth 与 Project Context。
+- Assignment 不进入 Session，Project Context 不写入 LocalStorage；Project 切换只允许当前服务端可见列表，并在切换前通过 read API 再确认。
+- 共享 `src/app/Router.tsx` 的 nullable tenant 兼容已独立提交：`00355c1 fix(pilot-shell): support nullable tenant session`；仅调整 null-safe 组织文案与 Prettier 格式，需要通知 B。
+- 定向 Gate：5 files / 30 tests PASS；定向 ESLint、Prettier、TypeScript PASS。
+- Root 串行完整 Gate：32 files / 225 tests PASS；build、Governance、`git diff --check` PASS。
+- B 独占目录 tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_4B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 Pilot API/Auth/Project Context 与本次项目记忆；随后进入 01.4C，共享 Router/Sidebar/Shell 接入统一 Route Manifest，继续按共享文件独立提交并通知 B。
