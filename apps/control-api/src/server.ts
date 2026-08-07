@@ -12,6 +12,9 @@ import { ProjectGrantTokenService } from './production/grantToken.js';
 import { PostgresProductionStore } from './production/repository.js';
 import { createProductionRouter } from './production/routes.js';
 import { createInternalProjectGrantRouter } from './production/internalRoutes.js';
+import { PostgresTermsRepository } from './terms/repository.js';
+import { TermsService } from './terms/service.js';
+import { createTermsRouter } from './terms/routes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -28,6 +31,13 @@ const authRouter = createAuthRouter({
     config.loginWindowSeconds * 1000,
     config.loginBlockSeconds * 1000,
   ),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
+const termsService = new TermsService(new PostgresTermsRepository(database));
+const termsRouter = createTermsRouter({
+  service: termsService,
+  resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
@@ -60,6 +70,7 @@ const app = createApp({
   nodeEnv: config.nodeEnv,
   readinessProbe: () => probeDatabase(database),
   authRouter,
+  termsRouter,
   internalProductionRouter,
   contentRouter,
   productionRouter,

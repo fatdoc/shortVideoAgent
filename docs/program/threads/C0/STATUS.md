@@ -572,3 +572,18 @@
 - B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_1B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：02.1B 独立提交后进入 02.1C HTTP API；`apps/control-api/src/app.ts` 作为共享 bootstrap 只在独立小提交中修改，并通知 B 同步。
+
+## 2026-08-07 A-BIZ-02.1C Terms HTTP API / Bootstrap 完成
+
+- Test-first RED 已确认：`routes.test.ts` 首次因 `./routes.js` 不存在而失败；共享 Bootstrap 测试在接线前稳定返回 404，随后才实现 Router 与挂载。
+- 新增 Public current API：无需登录，严格要求 `documentCode` 与 `locale`，只返回冻结的注册展示字段并设置 `cache-control: no-store`；不返回发布人、发布时间、内部审计或 Consent 统计。
+- 新增 PLATFORM Terms 管理 API：创建 Document、创建/更新 DRAFT、发布与退休 Version；未知字段和客户端提交的 digest、发布人、发布时间等服务端事实统一以 `400 INVALID_TERMS_REQUEST` 拒绝。
+- 管理 API 复用真实 Session resolve/rotation；无 Cookie 返回 401、失效 Session 返回 401，非 PLATFORM 或无 `platform_admin` 在调用 Terms Service 前返回 403。
+- 冻结错误边界：非法输入 400、资源不存在 404、状态/发布冲突 409、无 current 503；未知异常继续交给全局 500 Handler，不向客户端泄漏内部错误文本。
+- 发布首次返回 201，安全 replay 返回 200；发布和退休均通过 `idempotency-replayed` 暴露稳定 replay 事实。
+- `server.ts` 完成 `PostgresTermsRepository → TermsService → createTermsRouter → createApp` 组装；Terms Router 独立挂载在 `/api/v1`，不复用 Tenant Project Scope。
+- Gate：Router/Bootstrap 定向 2 files / 14 tests PASS；Control API 全量单 worker 29 files / 144 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存、未提交。
+- 本切片修改共享 `apps/control-api/src/app.ts` 与 `apps/control-api/src/server.ts`，提交后必须通知 B 同步对应 commit。
+- 当前状态：`A_BIZ_02_1C_COMPLETE / A_BIZ_02_1_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 02.1C；业务/法务提供正式正文并完成发布审批前，正式 Terms 发布和公开注册继续 fail closed。

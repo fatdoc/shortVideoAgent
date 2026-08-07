@@ -7,6 +7,7 @@ export type ControlApiDependencies = {
   nodeEnv: 'development' | 'test' | 'production';
   readinessProbe: () => Promise<void>;
   authRouter?: Router;
+  termsRouter?: Router;
   internalProductionRouter?: Router;
   contentRouter?: Router;
   productionRouter?: Router;
@@ -52,6 +53,7 @@ export function createApp(dependencies: ControlApiDependencies) {
   });
 
   if (dependencies.authRouter) app.use('/api/v1/auth', dependencies.authRouter);
+  if (dependencies.termsRouter) app.use('/api/v1', dependencies.termsRouter);
   if (dependencies.internalProductionRouter) {
     app.use('/api/v1/internal', dependencies.internalProductionRouter);
   }

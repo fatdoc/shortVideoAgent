@@ -1,3 +1,4 @@
+import { Router } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from './app.js';
@@ -50,5 +51,22 @@ describe('Control API health contract', () => {
       code: 'ROUTE_NOT_FOUND',
       requestId: 'pilot-request-1',
     });
+  });
+
+  it('mounts the independent Terms router under /api/v1', async () => {
+    const termsRouter = Router();
+    termsRouter.get('/public/terms/current', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      termsRouter,
+    });
+
+    const response = await request(application).get('/api/v1/public/terms/current');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
   });
 });
