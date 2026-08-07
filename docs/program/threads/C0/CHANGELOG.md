@@ -71,3 +71,4 @@
 | 2026-08-07 | A-BIZ-01.2 010B 将登录、resolve、rotation 和 Public Session 切到唯一 Membership Context；非 TENANT Project/Production Router fail closed；Control API 24 files / 106 tests 通过           | A_BIZ_01_2_COMPLETE                     |
 | 2026-08-07 | 冻结 A-BIZ-01.3 Membership-bound Project Scope：完整 Actor、实时 Assignment、viewer/editor 动作矩阵及 401/403/404 防泄漏语义                                                              | A_BIZ_01_3_PLAN_FROZEN                  |
 | 2026-08-07 | A-BIZ-01.3 完成 Membership-bound Project Policy、Assignment 实时 Scope 与 viewer/editor 动作切流；Control API 25 files / 116 tests 通过                                                   | A_BIZ_01_3_COMPLETE                     |
+| 2026-08-07 | 冻结 A-BIZ-01.4 统一企业创作工作台：单一 Tenant 创作导航、Pilot Project Context、角色菜单、默认路由及 B 页面安全接线边界                                                                  | A_BIZ_01_4_PLAN_FROZEN                  |

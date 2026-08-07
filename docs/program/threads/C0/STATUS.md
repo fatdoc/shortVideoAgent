@@ -457,3 +457,15 @@
 - StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_01_3_COMPLETE / COMMITTED`。
 - 功能切片按 `feat(control-api): enforce membership-bound project policy` 独立提交；下一步按最新业务平台主计划冻结后续切片，不直接扩大 A-BIZ-01.3 范围。
+
+## 2026-08-07 A-BIZ-01.4 统一企业创作工作台计划冻结
+
+- 依据 `docs/collaboration/A_B_CO_CREATION_SPLIT_2026-08-06.md`，冻结 Tenant 用户使用单一统一创作工作台：企业老板、单人创作者和内容工作人员不再在 `tenant` / `production` 两个产品工作台间切换。
+- 冻结角色菜单边界：`tenant_admin` 可见项目与企业管理入口；`content_operator` 只见服务端 Project Scope 内的创作与生产入口，不展示 Dashboard、产品购买和项目创建/管理入口。
+- Demo 保持 canonical 海底捞默认项目与 Mock/LocalStorage 黄金路径；Pilot 默认项目只来自 `/api/v1/projects` 的服务端可见列表，空 Scope 进入 `/projects`，禁止硬编码客户 Project、Tenant、邮箱或 Demo fixture。
+- Pilot Project Context 只由已验证 `activeContext` 与服务端 Project list/read 构成；Assignment 不固化进 Session，刷新、Membership/Role/Assignment 变化后重新收口，未知 Role 和非 TENANT Context fail closed。
+- B 独占的脚本、分镜与 StoryCanvas 页面不在本切片修改；真实 Pilot 数据合同未接通前只能展示明确 unavailable/handoff 状态，不得伪装 Demo success。
+- 实施顺序冻结为：01.4A 纯函数 Route Manifest/Policy → 01.4B Pilot Session/Project Context → 01.4C 统一 Router/Sidebar/Shell → 01.4D B 接线合同与回归。
+- 详细计划：`A_BIZ_01_4_UNIFIED_CREATION_WORKBENCH_PLAN.md`。
+- 当前状态：`A_BIZ_01_4_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+- 下一步：先为统一 Tenant 菜单、角色过滤、Demo/Pilot 默认路由、Project 可见性和 fail-closed 边界建立纯函数测试并确认 RED；不直接修改共享 Router/Sidebar。
