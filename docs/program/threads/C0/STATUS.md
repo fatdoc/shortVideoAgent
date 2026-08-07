@@ -469,3 +469,16 @@
 - 详细计划：`A_BIZ_01_4_UNIFIED_CREATION_WORKBENCH_PLAN.md`。
 - 当前状态：`A_BIZ_01_4_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
 - 下一步：先为统一 Tenant 菜单、角色过滤、Demo/Pilot 默认路由、Project 可见性和 fail-closed 边界建立纯函数测试并确认 RED；不直接修改共享 Router/Sidebar。
+
+## 2026-08-07 A-BIZ-01.4A 统一 Tenant Route Manifest / Policy 完成
+
+- 新增运行模式无关的 `TENANT_ROUTE_MANIFEST`，在单一有序菜单中描述企业、项目创作和生产路由、唯一 capability、角色可见性、Project 依赖及 Pilot 接线状态。
+- `tenant_admin` 与 `content_operator` 均只生成一个“统一创作工作台”选项，不再为 Tenant 生成独立 `production` WorkbenchSwitcher；内容运营不获得 Dashboard、已购能力和项目创建入口。
+- Demo 默认路由保持 canonical `/projects/demo-local-001/brand`；Pilot 只从当前 Tenant 的服务端可见 Project 列表稳定选择默认项目，空 Scope 进入 `/projects`，不会回退 Demo Project。
+- 统一纯函数授权对未知 Role、空 Tenant Context、未注册/不安全路径 fail closed；Project 路由必须命中当前 Tenant 的可见 Project，否则返回 `project-not-found`，角色能力不足返回 `permission-denied`。
+- Test-first RED 已由缺失模块确认；最小实现后新增 14 项测试全部通过，相关 Demo Identity / Route Access 联合回归 51/51 PASS。
+- Root 串行完整 Gate：31 files / 209 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance 与 `git diff --check` PASS。
+- 并行全量首次运行出现 5 项历史 UI 慢测超时/串扰；App Smoke、Brief、B ScriptEditor 单文件复跑均通过，串行完整 Gate 进一步确认 209/209，通过后未修改 B 页面。
+- StoryCanvas/B 独占 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续保持 B 的未跟踪文件，未修改、未暂存。
+- 当前状态：`A_BIZ_01_4A_COMPLETE / READY_TO_COMMIT`。
+- 下一步：01.4A 独立提交后进入 01.4B Pilot Session / Project Context；先写 Session activeContext 与 Project list/read 合同 RED，不提前修改共享 Router/Sidebar。
