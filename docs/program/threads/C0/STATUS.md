@@ -542,3 +542,19 @@
 - 详细计划：`A_BIZ_02_1_TERMS_VERSIONING_PLAN.md`。
 - 当前状态：`A_BIZ_02_1_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
 - 下一步：独立提交计划；随后先新增 migration 011 PostgreSQL 合同测试并确认有效 RED，再实现最小 Schema。
+
+## 2026-08-07 A-BIZ-02.1A Terms migration 011 完成
+
+- Test-first RED 已确认：`termsVersioning.postgres.test.ts` 首次因 `011_terms_versioning` 模块不存在而失败，随后才实现 Schema。
+- 新增 `terms_documents`、`terms_versions`、`user_consents` 三张表；migration 不 seed 正式或占位 Terms Document/正文。
+- Document code 大小写不敏感唯一且创建后不可修改；Document retirement 为单向状态，有 Version 时由 FK 阻止删除。
+- Version 强制非空正文与 UTF-8 SHA-256 digest 一致，状态只允许 `DRAFT → PUBLISHED → RETIRED`；发布证据完整性、PUBLISHED/RETIRED immutable、已发布版本禁止删除均由数据库保护。
+- 同 Document + locale 的 version label 唯一；同 effectiveAt 的 PUBLISHED Version 唯一，允许未来生效版本与当前发布版本共存，并为后续 Public current 查询建立稳定索引。
+- supersedes 使用同 Document/locale 的复合 FK 和 Trigger 双层保护，只能指向已发布或已退休版本，禁止跨 Document、跨 locale、自引用或引用 DRAFT。
+- UserConsent 只接受 PUBLISHED/RETIRED Version 与完全匹配的 digest snapshot；evidence 必须为非空 JSON object，Consent 由 Trigger 强制 append-only。
+- down migration 在存在 Consent 或 PUBLISHED/RETIRED 审计事实时 fail closed；只有未形成发布/同意事实的空底座或 DRAFT 数据允许回滚。
+- 本机 PostgreSQL 实际监听 `5432`，旧 Gate 地址 `54329` 已失效；同时仅修正隔离 `_test` 库 `control_plane` Schema owner 后完成验证，未修改正式数据库。
+- Gate：Terms 定向 8/8 PASS；migration 001～011 chain 联合 2 files / 9 tests PASS；Control API 全量单 worker 26 files / 124 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- B 独占目录 tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存。
+- 当前状态：`A_BIZ_02_1A_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 migration 011；随后进入 02.1B Terms Repository / Service，先冻结纯领域错误、current 选择、发布事务与 Consent 写入测试。
