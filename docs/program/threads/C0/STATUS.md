@@ -531,3 +531,14 @@
 - 本切片未修改共享 Router/Layout，也未修改 B 独占源码；B 边界 tracked diff 为零，`apps/storycanvas/data/vendor/byteplus.ts` 仍未修改、未暂存。
 - 当前状态：`A_BIZ_01_4D_COMPLETE / A_BIZ_01_4_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 01.4D；通知 B 同步共享 Shell `ade3e54` 与本 Context/Handoff 提交后，按一个页面一个切片回传测试和 commit。A 随后依据最新业务平台主计划冻结下一业务节点。
+
+## 2026-08-07 A-BIZ-02.1 Terms 版本与发布计划冻结
+
+- 确认最新业务顺序为 `Terms → Invitation → Registration`；A-BIZ-01.4 已收口后，下一业务节点进入 A-BIZ-02.1。
+- 冻结 migration 011 的 TermsDocument、TermsVersion、UserConsent 模型，明确 SHA-256 正文一致性、DRAFT/PUBLISHED/RETIRED 状态机、PUBLISHED immutable、同 Document/locale current 选择和 supersedes Scope。
+- Public current 只选择 active Document 下已生效的 PUBLISHED Version；无 current 返回稳定 `TERMS_NOT_AVAILABLE`，禁止回退 DRAFT、RETIRED、旧 locale、Demo 或硬编码正文。
+- UserConsent append-only，保存 Version 与 digest snapshot；Registration 尚未创建前只保留 nullable registration UUID，后续独立 migration 增加 FK。
+- 正式正文、document code/locale、发布人与法务审批继续为 TBD；TBD 只阻塞正式发布和注册放量，不阻塞通用 Schema、Service、API 与测试底座。
+- 详细计划：`A_BIZ_02_1_TERMS_VERSIONING_PLAN.md`。
+- 当前状态：`A_BIZ_02_1_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+- 下一步：独立提交计划；随后先新增 migration 011 PostgreSQL 合同测试并确认有效 RED，再实现最小 Schema。
