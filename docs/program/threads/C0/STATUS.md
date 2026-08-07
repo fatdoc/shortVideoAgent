@@ -433,3 +433,12 @@
 - StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_01_2_COMPLETE / COMMITTED`。
 - 下一步：010B 独立提交后冻结 A-BIZ-01.3 服务端 RBAC/Project Scope 计划；Project Assignment Policy 必须作为后续原子切流，不混入本提交。
+
+## 2026-08-07 A-BIZ-01.3 Project Scope Policy 计划冻结
+
+- 已完成 Project/Brief/Script/Approval/Production 现有 Tenant-only 授权路径与 009 Project Assignment Schema 审计。
+- 已冻结完整 SessionActor、Project Visibility 与动作权限分层、viewer/editor 行为矩阵及 401/403/404 稳定语义。
+- `content_operator` 首版只能访问 active Assignment 项目；viewer 只读，editor 可写内容与生产，但两者均不能创建或管理 Project 元数据。
+- Assignment 不进入 Session，每次 Project 请求实时验证 Membership、Role、Organization 和 Assignment；失效或未授权 Project 对工作人员统一隐藏为 404。
+- PLATFORM/CHANNEL/`pilot_support` 继续 fail closed；Support Grant、成员、账务和渠道 API 不混入本切片。
+- 当前状态：`A_BIZ_01_3_PLAN_FROZEN / READY_FOR_RED`；下一步建立 Router + PostgreSQL 行为级 RED，再执行 Content/Production 原子切流。
