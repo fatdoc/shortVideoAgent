@@ -328,7 +328,9 @@ function PilotServiceError() {
           message={error ?? '无法恢复 Pilot 会话。'}
           description={requestId ? `请求 ID：${requestId}` : undefined}
         />
-        <Button type="primary" onClick={() => void hydrate()}>重新连接</Button>
+        <Button type="primary" onClick={() => void hydrate()}>
+          重新连接
+        </Button>
       </section>
     </main>
   );
@@ -344,7 +346,11 @@ function PilotRequireSession() {
   }, [hydrate, status]);
 
   if (status === 'idle' || status === 'hydrating') {
-    return <div className="d2-session-loading" role="status">正在恢复真实会话...</div>;
+    return (
+      <div className="d2-session-loading" role="status">
+        正在恢复真实会话...
+      </div>
+    );
   }
   if (status === 'service_error') return <PilotServiceError />;
   if (!session) return <Navigate to="/login" replace />;
@@ -361,7 +367,11 @@ function PilotLoginEntry() {
   }, [hydrate, status]);
 
   if (status === 'idle' || status === 'hydrating') {
-    return <div className="d2-session-loading" role="status">正在恢复真实会话...</div>;
+    return (
+      <div className="d2-session-loading" role="status">
+        正在恢复真实会话...
+      </div>
+    );
   }
   if (status === 'service_error') return <PilotServiceError />;
   if (session) return <Navigate to="/pilot" replace />;
@@ -379,10 +389,11 @@ function PilotSessionPage() {
         <Typography.Text type="success">真实会话已建立</Typography.Text>
         <Typography.Title level={2}>欢迎，{session.user.displayName}</Typography.Title>
         <Typography.Paragraph>
-          当前企业：{session.tenant.displayName} · {session.user.email}
+          当前组织：{session.tenant?.displayName ?? '非 Tenant 组织'} · {session.user.email}
         </Typography.Paragraph>
         <Typography.Paragraph type="secondary">
-          F01 仅完成真实认证接线。真实项目、生产与额度界面将在 F02 接入，当前不会展示 Demo 业务数据。
+          F01 仅完成真实认证接线。真实项目、生产与额度界面将在 F02 接入，当前不会展示 Demo
+          业务数据。
         </Typography.Paragraph>
         <Button onClick={() => void logout()}>安全退出</Button>
       </section>
