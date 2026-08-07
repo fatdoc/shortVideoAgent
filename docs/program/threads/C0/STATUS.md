@@ -321,3 +321,29 @@
 - 兼容边界：009 不修改 Auth Session、SessionActor、Project/Production Repository 或 Router；A-BIZ-01.2 完成 Active Membership Context 后，A-BIZ-01.3 再原子切换 Project Policy。
 - 详细计划：`A_BIZ_01_1_009_PROJECT_ASSIGNMENT_PLAN.md`。
 - 当前状态：`A_BIZ_01_1_009_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+
+## 2026-08-07 A-BIZ-01.1 009A Project Assignment Test-first RED
+
+- 新增空 migration 骨架 `apps/control-api/src/db/migrations/009_project_assignment.ts`；当前仅执行无 Schema 副作用的 `select 1`。
+- 新增 `apps/control-api/src/db/projectAssignment.postgres.test.ts`，固定 7 个 PostgreSQL 合同用例：合法 viewer/editor、跨 Tenant/错误 Role/非 active 拒绝、枚举与唯一范围、manual/backfill 一致性、状态机与不可变字段、Membership 生命周期不删除审计行、009 down 边界。
+- 每个用例先显式断言 `project_assignment_backfill_runs` 与 `project_assignments` 存在，避免“表不存在也满足 rejects”的假通过。
+- 专用 `videoagent_control_test`、单 worker 定向结果：1 file / 7 tests 全部按预期 RED；7 个失败均因为 `project_assignment_backfill_runs` 尚不存在。
+- Control API typecheck PASS；009 两个新增文件定向 ESLint PASS；Prettier 与 `git diff --check` PASS。
+- B 边界保持：`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_1_009A_RED_CONFIRMED`。
+- 下一步：实现 009A 最小 Project Assignment/backfill evidence Schema、复合约束和生命周期 trigger，使 7 项定向测试转绿；Green 前不提交功能代码，也不提前实现 009B runner 或 Session/Project Policy 切流。
+
+## 2026-08-07 A-BIZ-01.1 009A Project Assignment Schema 完成
+
+- 新增 `control_plane.project_assignment_backfill_runs`，记录 manifest ID/digest/version、Assignment 数量、Tenant/Organization、批准人与创建时间；digest、version、正数数量和 Tenant/Organization 一致性由数据库约束。
+- 新增 `control_plane.project_assignments`，冻结 viewer/editor、active/suspended/revoked、manual/pilot_backfill、审计创建人与唯一 Project/Membership 范围。
+- 为 Project/Tenant、Tenant/Organization、Membership/Organization 和 BackfillRun/Tenant/Organization 建立复合唯一键与复合 FK，跨 Tenant/Organization Assignment fail closed。
+- insert trigger 只接受 active TENANT `content_operator` Membership；Tenant Admin、Platform/Channel Role、inactive Membership 和跨 Tenant 组合均拒绝。
+- lifecycle trigger 保证 scope/source/creator 不可变、revoked 为终态、revoked 后 access/revoked_at 不可修改、允许的 update 自动刷新 `updated_at`，业务 delete 拒绝。
+- Backfill evidence 行 update/delete 拒绝；manual 必须无 run，pilot_backfill 必须绑定同 Tenant/Organization run。
+- Membership 后续 suspended 或移除 `content_operator` Role 时 Assignment 审计行保留；运行时授权切流仍留给 A-BIZ-01.2/01.3。
+- Test-first 证据：空 migration 有效 RED 7/7；最小实现后定向 Green 7/7；完整 Control API 单 worker Gate 18 files / 79 tests PASS / 0 SKIP。
+- 工程 Gate：Control API typecheck、build、009 定向 ESLint、Governance、`git diff --check` 全部 PASS。
+- B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_01_1_009A_COMPLETE / READY_TO_COMMIT`。
+- 下一步：009A 独立提交后进入 009B 显式 Pilot manifest backfill runner；不提前切换 SessionActor 或 Project Policy。

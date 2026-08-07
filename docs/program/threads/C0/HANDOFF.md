@@ -325,3 +325,28 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 兼容策略：本轮不切换 Auth/Session、Project/Production Router 或 Repository；Assignment 先作为 Shadow 授权事实，正式 Policy 切流属于 A-BIZ-01.3。
 - 详细计划：`docs/program/threads/C0/A_BIZ_01_1_009_PROJECT_ASSIGNMENT_PLAN.md`。
 - 下一步：计划提交后创建空 `009_project_assignment.ts` 与 `projectAssignment.postgres.test.ts`，先确认有效 RED。
+
+## A-BIZ-01.1 009A Project Assignment RED 交接（2026-08-07）
+
+- 空 migration：`apps/control-api/src/db/migrations/009_project_assignment.ts`，当前只执行 `select 1`，不创建数据库对象。
+- 合同测试：`apps/control-api/src/db/projectAssignment.postgres.test.ts`，位于 `src/db/` 而非 migrations 目录。
+- 测试共 7 项，覆盖合法 Assignment、跨 Tenant/Organization 与 Membership/Role/status 拒绝、枚举/唯一/source、不可变生命周期、审计保留和 down 边界。
+- 防假通过：所有测试在执行 rejection 断言前先验证两张 009 表真实存在。
+- RED 证据：专用 `_test` 数据库单 worker 运行 1 file / 7 tests，7 项均因 `project_assignment_backfill_runs` 不存在而失败，fixture 和 001/006/008 前置迁移均正常。
+- 静态证据：Control API typecheck、009 定向 ESLint、Prettier、`git diff --check` 均通过。
+- 下一步只实现 009A migration 最小 Schema/constraint/trigger；不实现 manifest runner，不修改 SessionActor、Auth、Project Router/Repository 或 StoryCanvas。
+- 版本策略：RED 文件暂不独立提交；009A 转绿并完成完整 Gate 后，与最小 migration 一起形成单独 `feat(control-api)` 提交。
+
+## A-BIZ-01.1 009A Project Assignment Schema 交接（2026-08-07）
+
+- migration：`apps/control-api/src/db/migrations/009_project_assignment.ts`。
+- 测试：`apps/control-api/src/db/projectAssignment.postgres.test.ts`。
+- 新表：`project_assignment_backfill_runs` 与 `project_assignments`；真实 Pilot manifest 内容不在 migration 或测试中硬编码。
+- 一致性：Project/Tenant、Tenant/Organization、Membership/Organization、BackfillRun/Tenant/Organization 全部使用复合 FK，不依赖应用层猜测。
+- eligibility：仅插入时验证 active TENANT `content_operator`；后续 Membership 生命周期变化保留 Assignment 历史，运行时必须在 A-BIZ-01.3 联合检查 Membership/Role/Assignment。
+- lifecycle：active ↔ suspended，二者可进入 revoked；revoked 终态；scope/source/creator 不可变；revoked 后 access/timestamp 不可改；业务 delete 拒绝。
+- source：manual/run-null 与 pilot_backfill/run-not-null 由 check + FK 保证；backfill evidence update/delete 拒绝。
+- down：先移除 009 trigger/function 和两张表，再移除 009 新增复合唯一约束；保留 Project、Membership、Tenant、Organization 和内容数据。
+- 验证：定向 7/7；完整 PostgreSQL 18 files / 79 tests；typecheck、build、009 ESLint、Governance、diff-check 全 PASS。
+- 兼容边界：Auth Session、Project Router/Repository、Production、009B runner 和 StoryCanvas 均未修改。
+- 下一步：009B 实现严格 manifest schema、canonical digest、批准人/目标/Project 验证、单事务写入和 replay 幂等。
