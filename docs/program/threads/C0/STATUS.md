@@ -509,3 +509,13 @@
 - 本切片修改共享 `Router`、`AppShell`、`Sidebar`、`Topbar`，必须作为独立共享 Shell 提交通知 B。
 - 当前状态：`A_BIZ_01_4C_COMPLETE / READY_TO_COMMIT`。
 - 下一步：完成 01.4C 独立提交并通知 B；随后进入 01.4D，只做 B 页面接线合同、handoff 边界和跨平面回归，不直接修改 B 独占页面源码。
+
+## 2026-08-07 A-BIZ-01.4D B 页面 Context 接线计划冻结
+
+- 冻结 B 页面最小 Pilot Context：`projectId`、`tenantId`、`sessionMembershipId`、`roleCodes`、`runtimeMode`、`controlApiBaseUrl`。
+- Context 只来自已验证 Session、内存 Project Context 与已校验 Pilot Runtime；不包含 Secret、Assignment、access level、用户/组织展示信息、Demo Store 或虚构 Task/Asset/Export 状态。
+- 冻结 fail-closed resolver：非 Pilot、Control API 配置缺失、非 Tenant、Project/Membership/Role 不一致、未知 Role 均返回明确 unavailable，不猜测、不回退 Demo。
+- A 只提供纯合同、必要的共享接线、联合回归和正式 handoff；不修改 B 独占脚本、分镜、StoryCanvas 页面源码。
+- 详细计划：`A_BIZ_01_4D_B_PAGE_HANDOFF_PLAN.md`。
+- 当前状态：`A_BIZ_01_4D_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+- 下一步：独立提交计划，然后先新增 12 项纯函数合同测试并确认有效 RED，再实现最小 resolver。
