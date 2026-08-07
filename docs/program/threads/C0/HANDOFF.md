@@ -313,3 +313,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 仍是 B 的未跟踪运行时文件，禁止纳入 A 提交。
 - 当前状态：`A_BIZ_01_1_008_COMPLETE / READY_TO_COMMIT`。
 - 下一切片：先冻结 migration 009 的 Project Assignment 与 Pilot 显式回填合同；完成 A-BIZ-01.1 剩余 Schema 后再进入 A-BIZ-01.2 多上下文 Session。
+
+## A-BIZ-01.1 009 Project Assignment / Pilot 回填计划交接（2026-08-07）
+
+- 审计结果：当前 `SessionActor` 无 Membership/Organization Context，Project Router 允许 `tenant_admin` 和 `content_operator` 的全部 POST/PATCH，Repository 只按 Tenant 过滤。
+- 风险结论：现有数据没有工作人员项目 allowlist，不能从角色、Project `created_by`、邮箱、UUID 或同 Tenant 关系推断合法 Assignment。
+- 009A Schema：Project Assignment 绑定 Project、Tenant Organization 和 Organization Membership，使用复合 FK 拒绝跨 Tenant；access level 为 viewer/editor，状态为 active/suspended/revoked。
+- 生命周期：scope/source/creator 不可变，revoked 为终态，业务 delete 拒绝；Membership 停用或移除 Role 时保留 Assignment 审计行，但运行时不得产生访问。
+- Role 边界：首版仅 active `content_operator` 可创建 Assignment；Tenant Admin 全项目能力不通过 Assignment 表达；Platform/Channel/`pilot_support` 不得借此访问客户内容。
+- 009B 回填：独立 manifest runner 验证 active tenant_admin 批准人、active content_operator Membership、同 Tenant Project，并以 canonical digest + backfill run 保证审计、幂等和原子性。
+- 兼容策略：本轮不切换 Auth/Session、Project/Production Router 或 Repository；Assignment 先作为 Shadow 授权事实，正式 Policy 切流属于 A-BIZ-01.3。
+- 详细计划：`docs/program/threads/C0/A_BIZ_01_1_009_PROJECT_ASSIGNMENT_PLAN.md`。
+- 下一步：计划提交后创建空 `009_project_assignment.ts` 与 `projectAssignment.postgres.test.ts`，先确认有效 RED。

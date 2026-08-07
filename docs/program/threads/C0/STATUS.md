@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 migration 008 `COMPLETE`
-- 当前任务：A-BIZ-01.1 migration `006+`；Organization、Channel、Organization Membership/Role 底座已完成，下一切片先冻结 Project Assignment 与 Pilot 显式回填边界
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1 migration 009 `PLAN_FROZEN`
+- 当前任务：A-BIZ-01.1 migration 009；先 test-first 建立 Project Assignment，再实现显式 Pilot manifest backfill，不提前切换 Session/Project Policy
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -309,3 +309,15 @@
 - B 边界：StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存。
 - 当前状态：`A_BIZ_01_1_008_COMPLETE / READY_TO_COMMIT`。
 - 下一步：008 独立提交后，先冻结 migration 009 的 Project Assignment 与 Pilot 显式回填合同；A-BIZ-01.2 Session Active Context 不提前切流。
+
+## 2026-08-07 A-BIZ-01.1 009 Project Assignment / Pilot 回填计划冻结
+
+- 当前 Project Router/Repository 仍只使用 `actor.tenantId + roles`；`content_operator` 可创建/管理项目并写入 Tenant 全部项目，尚未满足 active Assignment Scope。
+- 现有 bootstrap 只创建白名单 `tenant_admin`，数据库没有可安全推断的工作人员→项目映射；009 禁止按同 Tenant 全项目、`created_by`、邮箱、名称或 Demo ID 自动授权。
+- 009A 将新增 Project Assignment 与跨 Tenant/Organization 复合约束，冻结 viewer/editor、active/suspended/revoked、不可变 scope 和 revoked 终态。
+- Assignment 首版只服务 active `content_operator`；Tenant Admin 全项目权限继续来自后续服务端 Policy，不写伪 Assignment。
+- 009B 使用独立显式 JSON manifest runner；记录 manifest ID、canonical digest、批准人、Tenant 和写入数量，同一事务写入 backfill run 与 Assignment。
+- 当前仓库不提交真实客户 UUID、邮箱或项目清单；未提供受控 manifest 时零回填、fail closed。
+- 兼容边界：009 不修改 Auth Session、SessionActor、Project/Production Repository 或 Router；A-BIZ-01.2 完成 Active Membership Context 后，A-BIZ-01.3 再原子切换 Project Policy。
+- 详细计划：`A_BIZ_01_1_009_PROJECT_ASSIGNMENT_PLAN.md`。
+- 当前状态：`A_BIZ_01_1_009_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。

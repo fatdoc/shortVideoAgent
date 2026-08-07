@@ -58,3 +58,4 @@
 | 2026-08-07 | A-BIZ-01.1 migration 007 建立 Channel 一对一 Organization 扩展与双向类型保护；不写死层级、价格或佣金；完整 PostgreSQL Gate 16 files / 65 tests 通过 | A_BIZ_01_1_007_COMPLETE |
 | 2026-08-07 | 冻结 A-BIZ-01.1 migration 008：新增 Organization Membership/Role、单一主角色、多角色 Schema、旧表单向 Shadow 同步与歧义回填拒绝 | A_BIZ_01_1_008_PLAN_FROZEN |
 | 2026-08-07 | A-BIZ-01.1 migration 008 建立 Organization Membership/Role、多角色单主角色约束、旧 Membership 单向 Shadow 与歧义回填拒绝；完整 PostgreSQL Gate 17 files / 72 tests 通过 | A_BIZ_01_1_008_COMPLETE |
+| 2026-08-07 | 冻结 A-BIZ-01.1 migration 009：Project Assignment 跨 Tenant 约束、viewer/editor、可审计生命周期及显式 Pilot manifest backfill；不提前切换 Session/Project Policy | A_BIZ_01_1_009_PLAN_FROZEN |
