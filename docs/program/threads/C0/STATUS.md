@@ -643,3 +643,16 @@
 - 本切片修改共享 `apps/control-api/src/app.ts` 与 `apps/control-api/src/server.ts`，提交后必须通知 B 同步对应 commit。
 - 当前状态：`A_BIZ_02_2C_COMPLETE / A_BIZ_02_2_COMPLETE / COMMITTED`。
 - 下一步：通知 B 同步本切片的共享 Bootstrap 提交；随后单独冻结 A-BIZ-02.3 Registration/Consent/Attribution 计划，不在本切片开放半成品注册或真实支付能力。
+
+## 2026-08-08 A-BIZ-02.3 Registration / Consent / Attribution 计划冻结
+
+- 计划文件：`A_BIZ_02_3_REGISTRATION_CONSENT_ATTRIBUTION_PLAN.md`。
+- 冻结唯一公开注册端点和 DIRECT、PLATFORM_INVITATION、CHANNEL_INVITATION、TENANT_MEMBER_INVITATION 四种服务端派生路径；不建立独立 C 端 API、Role、Tenant 类型或工作台。
+- 冻结 Migration 013：Registration、首次 ReferralAttribution、append-only Attribution Event，并为 02.1 UserConsent 与 02.2 InvitationUsage 的 `registration_id` 收口正式 FK。
+- 现有 Terms/Invitation Repository 各自事务不能直接拼接；02.3B 必须建立统一 PostgreSQL Unit of Work，使 User、Organization/Tenant、Membership、Registration、Consent、Usage 与 Attribution 同事务提交或回滚。
+- 注册 request digest 使用独立 Secret 的 keyed HMAC，不持久化密码普通摘要、Invitation Token 或邮箱验证 Token；密码继续使用现有 scrypt。
+- 邮箱验证只冻结可注入 Port，默认 Bootstrap fail closed；真实 Provider 和正式 Terms 未配置时不宣称公开注册已开放。
+- 本节点不自动签发 Session；成功后复用现有登录端点，避免注册事务与 Cookie 生命周期耦合。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续不修改、不暂存、不提交；02.3A/02.3B 不碰共享 Bootstrap，02.3C 共享提交再通知 B。
+- 当前状态：`A_BIZ_02_3_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
+- 下一步：先写 Migration 013 PostgreSQL 合同并确认 RED，再实现最小 Schema；计划独立提交后执行。
