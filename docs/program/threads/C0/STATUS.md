@@ -705,3 +705,13 @@
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_3C_COMPLETE / A_BIZ_02_3_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(control-api): expose public registration api` 并通知 B 同步；随后重新基于最新任务文档规划 A-BIZ-02.4，不提前实现真实邮箱 Provider、注册页面、自动登录或支付。
+
+## 2026-08-08 A-BIZ-02.4 注册/邀请/须知前端计划冻结
+
+- 基于 `fe76f0c` 与当前 A/B 共创文档，冻结 02.4 为 `Public API Client → Registration State/UI → Router/Login 接线 → 联合 Gate` 四个切片。
+- 唯一前端注册入口为 `/register`，直接、PLATFORM、CHANNEL、TENANT_MEMBER 四种来源继续只调用 `POST /api/v1/public/registrations`；客户端不得提交 Role/Tenant/Channel/Attribution 事实。
+- 正式 Terms 和 Email Verification Provider 缺失不阻塞前端底座开发，但真实页面必须 fail closed；禁止占位条款、Fake Provider、手工 Token 输入或 Demo fallback 冒充已开放注册。
+- Invitation Token 首次从查询参数读取后必须清理地址栏，只保存在组件内存并仅发送给 Preview/Registration；密码、验证 Token、幂等键不得进入 URL、Storage 或日志。
+- 02.4A 先新增严格 Public Registration API Client 与 RED/Green 测试，不修改共享 Router；02.4C 修改 `src/app/Router.tsx` 时独立提交并通知 B。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_4_PLAN_FROZEN / READY_FOR_02_4A_RED`。
