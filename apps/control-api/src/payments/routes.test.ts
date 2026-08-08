@@ -220,14 +220,32 @@ describe('Payment HTTP API', () => {
     expect(service.createRechargeOrder).not.toHaveBeenCalled();
   });
 
-  it('lists only the active Tenant RechargeOrders with a bounded limit', async () => {
-    const { app, service } = application();
+  it('lists only the active Tenant paid issuance summary with a bounded limit', async () => {
+    const paidRechargeOrder: RechargeOrder = {
+      ...rechargeOrder,
+      status: 'paid',
+      updatedAt: '2026-08-08T06:00:00.000Z',
+    };
+    const service = services();
+    service.listRechargeOrders.mockResolvedValue([paidRechargeOrder]);
+    const { app } = application({ service });
     const response = await request(app)
       .get(`/api/v1/tenants/${tenantId}/recharge-orders?limit=25`)
       .set('cookie', cookie());
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ rechargeOrders: [rechargeOrder] });
+    expect(response.body).toEqual({ rechargeOrders: [paidRechargeOrder] });
+    expect(response.body.rechargeOrders[0]).toEqual(
+      expect.objectContaining({
+        paymentMode: 'TEST',
+        status: 'paid',
+        purchasedCredits: 10,
+        bonusCredits: 2,
+        bonusExpiresInDays: 30,
+      }),
+    );
+    expect(response.text).not.toContain('providerEventId');
+    expect(response.text).not.toContain('eventDigest');
     expect(service.listRechargeOrders).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId }),
       25,
@@ -253,14 +271,49 @@ describe('Payment HTTP API', () => {
       .set('x-test-payment-internal-token', internalToken)
       .send(eventBody);
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['idempotency-replayed']).toBe('false');
     expect(response.body).toEqual({ paymentEvent });
-    expect(response.body.paymentEvent.paymentMode).toBe('TEST');
+    expect(response.body.paymentEvent).toEqual(
+      expect.objectContaining({
+        paymentMode: 'TEST',
+        processingStatus: 'applied',
+        errorCode: null,
+        processedAt: '2026-08-08T06:00:00.000Z',
+      }),
+    );
     expect(service.receivePaymentEvent).toHaveBeenCalledWith({
       paymentMode: 'TEST',
       payload: eventBody,
     });
+  });
+
+  it('returns a safe terminal rejection as HTTP 200 without implying a real payment', async () => {
+    const rejectedEvent: PaymentEvent = {
+      ...paymentEvent,
+      eventType: 'payment_failed',
+      processingStatus: 'rejected',
+      errorCode: 'unsupported_event_type',
+    };
+    const service = services();
+    service.receivePaymentEvent.mockResolvedValue({ value: rejectedEvent, replayed: false });
+
+    const response = await request(application({ service }).app)
+      .post('/api/v1/internal/payments/test/events')
+      .set('x-test-payment-internal-token', internalToken)
+      .send({ ...eventBody, eventType: 'payment_failed' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['idempotency-replayed']).toBe('false');
+    expect(response.body.paymentEvent).toEqual(
+      expect.objectContaining({
+        paymentMode: 'TEST',
+        processingStatus: 'rejected',
+        errorCode: 'unsupported_event_type',
+        processedAt: '2026-08-08T06:00:00.000Z',
+      }),
+    );
   });
 
   it('returns 200 for Payment Event replay and 409 for identity conflict', async () => {

@@ -3,7 +3,7 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / 03_2A_COMPLETE / 03_2B_COMPLETE / 03_2C_PENDING`
+- 状态：`PLAN_FROZEN / 03_2A_COMPLETE / 03_2B_COMPLETE / 03_2C_COMPLETE / COMPLETE`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）
 - 前置完成：A-BIZ-03.1A～03.1C（RechargeOrder、PaymentEvent Inbox、TEST Adapter 与 HTTP Bootstrap）
 
@@ -229,4 +229,9 @@ PostgreSQL 测试必须使用专用 `_test` 数据库并单 worker。并发测�
 - 人工注入 Ledger ID 失败证明 Event、Order、Lot、Ledger 和 Order Event 全事务回滚。
 - RED：新增 6 项原子合同全部按旧 `received` 行为失败；Green：Repository 13/13，Service/Route 27/27，Control API 全量 44 files / 277 tests PASS。
 - typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
-- 下一步进入 03.2C：收口 HTTP terminal 语义和 Tenant 可见的安全发行摘要，不增加真实支付或余额消耗能力。
+- A-BIZ-03.2C 已完成：Internal TEST Payment endpoint 对首次同步 terminal `applied/rejected` 统一返回 HTTP 200，安全 replay 继续返回 200，并显式返回 `Idempotency-Replayed`。
+- PaymentEvent 响应保留 `processingStatus`、`errorCode`、`processedAt` 作为终态证据；响应仍明确标记 `paymentMode: TEST`，不表述为真实收款。
+- Tenant RechargeOrder bounded list 复用现有安全投影展示 `paid`、`purchasedCredits`、`bonusCredits` 与 `bonusExpiresInDays`；未新增 Provider identity/digest 等敏感字段，也未扩张独立 Credit 投影。
+- RED：首次 applied/rejected 的两个 Route 合同均因旧 HTTP 202 按预期失败；Green：Route 13/13，Control API 全量 44 files / 278 tests PASS。
+- typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS；03.2 完整收口。
+- 下一步应先规划 A-BIZ-03.3 的 refund/chargeback 冲正或后续业务节点；在合同冻结前不实现 LIVE Provider、Commission、Reservation 消耗或真实商业数字。

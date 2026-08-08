@@ -259,7 +259,7 @@ export function createPaymentRouter(options: PaymentRouterOptions): Router {
           paymentMode: 'TEST',
           payload: parsed.data,
         }),
-        202,
+        200,
         'paymentEvent',
       );
     } catch (caught) {

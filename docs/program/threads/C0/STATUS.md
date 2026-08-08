@@ -835,7 +835,6 @@
 - Gate：015 定向 5/5；migration chain + 015 6/6；Control API 全量 44 files / 273 tests PASS；typecheck、build、定向 ESLint、Governance、diff check PASS。
 - 下一步：03.2B Repository/Service 原子应用，先写 succeeded/replay/concurrency/unsupported/rollback RED。
 
-
 ## 2026-08-08 A-BIZ-03.2B TEST Payment 原子应用完成
 
 - Repository 已把 TEST `payment_succeeded` 在单一 PostgreSQL 事务内应用为 PaymentEvent `applied`、RechargeOrder `pending → paid`、purchased/bonus Credit Lot 与逐 Lot append-only Ledger issue。
@@ -848,3 +847,15 @@
 - B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交；本切片未修改共享 Bootstrap。
 - 当前状态：`A_BIZ_03_2B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(control-api): apply test payments atomically`，随后进入 03.2C HTTP terminal 语义与安全发行摘要。
+
+## 2026-08-08 A-BIZ-03.2C HTTP 终态与安全发行摘要完成
+
+- Internal TEST Payment Event endpoint 现在同步返回 Repository 的 terminal 结果：首次 `applied` 或 `rejected` 均为 HTTP 200；安全 replay 仍为 200，并通过 `Idempotency-Replayed` 区分。
+- 响应明确包含 `paymentMode: TEST`、`processingStatus`、`errorCode` 与 `processedAt`，不再使用暗示异步 Inbox 的首次 202，也不把 TEST Event 描述为真实收款。
+- Tenant RechargeOrder bounded list 已用 paid 合同验证可安全展示购买额度、赠送额度和赠送到期天数；未暴露 Provider Event identity、digest 或原始 payload，未增加不必要的独立 Credit endpoint。
+- RED：新增首次 applied/rejected 两项终态 HTTP 合同，旧实现均因返回 202 按预期失败；Green：Payment Route 13/13。
+- Gate：Control API 全量 44 files / 278 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 本切片只修改 Payment Route、Route Test 与 C0 文档；未修改共享 App/Config/Server，B 无需等待同步共享 Bootstrap。
+- B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_2C_COMPLETE / A_BIZ_03_2_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): expose test credit issuance results`；随后先冻结 A-BIZ-03.3 或下一业务节点合同。

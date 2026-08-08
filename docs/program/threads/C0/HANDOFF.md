@@ -483,7 +483,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 文件无修改；未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未暂存。
 - 下一步 03.2B 原子应用；当前 migration 本身不会自动把既有 received Event 标记 applied。
 
-
 ## A-BIZ-03.2B Atomic TEST Payment Application 交接（2026-08-08）
 
 - `PostgresPaymentFoundationRepository.receivePaymentEvent()` 已不再只写 received Inbox；TEST succeeded 会在同一事务内形成 applied Event、paid Order、purchased/bonus Lot 与匹配 Ledger issue。
@@ -493,3 +492,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Repository PostgreSQL 13/13、Service/Route 27/27、Control API 全量 44 files / 277 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
 - 本切片只修改 `apps/control-api/src/payments/**` 与 C0 文档，没有修改共享 `app.ts` / `server.ts` / `config.ts`，B 不需要等待；StoryCanvas 未触碰。
 - 下一步 03.2C：决定首次 terminal Event 的 HTTP 200/202 语义，并增加 Tenant scoped 的安全发行结果投影；不实现真实余额消耗、LIVE Provider、Commission 或退款冲正。
+
+## A-BIZ-03.2C TEST Payment HTTP Closure 交接（2026-08-08）
+
+- `POST /api/v1/internal/payments/test/events` 现在把同步 terminal `applied/rejected` 结果统一映射为 HTTP 200；同 identity/digest replay 继续为 200，并设置 `Idempotency-Replayed: true`。
+- 首次请求设置 `Idempotency-Replayed: false`；响应提供 `processingStatus`、`errorCode`、`processedAt`，且始终保留 `paymentMode: TEST`。
+- Tenant 继续通过 `GET /api/v1/tenants/:tenantId/recharge-orders?limit=...` 查看 paid 与购买/赠送额度摘要；沿用 Tenant Scope、tenant_admin 权限和 bounded limit，不新增 Provider 敏感字段或独立余额接口。
+- 本切片没有修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts`，B 不需要等待共享 Bootstrap 同步；StoryCanvas 未触碰。
+- Gate：Route 13/13；Control API 全量 44 files / 278 tests；typecheck/build/定向 ESLint/Prettier/Governance/diff check 全 PASS。
+- A-BIZ-03.2 至此完整收口；LIVE Provider、Commission、refund/chargeback 冲正、Reservation 消耗和真实商业数字仍不在当前能力范围。
