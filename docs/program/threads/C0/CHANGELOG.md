@@ -88,3 +88,4 @@
 | 2026-08-08 | 冻结 A-BIZ-02.3 单一注册事务：四种服务端来源、Registration/Consent/Invitation Usage/Attribution 原子写入、12 个月归因快照、keyed HMAC 幂等、邮箱验证 fail closed 与 Public API 边界                                 | A_BIZ_02_3_PLAN_FROZEN                  |
 | 2026-08-08 | A-BIZ-02.3A 完成 migration 013 Registration/首次 Attribution/append-only Event、Consent/Usage 正式 FK、孤立事实迁移拒绝与审计型回滚保护；Control API 35 files / 191 tests 通过                                      | A_BIZ_02_3A_COMPLETE                    |
 | 2026-08-08 | A-BIZ-02.3B 完成 Registration Domain/Service 与统一 PostgreSQL Unit of Work，原子写入 User/Tenant/Membership/Registration/Consent/Usage/Attribution，支持安全 replay、邮箱验证 fail closed 与 12 个月 Channel 保护；Control API 37 files / 202 tests 通过 | A_BIZ_02_3B_COMPLETE |
+| 2026-08-08 | A-BIZ-02.3C 完成唯一 Public Registration API、严格输入/安全响应、不可逆组合键限流、独立 HMAC Secret 与默认 Email Verification fail-closed Bootstrap；Control API 39 files / 220 tests 通过，A-BIZ-02.3 收口 | A_BIZ_02_3_COMPLETE |

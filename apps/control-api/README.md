@@ -13,6 +13,7 @@
 - HttpOnly、SameSite=Lax Cookie（production 强制 Secure）、定时 Session 轮换和登出撤销；
 - 本地 IP + 邮箱维度的登录失败限流，以及仅允许站内路径的安全回跳；
 - 三类 Invitation 生命周期、body Token Public Preview、组织范围管理与不可逆 Preview 限流键；
+- 单一 Public Registration API、原子 Registration/Consent/Invitation Usage/Attribution 事务与不可逆注册限流键；默认邮箱验证 Port fail closed，不代表公网注册已开放；
 - 独立的 ProjectGrant 签名密钥与可轮换 `kid`；启动时缺失即拒绝运行，不复用 Session 根密钥；
 - 生产环境秘钥与本地数据库凭据拒绝规则。
 
@@ -52,6 +53,13 @@ Public Preview 限流通过 `INVITATION_PREVIEW_MAX_ATTEMPTS`、
 `INVITATION_PREVIEW_WINDOW_SECONDS` 和 `INVITATION_PREVIEW_BLOCK_SECONDS` 显式配置；
 本地默认值不是正式公网安全参数，多实例部署前需替换为共享限流基础设施。
 
+注册接口：
+
+- `POST /api/v1/public/registrations`：唯一公开注册入口；严格接收邮箱、密码、展示名、可选 Tenant 名称/Invitation Token、Terms Version、locale、显式接受、邮箱验证 Token 和幂等键；
+- 首次成功返回 201，安全 replay 返回 200 和 `idempotency-replayed: true`；不签发 Session Cookie，注册后仍通过现有登录接口登录；
+- 默认 Bootstrap 使用不可用的邮箱验证 Port，因此在接入正式 Provider 前稳定返回 503 且不写入数据；
+- `REGISTRATION_IDEMPOTENCY_SECRET` 在 production 必须独立显式配置，限流由 `REGISTRATION_MAX_ATTEMPTS`、`REGISTRATION_WINDOW_SECONDS`、`REGISTRATION_BLOCK_SECONDS` 配置；多实例部署前需替换为共享限流设施。
+
 生产平面内部授权接口：
 
 - `POST /api/v1/internal/project-grants/introspect`：仅供私网 StoryCanvas receiver 调用；
@@ -82,6 +90,7 @@ npm --prefix apps/control-api run build
   若后续增加本地验签，只能使用独立 Grant keyring，并按 `kid` 先部署验证键再轮换。
 - `PRODUCTION_PLANE_INTERNAL_TOKEN` 必须至少 32 bytes，且不得复用 Session 或 ProjectGrant 密钥；
   仅通过私网 Secret 注入给生产平面，不写入 URL、请求体、日志或回执。
+- `REGISTRATION_IDEMPOTENCY_SECRET` 在 production 必须至少 32 bytes 且独立于 Session、ProjectGrant 和生产平面内部 Token；稳定性关系到注册 replay，不得随意轮换。
 - production 不存在默认白名单账号、Tenant 或初始化密码。
 - `DATABASE_SSL=require` 时启用 PostgreSQL TLS 证书校验。
 - 应用不记录 `DATABASE_URL`、Session Token、Grant Token 或上游 API Key。

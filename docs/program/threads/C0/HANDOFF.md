@@ -386,3 +386,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - CLI 合同：成功只打印安全摘要；任何失败只打印 `项目授权回填失败。` 并返回 1，已打开数据库始终 destroy。
 - Gate：009B PostgreSQL 8/8、CLI 6/6、Control API 全量 20 files / 93 tests、typecheck、build、定向 ESLint、Prettier、Governance 和 diff-check 全 PASS。
 - 明确未做：真实 manifest、Session Active Membership、Auth 切流、Project Policy/Repository 切流、一般 Assignment CRUD、Production 或 StoryCanvas 修改。
+
+## 2026-08-08 A-BIZ-02.3C Shared Bootstrap Handoff
+
+- A-BIZ-02.3 已完成：Migration 013、统一 Registration Transaction、Public Registration Router 与 fail-closed Bootstrap 均已转绿。
+- 本切片共享修改：`apps/control-api/src/app.ts`、`apps/control-api/src/server.ts`、`apps/control-api/src/config.ts` 及对应测试/环境示例。
+- B 在继续修改 Control API 共享 Bootstrap 前，应同步 `feat(control-api): expose public registration api` 对应提交；B 的 StoryCanvas 独占页面和 `apps/storycanvas/data/vendor/byteplus.ts` 未被 A 修改。
+- Public Registration 已有稳定 HTTP 合同，但默认 Email Verification Port 明确 unavailable；未接入正式 Provider 和正式 Terms 前，不应把该端点描述为已开放公网注册。
+- 本节点不签发 Session、不增加 consumer Role/Tenant/Workbench、不实现邮件发送、注册 UI、支付或归因纠错 API。
+- Gate：Control API 39 files / 220 tests，typecheck、build、ESLint、Prettier、Governance、diff check 全部通过。

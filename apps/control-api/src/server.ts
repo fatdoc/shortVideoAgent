@@ -19,6 +19,11 @@ import { PostgresInvitationRepository } from './invitations/repository.js';
 import { InvitationService } from './invitations/service.js';
 import { InvitationPreviewRateLimiter } from './invitations/previewRateLimiter.js';
 import { createInvitationRouter } from './invitations/routes.js';
+import { UnavailableEmailVerification } from './registrations/emailVerification.js';
+import { RegistrationRateLimiter } from './registrations/rateLimiter.js';
+import { PostgresRegistrationRepository } from './registrations/repository.js';
+import { createRegistrationRouter } from './registrations/routes.js';
+import { RegistrationService } from './registrations/service.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -60,6 +65,18 @@ const invitationRouter = createInvitationRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const registrationRouter = createRegistrationRouter({
+  service: new RegistrationService(
+    new PostgresRegistrationRepository(database),
+    new UnavailableEmailVerification(),
+    config.registrationIdempotencySecret,
+  ),
+  limiter: new RegistrationRateLimiter(
+    config.registrationMaxAttempts,
+    config.registrationWindowSeconds * 1000,
+    config.registrationBlockSeconds * 1000,
+  ),
+});
 const projectPolicy = new PostgresProjectPolicy(database);
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
@@ -91,6 +108,7 @@ const app = createApp({
   authRouter,
   termsRouter,
   invitationRouter,
+  registrationRouter,
   internalProductionRouter,
   contentRouter,
   productionRouter,

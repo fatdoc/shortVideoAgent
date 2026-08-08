@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 const DEVELOPMENT_SESSION_SECRET = 'local-development-only-change-before-deploying';
+const DEVELOPMENT_REGISTRATION_IDEMPOTENCY_SECRET =
+  'local-registration-idempotency-only-change-before-deploying';
 const secretWithAtLeast32Bytes = z
   .string()
   .refine((value) => Buffer.byteLength(value, 'utf8') >= 32, 'must contain at least 32 bytes');
@@ -26,6 +28,10 @@ const environmentSchema = z.object({
   INVITATION_PREVIEW_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(1_000).default(20),
   INVITATION_PREVIEW_WINDOW_SECONDS: z.coerce.number().int().min(10).max(86_400).default(60),
   INVITATION_PREVIEW_BLOCK_SECONDS: z.coerce.number().int().min(10).max(86_400).default(300),
+  REGISTRATION_IDEMPOTENCY_SECRET: secretWithAtLeast32Bytes.optional(),
+  REGISTRATION_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(1_000).default(5),
+  REGISTRATION_WINDOW_SECONDS: z.coerce.number().int().min(10).max(86_400).default(900),
+  REGISTRATION_BLOCK_SECONDS: z.coerce.number().int().min(10).max(86_400).default(900),
   TRUST_PROXY: z.enum(['true', 'false']).default('false'),
   APP_VERSION: z.string().min(1).default('pilot-v0-dev'),
 });
@@ -48,6 +54,10 @@ export type ControlApiConfig = {
   invitationPreviewMaxAttempts: number;
   invitationPreviewWindowSeconds: number;
   invitationPreviewBlockSeconds: number;
+  registrationIdempotencySecret: string;
+  registrationMaxAttempts: number;
+  registrationWindowSeconds: number;
+  registrationBlockSeconds: number;
   trustProxy: boolean;
   appVersion: string;
 };
@@ -55,6 +65,8 @@ export type ControlApiConfig = {
 export function loadConfig(environment: NodeJS.ProcessEnv = process.env): ControlApiConfig {
   const parsed = environmentSchema.parse(environment);
   const sessionSecret = parsed.SESSION_SECRET ?? DEVELOPMENT_SESSION_SECRET;
+  const registrationIdempotencySecret =
+    parsed.REGISTRATION_IDEMPOTENCY_SECRET ?? DEVELOPMENT_REGISTRATION_IDEMPOTENCY_SECRET;
 
   if (parsed.NODE_ENV === 'production' && sessionSecret === DEVELOPMENT_SESSION_SECRET) {
     throw new Error('SESSION_SECRET must be explicitly configured in production');
@@ -68,6 +80,10 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     throw new Error('SESSION_ROTATION_SECONDS must be less than SESSION_TTL_SECONDS');
   }
 
+  if (parsed.NODE_ENV === 'production' && !parsed.REGISTRATION_IDEMPOTENCY_SECRET) {
+    throw new Error('REGISTRATION_IDEMPOTENCY_SECRET must be explicitly configured in production');
+  }
+
   if (parsed.PROJECT_GRANT_SIGNING_SECRET === sessionSecret) {
     throw new Error('PROJECT_GRANT_SIGNING_SECRET must be independent from SESSION_SECRET');
   }
@@ -78,6 +94,16 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
   ) {
     throw new Error(
       'PRODUCTION_PLANE_INTERNAL_TOKEN must be independent from Session and ProjectGrant secrets',
+    );
+  }
+
+  if (
+    registrationIdempotencySecret === sessionSecret ||
+    registrationIdempotencySecret === parsed.PROJECT_GRANT_SIGNING_SECRET ||
+    registrationIdempotencySecret === parsed.PRODUCTION_PLANE_INTERNAL_TOKEN
+  ) {
+    throw new Error(
+      'REGISTRATION_IDEMPOTENCY_SECRET must be independent from Session, ProjectGrant and production-plane secrets',
     );
   }
 
@@ -99,6 +125,10 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     invitationPreviewMaxAttempts: parsed.INVITATION_PREVIEW_MAX_ATTEMPTS,
     invitationPreviewWindowSeconds: parsed.INVITATION_PREVIEW_WINDOW_SECONDS,
     invitationPreviewBlockSeconds: parsed.INVITATION_PREVIEW_BLOCK_SECONDS,
+    registrationIdempotencySecret,
+    registrationMaxAttempts: parsed.REGISTRATION_MAX_ATTEMPTS,
+    registrationWindowSeconds: parsed.REGISTRATION_WINDOW_SECONDS,
+    registrationBlockSeconds: parsed.REGISTRATION_BLOCK_SECONDS,
     trustProxy: parsed.TRUST_PROXY === 'true',
     appVersion: parsed.APP_VERSION,
   };

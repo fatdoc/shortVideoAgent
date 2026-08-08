@@ -688,3 +688,20 @@
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_3B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(control-api): add atomic registration transaction`；随后进入 02.3C Public Registration API / Bootstrap，先写 Router 与 Bootstrap RED，并在修改共享文件前确认 B 同步边界。
+
+## 2026-08-08 A-BIZ-02.3C Public Registration API / Bootstrap 完成
+
+- Test-first RED 已确认：Registration Router/RateLimiter 首次因模块缺失失败；Config/App Bootstrap 测试首次因注册配置与 Router 挂载不存在失败，随后才补最小实现。
+- 新增唯一公开端点 `POST /api/v1/public/registrations`，不依赖 Session Cookie；严格白名单拒绝未知字段，并继续受 Control API `1mb` JSON limit 约束。
+- 所有 Registration 响应设置 `cache-control: no-store`；首次完成返回 201，安全 replay 返回 200 和 `idempotency-replayed: true`，响应只包含 Registration 安全结果且不签发 Session。
+- 稳定映射注册 400/404/409/503、限流 429；未知异常交给全局 500 Handler，不回显密码、邮箱、Token、SQL constraint 或内部错误文本。
+- 限流键使用来源地址与 normalized email 的 SHA-256 不可逆组合，不把 email、密码或 Token 直接放入 Map key；单机参数由三项 Registration 环境变量显式配置，多实例正式部署仍需共享限流设施。
+- Config 新增独立 `REGISTRATION_IDEMPOTENCY_SECRET`：development/test 使用独立本地默认值，production 必须显式配置且不得复用 Session、ProjectGrant 或 production-plane internal Secret。
+- Bootstrap 完成 `PostgresRegistrationRepository → RegistrationService → RegistrationRateLimiter → createRegistrationRouter → createApp`；默认注入 `UnavailableEmailVerification`，正式 Provider 未接入时端点稳定 503、零数据写入，不宣称公网注册已开放。
+- `.env.example` 与 Control API README 已同步 Public Registration、Secret、限流、无自动登录和 fail-closed Provider 边界。
+- 定向 Gate：Router/RateLimiter 2 files / 15 tests PASS；Router/Config/App/Service 5 files / 38 tests PASS。
+- 完整 Gate：Control API 单 worker 39 files / 220 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- 本切片修改共享 `apps/control-api/src/app.ts` / `server.ts`；提交后必须通知 B 同步对应 commit。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_3C_COMPLETE / A_BIZ_02_3_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): expose public registration api` 并通知 B 同步；随后重新基于最新任务文档规划 A-BIZ-02.4，不提前实现真实邮箱 Provider、注册页面、自动登录或支付。

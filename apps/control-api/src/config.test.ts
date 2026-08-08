@@ -22,6 +22,42 @@ describe('loadConfig', () => {
     expect(config.invitationPreviewMaxAttempts).toBe(20);
     expect(config.invitationPreviewWindowSeconds).toBe(60);
     expect(config.invitationPreviewBlockSeconds).toBe(300);
+    expect(config.registrationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
+    expect(config.registrationMaxAttempts).toBe(5);
+    expect(config.registrationWindowSeconds).toBe(900);
+    expect(config.registrationBlockSeconds).toBe(900);
+  });
+
+  it('loads explicit Registration security and rate-limit policy', () => {
+    const config = loadConfig({
+      NODE_ENV: 'test',
+      ...projectGrantConfig,
+      REGISTRATION_IDEMPOTENCY_SECRET: 'independent-registration-secret-for-tests',
+      REGISTRATION_MAX_ATTEMPTS: '8',
+      REGISTRATION_WINDOW_SECONDS: '600',
+      REGISTRATION_BLOCK_SECONDS: '1200',
+    });
+
+    expect(config.registrationIdempotencySecret).toBe('independent-registration-secret-for-tests');
+    expect(config.registrationMaxAttempts).toBe(8);
+    expect(config.registrationWindowSeconds).toBe(600);
+    expect(config.registrationBlockSeconds).toBe(1200);
+  });
+
+  it('requires an explicit independent Registration secret in production', () => {
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://pilot:secure@db.internal/videoagent',
+      SESSION_SECRET: 'a-production-session-secret-with-more-than-32-characters',
+      ...projectGrantConfig,
+    };
+    expect(() => loadConfig(production)).toThrow('REGISTRATION_IDEMPOTENCY_SECRET');
+    expect(() =>
+      loadConfig({
+        ...production,
+        REGISTRATION_IDEMPOTENCY_SECRET: production.SESSION_SECRET,
+      }),
+    ).toThrow('must be independent');
   });
 
   it('loads explicit Invitation Preview rate-limit policy', () => {
