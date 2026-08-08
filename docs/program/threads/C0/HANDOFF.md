@@ -472,3 +472,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 详细计划：`docs/program/threads/C0/A_BIZ_03_2_ATOMIC_CREDIT_ISSUANCE_PLAN.md`。
 - B 边界：不修改 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 下一步：test-first 创建 migration 015 PostgreSQL 合同测试并确认缺失 Schema RED。
+
+## A-BIZ-03.2A Atomic Credit Issuance Schema 交接（2026-08-08）
+
+- 新增 migration `015_atomic_credit_issuance.ts` 与 `atomicCreditIssuance.postgres.test.ts`。
+- Credit Lot 绑定 RechargeOrder、PaymentEvent、Rule、Tenant 和 Wallet；PURCHASED 无到期，BONUS 到期由订单冻结天数计算。
+- `credit_ledger_entries.credit_lot_id` 对历史分录可空；充值发行分录一旦关联 Lot，必须完整匹配 Provider、Order、posting group、delta、reason 和 occurredAt。
+- PaymentEvent 新增 processed evidence：received 无 processedAt，applied/rejected 必须有 processedAt，terminal evidence 不可变。
+- Gate：Control API 44 files / 273 tests PASS；工程检查全部 PASS。
+- B 文件无修改；未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未暂存。
+- 下一步 03.2B 原子应用；当前 migration 本身不会自动把既有 received Event 标记 applied。

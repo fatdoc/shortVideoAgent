@@ -3,7 +3,7 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_TEST_FIRST`
+- 状态：`PLAN_FROZEN / 03_2A_COMPLETE / 03_2B_PENDING`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）
 - 前置完成：A-BIZ-03.1A～03.1C（RechargeOrder、PaymentEvent Inbox、TEST Adapter 与 HTTP Bootstrap）
 
@@ -214,3 +214,13 @@ PostgreSQL 测试必须使用专用 `_test` 数据库并单 worker。并发测�
 - LIVE、Commission、退款与真实商业数字继续 fail closed；
 - PostgreSQL、Service、Router、Typecheck、Build、Lint、Governance 与 diff-check 有真实证据；
 - STATUS、HANDOFF、CHANGELOG 和桌面项目记忆同步。
+
+## 10. 当前进度
+
+- A-BIZ-03.2A 已完成：migration `015_atomic_credit_issuance.ts` 建立 Credit Lot、Ledger Lot 关联、PaymentEvent `processed_at` 与 terminal evidence 约束。
+- purchased/bonus Lot 严格绑定同一 Order、Payment Event、Wallet、Tenant、Rule 与冻结额度；购买额度不过期，赠送额度按冻结天数计算到期。
+- Recharge issue Ledger 必须与 Lot、Order、Provider、posting group、reason、delta 和 occurredAt 一致；历史无 Lot 的 Pilot Ledger 保持兼容。
+- rollback 在存在 Lot、关联 Ledger 或 processed Payment evidence 时 fail closed；空 Schema 可回滚到 migration 014。
+- RED：缺失 migration 015 时合同测试无法加载；Green：015 定向 5/5，迁移链 001～015 与定向合计 6/6。
+- Control API 全量 Gate：44 files / 273 tests PASS；typecheck、build、定向 ESLint、Governance、`git diff --check` PASS。
+- 下一步进入 03.2B：先补 Repository 原子应用 RED，随后实现 TEST succeeded 的 Event/Order/Lot/Ledger 单事务和 replay/并发语义。

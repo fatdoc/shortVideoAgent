@@ -825,3 +825,12 @@
 - 本节点不实现 LIVE Provider、Commission、退款/拒付冲正、真实 SKU 数字或前端真实收款表述。
 - `payment_failed`、`refund_succeeded`、`chargeback_succeeded` 在对应状态机完成前稳定 rejected，不猜测、不发行负额度。
 - 下一步：先写 migration 015 PostgreSQL RED 合同测试，再实现 Schema。
+
+## 2026-08-08 A-BIZ-03.2A Atomic Credit Issuance Schema
+
+- migration 015 已新增 Credit Lot、Credit Ledger Lot FK、PaymentEvent processedAt 与 terminal evidence 约束。
+- Lot/发行 Ledger 必须匹配冻结 Order、Payment Event、Tenant、Wallet、Rule、额度、Provider 与时间；来源事实 append-only。
+- 购买额度批次不过期；赠送额度批次严格使用订单冻结 `bonusExpiresInDays`，没有在工程代码中写真实 SKU 数字。
+- rollback 在存在发行证据时 fail closed；历史无 Lot 的 Pilot Ledger 保持兼容。
+- Gate：015 定向 5/5；migration chain + 015 6/6；Control API 全量 44 files / 273 tests PASS；typecheck、build、定向 ESLint、Governance、diff check PASS。
+- 下一步：03.2B Repository/Service 原子应用，先写 succeeded/replay/concurrency/unsupported/rollback RED。
