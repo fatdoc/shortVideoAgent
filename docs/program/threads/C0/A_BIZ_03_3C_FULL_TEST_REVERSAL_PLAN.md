@@ -3,7 +3,7 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_RED`
+- 状态：`IMPLEMENTED / GATE_PASSED / COMMITTED`
 - 实现基线：`61e8b67 feat(control-api): accrue test payment commissions atomically`
 - 前置：A-BIZ-03.3B 已把 TEST succeeded Payment、Order、Credit 与 Commission Outcome/Accrual 接入单一 PostgreSQL 事务
 
@@ -265,3 +265,12 @@ postgresql://127.0.0.1:5432/videoagent_control_test
 - 全量 Control API、typecheck、build、lint、format、governance、diff check 通过；
 - C0 STATUS/HANDOFF/CHANGELOG 与桌面知识库同步；
 - 不触碰 B 的 StoryCanvas 未跟踪文件，不 push。
+
+## 12. 实施结果（2026-08-08）
+
+- Migration 017、Repository、Payment error types 与 PostgreSQL 合同均已完成。
+- 定向测试：Migration 017 + Repository 2 files / 36 tests PASS。
+- 全量 Gate：Control API 47 files / 314 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 已覆盖全额 refund、全额 chargeback、无 Accrual、部分退款拒绝、Wallet 非 issue 活动、历史 Reservation、frozen/non-paid、replay、并发、既有 Commission Reversal、reclaim/Reversal 故障回滚。
+- 范围未扩张：LIVE、部分退款、真实 Provider 退款、HTTP 新接口、Settlement 与 StoryCanvas 均未实现或修改。
+- 当前状态：`A_BIZ_03_3C_COMPLETE / COMMITTED`。

@@ -122,3 +122,11 @@
 - 新增 `A_BIZ_03_3C_FULL_TEST_REVERSAL_PLAN.md`，冻结 TEST 全额 refund/chargeback 的最保守 Credit 可回收证明、Migration 017、原子事务顺序、稳定拒绝语义与 RED/Gate。
 - 明确只在 Wallet 无任何非 issue Ledger、无任何历史 Reservation、Lot/issue 完整且未 reclaim 时允许全额冲正；部分退款和无法证明的余额状态继续 fail closed。
 - 原 Accrual 存在时全额 append-only Reversal；不存在时沿用原 Calculation Outcome，不创建虚假佣金事实。
+
+## 2026-08-08 · A-BIZ-03.3C Atomic Full TEST Refund/Chargeback Reversal
+
+- Migration 017 增加 Lot-linked `reclaim`、独立 issue/reclaim 唯一性、全额 TEST reversal PaymentEvent 审计码，并要求 Commission Reversal 引用 applied TEST 全额来源 Event。
+- Payment Repository 在单事务内完成 Event applied、完整 Credit reclaim、可选全额 Commission Reversal、Order refunded/disputed 与 RechargeOrderEvent。
+- 保守安全证明拒绝部分退款、非 issue Wallet Ledger、任何历史 Reservation、Lot/issue 不完整、既有 applied reversal 和 Commission Reversal 冲突。
+- replay、refund/chargeback 竞争与中途 ID 故障回滚合同通过；Control API 全量 47 files / 314 tests，全部工程 Gate PASS。
+- 状态：`A_BIZ_03_3C_COMPLETE / COMMITTED`；无共享 Bootstrap/HTTP/StoryCanvas 变更。

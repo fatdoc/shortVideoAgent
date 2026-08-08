@@ -551,3 +551,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 原 succeeded Payment 无 Accrual 时只做 Credit reclaim，不伪造 Reversal；原 Calculation Outcome 已提供明确佣金原因。
 - 部分退款、Credit 证据不安全和 Commission 冲突分别使用稳定 rejected code；Order 与所有审计事实保持不变。
 - 不改共享 Bootstrap/HTTP route，不触碰 StoryCanvas；下一步先写 migration 017 与 Repository PostgreSQL RED，确认有效 RED 后才实现。
+
+## A-BIZ-03.3C Full TEST Refund/Chargeback Reversal 完成交接（2026-08-08）
+
+- 实现文件：`apps/control-api/src/db/migrations/017_full_test_payment_reversal.ts`、`apps/control-api/src/payments/repository.ts`、`apps/control-api/src/payments/types.ts`。
+- 测试文件：`apps/control-api/src/db/fullTestPaymentReversal.postgres.test.ts`、`apps/control-api/src/db/migrationChain.postgres.test.ts`、`apps/control-api/src/payments/repository.postgres.test.ts`。
+- 只实现 TEST 全额 refund/chargeback；部分退款、LIVE、真实 Provider 退款、负余额、跨 Lot 分摊和自动结算继续 fail closed。
+- 原子结果：Event applied、每个原 Lot 一条完整 reclaim、可选全额 Commission Reversal、Order refunded/disputed、对应 OrderEvent；任一步失败全部回滚。
+- 可回收证明：Wallet active 且无非 issue Ledger、无任何历史 Reservation；Order paid；Lot/issue 集合和额度与订单完全一致；无既有 reclaim/applied reversal；Accrual 无既有 Reversal。
+- 稳定拒绝：`partial_refund_unsupported`、`credit_reclaim_unsafe`、`commission_reversal_conflict`，并延续 `wallet_unavailable`、`invalid_order_state`、`unsupported_event_type`。
+- replay 不重复追加；同 Order refund/chargeback 并发最多一个 applied；reclaim Ledger 或 Commission Reversal ID 分配失败会回滚 Event、Ledger、Commission 与 Order。
+- Gate：定向 2 files / 36 tests；Control API 全量 47 files / 314 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
+- 协作边界：未修改 `app.ts`、`server.ts`、`config.ts`、HTTP route 或 StoryCanvas，B 无需同步共享 Bootstrap；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_03_3C_COMPLETE / COMMITTED / READY_FOR_NEXT_PLANNING`；未要求 push。

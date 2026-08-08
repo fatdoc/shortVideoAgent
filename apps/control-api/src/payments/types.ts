@@ -16,6 +16,9 @@ export type PaymentEventErrorCode =
   | 'invalid_order_state'
   | 'wallet_unavailable'
   | 'credit_issuance_conflict'
+  | 'partial_refund_unsupported'
+  | 'credit_reclaim_unsafe'
+  | 'commission_reversal_conflict'
   | 'unsupported_event_type'
   | 'provider_unavailable'
   | 'internal_processing_error';

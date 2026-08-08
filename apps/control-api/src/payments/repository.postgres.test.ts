@@ -11,6 +11,7 @@ import { up as addRegistrationAttribution } from '../db/migrations/013_registrat
 import { up as addRechargePaymentFoundation } from '../db/migrations/014_recharge_payment_foundation.js';
 import { up as addAtomicCreditIssuance } from '../db/migrations/015_atomic_credit_issuance.js';
 import { up as addCommissionShadowLedger } from '../db/migrations/016_commission_shadow_ledger.js';
+import { up as addFullTestPaymentReversal } from '../db/migrations/017_full_test_payment_reversal.js';
 import {
   PaymentIdempotencyConflictError,
   PaymentOrderConflictError,
@@ -116,6 +117,7 @@ async function resetFoundation(database: Knex): Promise<void> {
   await addRechargePaymentFoundation(database);
   await addAtomicCreditIssuance(database);
   await addCommissionShadowLedger(database);
+  await addFullTestPaymentReversal(database);
 
   await database('control_plane.organizations').insert({
     organization_id: platformOrganizationId,
@@ -210,6 +212,10 @@ function ids() {
         (_, index) => `bf000000-0000-4000-8000-${String(index + 2).padStart(12, '0')}`,
       ),
     ],
+    commissionReversal: Array.from(
+      { length: 8 },
+      (_, index) => `c0000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    ),
   };
   return (
     entity:
@@ -220,7 +226,8 @@ function ids() {
       | 'creditLot'
       | 'ledgerEntry'
       | 'commissionOutcome'
-      | 'commissionAccrual',
+      | 'commissionAccrual'
+      | 'commissionReversal',
   ): string => {
     const value = values[entity]?.shift();
     if (!value) throw new Error(`missing test id for ${entity}`);
@@ -977,6 +984,491 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
     await expect(count(database, 'payment_events')).resolves.toBe(0);
     await expect(count(database, 'credit_lots')).resolves.toBe(0);
     await expect(count(database, 'commission_calculation_outcomes')).resolves.toBe(0);
+  });
+
+  it('atomically applies a full TEST refund into Credit reclaim, Commission Reversal and refunded Order', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+
+    const refund = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-001',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('7'),
+        occurredAt: new Date('2026-08-09T06:00:00.000Z'),
+        receivedAt: new Date('2026-08-09T06:00:01.000Z'),
+      }),
+    );
+
+    expect(refund.value).toMatchObject({ processingStatus: 'applied', errorCode: null });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'refunded' });
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .select('operation', 'bucket', 'delta')
+        .where({ operation: 'reclaim' })
+        .orderBy('delta'),
+    ).resolves.toEqual([
+      { operation: 'reclaim', bucket: 'available', delta: '-10' },
+      { operation: 'reclaim', bucket: 'available', delta: '-2' },
+    ]);
+    await expect(
+      database('control_plane.commission_reversals')
+        .select('reversal_type', 'amount_minor', 'currency')
+        .first(),
+    ).resolves.toEqual({ reversal_type: 'refund', amount_minor: '15', currency: 'CNY' });
+  });
+
+  it('applies a full TEST chargeback without inventing a Commission Reversal when no Accrual exists', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+
+    const chargeback = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-chargeback-001',
+        eventType: 'chargeback_succeeded',
+        eventDigest: digest('8'),
+        occurredAt: new Date('2026-08-09T07:00:00.000Z'),
+        receivedAt: new Date('2026-08-09T07:00:01.000Z'),
+      }),
+    );
+
+    expect(chargeback.value).toMatchObject({ processingStatus: 'applied', errorCode: null });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'disputed' });
+    await expect(count(database, 'commission_reversals')).resolves.toBe(0);
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '2' });
+  });
+
+  it('stably rejects partial refunds without changing Credit, Commission or Order', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+
+    const partial = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-partial',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('9'),
+        amountMinor: 50,
+        occurredAt: new Date('2026-08-09T08:00:00.000Z'),
+        receivedAt: new Date('2026-08-09T08:00:01.000Z'),
+      }),
+    );
+
+    expect(partial.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'partial_refund_unsupported',
+    });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'paid' });
+    await expect(count(database, 'commission_reversals')).resolves.toBe(0);
+  });
+
+  it('fails closed when Wallet activity makes complete Lot reclaim unprovable', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    await database('control_plane.credit_ledger_entries').insert({
+      ledger_entry_id: 'bb000000-0000-4000-8000-000000000099',
+      tenant_id: tenantId,
+      wallet_id: walletId,
+      reservation_id: null,
+      posting_group_id: 'bb000000-0000-4000-8000-000000000098',
+      operation: 'adjust',
+      bucket: 'available',
+      delta: -1,
+      reference_type: 'manual_test',
+      reference_id: orderId,
+      idempotency_key: 'unsafe-wallet-adjustment',
+      actor_type: 'admin',
+      actor_id: platformAdminMembershipId,
+      reason_code: 'test_unsafe_reclaim_evidence',
+      occurred_at: '2026-08-09T08:30:00.000Z',
+      created_at: '2026-08-09T08:30:00.000Z',
+      credit_lot_id: null,
+    });
+
+    const refund = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-unsafe',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('a'),
+        occurredAt: new Date('2026-08-09T09:00:00.000Z'),
+        receivedAt: new Date('2026-08-09T09:00:01.000Z'),
+      }),
+    );
+
+    expect(refund.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'credit_reclaim_unsafe',
+    });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'paid' });
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '0' });
+  });
+
+  it('replays a full refund without duplicating reclaim, Commission Reversal or Order evidence', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    const input = paymentRecord({
+      providerEventId: 'provider-refund-replay',
+      eventType: 'refund_succeeded',
+      eventDigest: digest('b'),
+      occurredAt: new Date('2026-08-09T09:30:00.000Z'),
+      receivedAt: new Date('2026-08-09T09:30:01.000Z'),
+    });
+
+    const first = await repository.receivePaymentEvent(input);
+    const replay = await repository.receivePaymentEvent(input);
+
+    expect(first.replayed).toBe(false);
+    expect(replay).toEqual({ ...first, replayed: true });
+    await expect(count(database, 'payment_events')).resolves.toBe(2);
+    await expect(count(database, 'commission_reversals')).resolves.toBe(1);
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '2' });
+    await expect(
+      database('control_plane.recharge_order_events')
+        .where({ event_type: 'refunded' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '1' });
+  });
+
+  it('serializes competing full refund and chargeback Events so at most one is applied', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+
+    const [refund, chargeback] = await Promise.all([
+      repository.receivePaymentEvent(
+        paymentRecord({
+          providerEventId: 'provider-refund-race',
+          eventType: 'refund_succeeded',
+          eventDigest: digest('c'),
+          occurredAt: new Date('2026-08-09T10:00:00.000Z'),
+          receivedAt: new Date('2026-08-09T10:00:01.000Z'),
+        }),
+      ),
+      repository.receivePaymentEvent(
+        paymentRecord({
+          providerEventId: 'provider-chargeback-race',
+          eventType: 'chargeback_succeeded',
+          eventDigest: digest('d'),
+          occurredAt: new Date('2026-08-09T10:00:02.000Z'),
+          receivedAt: new Date('2026-08-09T10:00:03.000Z'),
+        }),
+      ),
+    ]);
+
+    expect([refund.value.processingStatus, chargeback.value.processingStatus].sort()).toEqual([
+      'applied',
+      'rejected',
+    ]);
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '2' });
+    await expect(
+      database('control_plane.recharge_order_events')
+        .whereIn('event_type', ['refunded', 'disputed'])
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '1' });
+  });
+
+  it('rejects full reversal when the Wallet has historical Credit Reservation evidence', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    const projectId = 'c1000000-0000-4000-8000-000000000001';
+    const packageId = 'c2000000-0000-4000-8000-000000000001';
+    const reservationId = 'c3000000-0000-4000-8000-000000000001';
+    const taskId = 'c4000000-0000-4000-8000-000000000001';
+    await database.transaction(async (transaction) => {
+      await transaction.raw('set constraints all deferred');
+      await transaction('control_plane.projects').insert({
+        project_id: projectId,
+        tenant_id: tenantId,
+        name: 'Historical reservation proof',
+        status: 'active',
+        platform: 'test',
+        aspect_ratio: '9:16',
+        target_duration_seconds: 30,
+        created_by: buyerUserId,
+      });
+      await transaction('control_plane.production_packages').insert({
+        package_id: packageId,
+        tenant_id: tenantId,
+        project_id: projectId,
+        contract_version: 'test-v1',
+        idempotency_key: 'historical-reservation-package',
+        package_digest: digest('e'),
+        snapshot: {},
+        status: 'ready',
+        valid_from: '2026-08-08T00:00:00.000Z',
+        expires_at: '2026-08-10T00:00:00.000Z',
+      });
+      await transaction('control_plane.credit_reservations').insert({
+        reservation_id: reservationId,
+        tenant_id: tenantId,
+        wallet_id: walletId,
+        generation_task_id: taskId,
+        status: 'released',
+        reserved_credits: 1,
+        consumed_credits: 0,
+        released_credits: 1,
+        rate_card_version: 'test-v1',
+        idempotency_key: 'historical-reservation',
+      });
+      await transaction('control_plane.production_tasks').insert({
+        generation_task_id: taskId,
+        tenant_id: tenantId,
+        project_id: projectId,
+        package_id: packageId,
+        reservation_id: reservationId,
+        task_type: 'video',
+        capability_code: 'test',
+        status: 'cancelled',
+        idempotency_key: 'historical-reservation-task',
+      });
+    });
+
+    const refund = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-reservation',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('f'),
+        occurredAt: new Date('2026-08-09T10:30:00.000Z'),
+        receivedAt: new Date('2026-08-09T10:30:01.000Z'),
+      }),
+    );
+
+    expect(refund.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'credit_reclaim_unsafe',
+    });
+    await expect(count(database, 'commission_reversals')).resolves.toBe(0);
+  });
+
+  it('rejects full reversal for frozen Wallets and non-paid Orders', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    const nonPaid = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-non-paid',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('0'),
+      }),
+    );
+    expect(nonPaid.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'invalid_order_state',
+    });
+
+    await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-payment-after-rejection',
+        eventDigest: digest('1'),
+      }),
+    );
+    await database('control_plane.wallets')
+      .where({ wallet_id: walletId })
+      .update({ status: 'frozen' });
+    const frozen = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-frozen',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('2'),
+        occurredAt: new Date('2026-08-09T11:00:00.000Z'),
+        receivedAt: new Date('2026-08-09T11:00:01.000Z'),
+      }),
+    );
+    expect(frozen.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'wallet_unavailable',
+    });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'paid' });
+  });
+
+  it('stably rejects when an Accrual already has Commission Reversal evidence', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    const existingRefundEventId = 'c8000000-0000-4000-8000-000000000001';
+    const existingRefundOccurredAt = '2026-08-09T11:15:00.000Z';
+    const existingRefundReceivedAt = '2026-08-09T11:15:01.000Z';
+    await database('control_plane.payment_events').insert({
+      payment_event_id: existingRefundEventId,
+      payment_mode: 'TEST',
+      provider_code: 'test-payment',
+      provider_event_id: 'provider-refund-existing-commission',
+      event_type: 'refund_succeeded',
+      event_digest: digest('5'),
+      recharge_order_id: orderId,
+      amount_minor: 100,
+      currency: 'CNY',
+      occurred_at: existingRefundOccurredAt,
+      received_at: existingRefundReceivedAt,
+      processing_status: 'received',
+      error_code: null,
+      processed_at: null,
+    });
+    await database('control_plane.payment_events')
+      .where({ payment_event_id: existingRefundEventId })
+      .update({
+        processing_status: 'applied',
+        processed_at: existingRefundReceivedAt,
+      });
+    await database('control_plane.commission_reversals').insert({
+      commission_reversal_id: 'c9000000-0000-4000-8000-000000000001',
+      commission_accrual_id: commissionAccrualId,
+      source_payment_event_id: existingRefundEventId,
+      reversal_type: 'refund',
+      amount_minor: 15,
+      currency: 'CNY',
+      reversal_snapshot: { schemaVersion: 'commission-reversal-v1', fixture: true },
+      reversal_digest: digest('6'),
+      occurred_at: existingRefundOccurredAt,
+      created_at: existingRefundReceivedAt,
+    });
+
+    const refund = await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-refund-commission-conflict',
+        eventType: 'refund_succeeded',
+        eventDigest: digest('7'),
+        occurredAt: new Date('2026-08-09T11:20:00.000Z'),
+        receivedAt: new Date('2026-08-09T11:20:01.000Z'),
+      }),
+    );
+
+    expect(refund.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'commission_reversal_conflict',
+    });
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '0' });
+  });
+
+  it('rolls back the reversal Event when reclaim Ledger ID allocation fails', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    const failureIds: Record<string, string[]> = {
+      paymentEvent: ['c5000000-0000-4000-8000-000000000001'],
+    };
+    const failingRepository = new PostgresPaymentFoundationRepository(database, (entity) => {
+      if (entity === 'ledgerEntry') throw new Error('forced reclaim ledger id failure');
+      const value = failureIds[entity]?.shift();
+      if (!value) throw new Error(`missing failure id for ${entity}`);
+      return value;
+    });
+
+    await expect(
+      failingRepository.receivePaymentEvent(
+        paymentRecord({
+          providerEventId: 'provider-refund-ledger-failure',
+          eventType: 'refund_succeeded',
+          eventDigest: digest('3'),
+          occurredAt: new Date('2026-08-09T11:30:00.000Z'),
+          receivedAt: new Date('2026-08-09T11:30:01.000Z'),
+        }),
+      ),
+    ).rejects.toThrow('forced reclaim ledger id failure');
+    await expect(count(database, 'payment_events')).resolves.toBe(1);
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '0' });
+  });
+
+  it('rolls back reclaim and Payment evidence when Commission Reversal ID allocation fails', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    const failureIds: Record<string, string[]> = {
+      paymentEvent: ['c6000000-0000-4000-8000-000000000001'],
+      ledgerEntry: ['c7000000-0000-4000-8000-000000000001', 'c7000000-0000-4000-8000-000000000002'],
+    };
+    const failingRepository = new PostgresPaymentFoundationRepository(database, (entity) => {
+      if (entity === 'commissionReversal') {
+        throw new Error('forced commission reversal id failure');
+      }
+      const value = failureIds[entity]?.shift();
+      if (!value) throw new Error(`missing failure id for ${entity}`);
+      return value;
+    });
+
+    await expect(
+      failingRepository.receivePaymentEvent(
+        paymentRecord({
+          providerEventId: 'provider-refund-commission-failure',
+          eventType: 'refund_succeeded',
+          eventDigest: digest('4'),
+          occurredAt: new Date('2026-08-09T12:00:00.000Z'),
+          receivedAt: new Date('2026-08-09T12:00:01.000Z'),
+        }),
+      ),
+    ).rejects.toThrow('forced commission reversal id failure');
+    await expect(count(database, 'payment_events')).resolves.toBe(1);
+    await expect(count(database, 'commission_reversals')).resolves.toBe(0);
+    await expect(
+      database('control_plane.credit_ledger_entries')
+        .where({ operation: 'reclaim' })
+        .count('* as count')
+        .first(),
+    ).resolves.toMatchObject({ count: '0' });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'paid' });
   });
 
   it('rejects Payment Event facts that do not match the locked Recharge Order', async () => {

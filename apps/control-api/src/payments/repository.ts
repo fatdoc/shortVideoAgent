@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { calculateCommission, type CommissionRuleFacts } from './commissionCalculation.js';
 import {
@@ -30,7 +30,8 @@ type RepositoryEntity =
   | 'creditLot'
   | 'ledgerEntry'
   | 'commissionOutcome'
-  | 'commissionAccrual';
+  | 'commissionAccrual'
+  | 'commissionReversal';
 
 type RechargeOrderRow = {
   recharge_order_id: string;
@@ -97,6 +98,28 @@ type CommissionRuleRow = {
   rounding_mode: CommissionRuleFacts['roundingMode'];
   refund_observation_days: number;
 };
+
+type CreditLotRow = {
+  credit_lot_id: string;
+  tenant_id: string;
+  wallet_id: string;
+  recharge_order_id: string;
+  lot_type: 'PURCHASED' | 'BONUS';
+  original_credits: string | number;
+};
+
+type CreditLedgerEntryRow = {
+  credit_lot_id: string | null;
+  operation: string;
+};
+
+type CommissionAccrualRow = {
+  commission_accrual_id: string;
+  basis_amount_minor: string | number;
+  commission_amount_minor: string | number;
+  currency: string;
+};
+
 type PostgresError = { code?: string; constraint?: string; message?: string };
 
 function postgresError(error: unknown): PostgresError {
@@ -117,6 +140,20 @@ function safeInteger(value: string | number, field: string): number {
     throw new Error(`${field} exceeds the supported safe integer range.`);
   }
   return normalized;
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+    .join(',')}}`;
+}
+
+function digestSnapshot(snapshot: unknown): string {
+  return createHash('sha256').update(canonicalJson(snapshot), 'utf8').digest('hex');
 }
 
 function orderFromRow(row: RechargeOrderRow): RechargeOrder {
@@ -364,10 +401,13 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
           .where({ recharge_order_id: input.rechargeOrderId })
           .forUpdate()
           .first()) as RechargeOrderRow | undefined;
+        const reversalEvent =
+          input.eventType === 'refund_succeeded' || input.eventType === 'chargeback_succeeded';
+        const orderAmount = order ? safeInteger(order.amount_minor, 'Recharge Order amount') : null;
         if (
           !order ||
           order.payment_mode !== input.paymentMode ||
-          safeInteger(order.amount_minor, 'Recharge Order amount') !== input.amountMinor ||
+          (reversalEvent ? input.amountMinor > orderAmount! : input.amountMinor !== orderAmount) ||
           order.currency !== input.currency
         ) {
           throw new PaymentOrderConflictError();
@@ -414,11 +454,23 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
           return { value: paymentEventFromRow(terminal), replayed: false };
         };
 
-        if (input.paymentMode !== 'TEST' || input.eventType !== 'payment_succeeded') {
+        if (input.paymentMode !== 'TEST') {
           return finish('rejected', 'unsupported_event_type');
         }
         if (!wallet || wallet.status !== 'active') {
           return finish('rejected', 'wallet_unavailable');
+        }
+        if (reversalEvent) {
+          return this.applyFullTestPaymentReversal(
+            transaction,
+            order,
+            paymentEventId,
+            input,
+            finish,
+          );
+        }
+        if (input.eventType !== 'payment_succeeded') {
+          return finish('rejected', 'unsupported_event_type');
         }
         if (order.status !== 'created' && order.status !== 'pending') {
           return finish('rejected', 'invalid_order_state');
@@ -542,6 +594,181 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
       }
       throw error;
     }
+  }
+
+  private async applyFullTestPaymentReversal(
+    transaction: Knex.Transaction,
+    order: RechargeOrderRow,
+    paymentEventId: string,
+    input: ReceivePaymentEventRecord,
+    finish: (
+      processingStatus: 'applied' | 'rejected',
+      errorCode: PaymentEventErrorCode | null,
+    ) => Promise<ReplayableResult<PaymentEvent>>,
+  ): Promise<ReplayableResult<PaymentEvent>> {
+    if (order.status !== 'paid') return finish('rejected', 'invalid_order_state');
+    if (input.amountMinor !== safeInteger(order.amount_minor, 'Recharge Order amount')) {
+      return finish('rejected', 'partial_refund_unsupported');
+    }
+
+    const lots = (await transaction('control_plane.credit_lots')
+      .select(
+        'credit_lot_id',
+        'tenant_id',
+        'wallet_id',
+        'recharge_order_id',
+        'lot_type',
+        'original_credits',
+      )
+      .where({ recharge_order_id: order.recharge_order_id })
+      .orderBy('lot_type')
+      .forUpdate()) as CreditLotRow[];
+    const ledger = (await transaction('control_plane.credit_ledger_entries')
+      .select('credit_lot_id', 'operation')
+      .where({ wallet_id: order.wallet_id })
+      .forUpdate()) as CreditLedgerEntryRow[];
+    const reservations = await transaction('control_plane.credit_reservations')
+      .select('reservation_id')
+      .where({ wallet_id: order.wallet_id })
+      .forUpdate();
+
+    const expectedLots = new Map<'PURCHASED' | 'BONUS', number>([
+      ['PURCHASED', safeInteger(order.purchased_credits, 'Recharge Order purchased credits')],
+    ]);
+    const bonusCredits = safeInteger(order.bonus_credits, 'Recharge Order bonus credits');
+    if (bonusCredits > 0) expectedLots.set('BONUS', bonusCredits);
+
+    const lotIds = new Set(lots.map((lot) => lot.credit_lot_id));
+    const issueCountByLot = new Map<string, number>();
+    for (const entry of ledger) {
+      if (entry.operation !== 'issue') return finish('rejected', 'credit_reclaim_unsafe');
+      if (entry.credit_lot_id !== null && lotIds.has(entry.credit_lot_id)) {
+        issueCountByLot.set(
+          entry.credit_lot_id,
+          (issueCountByLot.get(entry.credit_lot_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    const lotsAreComplete =
+      reservations.length === 0 &&
+      lots.length === expectedLots.size &&
+      lots.every(
+        (lot) =>
+          lot.tenant_id === order.tenant_id &&
+          lot.wallet_id === order.wallet_id &&
+          lot.recharge_order_id === order.recharge_order_id &&
+          safeInteger(lot.original_credits, 'Credit Lot original credits') ===
+            expectedLots.get(lot.lot_type) &&
+          issueCountByLot.get(lot.credit_lot_id) === 1,
+      );
+    if (!lotsAreComplete) return finish('rejected', 'credit_reclaim_unsafe');
+
+    const accruals = (await transaction('control_plane.commission_accruals')
+      .select('commission_accrual_id', 'basis_amount_minor', 'commission_amount_minor', 'currency')
+      .where({ recharge_order_id: order.recharge_order_id })
+      .orderBy('commission_accrual_id')
+      .forUpdate()) as CommissionAccrualRow[];
+    if (accruals.length > 1) return finish('rejected', 'commission_reversal_conflict');
+
+    const accrual = accruals[0] ?? null;
+    if (accrual !== null) {
+      const existingReversal = await transaction('control_plane.commission_reversals')
+        .select('commission_reversal_id')
+        .where({ commission_accrual_id: accrual.commission_accrual_id })
+        .forUpdate()
+        .first();
+      if (existingReversal) return finish('rejected', 'commission_reversal_conflict');
+      if (
+        safeInteger(accrual.basis_amount_minor, 'Commission Accrual basis') !== input.amountMinor ||
+        accrual.currency !== input.currency
+      ) {
+        return finish('rejected', 'commission_reversal_conflict');
+      }
+    }
+
+    const priorAppliedReversal = await transaction('control_plane.payment_events')
+      .select('payment_event_id')
+      .where({
+        recharge_order_id: order.recharge_order_id,
+        processing_status: 'applied',
+      })
+      .whereIn('event_type', ['refund_succeeded', 'chargeback_succeeded'])
+      .forUpdate()
+      .first();
+    if (priorAppliedReversal) return finish('rejected', 'invalid_order_state');
+
+    const applied = await finish('applied', null);
+    const reversalType = input.eventType === 'refund_succeeded' ? 'refund' : 'chargeback';
+    for (const lot of lots) {
+      await transaction('control_plane.credit_ledger_entries').insert({
+        ledger_entry_id: this.newId('ledgerEntry'),
+        tenant_id: order.tenant_id,
+        wallet_id: order.wallet_id,
+        reservation_id: null,
+        posting_group_id: paymentEventId,
+        operation: 'reclaim',
+        bucket: 'available',
+        delta: -safeInteger(lot.original_credits, 'Credit Lot original credits'),
+        reference_type: 'recharge_order',
+        reference_id: order.recharge_order_id,
+        idempotency_key: `payment-event:${paymentEventId}:${lot.lot_type.toLowerCase()}:reclaim`,
+        actor_type: 'system',
+        actor_id: input.providerCode,
+        reason_code:
+          reversalType === 'refund' ? 'recharge_refund_reclaimed' : 'recharge_chargeback_reclaimed',
+        occurred_at: input.occurredAt,
+        created_at: input.receivedAt,
+        credit_lot_id: lot.credit_lot_id,
+      });
+    }
+
+    if (accrual !== null) {
+      const commissionAmount = safeInteger(
+        accrual.commission_amount_minor,
+        'Commission Accrual amount',
+      );
+      const reversalSnapshot = {
+        schemaVersion: 'commission-reversal-v1',
+        sourcePaymentEventId: paymentEventId,
+        rechargeOrderId: order.recharge_order_id,
+        commissionAccrualId: accrual.commission_accrual_id,
+        reversalType,
+        basisAmountMinor: input.amountMinor,
+        commissionAmountMinor: commissionAmount,
+        currency: input.currency,
+      };
+      await transaction('control_plane.commission_reversals').insert({
+        commission_reversal_id: this.newId('commissionReversal'),
+        commission_accrual_id: accrual.commission_accrual_id,
+        source_payment_event_id: paymentEventId,
+        reversal_type: reversalType,
+        amount_minor: commissionAmount,
+        currency: input.currency,
+        reversal_snapshot: reversalSnapshot,
+        reversal_digest: digestSnapshot(reversalSnapshot),
+        occurred_at: input.occurredAt,
+        created_at: input.receivedAt,
+      });
+    }
+
+    const orderStatus = reversalType === 'refund' ? 'refunded' : 'disputed';
+    await transaction('control_plane.recharge_orders')
+      .where({ recharge_order_id: order.recharge_order_id })
+      .update({ status: orderStatus });
+    await transaction('control_plane.recharge_order_events').insert({
+      recharge_order_event_id: this.newId('orderEvent'),
+      recharge_order_id: order.recharge_order_id,
+      event_type: orderStatus,
+      source_payment_event_id: paymentEventId,
+      actor_type: 'system',
+      actor_id: input.providerCode,
+      reason_code:
+        reversalType === 'refund' ? 'payment_refund_succeeded' : 'payment_chargeback_succeeded',
+      occurred_at: input.occurredAt,
+      created_at: input.receivedAt,
+    });
+    return applied;
   }
 
   private async appendCommissionCalculation(

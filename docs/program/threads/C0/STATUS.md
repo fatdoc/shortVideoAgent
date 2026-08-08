@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3 `PLAN_FROZEN`
-- 当前任务：A-BIZ-03.3 佣金影子账、冲正与结算草稿计划已冻结；下一步从 A-BIZ-03.3A Migration 016 PostgreSQL RED 合同开始，不提前实现部分退款、真实佣金比例或自动结算
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3A～03.3C `COMPLETE`
+- 当前任务：A-BIZ-03.3C TEST 全额退款/拒付原子冲正已完成、通过全量 Gate 并独立提交；下一节点先重新审查 A-BIZ-03.3D Settlement Draft 或最新业务任务，不提前实现部分退款、真实 Provider 退款、真实佣金比例或自动结算
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -910,3 +910,16 @@
 - 本切片不涉及 LIVE、真实 Provider 退款、负余额、跨 Lot 分摊、HTTP 新接口、Settlement 或 StoryCanvas。
 - 当前状态：`A_BIZ_03_3C_PLAN_FROZEN / READY_FOR_03_3C_RED`。
 - 下一步：先新增 migration 017 空骨架与 PostgreSQL RED 合同，确认因 reclaim/原子 reversal 实现缺失而失败，再进入最小 Green。
+
+## 2026-08-08 A-BIZ-03.3C TEST 全额退款/拒付原子冲正完成
+
+- Migration 017 已增加 `reclaim` Ledger operation、每 Lot 独立 issue/reclaim 唯一性、严格的 applied TEST 全额 reversal 来源校验，并补强 PaymentEvent stable rejected code 与 Commission Reversal 全额约束。
+- Payment Repository 现支持 TEST 全额 `refund_succeeded` / `chargeback_succeeded`：PaymentEvent、完整 Lot reclaim、可选 Commission Reversal、Order 终态与 RechargeOrderEvent 位于同一 PostgreSQL 事务。
+- refund 将 `paid → refunded`；chargeback 将 `paid → disputed`。原 succeeded Payment 没有 Accrual 时只回收 Credit，不创建虚假 Reversal。
+- 安全证明保持最保守边界：Order 必须 paid、Wallet active、Lot/issue 与订单完全一致、Wallet 无任何非 issue Ledger、无任何历史 Credit Reservation、无 applied reversal、Accrual 无既有 Reversal。
+- 部分退款稳定 `partial_refund_unsupported`；Credit 证据不足稳定 `credit_reclaim_unsafe`；Commission 冲突稳定 `commission_reversal_conflict`。
+- 新增 replay、refund/chargeback 竞争、历史 Reservation、冻结 Wallet、非 paid Order、既有 Commission Reversal、reclaim/Reversal ID 故障全事务回滚合同。
+- 定向 Gate：Migration 017 + Repository 2 files / 36 tests PASS；完整 Control API 47 files / 314 tests PASS。
+- typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- 未修改共享 Bootstrap/HTTP 或 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_3C_COMPLETE / COMMITTED / READY_FOR_NEXT_PLANNING`；未收到 push 指令前不 push。
