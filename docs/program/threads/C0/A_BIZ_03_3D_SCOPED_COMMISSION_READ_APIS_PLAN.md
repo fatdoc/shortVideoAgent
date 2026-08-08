@@ -4,7 +4,7 @@
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
 - 实现基线：`66301c5 feat(control-api): reverse refundable test payments atomically`
-- 状态：`PLAN_FROZEN / READY_FOR_RED`
+- 状态：`COMPLETE / GATE_PASS / COMMITTED`
 - 前置：A-BIZ-03.3A～03.3C 已完成
 
 ## 1. 目标
@@ -187,3 +187,16 @@ PostgreSQL/Supertest 如受本机端口沙箱限制，使用已批准的提升�
 - PostgreSQL、Service、Router、Bootstrap、全量测试与工程 Gate 全部通过；
 - 共享 Bootstrap 形成独立 commit 并在 Handoff 明确要求 B 同步；
 - C0 STATUS/HANDOFF/CHANGELOG 与桌面项目记忆完成同步。
+
+## 11. 完成记录
+
+- 核心实现提交：`957c080 feat(control-api): expose commission audit results`。
+- 共享 Bootstrap 提交：`93c48aa feat(control-api): wire commission audit routes`。
+- 新增独立 `commissions` Types/Errors/Repository/Service/Router；未复用 Payment 内部 DTO，避免把 Provider 或计算快照带入响应。
+- Platform Admin 已可读取全局 Calculation/Accrual/Reversal 和 manual-review；Channel Admin 仅能读取 canonical 自身 Channel。
+- Tenant/Content Operator 探测、跨 Channel 和错误 Organization 均为 404；同 Scope 缺管理员角色为 403。
+- 列表默认 50、最大 100，按 `occurredAt DESC + primaryId DESC` 稳定排序；Repository 再次 clamp limit。
+- 响应投影不包含 snapshot/digest、Provider payload/secret、审批凭据、User/Tenant/Membership/Referral 明细。
+- 全量 Gate：Control API `50 files / 334 tests PASS`；typecheck、build、定向 ESLint、Prettier、Governance 与 `git diff --check` 全 PASS。
+- StoryCanvas 未修改；`apps/storycanvas/data/vendor/byteplus.ts` 继续未跟踪、未暂存、未提交。
+- 下一步为 A-BIZ-03.3E Settlement Draft，必须先独立规划，不在 03.3D 中提前创建或承诺真实结算。

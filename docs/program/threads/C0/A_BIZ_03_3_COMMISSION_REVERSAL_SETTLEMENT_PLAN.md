@@ -3,8 +3,8 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`03_3A_COMPLETE / 03_3B_COMPLETE / 03_3C_COMPLETE / 03_3D_PLAN_FROZEN / READY_FOR_03_3D_RED`
-- 当前基线：`66301c5 feat(control-api): reverse refundable test payments atomically`
+- 状态：`03_3A_COMPLETE / 03_3B_COMPLETE / 03_3C_COMPLETE / 03_3D_COMPLETE / READY_FOR_03_3E_PLANNING`
+- 当前基线：`93c48aa feat(control-api): wire commission audit routes`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）与 `A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`
 - 前置完成：A-BIZ-03.1 TEST Recharge/Payment Foundation、A-BIZ-03.2 Payment/Order/Credit 原子到账
 
@@ -400,7 +400,7 @@ A-BIZ-03.3 完成必须同时满足：
 
 ## 13. 下一步
 
-开始 A-BIZ-03.3D：按 `A_BIZ_03_3D_SCOPED_COMMISSION_READ_APIS_PLAN.md` 先写 Scope、Repository 与 Router RED，再实现最小只读投影；Settlement Draft 保留到 03.3E。
+A-BIZ-03.3D 已完成。下一步只规划 A-BIZ-03.3E Settlement Draft：先冻结 UTC 自然月、eligibleAt、净额、占用、幂等与审批状态合同，不提前实现 paid、提现或自动打款。
 
 ## 11. A-BIZ-03.3A 完成记录（2026-08-08）
 

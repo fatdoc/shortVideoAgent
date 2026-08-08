@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3A～03.3C `COMPLETE`
-- 当前任务：A-BIZ-03.3D Scoped Commission Read APIs 计划已冻结，准备以 RED 开始 Platform/Channel 安全只读审计；Settlement Draft 为后续 03.3E，不提前实现部分退款、真实 Provider 退款、真实佣金比例或自动结算
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3A～03.3D `COMPLETE`
+- 当前任务：A-BIZ-03.3D Scoped Commission Read APIs 已完成并通过全量 Gate；下一节点仅规划 A-BIZ-03.3E Settlement Draft，不提前实现 paid、提现、真实 Provider 退款、真实佣金比例或自动打款
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -932,3 +932,14 @@
 - 响应只包含最小审计投影，禁止 snapshot/digest、Provider payload/secret、审批凭据、Tenant/User/Referral 明细和其他 Channel 数据。
 - 03.3D 不创建 Rule、Settlement 或真实资金能力；共享 `app.ts` / `server.ts` 接线必须独立提交并通知 B 同步。
 - 下一步：先写 Commission Service/Repository/Router RED，再实现最小 Green。
+
+## 2026-08-08 A-BIZ-03.3D Scoped Commission Read APIs 完成
+
+- 新增独立 `apps/control-api/src/commissions/**`：安全 DTO、稳定 Scope 错误、PostgreSQL 只读 Repository、Service 权限策略与 HTTP Router。
+- Platform Admin 可读取全局 Calculation/Accrual/Reversal 和 `manual_review`；Channel Admin 仅能读取 canonical 自身 beneficiary Channel。
+- Tenant/Content Operator、错误 Organization 和跨 Channel 统一 404；同 PLATFORM/CHANNEL Scope 缺管理员角色为 403。
+- 列表默认 50、最大 100，稳定按 occurredAt 与主键倒序；响应排除 snapshot/digest、Provider payload/secret、内部 Token、审批凭据和 User/Tenant/Referral 明细。
+- 核心提交：`957c080`；共享 Bootstrap 提交：`93c48aa`。B 需要在继续共享 `app.ts` / `server.ts` 开发前同步 `93c48aa`。
+- 全量 Gate：Control API 50 files / 334 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 未修改 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交。
+- 下一步：先独立冻结 A-BIZ-03.3E Settlement Draft 计划；不得把 draft 描述成已到账、可提现或真实 paid。

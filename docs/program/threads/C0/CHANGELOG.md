@@ -130,3 +130,10 @@
 - 保守安全证明拒绝部分退款、非 issue Wallet Ledger、任何历史 Reservation、Lot/issue 不完整、既有 applied reversal 和 Commission Reversal 冲突。
 - replay、refund/chargeback 竞争与中途 ID 故障回滚合同通过；Control API 全量 47 files / 314 tests，全部工程 Gate PASS。
 - 状态：`A_BIZ_03_3C_COMPLETE / COMMITTED`；无共享 Bootstrap/HTTP/StoryCanvas 变更。
+
+## 2026-08-08 · A-BIZ-03.3D Scoped Commission Read APIs
+
+- 新增 Commission Audit Repository/Service/Router，为 Platform Admin 提供全局 Calculation/Accrual/Reversal/manual-review，为 Channel Admin 提供 canonical 自身 Channel 查询。
+- 冻结 404/403 Scope 语义、1～100 bounded list、稳定倒序和最小安全响应投影。
+- 核心提交 `957c080`，共享 Bootstrap 提交 `93c48aa`；B 需同步后再修改 `app.ts` / `server.ts`。
+- Control API 全量 50 files / 334 tests 通过；全部工程 Gate PASS，StoryCanvas 未变更。

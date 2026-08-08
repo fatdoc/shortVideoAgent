@@ -564,3 +564,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：定向 2 files / 36 tests；Control API 全量 47 files / 314 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
 - 协作边界：未修改 `app.ts`、`server.ts`、`config.ts`、HTTP route 或 StoryCanvas，B 无需同步共享 Bootstrap；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_BIZ_03_3C_COMPLETE / COMMITTED / READY_FOR_NEXT_PLANNING`；未要求 push。
+
+## A-BIZ-03.3D Scoped Commission Read APIs 完成交接（2026-08-08）
+
+- 权威计划：`A_BIZ_03_3D_SCOPED_COMMISSION_READ_APIS_PLAN.md`；核心提交 `957c080`，共享 Bootstrap 提交 `93c48aa`。
+- Platform Admin 已具备全局 Calculation/Accrual/Reversal/manual-review bounded list；Channel Admin 只能查询 canonical 自身 beneficiary Channel。
+- Scope 语义冻结：Tenant/Content Operator、错误 Organization、跨 Channel 为 404；同 Scope 缺 `platform_admin` / `channel_admin` 为 403。
+- 响应是最小审计投影，不包含 Commission snapshot/digest、Provider payload/secret、内部 Token、审批凭据、User/Tenant/Membership/Referral 明细。
+- 全量 Gate 为 Control API 50 files / 334 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance 和 diff-check 全 PASS。
+- **B 同步要求**：`93c48aa` 修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts`，B 后续修改这些文件前应先同步；该提交不改变 Config 或 Secret。
+- StoryCanvas 边界保持不变，未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 仍排除。
+- 下一动作：A 先规划 03.3E Settlement Draft；不得提前实现 paid、提现、KYC、税务或自动打款。
