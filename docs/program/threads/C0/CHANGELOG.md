@@ -103,6 +103,7 @@
 | 2026-08-08 | A-BIZ-03.2C 完成 TEST Payment HTTP 终态收口：首次 applied/rejected 与 replay 均为 200 并显式 replay header；Tenant RechargeOrder 安全展示 paid 与购买/赠送额度摘要；Control API 44 files / 278 tests 通过，A-BIZ-03.2 收口                                | A_BIZ_03_2_COMPLETE                     |
 | 2026-08-08 | 冻结 A-BIZ-03.3 佣金影子账、TEST 全额安全冲正与结算草稿：版本化 Rule/Outcome/Accrual/Reversal，真实比例、部分退款和 paid 继续 fail closed                                                                                                                 | A_BIZ_03_3_PLAN_FROZEN                  |
 | 2026-08-08 | A-BIZ-03.3A 完成 Migration 016 Commission Shadow Ledger：六张空审计表、Platform Rule/Settlement 审批、Rule 窗口、整数计提、append-only 冲正、自然月 Settlement 与 fail-closed rollback；Control API 45 files / 285 tests 通过                             | A_BIZ_03_3A_COMPLETE                    |
+| 2026-08-08 | A-BIZ-03.3E 完成 TEST Settlement Draft、Migration 018 Reversal Item validator 修复、幂等/并发/跨月净额与共享 HTTP Bootstrap；Control API 54 files / 363 tests 全 Gate 通过                                                                                | A_BIZ_03_3_COMPLETE                     |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -137,3 +138,11 @@
 - 冻结 404/403 Scope 语义、1～100 bounded list、稳定倒序和最小安全响应投影。
 - 核心提交 `957c080`，共享 Bootstrap 提交 `93c48aa`；B 需同步后再修改 `app.ts` / `server.ts`。
 - Control API 全量 50 files / 334 tests 通过；全部工程 Gate PASS，StoryCanvas 未变更。
+
+## 2026-08-08 · A-BIZ-03.3E TEST Commission Settlement Draft
+
+- Migration 018 提交 `9b252ee` 修复 Reversal Settlement Item validator 的 PL/pgSQL record/alias 重名，保留历史 migration 不变并为有证据 rollback 设置 fail-closed guard。
+- 核心提交 `499dcbb` 实现 TEST-only Settlement Draft、HMAC 幂等事实、advisory lock、eligibleAt/cutoff、fully-reversed skip、cross-month negative Reversal、零额 Draft 和最小安全投影。
+- 共享 Bootstrap 提交 `0433fdb` 挂载 Platform Admin POST Route；B 后续修改共享 App/Server 前必须同步。
+- 定向 Gate 9 + 26 + 19 tests；Control API 全量 54 files / 363 tests；typecheck/build/ESLint/Prettier/Governance/diff-check 全 PASS。
+- 03.3A～03.3E 全部完成；LIVE、真实比例、paid、提现、KYC、税务和自动打款继续排除。

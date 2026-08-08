@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3A～03.3D `COMPLETE`
-- 当前任务：A-BIZ-03.3D Scoped Commission Read APIs 已完成并通过全量 Gate；下一节点仅规划 A-BIZ-03.3E Settlement Draft，不提前实现 paid、提现、真实 Provider 退款、真实佣金比例或自动打款
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE`
+- 当前任务：A-BIZ-03.3E TEST Settlement Draft 已完成并通过全量 Gate；下一节点只规划 A-BIZ-03.4 商业前端与审计，不提前扩张 LIVE、paid、提现、真实佣金比例或自动打款
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -943,3 +943,15 @@
 - 全量 Gate：Control API 50 files / 334 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
 - 未修改 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交。
 - 下一步：先独立冻结 A-BIZ-03.3E Settlement Draft 计划；不得把 draft 描述成已到账、可提现或真实 paid。
+
+## 2026-08-08 A-BIZ-03.3E TEST Commission Settlement Draft 完成
+
+- 独立 Migration 018 修复 Reversal Settlement Item validator 的 PL/pgSQL record/alias 重名缺陷；提交 `9b252ee`，定向迁移链/Repository `3 files / 9 tests` PASS。
+- Settlement 核心提交 `499dcbb`：Platform Admin TEST-only 月度 Draft、HMAC 幂等、Scope/Period advisory lock、证据重验、eligibleAt/cutoff、跨月负 Reversal、零额 Draft 与安全投影。
+- 共享 Bootstrap 提交 `0433fdb`：挂载 `POST /api/v1/platform/commission-settlements`；首次 201、replay 200，并显式返回 `idempotency-replayed`。
+- 定向 Gate：Settlement `3 files / 26 tests`，Bootstrap/Router `2 files / 19 tests`；全量 Control API `54 files / 363 tests` PASS。
+- typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 继续禁止 LIVE Settlement、真实佣金比例、review/approve HTTP 命令、paid、提现、KYC、税务与自动打款。
+- B 同步要求：修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前同步 `0433fdb`。
+- StoryCanvas 未修改；`apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交。
+- 当前状态：`A_BIZ_03_3E_COMPLETE / A_BIZ_03_3_COMPLETE / READY_FOR_03_4_PLANNING`。

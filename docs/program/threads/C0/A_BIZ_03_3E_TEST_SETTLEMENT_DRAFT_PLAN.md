@@ -3,9 +3,10 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_RED`
+- 状态：`COMPLETE / COMMITTED / GATE_PASS`
 - 上游计划：`A_BIZ_03_3_COMMISSION_REVERSAL_SETTLEMENT_PLAN.md`
 - 前置提交：`b26a268 docs(business-plane): close scoped commission read apis`
+- 实现提交：`9b252ee`（Migration 018）、`499dcbb`（核心）、`0433fdb`（共享 Bootstrap）
 
 ## 1. 本节点目标
 
@@ -372,3 +373,19 @@ git diff --check
 - 把 Draft 描述成到账、余额、可提现或 paid；
 - 添加 KYC、税务、发票、提现、出款或自动打款；
 - 修改 B 的 StoryCanvas/Provider 文件。
+
+## 13. 完成记录（2026-08-08）
+
+- 新增 `apps/control-api/src/settlements/**`，完成 Platform Admin 显式创建 TEST Settlement Draft 的 Repository、Service、Router、安全 DTO、HMAC request digest 与 canonical snapshot digest。
+- Route 已接入 `POST /api/v1/platform/commission-settlements`：首次创建 `201 + idempotency-replayed: false`，同事实 replay `200 + idempotency-replayed: true`。
+- PostgreSQL Repository 使用 Scope/Period 与 idempotency advisory lock；同 key 不同事实和同 Scope/Period 不同 key 均稳定 409，并发创建只产生一个 Draft 和一组 Item。
+- 净额语义已实现：未到 `eligibleAt` 排除；cutoff 前未结算且完全冲正的 Accrual/Reversal 组合净归零；旧月已占用 Accrual 的跨月 Reversal 在新月形成负 Item；零候选可创建零额审计 Draft。
+- 来源证据重新验证 TEST applied Payment、来源事件发生时有效的 TEST Rule、观察期、Channel/currency 和 Item 占用；不完整或部分冲正证据 fail closed。
+- 新增 Migration 018 修复 Migration 016 的 PL/pgSQL record/alias 重名缺陷；已有 Reversal Settlement Item 时 rollback fail closed，不改写已发布 Migration 016。
+- HTTP 投影只返回 `draft` 与汇总金额/数量，不暴露 snapshot/digest、Rule 比例、审批凭据，也不表达 paid、到账、可提现或真实资金动作。
+- 共享 Bootstrap 提交 `0433fdb` 修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts`；B 后续修改这些文件前必须先同步该提交。
+- 定向 Gate：Migration 018/迁移链/Repository `3 files / 9 tests`；Settlement 核心 `3 files / 26 tests`；Bootstrap/Router `2 files / 19 tests`，全部 PASS。
+- 全量 Gate：Control API `54 files / 363 tests` PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+
+当前状态：`A_BIZ_03_3E_COMPLETE / A_BIZ_03_3_COMPLETE / READY_FOR_03_4_PLANNING`。下一步只规划 A-BIZ-03.4 商业前端与审计，不在本节点扩张 LIVE Settlement、review/approve 命令、paid、提现、KYC、税务或自动打款。

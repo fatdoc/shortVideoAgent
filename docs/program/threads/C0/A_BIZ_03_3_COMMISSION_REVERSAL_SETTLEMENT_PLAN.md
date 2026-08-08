@@ -3,8 +3,8 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`03_3A_COMPLETE / 03_3B_COMPLETE / 03_3C_COMPLETE / 03_3D_COMPLETE / READY_FOR_03_3E_PLANNING`
-- 当前基线：`93c48aa feat(control-api): wire commission audit routes`
+- 状态：`03_3A_COMPLETE / 03_3B_COMPLETE / 03_3C_COMPLETE / 03_3D_COMPLETE / 03_3E_COMPLETE / COMPLETE`
+- 当前基线：`0433fdb feat(control-api): wire commission settlement routes`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）与 `A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`
 - 前置完成：A-BIZ-03.1 TEST Recharge/Payment Foundation、A-BIZ-03.2 Payment/Order/Credit 原子到账
 
@@ -400,7 +400,7 @@ A-BIZ-03.3 完成必须同时满足：
 
 ## 13. 下一步
 
-A-BIZ-03.3D 已完成。下一步只规划 A-BIZ-03.3E Settlement Draft：先冻结 UTC 自然月、eligibleAt、净额、占用、幂等与审批状态合同，不提前实现 paid、提现或自动打款。
+A-BIZ-03.3A～03.3E 已全部完成并通过全量 Gate。下一步只规划 A-BIZ-03.4 商业前端与审计；在新的页面范围、数据来源、角色可见性和验收合同冻结前不直接编码，也不扩张 LIVE、paid、提现或自动打款。
 
 ## 11. A-BIZ-03.3A 完成记录（2026-08-08）
 
@@ -415,3 +415,13 @@ A-BIZ-03.3D 已完成。下一步只规划 A-BIZ-03.3E Settlement Draft：先冻
 - 最终 Gate：Control API 45 files / 285 tests PASS；typecheck、build、ESLint、Prettier、Governance 与 `git diff --check` 全 PASS。
 - 未修改 Payment Repository、HTTP 或共享 App/Config/Server；未触碰 B 的 `apps/storycanvas/data/vendor/byteplus.ts`。
 - 下一步先冻结 A-BIZ-03.3B 的原子计提事务合同，再写 Repository PostgreSQL RED；不得直接把 Schema fixture 比例当成商业默认值。
+
+## 14. A-BIZ-03.3E 完成记录（2026-08-08）
+
+- Migration 修复提交：`9b252ee fix(control-api): repair settlement reversal item validation`；使用独立 Migration 018 消除 016 中 Reversal Item validator 的 record/SQL alias 重名，并在已有 Reversal Item 时拒绝 rollback。
+- 核心提交：`499dcbb feat(control-api): create test commission settlement drafts`；实现 TEST-only monthly Draft、HMAC 幂等事实、advisory lock、证据重验、零额/负额草稿、跨月 Reversal 与安全投影。
+- 共享 Bootstrap 提交：`0433fdb feat(control-api): wire commission settlement routes`；挂载 `POST /api/v1/platform/commission-settlements`，复用现有 Payment digest Secret，不新增 Config/Secret。
+- Gate：Migration 定向 `3 files / 9 tests`、Settlement 定向 `3 files / 26 tests`、Bootstrap/Router `2 files / 19 tests`；Control API 全量 `54 files / 363 tests` PASS。
+- typecheck、build、ESLint、Prettier、Governance 和 `git diff --check` 全 PASS；StoryCanvas 未修改。
+- 03.3 完成定义已满足：计提、manual review、全额安全冲正、Scoped Read、TEST Settlement Draft 与数据库禁止 paid 均有真实证据。
+- B 同步要求：后续修改共享 `app.ts` / `app.test.ts` / `server.ts` 前同步 `0433fdb`。

@@ -575,3 +575,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - **B 同步要求**：`93c48aa` 修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts`，B 后续修改这些文件前应先同步；该提交不改变 Config 或 Secret。
 - StoryCanvas 边界保持不变，未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 仍排除。
 - 下一动作：A 先规划 03.3E Settlement Draft；不得提前实现 paid、提现、KYC、税务或自动打款。
+
+## A-BIZ-03.3E TEST Commission Settlement Draft 完成交接（2026-08-08）
+
+- 权威计划：`A_BIZ_03_3E_TEST_SETTLEMENT_DRAFT_PLAN.md`；Migration 修复 `9b252ee`，核心实现 `499dcbb`，共享 Bootstrap `0433fdb`。
+- Platform Admin 可通过 `POST /api/v1/platform/commission-settlements` 显式创建 TEST 月度 Draft；非 Platform Scope 404、Platform 缺角色 403、输入错误 422、幂等/Period 冲突 409。
+- Repository 使用 Scope/Period 与 idempotency advisory lock；首次创建 201/replay false，同事实 replay 200/replay true，并发只形成一个 Settlement 和一组 Item。
+- 净额合同：未到 eligibleAt 排除；未结算且 cutoff 前完全冲正的组合不制造正负 Item；旧月已占用 Accrual 的跨月 Reversal 在新月形成负 Item；零候选允许零额审计 Draft。
+- Migration 018 修复 016 的 Reversal Item validator alias 冲突；存在 Reversal Settlement Item 时 rollback fail closed，不修改历史 Migration 016。
+- 响应只投影 draft 汇总，不泄漏 snapshot/digest、Rule 比例、Provider/审批证据，不表达 paid、已到账、可提现或真实资金动作。
+- Gate：迁移定向 `3 files / 9 tests`，Settlement `3 files / 26 tests`，Bootstrap/Router `2 files / 19 tests`，Control API 全量 `54 files / 363 tests`；全部工程 Gate PASS。
+- **B 同步要求**：`0433fdb` 修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts`。B 若继续修改这些文件，必须先同步该提交；未新增 Config 或 Secret。
+- StoryCanvas 和 B 的 `apps/storycanvas/data/vendor/byteplus.ts` 均未修改、未暂存、未提交。
+- A-BIZ-03.3 已完整收口；下一动作仅规划 A-BIZ-03.4 商业前端与审计，不直接扩大结算或资金能力。
