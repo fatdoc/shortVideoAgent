@@ -109,3 +109,10 @@
 - 新增 `A_BIZ_03_3B_ATOMIC_COMMISSION_ACCRUAL_PLAN.md`，冻结 TEST succeeded Payment 同事务 Calculation Outcome/Accrual 的事务顺序、决策矩阵、整数计算、RED 合同与 Gate。
 - 明确无默认佣金比例、多 Rule fail closed、Commission 写入失败全事务回滚，以及 LIVE/refund/HTTP/Settlement 排除边界。
 - 更新 03.3 总计划状态为 `03_3B_PLAN_FROZEN`。
+
+## 2026-08-08 · A-BIZ-03.3B Atomic TEST Commission Accrual
+
+- 新增 Commission 纯计算模块与单元合同，支持 canonical snapshot/digest、BigInt 整数比例、FLOOR/CEILING/HALF_UP 和退款观察期 eligibleAt。
+- Payment Repository 在 TEST succeeded 原子到账事务中追加 Calculation Outcome，并在唯一合法 Rule 时追加 Commission Accrual。
+- 新增 PostgreSQL 合同覆盖 accrued、无归因、过期、Channel/Rule 不可用、replay、并发、Commission 故障回滚与多个 Rule fail closed。
+- Control API 全量 46 files / 300 tests 通过；共享 Bootstrap、HTTP 与 StoryCanvas 未变更。

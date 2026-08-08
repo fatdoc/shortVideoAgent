@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
+import { calculateCommission, type CommissionRuleFacts } from './commissionCalculation.js';
 import {
   PaymentIdempotencyConflictError,
   PaymentOrderConflictError,
@@ -22,7 +23,14 @@ import type {
 } from './types.js';
 
 type RepositoryEntity =
-  'wallet' | 'order' | 'orderEvent' | 'paymentEvent' | 'creditLot' | 'ledgerEntry';
+  | 'wallet'
+  | 'order'
+  | 'orderEvent'
+  | 'paymentEvent'
+  | 'creditLot'
+  | 'ledgerEntry'
+  | 'commissionOutcome'
+  | 'commissionAccrual';
 
 type RechargeOrderRow = {
   recharge_order_id: string;
@@ -72,6 +80,23 @@ type CreditConversionRuleRow = {
 };
 
 type WalletRow = { wallet_id: string; tenant_id: string; status: string };
+
+type ReferralAttributionRow = {
+  referral_attribution_id: string;
+  referrer_channel_id: string | null;
+  status: string;
+  effective_from: Date | string;
+  protected_until: Date | string | null;
+  channel_organization_status: string | null;
+};
+
+type CommissionRuleRow = {
+  commission_rule_version_id: string;
+  rate_numerator: string | number;
+  rate_denominator: string | number;
+  rounding_mode: CommissionRuleFacts['roundingMode'];
+  refund_observation_days: number;
+};
 type PostgresError = { code?: string; constraint?: string; message?: string };
 
 function postgresError(error: unknown): PostgresError {
@@ -494,7 +519,9 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
           created_at: input.receivedAt,
         });
 
-        return finish('applied', null);
+        const applied = await finish('applied', null);
+        await this.appendCommissionCalculation(transaction, order, paymentEventId, input);
+        return applied;
       });
     } catch (error) {
       if (
@@ -515,6 +542,143 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
       }
       throw error;
     }
+  }
+
+  private async appendCommissionCalculation(
+    transaction: Knex.Transaction,
+    order: RechargeOrderRow,
+    paymentEventId: string,
+    input: ReceivePaymentEventRecord,
+  ): Promise<void> {
+    let attribution: ReferralAttributionRow | null = null;
+    if (order.attribution_snapshot_id !== null) {
+      attribution =
+        ((await transaction('control_plane.referral_attributions as attribution')
+          .leftJoin(
+            'control_plane.channels as channel',
+            'channel.channel_id',
+            'attribution.referrer_channel_id',
+          )
+          .leftJoin(
+            'control_plane.organizations as organization',
+            'organization.organization_id',
+            'channel.organization_id',
+          )
+          .select(
+            'attribution.referral_attribution_id',
+            'attribution.referrer_channel_id',
+            'attribution.status',
+            'attribution.effective_from',
+            'attribution.protected_until',
+            'organization.status as channel_organization_status',
+          )
+          .where({ 'attribution.referral_attribution_id': order.attribution_snapshot_id })
+          .forUpdate('attribution')
+          .first()) as ReferralAttributionRow | undefined) ?? null;
+    }
+
+    let matchingRules: CommissionRuleRow[] = [];
+    const attributionEligibleForRule =
+      attribution !== null &&
+      attribution.status === 'active' &&
+      attribution.referrer_channel_id !== null &&
+      input.occurredAt >= new Date(attribution.effective_from) &&
+      attribution.protected_until !== null &&
+      input.occurredAt < new Date(attribution.protected_until) &&
+      attribution.channel_organization_status === 'active';
+    if (attributionEligibleForRule) {
+      await transaction.raw('select pg_advisory_xact_lock(hashtextextended(?, 0))', [
+        `${input.paymentMode}:${input.currency}:DIRECT_ATTRIBUTION`,
+      ]);
+      matchingRules = (await transaction('control_plane.commission_rule_versions')
+        .select(
+          'commission_rule_version_id',
+          'rate_numerator',
+          'rate_denominator',
+          'rounding_mode',
+          'refund_observation_days',
+        )
+        .where({
+          payment_mode: input.paymentMode,
+          currency: input.currency,
+          status: 'ACTIVE',
+          scope_type: 'DIRECT_ATTRIBUTION',
+          basis_type: 'NET_PAID_AMOUNT',
+        })
+        .where('effective_at', '<=', input.occurredAt)
+        .where((builder) =>
+          builder.whereNull('retired_at').orWhere('retired_at', '>', input.occurredAt),
+        )
+        .orderBy('effective_at', 'desc')
+        .orderBy('commission_rule_version_id', 'desc')
+        .forUpdate()
+        .limit(2)) as CommissionRuleRow[];
+    }
+
+    const calculation = calculateCommission({
+      sourcePaymentEventId: paymentEventId,
+      rechargeOrderId: order.recharge_order_id,
+      frozenAttributionId: order.attribution_snapshot_id,
+      basisAmountMinor: input.amountMinor,
+      currency: input.currency,
+      occurredAt: input.occurredAt,
+      attribution:
+        attribution === null
+          ? null
+          : {
+              referralAttributionId: attribution.referral_attribution_id,
+              beneficiaryChannelId: attribution.referrer_channel_id,
+              status: attribution.status,
+              effectiveFrom: new Date(attribution.effective_from),
+              protectedUntil:
+                attribution.protected_until === null ? null : new Date(attribution.protected_until),
+              channelOrganizationStatus: attribution.channel_organization_status,
+            },
+      matchingRules: matchingRules.map((rule) => ({
+        commissionRuleVersionId: rule.commission_rule_version_id,
+        rateNumerator: rule.rate_numerator,
+        rateDenominator: rule.rate_denominator,
+        roundingMode: rule.rounding_mode,
+        refundObservationDays: rule.refund_observation_days,
+      })),
+    });
+
+    const calculationOutcomeId = this.newId('commissionOutcome');
+    await transaction('control_plane.commission_calculation_outcomes').insert({
+      commission_calculation_outcome_id: calculationOutcomeId,
+      source_payment_event_id: paymentEventId,
+      recharge_order_id: order.recharge_order_id,
+      referral_attribution_id: calculation.referralAttributionId,
+      beneficiary_channel_id: calculation.beneficiaryChannelId,
+      commission_rule_version_id: calculation.commissionRuleVersionId,
+      basis_amount_minor: input.amountMinor,
+      currency: input.currency,
+      outcome: calculation.outcome,
+      reason_code: calculation.reasonCode,
+      calculation_snapshot: calculation.snapshot,
+      calculation_digest: calculation.digest,
+      occurred_at: input.occurredAt,
+      created_at: input.receivedAt,
+    });
+
+    if (calculation.accrual === null) return;
+    await transaction('control_plane.commission_accruals').insert({
+      commission_accrual_id: this.newId('commissionAccrual'),
+      calculation_outcome_id: calculationOutcomeId,
+      source_payment_event_id: paymentEventId,
+      recharge_order_id: order.recharge_order_id,
+      referral_attribution_id: calculation.referralAttributionId,
+      beneficiary_channel_id: calculation.beneficiaryChannelId,
+      commission_rule_version_id: calculation.commissionRuleVersionId,
+      basis_amount_minor: input.amountMinor,
+      commission_amount_minor: calculation.accrual.commissionAmountMinor,
+      currency: input.currency,
+      eligible_at: calculation.accrual.eligibleAt,
+      calculation_snapshot: calculation.snapshot,
+      calculation_digest: calculation.digest,
+      occurred_at: input.occurredAt,
+      created_at: input.receivedAt,
+    });
   }
 
   private orderReplay(

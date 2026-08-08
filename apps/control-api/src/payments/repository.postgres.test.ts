@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import knex, { type Knex } from 'knex';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { up as createPilotCore } from '../db/migrations/001_pilot_core.js';
@@ -9,6 +10,7 @@ import { up as addInvitationLifecycle } from '../db/migrations/012_invitation_li
 import { up as addRegistrationAttribution } from '../db/migrations/013_registration_attribution.js';
 import { up as addRechargePaymentFoundation } from '../db/migrations/014_recharge_payment_foundation.js';
 import { up as addAtomicCreditIssuance } from '../db/migrations/015_atomic_credit_issuance.js';
+import { up as addCommissionShadowLedger } from '../db/migrations/016_commission_shadow_ledger.js';
 import {
   PaymentIdempotencyConflictError,
   PaymentOrderConflictError,
@@ -39,8 +41,24 @@ const liveRuleId = 'b5000000-0000-4000-8000-000000000002';
 const orderId = 'b6000000-0000-4000-8000-000000000001';
 const walletId = 'b7000000-0000-4000-8000-000000000001';
 const paymentEventId = 'b9000000-0000-4000-8000-000000000001';
+const channelAdminUserId = 'bc000000-0000-4000-8000-000000000001';
+const channelOrganizationId = 'bc000000-0000-4000-8000-000000000002';
+const channelId = 'bc000000-0000-4000-8000-000000000003';
+const channelAdminMembershipId = 'bc000000-0000-4000-8000-000000000004';
+const termsDocumentId = 'bc000000-0000-4000-8000-000000000005';
+const termsVersionId = 'bc000000-0000-4000-8000-000000000006';
+const invitationId = 'bc000000-0000-4000-8000-000000000007';
+const registrationId = 'bc000000-0000-4000-8000-000000000008';
+const attributionId = 'bc000000-0000-4000-8000-000000000009';
+const commissionRuleId = 'bd000000-0000-4000-8000-000000000001';
+const secondCommissionRuleId = 'bd000000-0000-4000-8000-000000000002';
+const commissionOutcomeId = 'be000000-0000-4000-8000-000000000001';
+const commissionAccrualId = 'bf000000-0000-4000-8000-000000000001';
 
 const digest = (character: string): string => character.repeat(64);
+const tokenDigest = (character: string): string => `sha256:v1:${character.repeat(64)}`;
+const termsContent = 'TEST / NON_QUOTE atomic commission accrual fixture.';
+const termsContentDigest = createHash('sha256').update(termsContent, 'utf8').digest('hex');
 
 async function resetFoundation(database: Knex): Promise<void> {
   await database.raw('drop schema if exists control_plane cascade');
@@ -97,6 +115,7 @@ async function resetFoundation(database: Knex): Promise<void> {
   await addRegistrationAttribution(database);
   await addRechargePaymentFoundation(database);
   await addAtomicCreditIssuance(database);
+  await addCommissionShadowLedger(database);
 
   await database('control_plane.organizations').insert({
     organization_id: platformOrganizationId,
@@ -177,14 +196,175 @@ function ids() {
       { length: 8 },
       (_, index) => `bb000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
     ),
+    commissionOutcome: [
+      commissionOutcomeId,
+      ...Array.from(
+        { length: 7 },
+        (_, index) => `be000000-0000-4000-8000-${String(index + 2).padStart(12, '0')}`,
+      ),
+    ],
+    commissionAccrual: [
+      commissionAccrualId,
+      ...Array.from(
+        { length: 7 },
+        (_, index) => `bf000000-0000-4000-8000-${String(index + 2).padStart(12, '0')}`,
+      ),
+    ],
   };
   return (
-    entity: 'wallet' | 'order' | 'orderEvent' | 'paymentEvent' | 'creditLot' | 'ledgerEntry',
+    entity:
+      | 'wallet'
+      | 'order'
+      | 'orderEvent'
+      | 'paymentEvent'
+      | 'creditLot'
+      | 'ledgerEntry'
+      | 'commissionOutcome'
+      | 'commissionAccrual',
   ): string => {
     const value = values[entity]?.shift();
     if (!value) throw new Error(`missing test id for ${entity}`);
     return value;
   };
+}
+
+async function seedDirectAttribution(
+  database: Knex,
+  options: { effectiveFrom?: string; organizationStatus?: 'active' | 'suspended' } = {},
+): Promise<void> {
+  const effectiveFrom = options.effectiveFrom ?? '2026-08-08T05:30:00.000Z';
+  const effectiveDate = new Date(effectiveFrom);
+  const protectedUntilDate = new Date(effectiveDate);
+  protectedUntilDate.setUTCFullYear(protectedUntilDate.getUTCFullYear() + 1);
+  const protectedUntil = protectedUntilDate.toISOString();
+  const invitationValidFrom = new Date(effectiveDate.getTime() - 24 * 60 * 60 * 1000);
+  const invitationExpiresAt = new Date(invitationValidFrom.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  await database('control_plane.users').insert({
+    user_id: channelAdminUserId,
+    email: 'payment-channel-admin@example.com',
+    display_name: 'Payment Channel Admin',
+    password_hash: 'unused',
+    status: 'active',
+  });
+  await database('control_plane.organizations').insert({
+    organization_id: channelOrganizationId,
+    organization_type: 'CHANNEL',
+    display_name: 'Payment TEST Channel',
+    status: 'active',
+  });
+  await database('control_plane.channels').insert({
+    channel_id: channelId,
+    organization_id: channelOrganizationId,
+  });
+  await database.transaction(async (transaction) => {
+    await transaction('control_plane.organization_memberships').insert({
+      membership_id: channelAdminMembershipId,
+      user_id: channelAdminUserId,
+      organization_id: channelOrganizationId,
+      status: 'active',
+      primary_role_code: 'channel_admin',
+    });
+    await transaction('control_plane.organization_membership_roles').insert({
+      membership_id: channelAdminMembershipId,
+      role_code: 'channel_admin',
+    });
+  });
+  await database('control_plane.terms_documents').insert({
+    terms_document_id: termsDocumentId,
+    document_code: 'payment-commission-test-notice',
+    title: 'Payment commission TEST notice',
+    status: 'active',
+  });
+  await database('control_plane.terms_versions').insert({
+    terms_version_id: termsVersionId,
+    terms_document_id: termsDocumentId,
+    version_label: 'test-v1',
+    status: 'PUBLISHED',
+    content: termsContent,
+    content_digest: termsContentDigest,
+    locale: 'zh-CN',
+    published_at: '2025-01-01T00:00:00.000Z',
+    effective_at: '2025-01-01T00:00:00.000Z',
+    published_by: platformAdminUserId,
+    must_reaccept: false,
+  });
+  await database('control_plane.invitations').insert({
+    invitation_id: invitationId,
+    issuer_membership_id: channelAdminMembershipId,
+    issuer_organization_id: channelOrganizationId,
+    invitation_type: 'CHANNEL',
+    target_organization_id: null,
+    target_role_code: null,
+    target_email_normalized: null,
+    attribution_channel_id: channelId,
+    token_digest: tokenDigest('a'),
+    status: 'active',
+    valid_from: invitationValidFrom,
+    expires_at: invitationExpiresAt,
+    max_uses: 100,
+    creation_idempotency_key: 'payment-commission-test-invitation',
+    creation_request_digest: digest('b'),
+  });
+  await database('control_plane.registrations').insert({
+    registration_id: registrationId,
+    normalized_email: 'payment-buyer@example.com',
+    status: 'completed',
+    registration_path: 'CHANNEL_INVITATION',
+    invitation_id: invitationId,
+    user_id: buyerUserId,
+    tenant_id: tenantId,
+    membership_id: buyerMembershipId,
+    terms_version_id: termsVersionId,
+    idempotency_key: 'payment-commission-test-registration',
+    request_digest: digest('c'),
+    completed_at: effectiveFrom,
+  });
+  await database('control_plane.referral_attributions').insert({
+    referral_attribution_id: attributionId,
+    registration_id: registrationId,
+    user_id: buyerUserId,
+    tenant_id: tenantId,
+    acquisition_source: 'CHANNEL_INVITATION',
+    invitation_id: invitationId,
+    referrer_channel_id: channelId,
+    effective_from: effectiveFrom,
+    protected_until: protectedUntil,
+    protection_rule_version: 'registration-attribution-v1',
+    evidence_digest: digest('d'),
+    status: 'active',
+  });
+  if (options.organizationStatus === 'suspended') {
+    await database('control_plane.organizations')
+      .where({ organization_id: channelOrganizationId })
+      .update({ status: 'suspended' });
+  }
+}
+
+async function seedCommissionRule(
+  database: Knex,
+  overrides: Record<string, unknown> = {},
+): Promise<void> {
+  await database('control_plane.commission_rule_versions').insert({
+    commission_rule_version_id: commissionRuleId,
+    rule_code: 'TEST_ATOMIC_COMMISSION',
+    version_label: 'v1-non-quote',
+    payment_mode: 'TEST',
+    status: 'ACTIVE',
+    scope_type: 'DIRECT_ATTRIBUTION',
+    basis_type: 'NET_PAID_AMOUNT',
+    currency: 'CNY',
+    rate_numerator: 15,
+    rate_denominator: 100,
+    rounding_mode: 'FLOOR',
+    refund_observation_days: 7,
+    rule_digest: digest('e'),
+    effective_at: '2026-08-08T05:00:00.000Z',
+    retired_at: null,
+    approved_by_membership_id: platformAdminMembershipId,
+    created_at: '2026-08-08T05:00:00.000Z',
+    ...overrides,
+  });
 }
 
 function orderRecord(
@@ -581,6 +761,8 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
     await expect(count(database, 'credit_lots')).resolves.toBe(0);
     await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
     await expect(count(database, 'recharge_order_events')).resolves.toBe(1);
+    await expect(count(database, 'commission_calculation_outcomes')).resolves.toBe(0);
+    await expect(count(database, 'commission_accruals')).resolves.toBe(0);
   });
 
   it('rolls back Event, Order, Lot and Ledger evidence when issuance fails mid-transaction', async () => {
@@ -605,6 +787,196 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
     await expect(count(database, 'credit_lots')).resolves.toBe(0);
     await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
     await expect(count(database, 'recharge_order_events')).resolves.toBe(1);
+  });
+
+  it('atomically appends an accrued Commission Outcome and Accrual for a frozen direct Attribution', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    const order = await repository.createRechargeOrder(orderRecord());
+    expect(order.value.attributionSnapshotId).toBe(attributionId);
+
+    await expect(repository.receivePaymentEvent(paymentRecord())).resolves.toMatchObject({
+      replayed: false,
+      value: { processingStatus: 'applied', errorCode: null },
+    });
+
+    const outcome = await database('control_plane.commission_calculation_outcomes').first();
+    const accrual = await database('control_plane.commission_accruals').first();
+    expect(outcome).toMatchObject({
+      commission_calculation_outcome_id: commissionOutcomeId,
+      source_payment_event_id: paymentEventId,
+      recharge_order_id: orderId,
+      referral_attribution_id: attributionId,
+      beneficiary_channel_id: channelId,
+      commission_rule_version_id: commissionRuleId,
+      basis_amount_minor: '100',
+      currency: 'CNY',
+      outcome: 'accrued',
+      reason_code: 'commission_accrued',
+    });
+    expect(outcome.calculation_snapshot).toMatchObject({
+      schemaVersion: 'commission-calculation-v1',
+      outcome: 'accrued',
+      rateNumerator: '15',
+      rateDenominator: '100',
+      roundingMode: 'FLOOR',
+      commissionAmountMinor: 15,
+    });
+    expect(outcome.calculation_digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(accrual).toMatchObject({
+      commission_accrual_id: commissionAccrualId,
+      calculation_outcome_id: commissionOutcomeId,
+      source_payment_event_id: paymentEventId,
+      commission_amount_minor: '15',
+      currency: 'CNY',
+    });
+    expect(new Date(accrual.eligible_at).toISOString()).toBe('2026-08-15T05:59:00.000Z');
+    expect(accrual.calculation_digest).toBe(outcome.calculation_digest);
+  });
+
+  it('records not_attributed without blocking TEST payment and Credit issuance', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    const result = await repository.receivePaymentEvent(paymentRecord());
+
+    expect(result.value.processingStatus).toBe('applied');
+    await expect(
+      database('control_plane.commission_calculation_outcomes')
+        .select('outcome', 'reason_code')
+        .first(),
+    ).resolves.toEqual({ outcome: 'not_attributed', reason_code: 'no_frozen_attribution' });
+    await expect(count(database, 'commission_accruals')).resolves.toBe(0);
+    await expect(count(database, 'credit_lots')).resolves.toBe(2);
+  });
+
+  it('records attribution_expired without a default Accrual', async () => {
+    await seedDirectAttribution(database, { effectiveFrom: '2025-08-08T05:00:00.000Z' });
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+
+    await expect(repository.receivePaymentEvent(paymentRecord())).resolves.toMatchObject({
+      value: { processingStatus: 'applied' },
+    });
+    await expect(
+      database('control_plane.commission_calculation_outcomes')
+        .select('outcome', 'reason_code', 'referral_attribution_id', 'beneficiary_channel_id')
+        .first(),
+    ).resolves.toEqual({
+      outcome: 'attribution_expired',
+      reason_code: 'attribution_expired',
+      referral_attribution_id: attributionId,
+      beneficiary_channel_id: channelId,
+    });
+    await expect(count(database, 'commission_accruals')).resolves.toBe(0);
+  });
+
+  it.each([
+    ['inactive Channel Organization', true],
+    ['missing Commission Rule', false],
+  ])('records manual_review for %s without guessing a rate', async (_caseName, inactiveChannel) => {
+    await seedDirectAttribution(database, {
+      organizationStatus: inactiveChannel ? 'suspended' : 'active',
+    });
+    if (inactiveChannel) await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+
+    await expect(repository.receivePaymentEvent(paymentRecord())).resolves.toMatchObject({
+      value: { processingStatus: 'applied' },
+    });
+    await expect(
+      database('control_plane.commission_calculation_outcomes')
+        .select('outcome', 'reason_code')
+        .first(),
+    ).resolves.toEqual({
+      outcome: 'manual_review',
+      reason_code: inactiveChannel ? 'channel_unavailable' : 'commission_rule_unavailable',
+    });
+    await expect(count(database, 'commission_accruals')).resolves.toBe(0);
+  });
+
+  it('does not duplicate Commission facts for Provider replay', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+
+    const first = await repository.receivePaymentEvent(paymentRecord());
+    await expect(repository.receivePaymentEvent(paymentRecord())).resolves.toEqual({
+      value: first.value,
+      replayed: true,
+    });
+    await expect(count(database, 'commission_calculation_outcomes')).resolves.toBe(1);
+    await expect(count(database, 'commission_accruals')).resolves.toBe(1);
+  });
+
+  it('keeps one Commission fact set for concurrent different success Events on one Order', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+    const results = await Promise.all([
+      new PostgresPaymentFoundationRepository(database).receivePaymentEvent(paymentRecord()),
+      new PostgresPaymentFoundationRepository(database).receivePaymentEvent(
+        paymentRecord({ providerEventId: 'provider-event-002', eventDigest: digest('5') }),
+      ),
+    ]);
+
+    expect(results.filter((result) => result.value.processingStatus === 'applied')).toHaveLength(1);
+    await expect(count(database, 'commission_calculation_outcomes')).resolves.toBe(1);
+    await expect(count(database, 'commission_accruals')).resolves.toBe(1);
+  });
+
+  it('rolls back Payment, Order, Credit and Commission when Accrual ID allocation fails', async () => {
+    await seedDirectAttribution(database);
+    await seedCommissionRule(database);
+    await repository.createRechargeOrder(orderRecord());
+    const failureIds: Record<string, string[]> = {
+      paymentEvent: ['b9000000-0000-4000-8000-000000000099'],
+      orderEvent: ['b8000000-0000-4000-8000-000000000098', 'b8000000-0000-4000-8000-000000000099'],
+      creditLot: ['ba000000-0000-4000-8000-000000000098', 'ba000000-0000-4000-8000-000000000099'],
+      ledgerEntry: ['bb000000-0000-4000-8000-000000000098', 'bb000000-0000-4000-8000-000000000099'],
+      commissionOutcome: ['be000000-0000-4000-8000-000000000099'],
+    };
+    const failingRepository = new PostgresPaymentFoundationRepository(database, (entity) => {
+      if (entity === 'commissionAccrual') throw new Error('forced commission accrual id failure');
+      const value = failureIds[entity]?.shift();
+      if (!value) throw new Error(`missing failure id for ${entity}`);
+      return value;
+    });
+
+    await expect(failingRepository.receivePaymentEvent(paymentRecord())).rejects.toThrow(
+      'forced commission accrual id failure',
+    );
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'created' });
+    await expect(count(database, 'payment_events')).resolves.toBe(0);
+    await expect(count(database, 'credit_lots')).resolves.toBe(0);
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
+    await expect(count(database, 'commission_calculation_outcomes')).resolves.toBe(0);
+    await expect(count(database, 'commission_accruals')).resolves.toBe(0);
+  });
+
+  it('fails closed and rolls back when multiple matching ACTIVE Rules are present', async () => {
+    await seedDirectAttribution(database);
+    await database.raw(
+      'drop trigger commission_rules_validation_guard on control_plane.commission_rule_versions',
+    );
+    await seedCommissionRule(database);
+    await seedCommissionRule(database, {
+      commission_rule_version_id: secondCommissionRuleId,
+      rule_code: 'TEST_ATOMIC_COMMISSION_CONFLICT',
+      version_label: 'v2-non-quote',
+      rule_digest: digest('f'),
+    });
+    await repository.createRechargeOrder(orderRecord());
+
+    await expect(repository.receivePaymentEvent(paymentRecord())).rejects.toThrow(
+      'Multiple matching Commission Rules',
+    );
+    await expect(count(database, 'payment_events')).resolves.toBe(0);
+    await expect(count(database, 'credit_lots')).resolves.toBe(0);
+    await expect(count(database, 'commission_calculation_outcomes')).resolves.toBe(0);
   });
 
   it('rejects Payment Event facts that do not match the locked Recharge Order', async () => {

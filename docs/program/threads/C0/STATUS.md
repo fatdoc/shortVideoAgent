@@ -890,3 +890,12 @@
 - 无 Attribution 写 `not_attributed`；过期写 `attribution_expired`；Attribution/Channel/Rule 不可用写 `manual_review`；任何场景都不使用默认佣金比例。
 - LIVE、unsupported Event、refund/chargeback、HTTP 佣金查询与 Settlement 不在 03.3B 范围。
 - 下一动作：新增独立 PostgreSQL RED 合同，覆盖 accrued、无归因、过期、Channel/Rule 不可用、replay、并发、多 Rule 冲突和 Commission 中途失败。
+
+## 2026-08-08 A-BIZ-03.3B TEST Payment 原子佣金计提完成
+
+- 新增 `payments/commissionCalculation.ts`：使用 canonical JSON + SHA-256 冻结计算证据，并以 BigInt 执行 FLOOR/CEILING/HALF_UP 整数 minor-unit 计算。
+- TEST `payment_succeeded` 现在在现有 Payment/Order/Credit 同一事务内先完成 `paid/applied`，再为每个 applied Event 追加唯一 Calculation Outcome；仅在冻结直接 Attribution、active Channel Organization 与唯一 ACTIVE TEST Rule 同时成立时追加 Accrual。
+- 无归因写 `not_attributed`；过期写 `attribution_expired`；Attribution、Channel 或 Rule 不可用写 `manual_review`；多个匹配 Rule 明确 fail closed，任何 Commission 写入失败回滚 Payment、Order、Lot、Ledger 与 Commission 全部事实。
+- RED→Green：9 个新 PostgreSQL 场景先按实现缺失失败，Repository 最终 22/22；纯计算 6/6。
+- 完整 Gate：Control API 46 files / 300 tests；typecheck、build、ESLint、Prettier、Governance、diff check 全 PASS。
+- 本切片未修改共享 Bootstrap/HTTP，也未触碰 StoryCanvas；下一步先规划 A-BIZ-03.3C，只处理能证明 Credit Lot 可完整回收的 TEST 全额 refund/chargeback 冲正安全子集。

@@ -3,8 +3,8 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_RED`
-- 当前基线：`6a86d8f feat(control-api): add commission shadow ledger schema`
+- 状态：`COMPLETE / READY_FOR_03_3C_PLANNING`
+- 实现基线：`0b96421 docs(business-plane): freeze atomic commission accrual plan`
 - 前置：A-BIZ-03.3A migration 016 已建立 Commission Rule、Calculation Outcome 与 Accrual 的数据库保护
 
 ## 1. 本切片目标
@@ -125,3 +125,11 @@ Migration 016 要求 Outcome 引用的 PaymentEvent 已为 `applied` 且 Recharg
 - Governance validation；
 - `git diff --check`；
 - C0 STATUS/HANDOFF/CHANGELOG 与本地知识库进度同步。
+
+## 9. 完成结果
+
+- 新增纯计算模块 `commissionCalculation.ts`：canonical snapshot/digest、BigInt 整数计算、FLOOR/CEILING/HALF_UP 与 eligibleAt。
+- TEST succeeded Payment 现在在同一事务内先形成 paid/applied，再追加每 Event 唯一 Outcome；唯一合法 Rule 时追加 Accrual。
+- PostgreSQL 合同先以 9 个新场景 RED，随后 Repository 22/22 转绿；纯计算 6/6 转绿。
+- 全量 Gate：Control API 46 files / 300 tests，typecheck、build、ESLint、Prettier、Governance、diff check 全 PASS。
+- 未修改共享 Bootstrap、HTTP 合同或 StoryCanvas；未实现 refund/chargeback、read API 或 Settlement。

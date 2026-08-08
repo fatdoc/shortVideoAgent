@@ -532,3 +532,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 无 Attribution、过期、Channel/Rule 不可用都不会套默认比例；多个匹配 Rule 明确 fail closed。
 - 本切片不改共享 Bootstrap 或 HTTP 合同，B 无需等待；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 下一步：编写并运行 03.3B PostgreSQL RED 合同，然后实现最小计算模块与 Repository 接入。
+
+## A-BIZ-03.3B Atomic Commission Accrual 完成交接（2026-08-08）
+
+- TEST succeeded Payment 的 PaymentEvent、RechargeOrder、Credit Lot/Ledger、Commission Outcome/Accrual 已形成单一 PostgreSQL 原子事务；Commission 阶段失败不会留下半到账。
+- 每个 applied succeeded Event 恰好一条 Outcome；合法直接归因且唯一匹配 Rule 时一条 Accrual，replay 与同 Order 并发不会重复。
+- 无 Attribution、过期、Channel/Rule 不可用均使用显式安全结果，不存在默认比例；多个匹配 Rule 由 Repository 第二道防线 fail closed。
+- 计算快照冻结版本、事实 ID、basis、currency、rate、rounding、观察期、amount 与 eligibleAt，digest 使用 canonical JSON 的 SHA-256；测试 Rule 继续明确 TEST / NON_QUOTE。
+- Gate：Repository PostgreSQL 22/22、Calculation 6/6、Control API 46 files / 300 tests，typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
+- 未修改 `app.ts`、`server.ts`、`config.ts` 或 HTTP 合同，B 无需同步共享 Bootstrap；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 下一步 A-BIZ-03.3C 必须先重新审查 Credit Lot 当前可回收证据并冻结 RED 合同；若无法证明所有原订单额度未消费/冻结，则继续 fail closed，不实现近似冲正。
