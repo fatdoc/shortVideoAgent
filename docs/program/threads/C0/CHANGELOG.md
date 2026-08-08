@@ -92,3 +92,4 @@
 | 2026-08-08 | 冻结 A-BIZ-02.4 注册/邀请/须知前端：真实 Public API Client、统一注册页、Terms/Invitation fail-closed、敏感 Token 内存边界、无自动登录与 Router 独立接线 | A_BIZ_02_4_PLAN_FROZEN |
 | 2026-08-08 | A-BIZ-02.4A 完成严格 Public Registration API Client：Terms/Invitation/Registration、安全错误映射、201/200 replay、敏感字段不落盘；定向 8/8、Build/Static PASS，既有 3 个重测试文件单独复跑全 PASS | A_BIZ_02_4A_COMPLETE |
 | 2026-08-08 | A-BIZ-02.4B 完成统一 fail-closed 注册页：Terms/Invitation 状态、严格表单、默认 Evidence unavailable、幂等重试、stale reload、201/replay 与无自动登录；定向联合 21/21、Build/Static PASS | A_BIZ_02_4B_COMPLETE |
+| 2026-08-08 | A-BIZ-02.4C 完成 Pilot 公开 `/register`、Invitation 查询 Token 一次性读取与 replace 清理、Login 注册入口、已登录默认路由及注册完成返回登录；联合 34/34、Build/Static PASS，A-BIZ-02.4 收口 | A_BIZ_02_4_COMPLETE |

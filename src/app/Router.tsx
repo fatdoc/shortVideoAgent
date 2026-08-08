@@ -1,5 +1,5 @@
 import { Alert, Button, Space, Typography } from 'antd';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import {
   BrowserRouter,
   Navigate,
@@ -22,6 +22,7 @@ import { AppShell } from '../layouts/AppShell';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { RouteAccessDeniedPage } from '../pages/auth/RouteAccessDeniedPage';
 import { LoginPage } from '../pages/auth/LoginPage';
+import { RegistrationPage } from '../pages/auth/RegistrationPage';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
 import {
@@ -448,6 +449,7 @@ function pilotDefaultPath(session: PilotSession, projects: readonly PilotProject
 
 function PilotLoginEntry() {
   const location = useLocation();
+  const navigate = useNavigate();
   const status = usePilotAuthStore((state) => state.status);
   const hydrate = usePilotAuthStore((state) => state.hydrate);
   const session = usePilotAuthStore((state) => state.session);
@@ -478,7 +480,61 @@ function PilotLoginEntry() {
       '/pilot';
     return <Navigate to={target} replace />;
   }
-  return <LoginPage />;
+  return <LoginPage onRegister={() => navigate('/register')} />;
+}
+
+function PilotRegistrationEntry() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const status = usePilotAuthStore((state) => state.status);
+  const hydrate = usePilotAuthStore((state) => state.hydrate);
+  const session = usePilotAuthStore((state) => state.session);
+  const projectStatus = usePilotProjectContextStore((state) => state.status);
+  const projects = usePilotProjectContextStore((state) => state.projects);
+  const [{ invitationToken, sanitizedPath }] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const token = params.get('invitation');
+    if (!params.has('invitation')) {
+      return { invitationToken: null, sanitizedPath: null };
+    }
+    params.delete('invitation');
+    const search = params.toString();
+    return {
+      invitationToken: token,
+      sanitizedPath: `${location.pathname}${search ? `?${search}` : ''}${location.hash}`,
+    };
+  });
+
+  useEffect(() => {
+    if (sanitizedPath) navigate(sanitizedPath, { replace: true });
+  }, [navigate, sanitizedPath]);
+
+  useEffect(() => {
+    if (status === 'idle') void hydrate();
+  }, [hydrate, status]);
+
+  if (
+    status === 'idle' ||
+    status === 'hydrating' ||
+    (session && (projectStatus === 'idle' || projectStatus === 'loading'))
+  ) {
+    return (
+      <div className="d2-session-loading" role="status">
+        正在恢复真实会话...
+      </div>
+    );
+  }
+  if (status === 'service_error') return <PilotServiceError />;
+  if (session) {
+    const target = pilotDefaultPath(session, projects) ?? '/pilot';
+    return <Navigate to={target} replace />;
+  }
+  return (
+    <RegistrationPage
+      invitationToken={invitationToken}
+      onLogin={() => navigate('/login', { replace: true })}
+    />
+  );
 }
 
 function PilotTenantContextRequired() {
@@ -707,6 +763,7 @@ function PilotRouter() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<PilotLoginEntry />} />
+        <Route path="/register" element={<PilotRegistrationEntry />} />
         <Route element={<PilotRequireSession />}>
           <Route element={<PilotTenantBoundary />}>
             <Route element={<AppShell />}>

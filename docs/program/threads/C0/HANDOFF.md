@@ -408,3 +408,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Invitation Token 只存在于组件 props/内存并提交给 Preview/Registration；页面不显示 Token、不写 Storage。URL 读取与立即清理留给 02.4C Router。
 - 02.4B 没有修改共享 Router/LoginPage，B 现在不需要同步共享代码；B 的 StoryCanvas 与未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 均未触碰。
 - 下一步 02.4C 将独立修改 `src/app/Router.tsx`、Router Pilot 测试、`LoginPage.tsx` 与 Pilot Login 测试；该提交完成后需要通知 B 同步。
+
+## 2026-08-08 A-BIZ-02.4C Shared Router / Login Handoff
+
+- A 已在 Pilot Router 接入公开 `/register`，该路由不经过 `PilotRequireSession`；Demo Router 和四身份登录保持不变。
+- `?invitation=<token>` 只在 Router 首次挂载时读取，随即 replace 清理地址栏，之后仅以内存 prop 交给 `RegistrationPage`；不得在 B 页面、日志或 Storage 中复制该 Token。
+- Pilot Login 新增“创建账号”入口；注册成功仅导航回 `/login`。已登录用户访问 `/register` 会按真实 Session + Project Context 跳到合法默认 Project。
+- 共享修改文件为 `src/app/Router.tsx`、`src/app/Router.pilot.test.tsx`、`src/pages/auth/LoginPage.tsx`、`src/pages/auth/LoginPage.pilot.test.tsx`。B 在继续修改 Router/Login 前必须同步本独立提交。
+- 联合 Gate：Router/Login/Registration/API Client 4 files / 34 tests PASS；build、ESLint、Prettier、Governance、diff check PASS。Root 并发仅剩既有 app smoke/ScriptEditor 4 个 5 秒超时，两文件单独运行分别 11/11、8/8 PASS。
+- 正式 Terms 和 Email Verification Provider 仍未就绪；当前页面必须继续明确 fail closed，不得增加 Fake Evidence、占位条款、自动登录或 Demo fallback。
+- B 的 StoryCanvas 与未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未被 A 修改、暂存或提交。

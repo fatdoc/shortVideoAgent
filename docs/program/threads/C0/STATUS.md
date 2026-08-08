@@ -744,3 +744,17 @@
 - 本切片未修改共享 Router、LoginPage 或 B 文件；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_4B_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(web): add fail-closed registration page`；随后进入 02.4C，先写 Router/Login RED，再以独立共享提交接入 `/register`、清理 Invitation 查询 Token 并通知 B。
+
+## 2026-08-08 A-BIZ-02.4C Public Registration Router / Login 接线完成
+
+- Test-first RED 已确认：Pilot Router 首次没有 `/register` 路由，LoginPage 也没有注册入口；新增合同测试在实现前按预期失败。
+- Pilot 新增公开 `/register`，位于 `PilotRequireSession` 外；Demo 四身份登录与 Demo Router 保持原样，不展示注册入口。
+- Router 仅在首次挂载时读取 `?invitation=<token>`，随后使用 replace 从地址栏删除该参数；Token 继续只存在 `PilotRegistrationEntry → RegistrationPage` 的组件内存，不进入 Storage、日志或后续 URL。
+- 匿名用户可从 Pilot Login 的“创建账号”进入注册页；注册成功只通过 `onLogin` replace 返回 `/login`，不自动签发或伪造 Session。
+- 已登录用户访问 `/register` 时等待真实 Project Context，并通过现有 `pilotDefaultPath` 跳转到合法默认 Project；不进入注册页、不回退 Demo。
+- Router/Login 定向 2 files / 14 tests PASS；与 Registration Page/Public Client 联合 4 files / 34 tests PASS。
+- Root build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。Root 全量为 34 files PASS / 2 files FAIL、269/273 tests PASS；4 项失败均为既有 app smoke/ScriptEditor 5 秒并发超时，两文件随后单独复跑 11/11、8/8 PASS。
+- 本切片修改共享 `src/app/Router.tsx` 与 `src/pages/auth/LoginPage.tsx`；提交后 B 必须同步该独立提交再继续改共享 Router/Login。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_4C_COMPLETE / A_BIZ_02_4_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(web): wire public registration route`，通知 B 同步；正式 Terms 与 Email Verification Provider 仍未交付，真实注册继续 fail closed，不宣称已开放公网注册。

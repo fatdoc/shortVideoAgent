@@ -1,5 +1,4 @@
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../config/pilotRuntime', () => ({
@@ -28,17 +27,31 @@ describe('Pilot login page', () => {
   });
 
   it('only offers real allowlist login and wires credentials to the Pilot store', async () => {
-    const user = userEvent.setup();
     render(<LoginPage />);
 
     expect(screen.getByRole('heading', { name: '白名单账号登录' })).toBeInTheDocument();
     expect(screen.queryByTestId('demo-identities')).not.toBeInTheDocument();
 
-    await user.type(screen.getByTestId('pilot-login-email'), 'pilot@example.com');
-    await user.type(screen.getByTestId('pilot-login-password'), 'secret');
-    await user.click(screen.getByTestId('pilot-login-submit'));
+    fireEvent.change(screen.getByTestId('pilot-login-email'), {
+      target: { value: 'pilot@example.com' },
+    });
+    fireEvent.change(screen.getByTestId('pilot-login-password'), {
+      target: { value: 'secret' },
+    });
+    fireEvent.click(screen.getByTestId('pilot-login-submit'));
 
-    expect(login).toHaveBeenCalledWith({ email: 'pilot@example.com', password: 'secret' });
+    await waitFor(() => {
+      expect(login).toHaveBeenCalledWith({ email: 'pilot@example.com', password: 'secret' });
+    });
     expect(screen.getByTestId('pilot-login-password')).toHaveAttribute('type', 'password');
+  });
+
+  it('offers a Pilot-only registration entry without changing Demo login behavior', () => {
+    const onRegister = vi.fn();
+    render(<LoginPage onRegister={onRegister} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '创建账号' }));
+
+    expect(onRegister).toHaveBeenCalledTimes(1);
   });
 });

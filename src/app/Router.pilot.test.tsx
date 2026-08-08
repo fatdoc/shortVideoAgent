@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../config/pilotRuntime', () => ({
@@ -7,6 +7,22 @@ vi.mock('../config/pilotRuntime', () => ({
     controlApiBaseUrl: 'https://control.example.com',
     configurationError: null,
   },
+}));
+
+vi.mock('../pages/auth/RegistrationPage', () => ({
+  RegistrationPage: ({
+    invitationToken,
+    onLogin,
+  }: {
+    invitationToken?: string | null;
+    onLogin?: () => void;
+  }) => (
+    <div data-testid="registration-route" data-invitation={invitationToken ?? ''}>
+      <button type="button" onClick={onLogin}>
+        注册完成去登录
+      </button>
+    </div>
+  ),
 }));
 
 import App from './App';
@@ -94,6 +110,52 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       requestId: null,
     });
     usePilotProjectContextStore.getState().reset();
+  });
+
+  it('opens public registration, consumes its invitation token, and removes it from the URL', async () => {
+    window.history.replaceState({}, '', '/register?invitation=secret-token&source=partner');
+    render(<App />);
+
+    const registration = await screen.findByTestId('registration-route');
+    expect(registration).toHaveAttribute('data-invitation', 'secret-token');
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/register');
+      expect(window.location.search).toBe('?source=partner');
+    });
+    expect(window.location.href).not.toContain('secret-token');
+  });
+
+  it('redirects an authenticated registration visitor to the legal Pilot default project', async () => {
+    setTenantContext('tenant_admin');
+    window.history.replaceState({}, '', '/register');
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/projects/project-alpha/brand');
+    });
+    expect(screen.queryByTestId('registration-route')).not.toBeInTheDocument();
+  });
+
+  it('opens registration from the anonymous Pilot login entry', async () => {
+    window.history.replaceState({}, '', '/login');
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '创建账号' }));
+
+    expect(await screen.findByTestId('registration-route')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/register');
+  });
+
+  it('returns to login when registration asks to continue there', async () => {
+    window.history.replaceState({}, '', '/register');
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '注册完成去登录' }));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/login');
+    });
+    expect(await screen.findByTestId('pilot-login-page')).toBeInTheDocument();
   });
 
   it('enters the unified shell at the first server-visible Project without Demo fallback', async () => {
