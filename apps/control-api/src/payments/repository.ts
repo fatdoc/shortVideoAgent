@@ -293,6 +293,23 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
     }
   }
 
+  async listRechargeOrders(tenantId: string, limit: number): Promise<RechargeOrder[]> {
+    const rows = (await this.database('control_plane.recharge_orders')
+      .where({ tenant_id: tenantId })
+      .orderBy('created_at', 'desc')
+      .orderBy('recharge_order_id', 'desc')
+      .limit(limit)) as RechargeOrderRow[];
+    return rows.map(orderFromRow);
+  }
+
+  async listPaymentEvents(limit: number): Promise<PaymentEvent[]> {
+    const rows = (await this.database('control_plane.payment_events')
+      .orderBy('received_at', 'desc')
+      .orderBy('payment_event_id', 'desc')
+      .limit(limit)) as PaymentEventRow[];
+    return rows.map(paymentEventFromRow);
+  }
+
   async receivePaymentEvent(
     input: ReceivePaymentEventRecord,
   ): Promise<ReplayableResult<PaymentEvent>> {

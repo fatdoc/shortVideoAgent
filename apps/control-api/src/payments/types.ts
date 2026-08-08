@@ -107,5 +107,7 @@ export type ReceivePaymentEventRecord = NormalizedPaymentEvent & {
 
 export interface PaymentFoundationStore {
   createRechargeOrder(input: CreateRechargeOrderRecord): Promise<ReplayableResult<RechargeOrder>>;
+  listRechargeOrders(tenantId: string, limit: number): Promise<RechargeOrder[]>;
   receivePaymentEvent(input: ReceivePaymentEventRecord): Promise<ReplayableResult<PaymentEvent>>;
+  listPaymentEvents(limit: number): Promise<PaymentEvent[]>;
 }

@@ -155,9 +155,21 @@ async function resetFoundation(database: Knex): Promise<void> {
 function ids() {
   const values: Record<string, string[]> = {
     wallet: [walletId, 'b7000000-0000-4000-8000-000000000002'],
-    order: [orderId, 'b6000000-0000-4000-8000-000000000002'],
-    orderEvent: [orderEventId, 'b8000000-0000-4000-8000-000000000002'],
-    paymentEvent: [paymentEventId, 'b9000000-0000-4000-8000-000000000002'],
+    order: [
+      orderId,
+      'b6000000-0000-4000-8000-000000000002',
+      'b6000000-0000-4000-8000-000000000003',
+    ],
+    orderEvent: [
+      orderEventId,
+      'b8000000-0000-4000-8000-000000000002',
+      'b8000000-0000-4000-8000-000000000003',
+    ],
+    paymentEvent: [
+      paymentEventId,
+      'b9000000-0000-4000-8000-000000000002',
+      'b9000000-0000-4000-8000-000000000003',
+    ],
   };
   return (entity: 'wallet' | 'order' | 'orderEvent' | 'paymentEvent'): string => {
     const value = values[entity]?.shift();
@@ -254,6 +266,45 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
     await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
   });
 
+  it('lists bounded RechargeOrders only from the requested Tenant in newest-first order', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.createRechargeOrder(
+      orderRecord({
+        idempotencyKey: 'recharge-repository-002',
+        requestDigest: digest('7'),
+        createdAt: new Date('2026-08-08T06:02:00.000Z'),
+      }),
+    );
+    await repository.createRechargeOrder(
+      orderRecord({
+        tenantId: otherTenantId,
+        tenantOrganizationId: otherTenantId,
+        buyerUserId: otherUserId,
+        buyerMembershipId: otherMembershipId,
+        idempotencyKey: 'other-tenant-recharge-001',
+        requestDigest: digest('8'),
+        createdAt: new Date('2026-08-08T06:01:00.000Z'),
+      }),
+    );
+
+    const tenantOrders = await repository.listRechargeOrders(tenantId, 1);
+    const otherTenantOrders = await repository.listRechargeOrders(otherTenantId, 10);
+
+    expect(tenantOrders).toHaveLength(1);
+    expect(tenantOrders[0]).toMatchObject({
+      rechargeOrderId: 'b6000000-0000-4000-8000-000000000002',
+      tenantId,
+      paymentMode: 'TEST',
+      status: 'created',
+    });
+    expect(otherTenantOrders).toHaveLength(1);
+    expect(otherTenantOrders[0]).toMatchObject({
+      rechargeOrderId: 'b6000000-0000-4000-8000-000000000003',
+      tenantId: otherTenantId,
+      paymentMode: 'TEST',
+    });
+  });
+
   it('replays the same Tenant idempotency digest and rejects a different digest', async () => {
     const first = await repository.createRechargeOrder(orderRecord());
     await expect(
@@ -319,6 +370,47 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
       database('control_plane.recharge_orders')
         .select('status')
         .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'created' });
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
+  });
+
+  it('lists bounded Payment Events newest-first without processing side effects or unsafe payloads', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    await repository.receivePaymentEvent(paymentRecord());
+    await repository.createRechargeOrder(
+      orderRecord({
+        idempotencyKey: 'recharge-repository-002',
+        requestDigest: digest('7'),
+        createdAt: new Date('2026-08-08T06:01:00.000Z'),
+      }),
+    );
+    await repository.receivePaymentEvent(
+      paymentRecord({
+        providerEventId: 'provider-event-002',
+        eventDigest: digest('8'),
+        rechargeOrderId: 'b6000000-0000-4000-8000-000000000002',
+        occurredAt: new Date('2026-08-08T06:01:30.000Z'),
+        receivedAt: new Date('2026-08-08T06:02:00.000Z'),
+      }),
+    );
+
+    const events = await repository.listPaymentEvents(1);
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      paymentEventId: 'b9000000-0000-4000-8000-000000000002',
+      paymentMode: 'TEST',
+      providerEventId: 'provider-event-002',
+      processingStatus: 'received',
+      errorCode: null,
+    });
+    expect(events[0]).not.toHaveProperty('signature');
+    expect(events[0]).not.toHaveProperty('rawCardData');
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: 'b6000000-0000-4000-8000-000000000002' })
         .first(),
     ).resolves.toEqual({ status: 'created' });
     await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);

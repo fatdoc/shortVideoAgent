@@ -23,6 +23,9 @@ describe('loadConfig', () => {
     expect(config.invitationPreviewWindowSeconds).toBe(60);
     expect(config.invitationPreviewBlockSeconds).toBe(300);
     expect(config.registrationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
+    expect(config.rechargePaymentDigestSecret.length).toBeGreaterThanOrEqual(32);
+    expect(config.testPaymentInternalToken.length).toBeGreaterThanOrEqual(32);
+    expect(config.rechargePaymentDigestSecret).not.toBe(config.testPaymentInternalToken);
     expect(config.registrationMaxAttempts).toBe(5);
     expect(config.registrationWindowSeconds).toBe(900);
     expect(config.registrationBlockSeconds).toBe(900);
@@ -50,6 +53,8 @@ describe('loadConfig', () => {
       DATABASE_URL: 'postgres://pilot:secure@db.internal/videoagent',
       SESSION_SECRET: 'a-production-session-secret-with-more-than-32-characters',
       ...projectGrantConfig,
+      RECHARGE_PAYMENT_DIGEST_SECRET: 'independent-payment-digest-secret-for-tests',
+      TEST_PAYMENT_INTERNAL_TOKEN: 'independent-test-payment-internal-token-for-tests',
     };
     expect(() => loadConfig(production)).toThrow('REGISTRATION_IDEMPOTENCY_SECRET');
     expect(() =>
@@ -58,6 +63,61 @@ describe('loadConfig', () => {
         REGISTRATION_IDEMPOTENCY_SECRET: production.SESSION_SECRET,
       }),
     ).toThrow('must be independent');
+  });
+
+  it('requires explicit independent Payment secrets in production', () => {
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://pilot:secure@db.internal/videoagent',
+      SESSION_SECRET: 'a-production-session-secret-with-more-than-32-characters',
+      ...projectGrantConfig,
+      REGISTRATION_IDEMPOTENCY_SECRET: 'independent-registration-secret-for-tests',
+    };
+    expect(() => loadConfig(production)).toThrow('RECHARGE_PAYMENT_DIGEST_SECRET');
+    expect(() =>
+      loadConfig({
+        ...production,
+        RECHARGE_PAYMENT_DIGEST_SECRET: 'independent-payment-digest-secret-for-tests',
+      }),
+    ).toThrow('TEST_PAYMENT_INTERNAL_TOKEN');
+
+    const configured = loadConfig({
+      ...production,
+      RECHARGE_PAYMENT_DIGEST_SECRET: 'independent-payment-digest-secret-for-tests',
+      TEST_PAYMENT_INTERNAL_TOKEN: 'independent-test-payment-internal-token-for-tests',
+    });
+    expect(configured.rechargePaymentDigestSecret).toBe(
+      'independent-payment-digest-secret-for-tests',
+    );
+    expect(configured.testPaymentInternalToken).toBe(
+      'independent-test-payment-internal-token-for-tests',
+    );
+  });
+
+  it('rejects Payment secret reuse across security boundaries', () => {
+    const sharedSecret = 'shared-payment-secret-that-must-not-cross-boundaries';
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        RECHARGE_PAYMENT_DIGEST_SECRET: projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
+      }),
+    ).toThrow('RECHARGE_PAYMENT_DIGEST_SECRET must be independent');
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        RECHARGE_PAYMENT_DIGEST_SECRET: sharedSecret,
+        TEST_PAYMENT_INTERNAL_TOKEN: sharedSecret,
+      }),
+    ).toThrow('RECHARGE_PAYMENT_DIGEST_SECRET must be independent');
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        TEST_PAYMENT_INTERNAL_TOKEN: projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
+      }),
+    ).toThrow('TEST_PAYMENT_INTERNAL_TOKEN must be independent');
   });
 
   it('loads explicit Invitation Preview rate-limit policy', () => {

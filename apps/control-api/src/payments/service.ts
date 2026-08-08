@@ -1,6 +1,7 @@
 import { paymentEventDigest, rechargeOrderRequestDigest } from './digest.js';
 import {
   PaymentModeMismatchError,
+  PaymentPermissionDeniedError,
   PaymentProviderUnavailableError,
   RechargePermissionDeniedError,
   RechargeValidationError,
@@ -41,6 +42,13 @@ function idempotencyKey(value: string): string {
   return normalized;
 }
 
+function listLimit(value: number): number {
+  if (!Number.isInteger(value) || value < 1 || value > 100) {
+    throw new RechargeValidationError('list limit is invalid.');
+  }
+  return value;
+}
+
 export class PaymentFoundationService {
   private readonly now: () => Date;
   private readonly providers: Record<PaymentMode, PaymentProvider>;
@@ -64,13 +72,7 @@ export class PaymentFoundationService {
     actor: RechargeActor,
     input: CreateRechargeOrderInput,
   ): Promise<ReplayableResult<RechargeOrder>> {
-    if (
-      actor.organizationType !== 'TENANT' ||
-      actor.tenantId === null ||
-      !actor.roles.includes('tenant_admin')
-    ) {
-      throw new RechargePermissionDeniedError();
-    }
+    this.requireTenantAdmin(actor);
     if (input.paymentMode !== 'TEST') throw new PaymentProviderUnavailableError();
 
     const facts = {
@@ -90,6 +92,11 @@ export class PaymentFoundationService {
     });
   }
 
+  async listRechargeOrders(actor: RechargeActor, limit: number): Promise<RechargeOrder[]> {
+    this.requireTenantAdmin(actor);
+    return this.store.listRechargeOrders(uuid(actor.tenantId, 'actor.tenantId'), listLimit(limit));
+  }
+
   async receivePaymentEvent(
     input: ReceivePaymentEventInput,
   ): Promise<ReplayableResult<PaymentEvent>> {
@@ -103,5 +110,24 @@ export class PaymentFoundationService {
       eventDigest: paymentEventDigest(normalized),
       receivedAt: this.now(),
     });
+  }
+
+  async listPaymentEvents(actor: RechargeActor, limit: number): Promise<PaymentEvent[]> {
+    if (actor.organizationType !== 'PLATFORM' || !actor.roles.includes('platform_admin')) {
+      throw new PaymentPermissionDeniedError();
+    }
+    return this.store.listPaymentEvents(listLimit(limit));
+  }
+
+  private requireTenantAdmin(
+    actor: RechargeActor,
+  ): asserts actor is RechargeActor & { tenantId: string } {
+    if (
+      actor.organizationType !== 'TENANT' ||
+      actor.tenantId === null ||
+      !actor.roles.includes('tenant_admin')
+    ) {
+      throw new RechargePermissionDeniedError();
+    }
   }
 }

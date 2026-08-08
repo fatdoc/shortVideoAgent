@@ -14,11 +14,12 @@
 - 本地 IP + 邮箱维度的登录失败限流，以及仅允许站内路径的安全回跳；
 - 三类 Invitation 生命周期、body Token Public Preview、组织范围管理与不可逆 Preview 限流键；
 - 单一 Public Registration API、原子 Registration/Consent/Invitation Usage/Attribution 事务与不可逆注册限流键；默认邮箱验证 Port fail closed，不代表公网注册已开放；
+- TEST-only RechargeOrder 创建/查询与 Payment Event Inbox 接收/查询 API；Provider 内部 Token 独立于浏览器 Session，LIVE 模式保持 fail closed；
 - 独立的 ProjectGrant 签名密钥与可轮换 `kid`；启动时缺失即拒绝运行，不复用 Session 根密钥；
 - 生产环境秘钥与本地数据库凭据拒绝规则。
 
-这一切片已实现生产包与短时 ProjectGrant HTTP 路由；尚未实现用户上传 OSS 签名和
-StoryCanvas 回执入账，不应公开注册或直接对公网开放。
+这一切片已实现生产包、短时 ProjectGrant HTTP 路由和 TEST Payment Inbox 基础；尚未实现用户上传 OSS 签名、
+Payment Event 后续处理、额度发行或 StoryCanvas 回执入账，不应公开注册或直接对公网开放。
 
 ## 本地启动
 
@@ -60,6 +61,14 @@ Public Preview 限流通过 `INVITATION_PREVIEW_MAX_ATTEMPTS`、
 - 默认 Bootstrap 使用不可用的邮箱验证 Port，因此在接入正式 Provider 前稳定返回 503 且不写入数据；
 - `REGISTRATION_IDEMPOTENCY_SECRET` 在 production 必须独立显式配置，限流由 `REGISTRATION_MAX_ATTEMPTS`、`REGISTRATION_WINDOW_SECONDS`、`REGISTRATION_BLOCK_SECONDS` 配置；多实例部署前需替换为共享限流设施。
 
+TEST 充值与 Payment Inbox 接口：
+
+- `POST /api/v1/tenants/:tenantId/recharge-orders`：Tenant Admin 依据服务端激活的 TEST 转换规则创建 RechargeOrder；只接收 `paymentMode=TEST`、规则版本和幂等键；
+- `GET /api/v1/tenants/:tenantId/recharge-orders?limit=1..100`：Tenant Admin 仅查询当前 Tenant 的 RechargeOrder；跨 Tenant 请求返回 404；
+- `POST /api/v1/internal/payments/test/events`：仅接受独立 `X-Test-Payment-Internal-Token` 的 TEST Provider 事件，首次写入返回 202，安全 replay 返回 200；浏览器 Session 不能替代内部 Token；
+- `GET /api/v1/platform/payment-events?limit=1..100`：仅 Platform Admin 查询安全 Payment Event Inbox 事实；
+- 当前 Inbox 只写入 `received`，不会把订单标记 paid，不写 Credit Ledger、不发行额度、不计算 Commission；LIVE Provider 保持 503 fail closed。
+
 生产平面内部授权接口：
 
 - `POST /api/v1/internal/project-grants/introspect`：仅供私网 StoryCanvas receiver 调用；
@@ -91,6 +100,7 @@ npm --prefix apps/control-api run build
 - `PRODUCTION_PLANE_INTERNAL_TOKEN` 必须至少 32 bytes，且不得复用 Session 或 ProjectGrant 密钥；
   仅通过私网 Secret 注入给生产平面，不写入 URL、请求体、日志或回执。
 - `REGISTRATION_IDEMPOTENCY_SECRET` 在 production 必须至少 32 bytes 且独立于 Session、ProjectGrant 和生产平面内部 Token；稳定性关系到注册 replay，不得随意轮换。
+- `RECHARGE_PAYMENT_DIGEST_SECRET` 与 `TEST_PAYMENT_INTERNAL_TOKEN` 在 production 必须分别显式配置且至少 32 bytes；二者必须互相独立，也不得复用 Session、ProjectGrant、生产平面内部 Token 或 Registration secret。
 - production 不存在默认白名单账号、Tenant 或初始化密码。
 - `DATABASE_SSL=require` 时启用 PostgreSQL TLS 证书校验。
 - 应用不记录 `DATABASE_URL`、Session Token、Grant Token 或上游 API Key。

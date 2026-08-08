@@ -3,7 +3,7 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`03_1A_COMPLETE / 03_1B_COMPLETE / READY_FOR_03_1C`
+- 状态：`03_1A_COMPLETE / 03_1B_COMPLETE / 03_1C_COMPLETE / COMMITTED`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）
 - 前置完成：A-BIZ-02.1～02.4（Terms、Invitation、Registration/Attribution 与前端）
 
@@ -191,4 +191,10 @@ PostgreSQL 测试只允许专用 `_test` 数据库，并使用单 worker 避免�
 - A-BIZ-03.1A 已完成并提交：Migration 014 建立 Rule、RechargeOrder、Order Event 与 PaymentEvent Inbox Schema。
 - A-BIZ-03.1B 已完成并独立提交：新增 Payment Foundation Domain/Service、TEST/LIVE Provider 边界与 PostgreSQL Repository；定向 2 files / 20 tests、Control API 全量 42 files / 249 tests 通过。
 - 03.1B 保持 Order `created`、Payment Event `received`，没有 Credit Ledger 或 Commission 写入，也没有共享 Bootstrap/前端修改。
-- 下一步进入 A-BIZ-03.1C；先为 Recharge/Payment HTTP API、内部 TEST 鉴权、配置 fail-closed 与 Bootstrap 接线写 RED。03.1C 的共享 `app.ts` / `server.ts` / `config.ts` 修改必须独立提交并通知 B。
+- A-BIZ-03.1C 已完成：开放 Tenant Admin RechargeOrder 创建/查询、独立内部 Token 的 TEST Payment Event Inbox、Platform Admin Payment Event 查询，并接入 App/Config/Server Bootstrap。
+- HTTP 边界严格拒绝 LIVE 和未知订单字段；跨 Tenant/Platform Scope 探测返回 404，同 Scope 缺角色返回 403；TEST Event 首次 202、安全 replay 200、冲突 409，LIVE Provider 继续 503 fail closed。
+- `RECHARGE_PAYMENT_DIGEST_SECRET` 与 `TEST_PAYMENT_INTERNAL_TOKEN` 在 production 必须显式、至少 32 bytes 且与所有既有安全 Secret 相互独立。
+- Repository 查询按 Tenant 隔离并限制 1～100；Payment Event 仍只保持 `received`，没有 paid、Credit Ledger、额度发行或 Commission 副作用。
+- Gate：Router/Service 2 files / 27 tests、Repository PostgreSQL 1 file / 9 tests、Control API 全量 43 files / 268 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- 03.1C 修改了共享 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 及配置示例/说明，提交后 B 必须同步；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 03.1C 已作为独立 `feat(control-api): expose test recharge payment api` 提交；下一步在进入 A-BIZ-03.2 前先冻结 Payment Event 原子应用、Order paid、Credit issuance 与 Commission 边界，不提前填写未会签商业数字。

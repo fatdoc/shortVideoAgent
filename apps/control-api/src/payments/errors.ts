@@ -5,6 +5,7 @@ export type PaymentFoundationErrorCode =
   | 'RECHARGE_SCOPE_CONFLICT'
   | 'RECHARGE_IDEMPOTENCY_CONFLICT'
   | 'PAYMENT_PROVIDER_UNAVAILABLE'
+  | 'PAYMENT_PERMISSION_DENIED'
   | 'PAYMENT_VERIFICATION_FAILED'
   | 'PAYMENT_MODE_MISMATCH'
   | 'PAYMENT_ORDER_CONFLICT'
@@ -63,6 +64,12 @@ export class RechargeIdempotencyConflictError extends PaymentFoundationDomainErr
       409,
       'RECHARGE_IDEMPOTENCY_CONFLICT',
     );
+  }
+}
+
+export class PaymentPermissionDeniedError extends PaymentFoundationDomainError {
+  constructor() {
+    super('The active Platform role cannot list Payment Events.', 403, 'PAYMENT_PERMISSION_DENIED');
   }
 }
 

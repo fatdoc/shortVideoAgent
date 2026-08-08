@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   PaymentIdempotencyConflictError,
   PaymentModeMismatchError,
+  PaymentPermissionDeniedError,
   PaymentProviderUnavailableError,
   PaymentVerificationError,
   RechargeIdempotencyConflictError,
@@ -58,6 +59,7 @@ const order: RechargeOrder = {
 function store(overrides: Partial<PaymentFoundationStore> = {}): PaymentFoundationStore {
   return {
     createRechargeOrder: vi.fn(async () => ({ value: order, replayed: false })),
+    listRechargeOrders: vi.fn(async () => [order]),
     receivePaymentEvent: vi.fn(async (input) => ({
       value: {
         paymentEventId: '80000000-0000-4000-8000-000000000001',
@@ -76,6 +78,7 @@ function store(overrides: Partial<PaymentFoundationStore> = {}): PaymentFoundati
       },
       replayed: false,
     })),
+    listPaymentEvents: vi.fn(async () => []),
     ...overrides,
   };
 }
@@ -228,6 +231,39 @@ describe('PaymentFoundationService', () => {
       replayed: true,
     });
     await expect(foundation.createRechargeOrder(tenantAdmin, input)).rejects.toBe(conflict);
+  });
+
+  it('lists RechargeOrders only for an active Tenant administrator with a bounded limit', async () => {
+    const listRechargeOrders = vi.fn<PaymentFoundationStore['listRechargeOrders']>(async () => [
+      order,
+    ]);
+    const foundation = service(store({ listRechargeOrders }));
+
+    await expect(foundation.listRechargeOrders(tenantAdmin, 25)).resolves.toEqual([order]);
+    expect(listRechargeOrders).toHaveBeenCalledWith(tenantId, 25);
+    await expect(
+      foundation.listRechargeOrders({ ...tenantAdmin, roles: ['content_operator'] }, 25),
+    ).rejects.toBeInstanceOf(RechargePermissionDeniedError);
+    await expect(foundation.listRechargeOrders(tenantAdmin, 101)).rejects.toBeInstanceOf(
+      RechargeValidationError,
+    );
+  });
+
+  it('lists Payment Events only for a Platform administrator', async () => {
+    const listPaymentEvents = vi.fn<PaymentFoundationStore['listPaymentEvents']>(async () => []);
+    const foundation = service(store({ listPaymentEvents }));
+    const platformAdmin: RechargeActor = {
+      ...tenantAdmin,
+      organizationType: 'PLATFORM',
+      roles: ['platform_admin'],
+      tenantId: null,
+    };
+
+    await expect(foundation.listPaymentEvents(platformAdmin, 10)).resolves.toEqual([]);
+    expect(listPaymentEvents).toHaveBeenCalledWith(10);
+    await expect(foundation.listPaymentEvents(tenantAdmin, 10)).rejects.toBeInstanceOf(
+      PaymentPermissionDeniedError,
+    );
   });
 
   it('verifies TEST payloads first and persists only normalized safe event facts', async () => {

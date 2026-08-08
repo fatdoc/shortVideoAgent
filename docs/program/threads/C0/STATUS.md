@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A～03.1B `COMPLETE`
-- 当前任务：A-BIZ-03.1B TEST Payment Domain / Repository 已完成并提交；下一步进入 03.1C HTTP API / Bootstrap，继续保持 LIVE 支付、Credit issuance 与 Commission fail closed
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A～03.1C `COMPLETE`
+- 当前任务：A-BIZ-03.1C TEST Recharge/Payment HTTP API 与 Bootstrap 已完成并独立提交；下一步先冻结 A-BIZ-03.2 原子到账/额度发行边界，继续保持 LIVE 支付与未会签商业数字 fail closed
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-07
+- 最近更新：2026-08-08
 
 ## 2026-07-30 单前端收口
 
@@ -801,3 +801,18 @@
 - 本切片未修改共享 `app.ts` / `server.ts` / `config.ts`、前端或 B 独占源码；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_1B_COMPLETE / COMMITTED / READY_FOR_03_1C_RED`。
 - 下一步：进入 03.1C HTTP API / Bootstrap，先建立 Router/Bootstrap RED；共享接线必须独立提交并通知 B。
+
+## 2026-08-08 A-BIZ-03.1C TEST Recharge / Payment HTTP API 完成
+
+- Test-first RED 已确认：`payments/routes.test.ts` 首次因 `./routes.js` 不存在稳定失败，随后才实现 Router 与 Bootstrap。
+- 新增 `POST/GET /api/v1/tenants/:tenantId/recharge-orders`：只允许当前 Tenant 的 `tenant_admin` 创建和查询明确 TEST 的 RechargeOrder；跨 Tenant 返回 404，同 Tenant 缺角色返回 403。
+- 创建 body 严格只接受 `paymentMode=TEST`、`conversionRuleVersionId`、`idempotencyKey`；Wallet、金额、币种、额度与 Attribution 继续由服务端冻结。首次创建 201、安全 replay 200，不同 digest 409。
+- 新增 `POST /api/v1/internal/payments/test/events`：只接受独立 `X-Test-Payment-Internal-Token`，浏览器 Session 不能冒充 Provider；首次 Inbox 写入 202、安全 replay 200、identity 冲突 409，LIVE 继续 503 fail closed。
+- 新增 `GET /api/v1/platform/payment-events`：只允许 Platform `platform_admin` 查询安全 allowlist Inbox；Tenant 探测返回 404。所有 Payment 响应使用 `cache-control: no-store`。
+- Repository 新增按 Tenant 隔离的 RechargeOrder bounded list 与 Platform PaymentEvent bounded list，均按时间/ID newest-first；PostgreSQL 合同覆盖跨 Tenant 不泄漏和 limit。
+- Bootstrap 新增独立 `RECHARGE_PAYMENT_DIGEST_SECRET`、`TEST_PAYMENT_INTERNAL_TOKEN`；production 必须显式配置且至少 32 bytes，并与 Session、ProjectGrant、production-plane、Registration Secret 及彼此独立。
+- 当前仍只创建 `created` Order 和 `received` PaymentEvent；不标记 paid、不写 Credit Ledger、不发行额度、不计算 Commission。
+- Gate：Router/Service 2 files / 27 tests；Repository PostgreSQL 1 file / 9 tests；Control API 全量 43 files / 268 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 共享 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 已修改；本切片提交后 B 在继续共享 Control API Bootstrap 前必须同步。B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_1C_COMPLETE / COMMITTED`。
+- 提交：`feat(control-api): expose test recharge payment api`。下一步先冻结 A-BIZ-03.2 Payment Event 原子应用、Order paid、Credit issuance 与 Commission 边界。

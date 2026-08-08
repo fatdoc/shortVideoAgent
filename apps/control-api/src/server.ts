@@ -24,6 +24,9 @@ import { RegistrationRateLimiter } from './registrations/rateLimiter.js';
 import { PostgresRegistrationRepository } from './registrations/repository.js';
 import { createRegistrationRouter } from './registrations/routes.js';
 import { RegistrationService } from './registrations/service.js';
+import { PostgresPaymentFoundationRepository } from './payments/repository.js';
+import { createPaymentRouter } from './payments/routes.js';
+import { PaymentFoundationService } from './payments/service.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -77,6 +80,17 @@ const registrationRouter = createRegistrationRouter({
     config.registrationBlockSeconds * 1000,
   ),
 });
+const paymentService = new PaymentFoundationService(
+  new PostgresPaymentFoundationRepository(database),
+  config.rechargePaymentDigestSecret,
+);
+const paymentRouter = createPaymentRouter({
+  service: paymentService,
+  resolveSession: (token) => authService.resolve(token),
+  internalToken: config.testPaymentInternalToken,
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const projectPolicy = new PostgresProjectPolicy(database);
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
@@ -112,6 +126,7 @@ const app = createApp({
   internalProductionRouter,
   contentRouter,
   productionRouter,
+  paymentRouter,
   trustProxy: config.trustProxy,
 });
 

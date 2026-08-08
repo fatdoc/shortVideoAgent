@@ -450,3 +450,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 本切片没有共享 Bootstrap 或前端改动，B 不需要为 StoryCanvas 独占工作同步本提交；若 B 开始充值/支付服务工作，则必须先同步 03.1A 与 03.1B。
 - 03.1B 已通过独立提交 `feat(control-api): add test payment foundation service` 收口。
 - A 下一步进入 03.1C，届时会独立修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 并通知 B 同步；当前不要把 TEST Adapter 描述为真实收款能力。
+
+## 2026-08-08 A-BIZ-03.1C Shared Payment Bootstrap Handoff
+
+- A-BIZ-03.1 已收口到 HTTP/Bootstrap：Tenant Admin RechargeOrder 创建/查询、独立内部 Token 的 TEST Payment Event Inbox、Platform Admin Payment Event 查询均已转绿。
+- 共享修改文件包括 `apps/control-api/src/app.ts`、`apps/control-api/src/server.ts`、`apps/control-api/src/config.ts`、对应测试、`.env.example` 与 README；B 在继续修改 Control API 共享 Bootstrap 前必须同步本独立提交。
+- 新配置 `RECHARGE_PAYMENT_DIGEST_SECRET` 与 `TEST_PAYMENT_INTERNAL_TOKEN` 在 production 必须显式且至少 32 bytes；不得与 Session、ProjectGrant、production-plane、Registration Secret 或彼此复用。
+- Tenant API 复用真实 Session Active Membership；跨 Tenant 返回 404，同 Scope 缺 `tenant_admin` 返回 403。Platform Payment Event 查询仅允许 `platform_admin`，Tenant 探测返回 404。
+- Internal TEST Event 只接受 `X-Test-Payment-Internal-Token`；浏览器 Session 不能冒充 Provider。TEST 首次接收 202、安全 replay 200、冲突 409；LIVE 仍由 unavailable Adapter 返回 503，绝不回退 TEST。
+- Payment Event 仍只落 `received`；本提交没有 Order paid、Credit Ledger、额度发行、Commission、真实支付 Provider 或前端支付 UI。
+- Gate：Control API 全量 43 files / 268 tests，typecheck、build、ESLint、Prettier、Governance、diff check 全部通过。
+- B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未被 A 修改、暂存或提交。
+- 下一步 A 在 A-BIZ-03.2 开始前必须先冻结原子处理合同和商业输入；B 不应把当前 TEST API 描述为真实收款或可用余额能力。

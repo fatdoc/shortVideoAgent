@@ -89,6 +89,23 @@ describe('Control API health contract', () => {
     expect(response.body).toEqual({ mounted: true });
   });
 
+  it('mounts the independent Payment router under /api/v1', async () => {
+    const paymentRouter = Router();
+    paymentRouter.get('/platform/payment-events', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      paymentRouter,
+    });
+
+    const response = await request(application).get('/api/v1/platform/payment-events');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
   it('mounts the independent Registration router under /api/v1', async () => {
     const registrationRouter = Router();
     registrationRouter.post('/public/registrations', (_request, response) => {
