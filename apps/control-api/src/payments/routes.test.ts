@@ -51,8 +51,9 @@ const paymentEvent: PaymentEvent = {
   currency: 'CNY',
   occurredAt: '2026-08-08T05:59:00.000Z',
   receivedAt: '2026-08-08T06:00:00.000Z',
-  processingStatus: 'received',
+  processingStatus: 'applied',
   errorCode: null,
+  processedAt: '2026-08-08T06:00:00.000Z',
 };
 
 function session(

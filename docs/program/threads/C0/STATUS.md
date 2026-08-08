@@ -834,3 +834,17 @@
 - rollback 在存在发行证据时 fail closed；历史无 Lot 的 Pilot Ledger 保持兼容。
 - Gate：015 定向 5/5；migration chain + 015 6/6；Control API 全量 44 files / 273 tests PASS；typecheck、build、定向 ESLint、Governance、diff check PASS。
 - 下一步：03.2B Repository/Service 原子应用，先写 succeeded/replay/concurrency/unsupported/rollback RED。
+
+
+## 2026-08-08 A-BIZ-03.2B TEST Payment 原子应用完成
+
+- Repository 已把 TEST `payment_succeeded` 在单一 PostgreSQL 事务内应用为 PaymentEvent `applied`、RechargeOrder `pending → paid`、purchased/bonus Credit Lot 与逐 Lot append-only Ledger issue。
+- 同 Provider identity 串行/并发 replay 不重复；同 Order 的不同 succeeded Event 只允许一个 applied，另一个稳定 rejected / `invalid_order_state`。
+- `payment_failed`、refund、chargeback 等未支持事件稳定 rejected / `unsupported_event_type`；冻结 Wallet 稳定 rejected / `wallet_unavailable`，不改变 Order、不发行额度。
+- 中途 Ledger ID 失败合同证明 Event、Order、Order Event、Lot 与 Ledger 全部回滚，无半到账。
+- PaymentEvent 安全投影新增 `processedAt`；Service 与既有 Route mock 已同步 terminal Store 结果，LIVE 仍 503 fail closed。
+- RED：新增原子行为 6 项全部按旧 Inbox-only 行为失败；Green：Repository PostgreSQL 13/13、Service/Route 27/27、Control API 全量 44 files / 277 tests PASS。
+- typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交；本切片未修改共享 Bootstrap。
+- 当前状态：`A_BIZ_03_2B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): apply test payments atomically`，随后进入 03.2C HTTP terminal 语义与安全发行摘要。

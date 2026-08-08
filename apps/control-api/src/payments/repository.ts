@@ -21,7 +21,8 @@ import type {
   ReplayableResult,
 } from './types.js';
 
-type RepositoryEntity = 'wallet' | 'order' | 'orderEvent' | 'paymentEvent';
+type RepositoryEntity =
+  'wallet' | 'order' | 'orderEvent' | 'paymentEvent' | 'creditLot' | 'ledgerEntry';
 
 type RechargeOrderRow = {
   recharge_order_id: string;
@@ -57,6 +58,7 @@ type PaymentEventRow = {
   received_at: Date | string;
   processing_status: PaymentEventProcessingStatus;
   error_code: PaymentEventErrorCode | null;
+  processed_at: Date | string | null;
 };
 
 type CreditConversionRuleRow = {
@@ -128,6 +130,7 @@ function paymentEventFromRow(row: PaymentEventRow): PaymentEvent {
     receivedAt: iso(row.received_at),
     processingStatus: row.processing_status,
     errorCode: row.error_code,
+    processedAt: row.processed_at === null ? null : iso(row.processed_at),
   };
 }
 
@@ -345,9 +348,14 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
           throw new PaymentOrderConflictError();
         }
 
-        const [created] = (await transaction('control_plane.payment_events')
+        const wallet = (await transaction('control_plane.wallets')
+          .where({ wallet_id: order.wallet_id, tenant_id: order.tenant_id })
+          .forUpdate()
+          .first()) as WalletRow | undefined;
+        const paymentEventId = this.newId('paymentEvent');
+        const [received] = (await transaction('control_plane.payment_events')
           .insert({
-            payment_event_id: this.newId('paymentEvent'),
+            payment_event_id: paymentEventId,
             payment_mode: input.paymentMode,
             provider_code: input.providerCode,
             provider_event_id: input.providerEventId,
@@ -360,10 +368,133 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
             received_at: input.receivedAt,
             processing_status: 'received',
             error_code: null,
+            processed_at: null,
           })
           .returning('*')) as PaymentEventRow[];
-        if (!created) throw new Error('Payment Event insert returned no row.');
-        return { value: paymentEventFromRow(created), replayed: false };
+        if (!received) throw new Error('Payment Event insert returned no row.');
+
+        const finish = async (
+          processingStatus: 'applied' | 'rejected',
+          errorCode: PaymentEventErrorCode | null,
+        ): Promise<ReplayableResult<PaymentEvent>> => {
+          const [terminal] = (await transaction('control_plane.payment_events')
+            .where({ payment_event_id: paymentEventId })
+            .update({
+              processing_status: processingStatus,
+              error_code: errorCode,
+              processed_at: input.receivedAt,
+            })
+            .returning('*')) as PaymentEventRow[];
+          if (!terminal) throw new Error('Payment Event terminal update returned no row.');
+          return { value: paymentEventFromRow(terminal), replayed: false };
+        };
+
+        if (input.paymentMode !== 'TEST' || input.eventType !== 'payment_succeeded') {
+          return finish('rejected', 'unsupported_event_type');
+        }
+        if (!wallet || wallet.status !== 'active') {
+          return finish('rejected', 'wallet_unavailable');
+        }
+        if (order.status !== 'created' && order.status !== 'pending') {
+          return finish('rejected', 'invalid_order_state');
+        }
+
+        const existingLot = await transaction('control_plane.credit_lots')
+          .select('credit_lot_id')
+          .where({ recharge_order_id: order.recharge_order_id })
+          .first();
+        if (existingLot) return finish('rejected', 'credit_issuance_conflict');
+
+        if (order.status === 'created') {
+          await transaction('control_plane.recharge_orders')
+            .where({ recharge_order_id: order.recharge_order_id })
+            .update({ status: 'pending' });
+          await transaction('control_plane.recharge_order_events').insert({
+            recharge_order_event_id: this.newId('orderEvent'),
+            recharge_order_id: order.recharge_order_id,
+            event_type: 'pending',
+            source_payment_event_id: null,
+            actor_type: 'system',
+            actor_id: input.providerCode,
+            reason_code: 'payment_processing_started',
+            occurred_at: input.receivedAt,
+            created_at: input.receivedAt,
+          });
+        }
+
+        const issueLot = async (
+          lotType: 'PURCHASED' | 'BONUS',
+          credits: number,
+          expiresAt: Date | null,
+        ): Promise<void> => {
+          const creditLotId = this.newId('creditLot');
+          await transaction('control_plane.credit_lots').insert({
+            credit_lot_id: creditLotId,
+            tenant_id: order.tenant_id,
+            wallet_id: order.wallet_id,
+            recharge_order_id: order.recharge_order_id,
+            source_payment_event_id: paymentEventId,
+            conversion_rule_version_id: order.conversion_rule_version_id,
+            lot_type: lotType,
+            original_credits: credits,
+            issued_at: input.occurredAt,
+            expires_at: expiresAt,
+            created_at: input.receivedAt,
+          });
+          await transaction('control_plane.credit_ledger_entries').insert({
+            ledger_entry_id: this.newId('ledgerEntry'),
+            tenant_id: order.tenant_id,
+            wallet_id: order.wallet_id,
+            reservation_id: null,
+            posting_group_id: paymentEventId,
+            operation: 'issue',
+            bucket: 'available',
+            delta: credits,
+            reference_type: 'recharge_order',
+            reference_id: order.recharge_order_id,
+            idempotency_key: `payment-event:${paymentEventId}:${lotType.toLowerCase()}`,
+            actor_type: 'system',
+            actor_id: input.providerCode,
+            reason_code:
+              lotType === 'PURCHASED' ? 'recharge_purchase_issued' : 'recharge_bonus_issued',
+            occurred_at: input.occurredAt,
+            created_at: input.receivedAt,
+            credit_lot_id: creditLotId,
+          });
+        };
+
+        await issueLot(
+          'PURCHASED',
+          safeInteger(order.purchased_credits, 'Recharge Order purchased credits'),
+          null,
+        );
+        const bonusCredits = safeInteger(order.bonus_credits, 'Recharge Order bonus credits');
+        if (bonusCredits > 0) {
+          if (order.bonus_expires_in_days === null) {
+            throw new Error('Recharge Order bonus expiry is unavailable.');
+          }
+          const bonusExpiresAt = new Date(
+            input.occurredAt.getTime() + order.bonus_expires_in_days * 24 * 60 * 60 * 1000,
+          );
+          await issueLot('BONUS', bonusCredits, bonusExpiresAt);
+        }
+
+        await transaction('control_plane.recharge_orders')
+          .where({ recharge_order_id: order.recharge_order_id })
+          .update({ status: 'paid' });
+        await transaction('control_plane.recharge_order_events').insert({
+          recharge_order_event_id: this.newId('orderEvent'),
+          recharge_order_id: order.recharge_order_id,
+          event_type: 'paid',
+          source_payment_event_id: paymentEventId,
+          actor_type: 'system',
+          actor_id: input.providerCode,
+          reason_code: 'payment_succeeded',
+          occurred_at: input.occurredAt,
+          created_at: input.receivedAt,
+        });
+
+        return finish('applied', null);
       });
     } catch (error) {
       if (

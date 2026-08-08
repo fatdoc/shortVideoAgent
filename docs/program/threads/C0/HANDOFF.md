@@ -482,3 +482,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Control API 44 files / 273 tests PASS；工程检查全部 PASS。
 - B 文件无修改；未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未暂存。
 - 下一步 03.2B 原子应用；当前 migration 本身不会自动把既有 received Event 标记 applied。
+
+
+## A-BIZ-03.2B Atomic TEST Payment Application 交接（2026-08-08）
+
+- `PostgresPaymentFoundationRepository.receivePaymentEvent()` 已不再只写 received Inbox；TEST succeeded 会在同一事务内形成 applied Event、paid Order、purchased/bonus Lot 与匹配 Ledger issue。
+- Provider identity advisory lock 保证相同 Event 并发只有一次应用、另一次 replay；Order row lock 保证不同 succeeded Event 并发只有一个 applied，后到者 rejected / `invalid_order_state`。
+- unsupported Event 与冻结 Wallet 会保留 terminal rejected evidence，但不会写 Order pending/paid、Lot 或 Ledger；未知中途错误则整个事务回滚，不保留 received 半状态。
+- PaymentEvent API 类型新增 `processedAt`；现有 Service/Route 测试 fixture 已同步 applied terminal 结果，但 HTTP 首次状态码仍保持 202，留给 03.2C 明确收口。
+- Gate：Repository PostgreSQL 13/13、Service/Route 27/27、Control API 全量 44 files / 277 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
+- 本切片只修改 `apps/control-api/src/payments/**` 与 C0 文档，没有修改共享 `app.ts` / `server.ts` / `config.ts`，B 不需要等待；StoryCanvas 未触碰。
+- 下一步 03.2C：决定首次 terminal Event 的 HTTP 200/202 语义，并增加 Tenant scoped 的安全发行结果投影；不实现真实余额消耗、LIVE Provider、Commission 或退款冲正。

@@ -73,8 +73,9 @@ function store(overrides: Partial<PaymentFoundationStore> = {}): PaymentFoundati
         currency: input.currency,
         occurredAt: input.occurredAt.toISOString(),
         receivedAt: input.receivedAt.toISOString(),
-        processingStatus: 'received',
+        processingStatus: 'applied',
         errorCode: null,
+        processedAt: input.receivedAt.toISOString(),
       },
       replayed: false,
     })),
@@ -284,7 +285,8 @@ describe('PaymentFoundationService', () => {
       rechargeOrderId: orderId,
       amountMinor: 100,
       currency: 'CNY',
-      processingStatus: 'received',
+      processingStatus: 'applied',
+      processedAt: now.toISOString(),
     });
     expect(receivePaymentEvent).toHaveBeenCalledWith({
       paymentMode: 'TEST',
@@ -300,7 +302,7 @@ describe('PaymentFoundationService', () => {
     });
     expect(receivePaymentEvent.mock.calls[0]?.[0]).not.toHaveProperty('signature');
     expect(receivePaymentEvent.mock.calls[0]?.[0]).not.toHaveProperty('rawCardData');
-    expect(result.value.processingStatus).toBe('received');
+    expect(result.value.processingStatus).toBe('applied');
   });
 
   it('rejects malformed TEST payloads without creating Inbox facts', async () => {
@@ -371,7 +373,7 @@ describe('PaymentFoundationService', () => {
     expect(receivePaymentEvent).not.toHaveBeenCalled();
   });
 
-  it('preserves Provider identity replay/conflict outcomes without marking orders paid', async () => {
+  it('preserves atomic Store terminal replay/conflict outcomes', async () => {
     const conflict = new PaymentIdempotencyConflictError();
     const baseStore = store();
     const receivePaymentEvent = vi
@@ -395,7 +397,9 @@ describe('PaymentFoundationService', () => {
 
     await expect(
       foundation.receivePaymentEvent({ paymentMode: 'TEST', payload: testPayload }),
-    ).resolves.toMatchObject({ value: { processingStatus: 'received' } });
+    ).resolves.toMatchObject({
+      value: { processingStatus: 'applied', processedAt: now.toISOString() },
+    });
     await expect(
       foundation.receivePaymentEvent({ paymentMode: 'TEST', payload: testPayload }),
     ).rejects.toBe(conflict);

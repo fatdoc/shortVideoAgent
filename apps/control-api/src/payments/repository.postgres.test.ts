@@ -8,6 +8,7 @@ import { up as addTermsVersioning } from '../db/migrations/011_terms_versioning.
 import { up as addInvitationLifecycle } from '../db/migrations/012_invitation_lifecycle.js';
 import { up as addRegistrationAttribution } from '../db/migrations/013_registration_attribution.js';
 import { up as addRechargePaymentFoundation } from '../db/migrations/014_recharge_payment_foundation.js';
+import { up as addAtomicCreditIssuance } from '../db/migrations/015_atomic_credit_issuance.js';
 import {
   PaymentIdempotencyConflictError,
   PaymentOrderConflictError,
@@ -37,7 +38,6 @@ const testRuleId = 'b5000000-0000-4000-8000-000000000001';
 const liveRuleId = 'b5000000-0000-4000-8000-000000000002';
 const orderId = 'b6000000-0000-4000-8000-000000000001';
 const walletId = 'b7000000-0000-4000-8000-000000000001';
-const orderEventId = 'b8000000-0000-4000-8000-000000000001';
 const paymentEventId = 'b9000000-0000-4000-8000-000000000001';
 
 const digest = (character: string): string => character.repeat(64);
@@ -96,6 +96,7 @@ async function resetFoundation(database: Knex): Promise<void> {
   await addInvitationLifecycle(database);
   await addRegistrationAttribution(database);
   await addRechargePaymentFoundation(database);
+  await addAtomicCreditIssuance(database);
 
   await database('control_plane.organizations').insert({
     organization_id: platformOrganizationId,
@@ -160,18 +161,26 @@ function ids() {
       'b6000000-0000-4000-8000-000000000002',
       'b6000000-0000-4000-8000-000000000003',
     ],
-    orderEvent: [
-      orderEventId,
-      'b8000000-0000-4000-8000-000000000002',
-      'b8000000-0000-4000-8000-000000000003',
-    ],
-    paymentEvent: [
-      paymentEventId,
-      'b9000000-0000-4000-8000-000000000002',
-      'b9000000-0000-4000-8000-000000000003',
-    ],
+    orderEvent: Array.from(
+      { length: 12 },
+      (_, index) => `b8000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    ),
+    paymentEvent: Array.from(
+      { length: 6 },
+      (_, index) => `b9000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    ),
+    creditLot: Array.from(
+      { length: 8 },
+      (_, index) => `ba000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    ),
+    ledgerEntry: Array.from(
+      { length: 8 },
+      (_, index) => `bb000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    ),
   };
-  return (entity: 'wallet' | 'order' | 'orderEvent' | 'paymentEvent'): string => {
+  return (
+    entity: 'wallet' | 'order' | 'orderEvent' | 'paymentEvent' | 'creditLot' | 'ledgerEntry',
+  ): string => {
     const value = values[entity]?.shift();
     if (!value) throw new Error(`missing test id for ${entity}`);
     return value;
@@ -350,7 +359,7 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
     await expect(count(database, 'wallets')).resolves.toBe(1);
   });
 
-  it('receives normalized TEST events into the Inbox without paid, Credit or Commission side effects', async () => {
+  it('atomically applies a TEST success into paid Order, purchased/bonus Lots and matching Ledger entries', async () => {
     await repository.createRechargeOrder(orderRecord());
     const result = await repository.receivePaymentEvent(paymentRecord());
 
@@ -362,8 +371,9 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
         providerCode: 'test-payment',
         providerEventId: 'provider-event-001',
         rechargeOrderId: orderId,
-        processingStatus: 'received',
+        processingStatus: 'applied',
         errorCode: null,
+        processedAt: now.toISOString(),
       },
     });
     await expect(
@@ -371,11 +381,82 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
         .select('status')
         .where({ recharge_order_id: orderId })
         .first(),
-    ).resolves.toEqual({ status: 'created' });
-    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
+    ).resolves.toEqual({ status: 'paid' });
+    await expect(
+      database('control_plane.recharge_order_events')
+        .select('event_type', 'source_payment_event_id')
+        .where({ recharge_order_id: orderId })
+        .orderBy('created_at', 'asc')
+        .orderBy('recharge_order_event_id', 'asc'),
+    ).resolves.toEqual([
+      { event_type: 'created', source_payment_event_id: null },
+      { event_type: 'pending', source_payment_event_id: null },
+      { event_type: 'paid', source_payment_event_id: paymentEventId },
+    ]);
+
+    const lots = await database('control_plane.credit_lots')
+      .select('credit_lot_id', 'lot_type', 'original_credits', 'issued_at', 'expires_at')
+      .where({ recharge_order_id: orderId })
+      .orderBy('lot_type', 'desc');
+    expect(lots).toHaveLength(2);
+    expect(lots[0]).toMatchObject({
+      credit_lot_id: 'ba000000-0000-4000-8000-000000000001',
+      lot_type: 'PURCHASED',
+      original_credits: '10',
+      expires_at: null,
+    });
+    expect(new Date(lots[0].issued_at).toISOString()).toBe('2026-08-08T05:59:00.000Z');
+    expect(lots[1]).toMatchObject({
+      credit_lot_id: 'ba000000-0000-4000-8000-000000000002',
+      lot_type: 'BONUS',
+      original_credits: '2',
+    });
+    expect(new Date(lots[1].expires_at).toISOString()).toBe('2026-09-07T05:59:00.000Z');
+
+    const ledger = await database('control_plane.credit_ledger_entries')
+      .select(
+        'credit_lot_id',
+        'posting_group_id',
+        'operation',
+        'bucket',
+        'delta',
+        'reference_type',
+        'reference_id',
+        'actor_type',
+        'actor_id',
+        'reason_code',
+      )
+      .where({ reference_id: orderId })
+      .orderBy('reason_code', 'desc');
+    expect(ledger).toEqual([
+      {
+        credit_lot_id: 'ba000000-0000-4000-8000-000000000001',
+        posting_group_id: paymentEventId,
+        operation: 'issue',
+        bucket: 'available',
+        delta: '10',
+        reference_type: 'recharge_order',
+        reference_id: orderId,
+        actor_type: 'system',
+        actor_id: 'test-payment',
+        reason_code: 'recharge_purchase_issued',
+      },
+      {
+        credit_lot_id: 'ba000000-0000-4000-8000-000000000002',
+        posting_group_id: paymentEventId,
+        operation: 'issue',
+        bucket: 'available',
+        delta: '2',
+        reference_type: 'recharge_order',
+        reference_id: orderId,
+        actor_type: 'system',
+        actor_id: 'test-payment',
+        reason_code: 'recharge_bonus_issued',
+      },
+    ]);
   });
 
-  it('lists bounded Payment Events newest-first without processing side effects or unsafe payloads', async () => {
+  it('lists bounded terminal Payment Events newest-first without unsafe Provider payloads', async () => {
     await repository.createRechargeOrder(orderRecord());
     await repository.receivePaymentEvent(paymentRecord());
     await repository.createRechargeOrder(
@@ -402,21 +483,15 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
       paymentEventId: 'b9000000-0000-4000-8000-000000000002',
       paymentMode: 'TEST',
       providerEventId: 'provider-event-002',
-      processingStatus: 'received',
+      processingStatus: 'applied',
       errorCode: null,
+      processedAt: '2026-08-08T06:02:00.000Z',
     });
     expect(events[0]).not.toHaveProperty('signature');
     expect(events[0]).not.toHaveProperty('rawCardData');
-    await expect(
-      database('control_plane.recharge_orders')
-        .select('status')
-        .where({ recharge_order_id: 'b6000000-0000-4000-8000-000000000002' })
-        .first(),
-    ).resolves.toEqual({ status: 'created' });
-    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
   });
 
-  it('replays the same Provider identity/digest and rejects different event facts', async () => {
+  it('replays the same Provider identity/digest without duplicating issuance and rejects different facts', async () => {
     await repository.createRechargeOrder(orderRecord());
     const first = await repository.receivePaymentEvent(paymentRecord());
     await expect(
@@ -426,6 +501,110 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresPaymentFoundationRepository', 
       repository.receivePaymentEvent(paymentRecord({ eventDigest: digest('6') })),
     ).rejects.toBeInstanceOf(PaymentIdempotencyConflictError);
     await expect(count(database, 'payment_events')).resolves.toBe(1);
+    await expect(count(database, 'credit_lots')).resolves.toBe(2);
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(2);
+    await expect(count(database, 'recharge_order_events')).resolves.toBe(3);
+  });
+
+  it('serializes concurrent identical Provider Events into one apply and one replay', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    const firstRepository = new PostgresPaymentFoundationRepository(database);
+    const secondRepository = new PostgresPaymentFoundationRepository(database);
+    const results = await Promise.all([
+      firstRepository.receivePaymentEvent(paymentRecord()),
+      secondRepository.receivePaymentEvent(paymentRecord()),
+    ]);
+
+    expect(results.filter((result) => result.replayed)).toHaveLength(1);
+    expect(results.filter((result) => !result.replayed)).toHaveLength(1);
+    expect(results.every((result) => result.value.processingStatus === 'applied')).toBe(true);
+    expect(new Set(results.map((result) => result.value.paymentEventId)).size).toBe(1);
+    await expect(count(database, 'payment_events')).resolves.toBe(1);
+    await expect(count(database, 'credit_lots')).resolves.toBe(2);
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(2);
+    await expect(count(database, 'recharge_order_events')).resolves.toBe(3);
+  });
+
+  it('serializes concurrent different success Events for one Order into one issuance and one rejection', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    const firstRepository = new PostgresPaymentFoundationRepository(database);
+    const secondRepository = new PostgresPaymentFoundationRepository(database);
+    const results = await Promise.all([
+      firstRepository.receivePaymentEvent(paymentRecord()),
+      secondRepository.receivePaymentEvent(
+        paymentRecord({ providerEventId: 'provider-event-002', eventDigest: digest('5') }),
+      ),
+    ]);
+
+    expect(results.filter((result) => result.value.processingStatus === 'applied')).toHaveLength(1);
+    expect(results.filter((result) => result.value.processingStatus === 'rejected')).toHaveLength(
+      1,
+    );
+    expect(
+      results.find((result) => result.value.processingStatus === 'rejected')?.value.errorCode,
+    ).toBe('invalid_order_state');
+    await expect(count(database, 'payment_events')).resolves.toBe(2);
+    await expect(count(database, 'credit_lots')).resolves.toBe(2);
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(2);
+    await expect(count(database, 'recharge_order_events')).resolves.toBe(3);
+  });
+
+  it('rejects unsupported Events and a frozen Wallet without Order or Credit side effects', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    const unsupported = await repository.receivePaymentEvent(
+      paymentRecord({ eventType: 'payment_failed' }),
+    );
+    expect(unsupported.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'unsupported_event_type',
+      processedAt: now.toISOString(),
+    });
+
+    await database('control_plane.wallets')
+      .where({ wallet_id: walletId })
+      .update({ status: 'frozen' });
+    const frozen = await repository.receivePaymentEvent(
+      paymentRecord({ providerEventId: 'provider-event-002', eventDigest: digest('5') }),
+    );
+    expect(frozen.value).toMatchObject({
+      processingStatus: 'rejected',
+      errorCode: 'wallet_unavailable',
+      processedAt: now.toISOString(),
+    });
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'created' });
+    await expect(count(database, 'payment_events')).resolves.toBe(2);
+    await expect(count(database, 'credit_lots')).resolves.toBe(0);
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
+    await expect(count(database, 'recharge_order_events')).resolves.toBe(1);
+  });
+
+  it('rolls back Event, Order, Lot and Ledger evidence when issuance fails mid-transaction', async () => {
+    await repository.createRechargeOrder(orderRecord());
+    const failingRepository = new PostgresPaymentFoundationRepository(database, (entity) => {
+      if (entity === 'paymentEvent') return 'b9000000-0000-4000-8000-000000000099';
+      if (entity === 'orderEvent') return 'b8000000-0000-4000-8000-000000000099';
+      if (entity === 'creditLot') return 'ba000000-0000-4000-8000-000000000099';
+      throw new Error('forced ledger id failure');
+    });
+
+    await expect(failingRepository.receivePaymentEvent(paymentRecord())).rejects.toThrow(
+      'forced ledger id failure',
+    );
+    await expect(
+      database('control_plane.recharge_orders')
+        .select('status')
+        .where({ recharge_order_id: orderId })
+        .first(),
+    ).resolves.toEqual({ status: 'created' });
+    await expect(count(database, 'payment_events')).resolves.toBe(0);
+    await expect(count(database, 'credit_lots')).resolves.toBe(0);
+    await expect(count(database, 'credit_ledger_entries')).resolves.toBe(0);
+    await expect(count(database, 'recharge_order_events')).resolves.toBe(1);
   });
 
   it('rejects Payment Event facts that do not match the locked Recharge Order', async () => {

@@ -13,6 +13,9 @@ export type PaymentEventErrorCode =
   | 'currency_mismatch'
   | 'mode_mismatch'
   | 'duplicate_conflict'
+  | 'invalid_order_state'
+  | 'wallet_unavailable'
+  | 'credit_issuance_conflict'
   | 'unsupported_event_type'
   | 'provider_unavailable'
   | 'internal_processing_error';
@@ -59,6 +62,7 @@ export type PaymentEvent = {
   receivedAt: string;
   processingStatus: PaymentEventProcessingStatus;
   errorCode: PaymentEventErrorCode | null;
+  processedAt: string | null;
 };
 
 export type ReplayableResult<T> = { value: T; replayed: boolean };

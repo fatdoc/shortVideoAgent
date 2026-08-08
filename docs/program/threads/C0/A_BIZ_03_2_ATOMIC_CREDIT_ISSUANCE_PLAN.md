@@ -3,7 +3,7 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / 03_2A_COMPLETE / 03_2B_PENDING`
+- 状态：`PLAN_FROZEN / 03_2A_COMPLETE / 03_2B_COMPLETE / 03_2C_PENDING`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）
 - 前置完成：A-BIZ-03.1A～03.1C（RechargeOrder、PaymentEvent Inbox、TEST Adapter 与 HTTP Bootstrap）
 
@@ -223,4 +223,10 @@ PostgreSQL 测试必须使用专用 `_test` 数据库并单 worker。并发测�
 - rollback 在存在 Lot、关联 Ledger 或 processed Payment evidence 时 fail closed；空 Schema 可回滚到 migration 014。
 - RED：缺失 migration 015 时合同测试无法加载；Green：015 定向 5/5，迁移链 001～015 与定向合计 6/6。
 - Control API 全量 Gate：44 files / 273 tests PASS；typecheck、build、定向 ESLint、Governance、`git diff --check` PASS。
-- 下一步进入 03.2B：先补 Repository 原子应用 RED，随后实现 TEST succeeded 的 Event/Order/Lot/Ledger 单事务和 replay/并发语义。
+- A-BIZ-03.2B 已完成：Repository 在一个 PostgreSQL 事务中把 TEST `payment_succeeded` 应用为 Event applied、Order pending/paid、purchased/bonus Lot 与对应 append-only Ledger issue。
+- 同 Provider identity 并发只应用一次并安全 replay；同 Order 的不同 succeeded Event 串行后只允许一个 applied，后到 Event 稳定 rejected / `invalid_order_state`。
+- unsupported Event 稳定 rejected / `unsupported_event_type`；冻结 Wallet 稳定 rejected / `wallet_unavailable`，均不产生 Order 或 Credit 副作用。
+- 人工注入 Ledger ID 失败证明 Event、Order、Lot、Ledger 和 Order Event 全事务回滚。
+- RED：新增 6 项原子合同全部按旧 `received` 行为失败；Green：Repository 13/13，Service/Route 27/27，Control API 全量 44 files / 277 tests PASS。
+- typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- 下一步进入 03.2C：收口 HTTP terminal 语义和 Tenant 可见的安全发行摘要，不增加真实支付或余额消耗能力。
