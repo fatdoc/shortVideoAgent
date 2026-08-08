@@ -91,3 +91,4 @@
 | 2026-08-08 | A-BIZ-02.3C 完成唯一 Public Registration API、严格输入/安全响应、不可逆组合键限流、独立 HMAC Secret 与默认 Email Verification fail-closed Bootstrap；Control API 39 files / 220 tests 通过，A-BIZ-02.3 收口 | A_BIZ_02_3_COMPLETE |
 | 2026-08-08 | 冻结 A-BIZ-02.4 注册/邀请/须知前端：真实 Public API Client、统一注册页、Terms/Invitation fail-closed、敏感 Token 内存边界、无自动登录与 Router 独立接线 | A_BIZ_02_4_PLAN_FROZEN |
 | 2026-08-08 | A-BIZ-02.4A 完成严格 Public Registration API Client：Terms/Invitation/Registration、安全错误映射、201/200 replay、敏感字段不落盘；定向 8/8、Build/Static PASS，既有 3 个重测试文件单独复跑全 PASS | A_BIZ_02_4A_COMPLETE |
+| 2026-08-08 | A-BIZ-02.4B 完成统一 fail-closed 注册页：Terms/Invitation 状态、严格表单、默认 Evidence unavailable、幂等重试、stale reload、201/replay 与无自动登录；定向联合 21/21、Build/Static PASS | A_BIZ_02_4B_COMPLETE |

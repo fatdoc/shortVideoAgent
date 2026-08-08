@@ -275,3 +275,25 @@ body:has(.d2-auth-page) {
   .d2-auth-pilot-content { display: block; }
   .d2-auth-pilot-intro { padding: 30px 18px; border-right: 0; border-bottom: 1px solid var(--auth-border); }
 }
+
+.d2-auth-shell--registration { width: min(1040px, 100%); min-height: auto; }
+.d2-registration-content { display: grid; grid-template-columns: minmax(0, 1fr) 430px; }
+.d2-registration-context { padding: 38px; border-right: 1px solid var(--auth-border); background: #fafbfc; }
+.d2-registration-context > .anticon { color: #1677ff; font-size: 32px; }
+.d2-registration-context h2.ant-typography { margin: 16px 0 8px; }
+.d2-registration-context-card { margin-top: 18px; padding: 16px; border: 1px solid var(--auth-border); border-radius: 10px; background: #fff; }
+.d2-registration-context-card > strong { display: block; margin-bottom: 12px; color: #344054; font-size: 12px; }
+.d2-registration-invitation { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #667085; font-size: 12px; }
+.d2-registration-terms > div { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.d2-registration-terms .ant-typography { max-height: 220px; margin: 14px 0 0; padding: 12px; overflow: auto; border-radius: 8px; color: #475467; background: #f7f8fa; white-space: pre-wrap; }
+.d2-registration-form-panel .ant-alert-description { display: flex; flex-direction: column; gap: 3px; }
+.d2-registration-success { text-align: center; }
+.d2-registration-success-icon { color: #52c41a; font-size: 44px; }
+.d2-registration-success h2.ant-typography { margin-top: 18px; }
+.d2-registration-success .ant-alert { text-align: left; }
+.d2-registration-success .ant-btn { margin-top: 20px; }
+
+@media (max-width: 820px) {
+  .d2-registration-content { display: block; }
+  .d2-registration-context { padding: 28px 18px; border-right: 0; border-bottom: 1px solid var(--auth-border); }
+}

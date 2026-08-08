@@ -400,3 +400,11 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Root 全量曾因既有重页面并发/时序出现 7 项失败；对应 app smoke、BrandBrain、ScriptEditor 三文件逐一串行复跑分别 11/11、5/5、8/8 通过。
 - 本提交没有共享 Router/Bootstrap 改动，B 无需为 02.4A 做代码同步；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未触碰。
 - 下一切片 02.4B 只实现 Registration State/UI；`src/app/Router.tsx` 与 Login 入口留到 02.4C 独立共享提交并届时通知 B。
+
+## 2026-08-08 A-BIZ-02.4B Registration Page Handoff
+
+- 新增 `src/pages/auth/RegistrationPage.tsx`、12 项页面合同测试和 `src/design/d2-auth.css` 注册页样式。
+- 页面通过 props 注入 API、Email Verification Evidence 和登录动作；生产默认 Evidence unavailable，因此未接入真实 Provider 时会明确 503/fail closed，不会伪造验证成功。
+- Invitation Token 只存在于组件 props/内存并提交给 Preview/Registration；页面不显示 Token、不写 Storage。URL 读取与立即清理留给 02.4C Router。
+- 02.4B 没有修改共享 Router/LoginPage，B 现在不需要同步共享代码；B 的 StoryCanvas 与未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 均未触碰。
+- 下一步 02.4C 将独立修改 `src/app/Router.tsx`、Router Pilot 测试、`LoginPage.tsx` 与 Pilot Login 测试；该提交完成后需要通知 B 同步。

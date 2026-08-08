@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02.1～02.3 `COMPLETE` / A-BIZ-02.4A `COMPLETE`
-- 当前任务：A-BIZ-02.4A Public Registration API Client 已完成；下一步进入 02.4B Registration State/UI，继续保持正式 Terms 与 Email Verification 未就绪时 fail closed
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02.1～02.3 `COMPLETE` / A-BIZ-02.4A～02.4B `COMPLETE`
+- 当前任务：A-BIZ-02.4B Registration State/UI 已完成；下一步进入 02.4C Router/Login 独立共享接线，继续保持正式 Terms 与 Email Verification 未就绪时 fail closed
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -729,3 +729,18 @@
 - 本切片未修改共享 Router，也未修改、暂存或提交 B 的 `apps/storycanvas/data/vendor/byteplus.ts`。
 - 当前状态：`A_BIZ_02_4A_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(web): add public registration api client`；随后进入 02.4B Registration State/UI，先写 Terms、Invitation、校验、提交与成功/失败状态测试并确认 RED，Router 接线继续保留到 02.4C。
+
+## 2026-08-08 A-BIZ-02.4B Registration State / Page 完成
+
+- Test-first RED 已确认：`RegistrationPage.test.tsx` 首次因目标页面模块不存在而失败，随后才补最小页面与状态实现。
+- 新增可注入 Public Registration API 与 Email Verification Evidence Port 的统一注册页；生产默认 Evidence Port 明确 unavailable，不生成 Fake Token、不调用 Registration API。
+- 页面覆盖 Terms loading/unavailable/reload、Invitation preview/loading/unavailable/显式切换直接注册、字段与密码确认、明确勾选、提交禁用和安全错误展示。
+- DIRECT、PLATFORM/CHANNEL 与 TENANT_MEMBER 继续进入同一页面/同一提交函数；成员邀请不渲染或提交 Tenant 名称，客户端不提交 Role/Organization/Channel 事实。
+- 同一未变更注册意图的重试复用内存幂等键；影响事实的字段变化会生成新意图；进行中重复点击被禁止，201 与 200 replay 进入同一成功页。
+- Terms stale 会重新读取当前版本、清除接受勾选和密码字段并要求重新确认；通用冲突不枚举邮箱存在/停用，429 展示 retry-after，503 Verification 保持失败状态。
+- 成功页不写 Session、不自动登录、不展示敏感 Token，只通过注入的 `onLogin` 显式进入现有登录入口。
+- 定向联合 Gate：Registration 12/12、Public Client 8/8、Pilot Login 1/1，共 3 files / 21 tests PASS；TypeScript/Vite build、ESLint、TS/TSX Prettier、Governance、diff-check PASS。
+- Root 全量串行并发：33 files PASS / 3 files FAIL，264/268 tests PASS；本切片 Registration 12/12 全部通过。剩余 4 项为既有 app smoke 1 项、Pilot Login 1 项和 B ScriptEditor 2 项的 5 秒超时；对应文件此前定向/联合运行通过，未发现功能回归。
+- 本切片未修改共享 Router、LoginPage 或 B 文件；`apps/storycanvas/data/vendor/byteplus.ts` 继续未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_4B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(web): add fail-closed registration page`；随后进入 02.4C，先写 Router/Login RED，再以独立共享提交接入 `/register`、清理 Invitation 查询 Token 并通知 B。
