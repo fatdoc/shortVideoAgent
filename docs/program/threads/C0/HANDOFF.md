@@ -426,3 +426,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 03.1A/03.1B 将限定在 Control API 新 migration、payment/recharge Domain/Repository/Adapter 与测试，不修改 B 独占目录或共享 Bootstrap。
 - 03.1C 才会独立修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 并通知 B；LIVE Adapter 未配置时必须 503 fail closed，不能用 TEST Adapter 兜底。
 - 当前正式 SKU 售价、额度数量、币种范围、订单时限、退款周期、佣金比例仍未提供；Migration 不 seed 商业 Rule，测试数据必须显式 `TEST`。
+
+
+## 2026-08-08 A-BIZ-03.1A Recharge / Payment Schema Handoff
+
+- Migration 014 已新增版本化 Credit Conversion Rule、Tenant Recharge Order、append-only Order Event 与 Payment Event Inbox；Migration 无商业 Rule seed，TEST/LIVE 必须显式区分。
+- Order 通过 Wallet/Tenant 复合 FK 和 Buyer Membership/User/Tenant Organization 校验阻止跨 Scope；金额、币种、购买额度、赠送额度和赠送到期事实必须与 ACTIVE Rule 完全一致。
+- ACTIVE/RETIRED Rule 只接受 active PLATFORM `platform_admin` 审批；Rule 转换事实、Order 冻结事实和 Payment 原始事实均不可重写。
+- Payment Event Provider identity 唯一，必须与 Order 的 mode/amount/currency 一致；Schema 只建立 `received/applied/rejected` Inbox 状态机，03.1A/03.1B 不把 Order 标记 paid、不写 Credit Ledger、不计提 Commission。
+- Order Event 为 append-only；Order 与 Payment processing 状态只允许单向合法迁移。存在任一充值/支付审计事实时 Migration down fail closed。
+- Gate：Migration/chain 10/10，Control API 40 files / 229 tests；typecheck、build、ESLint、Prettier、Governance、diff check 全 PASS。
+- 03.1A 没有共享 Bootstrap 或前端改动，B 无需同步本提交来继续 StoryCanvas 独占开发；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 仍未触碰。
+- A 下一步进入 03.1B Domain / Repository / TEST Adapter。LIVE Adapter 必须默认 unavailable，TEST Adapter 不得作为 LIVE fallback；Payment Event 在 03.1 只持久化为 `received`。

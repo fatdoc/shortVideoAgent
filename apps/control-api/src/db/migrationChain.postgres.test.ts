@@ -20,6 +20,7 @@ const expectedMigrations = [
   '011_terms_versioning.ts',
   '012_invitation_lifecycle.ts',
   '013_registration_attribution.ts',
+  '014_recharge_payment_foundation.ts',
 ];
 
 const expectedTables = [
@@ -41,6 +42,10 @@ const expectedTables = [
   'registrations',
   'referral_attributions',
   'referral_attribution_events',
+  'credit_conversion_rule_versions',
+  'recharge_orders',
+  'recharge_order_events',
+  'payment_events',
   'users',
 ];
 
@@ -72,7 +77,7 @@ describe.runIf(hasDedicatedTestDatabase)('Control API migration chain', () => {
     await database.destroy();
   });
 
-  it('loads migrations 001 through 013 from an empty database and is idempotent on replay', async () => {
+  it('loads migrations 001 through 014 from an empty database and is idempotent on replay', async () => {
     const config = migrationConfig(import.meta.url);
     const [batch, migrations] = await database.migrate.latest(config);
 

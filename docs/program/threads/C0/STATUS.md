@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02.1～02.3 `COMPLETE` / A-BIZ-02.4A～02.4B `COMPLETE`
-- 当前任务：A-BIZ-02.4B Registration State/UI 已完成；下一步进入 02.4C Router/Login 独立共享接线，继续保持正式 Terms 与 Email Verification 未就绪时 fail closed
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A `COMPLETE`
+- 当前任务：A-BIZ-03.1A Recharge/Payment Schema 已完成；下一步进入 03.1B Domain / Repository / TEST Adapter，继续保持 LIVE 支付、Credit issuance 与 Commission fail closed
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -771,3 +771,19 @@
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续不修改、不暂存、不提交；03.1A/03.1B 不碰共享 Bootstrap。
 - 当前状态：`A_BIZ_03_1_PLAN_FROZEN / READY_FOR_03_1A_RED`。
 - 下一步：独立提交计划，然后新增空 migration 014 与 PostgreSQL 合同测试，确认有效 RED 后再实现最小 Schema。
+
+
+## 2026-08-08 A-BIZ-03.1A Recharge / Payment Schema 完成
+
+- Test-first RED 已确认：空 Migration 014 下 9 项 PostgreSQL 合同中 8 项因四张目标表不存在稳定失败；Fixture 和 001～013 基线可正常建立，不是测试环境或依赖故障。
+- 新增 `credit_conversion_rule_versions`、`recharge_orders`、append-only `recharge_order_events` 和 `payment_events` Inbox；Migration 不 seed TEST/LIVE Rule，不开放真实支付。
+- Wallet 增加 `(wallet_id, tenant_id)` 复合唯一键，Order 使用复合 FK；数据库同时校验 Buyer Membership/User/Tenant Organization，拒绝跨 Tenant Wallet 和身份组合。
+- Rule 使用整数 minor amount、三位大写 currency、purchased/bonus credit 与 bonus expiry 约束；ACTIVE/RETIRED Rule 必须由 active PLATFORM `platform_admin` 审批，转换事实不可变。
+- Order 冻结 Rule 的 mode、金额、币种、购买额度、赠送额度和到期天数；幂等键按 Tenant 唯一，request digest 只接受 64 位小写十六进制。
+- Payment Event 强制 Provider identity 唯一、与 Order 的 TEST/LIVE、金额和币种一致；原始事实不可更新/删除，处理状态只允许 `received → applied|rejected`。
+- Order 状态只允许单向合法迁移；Order Event 为 append-only，并要求事件类型对应当前 Order 状态、支付驱动事件引用同一 Order 的 Payment Event。
+- 空事实允许 rollback；存在 Rule/Order/Payment/Event 任一审计事实时 fail closed。Migration chain 已扩展为 001～014，重复 latest 为 no-op。
+- Gate：Migration 014 + chain 2 files / 10 tests PASS；Control API 全量单 worker 40 files / 229 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- 本切片未修改共享 Bootstrap、前端或 B 独占源码；`apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_1A_COMPLETE / COMMITTED`。
+- 下一步：独立提交 `feat(control-api): add recharge payment foundation schema`，随后进入 03.1B，先冻结 Domain/Repository/TEST Adapter 合同并完成 Test-first RED。
