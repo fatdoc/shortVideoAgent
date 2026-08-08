@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02.1～02.2 `COMPLETE` / A-BIZ-02.3A `COMPLETE`
-- 当前任务：A-BIZ-02.3A Registration/Attribution Schema 已完成并通过完整 Gate；下一步进入 02.3B 统一 PostgreSQL Registration Unit of Work，不提前开放半成品 Public API
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02.1～02.3 `COMPLETE` / A-BIZ-02.4A `COMPLETE`
+- 当前任务：A-BIZ-02.4A Public Registration API Client 已完成；下一步进入 02.4B Registration State/UI，继续保持正式 Terms 与 Email Verification 未就绪时 fail closed
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -715,3 +715,17 @@
 - 02.4A 先新增严格 Public Registration API Client 与 RED/Green 测试，不修改共享 Router；02.4C 修改 `src/app/Router.tsx` 时独立提交并通知 B。
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_4_PLAN_FROZEN / READY_FOR_02_4A_RED`。
+
+## 2026-08-08 A-BIZ-02.4A Public Registration API Client 完成
+
+- Test-first RED 已确认：首次运行因 `./publicRegistrationApi` 模块不存在而失败，随后才补最小 Client 实现。
+- 新增严格 Public Terms、Invitation Preview 与 Registration Client；仅在合法 Pilot Runtime 下访问 Control API，所有请求使用 `credentials: include`，但不读取或依赖 Session Cookie。
+- 成功响应严格校验字段白名单、UUID、日期、SHA-256、枚举与计数；畸形或过宽响应统一 fail closed 为 `INVALID_API_RESPONSE`。
+- Registration 请求只发送白名单字段；可选字段为 undefined 时不发送；Invitation Token 仅放 Preview/Registration JSON body，不进入 URL、LocalStorage、SessionStorage 或日志。
+- 错误只保留安全 code/status/requestId/retry-after；服务端原始错误文本不得反射密码、邮箱、Invitation Token 或其他敏感内容。
+- 201 首次成功与 200 幂等 replay 均已覆盖；Client 不自动登录、不写 Session、不伪造 Terms 或 Email Verification 成功。
+- 定向 Gate：`src/services/publicRegistrationApi.test.ts` 1 file / 8 tests PASS；ESLint、Prettier、Governance、`git diff --check`、Root build PASS。
+- Root 全量串行结果为 32 files PASS、3 files 首轮失败，249/256 tests PASS；失败集中于既有 BrandBrain、ScriptEditor 与 app smoke 超时/时序。三个失败文件随后逐一串行复跑全部通过：5/5、8/8、11/11，确认与本切片独立 Service 无功能回归关联。
+- 本切片未修改共享 Router，也未修改、暂存或提交 B 的 `apps/storycanvas/data/vendor/byteplus.ts`。
+- 当前状态：`A_BIZ_02_4A_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(web): add public registration api client`；随后进入 02.4B Registration State/UI，先写 Terms、Invitation、校验、提交与成功/失败状态测试并确认 RED，Router 接线继续保留到 02.4C。

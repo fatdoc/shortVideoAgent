@@ -90,3 +90,4 @@
 | 2026-08-08 | A-BIZ-02.3B 完成 Registration Domain/Service 与统一 PostgreSQL Unit of Work，原子写入 User/Tenant/Membership/Registration/Consent/Usage/Attribution，支持安全 replay、邮箱验证 fail closed 与 12 个月 Channel 保护；Control API 37 files / 202 tests 通过 | A_BIZ_02_3B_COMPLETE |
 | 2026-08-08 | A-BIZ-02.3C 完成唯一 Public Registration API、严格输入/安全响应、不可逆组合键限流、独立 HMAC Secret 与默认 Email Verification fail-closed Bootstrap；Control API 39 files / 220 tests 通过，A-BIZ-02.3 收口 | A_BIZ_02_3_COMPLETE |
 | 2026-08-08 | 冻结 A-BIZ-02.4 注册/邀请/须知前端：真实 Public API Client、统一注册页、Terms/Invitation fail-closed、敏感 Token 内存边界、无自动登录与 Router 独立接线 | A_BIZ_02_4_PLAN_FROZEN |
+| 2026-08-08 | A-BIZ-02.4A 完成严格 Public Registration API Client：Terms/Invitation/Registration、安全错误映射、201/200 replay、敏感字段不落盘；定向 8/8、Build/Static PASS，既有 3 个重测试文件单独复跑全 PASS | A_BIZ_02_4A_COMPLETE |

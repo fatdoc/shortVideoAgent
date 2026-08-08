@@ -214,7 +214,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - A 必须继续排除未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`，禁止修改、删除或提交。
 - 详细切片、验收和 Git 纪律见 `docs/program/threads/C0/A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`。
 
-
 ## A-BIZ-00.1 PostgreSQL Gate 交接（2026-08-06）
 
 - PostgreSQL 16.14 已在本机完成初始化并作为 Homebrew 服务运行；专用数据库必须保持 `_test` 后缀，因为测试会删除并重建 `control_plane` schema。
@@ -223,7 +222,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 不建议直接并发运行两个 PostgreSQL suite：它们共享同一测试 schema，并发初始化可触发 `pg_namespace_nspname_index` 竞争；该现象不代表业务合同失败。
 - A 仍须排除 B 运行时文件 `apps/storycanvas/data/vendor/byteplus.ts`。
 - 下一交付：A-BIZ-00.2 权限/组织 ADR、老板/工作人员矩阵、多组织 Session 上下文和跨组织拒绝语义；未冻结字段保持 `TBD`。
-
 
 ## A-BIZ-00.2 多组织权限 ADR 交接（2026-08-06）
 
@@ -234,7 +232,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 必须会签：一人多组织/多角色、`pilot_support`、工作人员是否创建项目、历史 Content Operator Assignment 回填、Platform 唯一性和代理层级表达。
 - 对 B 的边界：B 继续只消费 A 已授权的 Project/Grant Context，不读取或修改 Membership；本切片没有触碰 StoryCanvas。
 - 下一步：C0/产品/B 审阅并接受或修订 ADR；完成范围冻结前不实现 migration `006`。
-
 
 ## A-BIZ-00.3 注册、须知与账务 ADR 交接（2026-08-06）
 
@@ -257,7 +254,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 仍 fail closed：正式 Terms 正文、真实支付商户、真实 SKU 售价/额度、佣金比例/观察期、税务/KYC/提现/出款。不得用 Demo 数字补缺。
 - Git/边界：当前 A 分支 `dev/business-plane`；继续禁止暂存或修改 `apps/storycanvas/data/vendor/byteplus.ts`，禁止 `git add .`。
 - 下一交付：A-BIZ-01.1 test-first PostgreSQL migration；先失败测试，再最小实现和显式回填，独立 commit。
-
 
 ## A-BIZ-01.1 006A Organization Foundation 交接（2026-08-07）
 
@@ -395,3 +391,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Public Registration 已有稳定 HTTP 合同，但默认 Email Verification Port 明确 unavailable；未接入正式 Provider 和正式 Terms 前，不应把该端点描述为已开放公网注册。
 - 本节点不签发 Session、不增加 consumer Role/Tenant/Workbench、不实现邮件发送、注册 UI、支付或归因纠错 API。
 - Gate：Control API 39 files / 220 tests，typecheck、build、ESLint、Prettier、Governance、diff check 全部通过。
+
+## 2026-08-08 A-BIZ-02.4A Public Registration API Client Handoff
+
+- 新增 `src/services/publicRegistrationApi.ts` 及 8 项合同测试，覆盖 Public current Terms、Invitation Preview、Registration 201/200 replay、安全 Error Envelope、request ID、retry-after、网络/配置失败和严格响应解析。
+- Client 不修改 Router、登录页或 B 的页面；不会把 Invitation Token、密码、邮箱验证 Token 或幂等键写入 URL、Storage 或日志。
+- 当前正式 Terms 与 Email Verification Provider 仍未就绪；Client 能表达对应 fail-closed 错误，但不把测试 Evidence 或占位正文描述为真实注册能力。
+- Root 全量曾因既有重页面并发/时序出现 7 项失败；对应 app smoke、BrandBrain、ScriptEditor 三文件逐一串行复跑分别 11/11、5/5、8/8 通过。
+- 本提交没有共享 Router/Bootstrap 改动，B 无需为 02.4A 做代码同步；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未触碰。
+- 下一切片 02.4B 只实现 Registration State/UI；`src/app/Router.tsx` 与 Login 入口留到 02.4C 独立共享提交并届时通知 B。
