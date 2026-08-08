@@ -15,6 +15,7 @@ export type ControlApiDependencies = {
   productionRouter?: Router;
   paymentRouter?: Router;
   commissionAuditRouter?: Router;
+  commissionSettlementRouter?: Router;
   trustProxy?: boolean;
 };
 
@@ -68,6 +69,9 @@ export function createApp(dependencies: ControlApiDependencies) {
   if (dependencies.paymentRouter) app.use('/api/v1', dependencies.paymentRouter);
   if (dependencies.commissionAuditRouter) {
     app.use('/api/v1', dependencies.commissionAuditRouter);
+  }
+  if (dependencies.commissionSettlementRouter) {
+    app.use('/api/v1', dependencies.commissionSettlementRouter);
   }
 
   app.use((_request, response) => {

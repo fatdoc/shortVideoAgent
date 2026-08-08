@@ -30,6 +30,9 @@ import { PaymentFoundationService } from './payments/service.js';
 import { PostgresCommissionAuditRepository } from './commissions/repository.js';
 import { createCommissionAuditRouter } from './commissions/routes.js';
 import { CommissionAuditService } from './commissions/service.js';
+import { PostgresCommissionSettlementRepository } from './settlements/repository.js';
+import { createCommissionSettlementRouter } from './settlements/routes.js';
+import { CommissionSettlementService } from './settlements/service.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -100,6 +103,15 @@ const commissionAuditRouter = createCommissionAuditRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const commissionSettlementRouter = createCommissionSettlementRouter({
+  service: new CommissionSettlementService(
+    new PostgresCommissionSettlementRepository(database),
+    config.rechargePaymentDigestSecret,
+  ),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const projectPolicy = new PostgresProjectPolicy(database);
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
@@ -137,6 +149,7 @@ const app = createApp({
   productionRouter,
   paymentRouter,
   commissionAuditRouter,
+  commissionSettlementRouter,
   trustProxy: config.trustProxy,
 });
 
