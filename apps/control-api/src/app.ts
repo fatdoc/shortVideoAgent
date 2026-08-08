@@ -14,6 +14,7 @@ export type ControlApiDependencies = {
   contentRouter?: Router;
   productionRouter?: Router;
   paymentRouter?: Router;
+  commissionAuditRouter?: Router;
   trustProxy?: boolean;
 };
 
@@ -65,6 +66,9 @@ export function createApp(dependencies: ControlApiDependencies) {
   if (dependencies.contentRouter) app.use('/api/v1', dependencies.contentRouter);
   if (dependencies.productionRouter) app.use('/api/v1', dependencies.productionRouter);
   if (dependencies.paymentRouter) app.use('/api/v1', dependencies.paymentRouter);
+  if (dependencies.commissionAuditRouter) {
+    app.use('/api/v1', dependencies.commissionAuditRouter);
+  }
 
   app.use((_request, response) => {
     response.status(404).json({
