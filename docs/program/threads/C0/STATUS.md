@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A～03.1C `COMPLETE`
-- 当前任务：A-BIZ-03.1C TEST Recharge/Payment HTTP API 与 Bootstrap 已完成并独立提交；下一步先冻结 A-BIZ-03.2 原子到账/额度发行边界，继续保持 LIVE 支付与未会签商业数字 fail closed
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3 `PLAN_FROZEN`
+- 当前任务：A-BIZ-03.3 佣金影子账、冲正与结算草稿计划已冻结；下一步从 A-BIZ-03.3A Migration 016 PostgreSQL RED 合同开始，不提前实现部分退款、真实佣金比例或自动结算
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -859,3 +859,14 @@
 - B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_2C_COMPLETE / A_BIZ_03_2_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(control-api): expose test credit issuance results`；随后先冻结 A-BIZ-03.3 或下一业务节点合同。
+
+## 2026-08-08 A-BIZ-03.3 佣金影子账、冲正与结算草稿计划冻结
+
+- 计划依据：Wave 0 已批准单级直接归因佣金、实际支付净额、版本化 Rule、append-only Reversal、自然月 Settlement Draft，以及不提现、不自动打款。
+- 实施顺序：03.3A Migration 016 Schema → 03.3B TEST succeeded 原子计提 → 03.3C TEST 全额安全退款/拒付冲正 → 03.3D Channel/Platform scoped 只读 API → 03.3E TEST Settlement Draft。
+- 无归因或归因过期不计提但写 Calculation Outcome；Channel/Rule 不可用进入 `manual_review`，不得套默认佣金比例；多个 ACTIVE Rule 匹配时整个事务 fail closed。
+- 退款首版只允许能证明原订单 purchased/bonus Lot 全部未冻结、未消费、未回收的 TEST 全额安全子集；部分退款或额度已使用继续稳定拒绝，等待 A-06 Lot 分摊合同和商业决策。
+- Settlement 状态只允许 `draft/reviewed/approved`，数据库禁止 `paid`；不实现 KYC、税务、提现、出款或真实资金承诺。
+- 03.3A 只新增 Commission Schema 与 PostgreSQL 合同，不修改共享 App/Config/Server，B 无需为这一切片同步 Bootstrap。
+- 权威计划：`A_BIZ_03_3_COMMISSION_REVERSAL_SETTLEMENT_PLAN.md`；当前基线：`857c2cf`。
+- 当前状态：`A_BIZ_03_3_PLAN_FROZEN / READY_FOR_03_3A_RED`。

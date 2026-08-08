@@ -501,3 +501,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 本切片没有修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts`，B 不需要等待共享 Bootstrap 同步；StoryCanvas 未触碰。
 - Gate：Route 13/13；Control API 全量 44 files / 278 tests；typecheck/build/定向 ESLint/Prettier/Governance/diff check 全 PASS。
 - A-BIZ-03.2 至此完整收口；LIVE Provider、Commission、refund/chargeback 冲正、Reservation 消耗和真实商业数字仍不在当前能力范围。
+
+## A-BIZ-03.3 Commission Shadow Ledger 计划交接（2026-08-08）
+
+- A-BIZ-03.2 已在 `857c2cf` 收口：TEST PaymentEvent、RechargeOrder、Credit Lot/Ledger 原子到账以及 HTTP terminal 结果均已完成；该提交当前尚未 push。
+- 下一节点冻结为 A-BIZ-03.3，权威计划：`docs/program/threads/C0/A_BIZ_03_3_COMMISSION_REVERSAL_SETTLEMENT_PLAN.md`。
+- 03.3A 先以 migration 016 建立版本化 Commission Rule、Calculation Outcome、Accrual、Reversal、Settlement Draft/Item，并以 PostgreSQL RED 合同保护 append-only、Scope、金额币种、审批证据、规则窗口和 rollback。
+- succeeded Payment 无归因/归因过期时不计提但保留 Outcome；Channel 或 Rule 不可用进入平台 `manual_review`，不硬编码默认比例；多个 ACTIVE Rule 冲突时事务 fail closed。
+- refund/chargeback 只规划 TEST 全额且所有原订单 Lot 可完整回收的安全子集；部分退款、已冻结/消费额度和无法证明 Lot 状态时不得实现近似算法。
+- Settlement 仅有 `draft/reviewed/approved`，禁止 `paid`，不开放提现、KYC、税务或自动打款。
+- 03.3A 不修改共享 `app.ts` / `server.ts` / `config.ts`，因此 B 无需等待本切片的 Bootstrap 同步；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 下一动作：只写 03.3A PostgreSQL RED 测试，确认按预期因 migration 016 缺失失败后，再实现最小 Schema。
