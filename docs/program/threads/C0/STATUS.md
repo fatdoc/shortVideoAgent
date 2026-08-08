@@ -899,3 +899,14 @@
 - RED→Green：9 个新 PostgreSQL 场景先按实现缺失失败，Repository 最终 22/22；纯计算 6/6。
 - 完整 Gate：Control API 46 files / 300 tests；typecheck、build、ESLint、Prettier、Governance、diff check 全 PASS。
 - 本切片未修改共享 Bootstrap/HTTP，也未触碰 StoryCanvas；下一步先规划 A-BIZ-03.3C，只处理能证明 Credit Lot 可完整回收的 TEST 全额 refund/chargeback 冲正安全子集。
+
+## 2026-08-08 A-BIZ-03.3C TEST 全额退款/拒付原子冲正计划冻结
+
+- 权威细化计划：`A_BIZ_03_3C_FULL_TEST_REVERSAL_PLAN.md`；实现基线 `61e8b67`。
+- 03.3C 只支持 TEST 全额 refund/chargeback：PaymentEvent、全 Lot reclaim、可选 Commission Reversal、Order 与 OrderEvent 必须处于单一事务。
+- 可回收证明采用最保守边界：Lot/issue 完整匹配，Wallet 不得存在任何非 issue Ledger 或任何历史 Reservation，Lot 不得已 reclaim，Accrual 不得已 reversal。
+- 部分退款保存为 `rejected / partial_refund_unsupported`；无法证明额度安全时为 `credit_reclaim_unsafe`；Commission 冲突为 `commission_reversal_conflict`，不实现近似冲正。
+- Migration 017 将增加 `reclaim` Ledger operation、Lot-linked reclaim 约束、PaymentEvent 审计码并补强 Reversal 必须引用 applied TEST 全额 Event。
+- 本切片不涉及 LIVE、真实 Provider 退款、负余额、跨 Lot 分摊、HTTP 新接口、Settlement 或 StoryCanvas。
+- 当前状态：`A_BIZ_03_3C_PLAN_FROZEN / READY_FOR_03_3C_RED`。
+- 下一步：先新增 migration 017 空骨架与 PostgreSQL RED 合同，确认因 reclaim/原子 reversal 实现缺失而失败，再进入最小 Green。

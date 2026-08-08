@@ -542,3 +542,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Repository PostgreSQL 22/22、Calculation 6/6、Control API 46 files / 300 tests，typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
 - 未修改 `app.ts`、`server.ts`、`config.ts` 或 HTTP 合同，B 无需同步共享 Bootstrap；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 下一步 A-BIZ-03.3C 必须先重新审查 Credit Lot 当前可回收证据并冻结 RED 合同；若无法证明所有原订单额度未消费/冻结，则继续 fail closed，不实现近似冲正。
+
+## A-BIZ-03.3C Full TEST Refund/Chargeback Reversal 计划交接（2026-08-08）
+
+- 细化计划已冻结在 `docs/program/threads/C0/A_BIZ_03_3C_FULL_TEST_REVERSAL_PLAN.md`，基线 `61e8b67`。
+- 首版只接受 TEST 全额 refund/chargeback，且必须证明原订单全部 Lot 从未被 reserve/consume/release/adjust/reclaim；Wallet 只要存在非 issue Ledger 或任何历史 Reservation 就 fail closed。
+- migration 017 规划增加 `reclaim` operation、每 Lot 唯一 issue/reclaim、严格的 Lot/Event/Order/Wallet/delta/idempotency 约束，并要求 Commission Reversal 来源 Event 已 applied、TEST、全额。
+- 原 succeeded Payment 无 Accrual 时只做 Credit reclaim，不伪造 Reversal；原 Calculation Outcome 已提供明确佣金原因。
+- 部分退款、Credit 证据不安全和 Commission 冲突分别使用稳定 rejected code；Order 与所有审计事实保持不变。
+- 不改共享 Bootstrap/HTTP route，不触碰 StoryCanvas；下一步先写 migration 017 与 Repository PostgreSQL RED，确认有效 RED 后才实现。

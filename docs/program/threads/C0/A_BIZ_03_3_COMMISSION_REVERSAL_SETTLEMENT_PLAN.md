@@ -3,8 +3,8 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`03_3A_COMPLETE / 03_3B_COMPLETE / READY_FOR_03_3C_PLANNING`
-- 当前基线：`6a86d8f feat(control-api): add commission shadow ledger schema`
+- 状态：`03_3A_COMPLETE / 03_3B_COMPLETE / 03_3C_PLAN_FROZEN / READY_FOR_03_3C_RED`
+- 当前基线：`61e8b67 feat(control-api): accrue test payment commissions atomically`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）与 `A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`
 - 前置完成：A-BIZ-03.1 TEST Recharge/Payment Foundation、A-BIZ-03.2 Payment/Order/Credit 原子到账
 

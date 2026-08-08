@@ -116,3 +116,9 @@
 - Payment Repository 在 TEST succeeded 原子到账事务中追加 Calculation Outcome，并在唯一合法 Rule 时追加 Commission Accrual。
 - 新增 PostgreSQL 合同覆盖 accrued、无归因、过期、Channel/Rule 不可用、replay、并发、Commission 故障回滚与多个 Rule fail closed。
 - Control API 全量 46 files / 300 tests 通过；共享 Bootstrap、HTTP 与 StoryCanvas 未变更。
+
+## 2026-08-08 · A-BIZ-03.3C Full TEST Reversal Plan
+
+- 新增 `A_BIZ_03_3C_FULL_TEST_REVERSAL_PLAN.md`，冻结 TEST 全额 refund/chargeback 的最保守 Credit 可回收证明、Migration 017、原子事务顺序、稳定拒绝语义与 RED/Gate。
+- 明确只在 Wallet 无任何非 issue Ledger、无任何历史 Reservation、Lot/issue 完整且未 reclaim 时允许全额冲正；部分退款和无法证明的余额状态继续 fail closed。
+- 原 Accrual 存在时全额 append-only Reversal；不存在时沿用原 Calculation Outcome，不创建虚假佣金事实。
