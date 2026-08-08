@@ -462,3 +462,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Control API 全量 43 files / 268 tests，typecheck、build、ESLint、Prettier、Governance、diff check 全部通过。
 - B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未被 A 修改、暂存或提交。
 - 下一步 A 在 A-BIZ-03.2 开始前必须先冻结原子处理合同和商业输入；B 不应把当前 TEST API 描述为真实收款或可用余额能力。
+
+## A-BIZ-03.2 原子到账与额度发行计划交接（2026-08-08）
+
+- 前置：A-BIZ-03.1 已在 `main@baae8ef` 完成 TEST RechargeOrder、PaymentEvent Inbox 与 HTTP Bootstrap。
+- 03.2 将 TEST succeeded 原子应用为 Event applied、Order paid、purchased/bonus Credit Lot 与 append-only Ledger issue；同 identity replay 和同 Order 并发不得重复副作用。
+- migration 015 增加 Credit Lot、Ledger Lot FK 和 Payment processed evidence；历史 Pilot Ledger 保持兼容。
+- Commission、refund/chargeback 冲正、LIVE Provider、真实 SKU/佣金数字均不在本节点；unsupported 事件保持安全 rejected。
+- 详细计划：`docs/program/threads/C0/A_BIZ_03_2_ATOMIC_CREDIT_ISSUANCE_PLAN.md`。
+- B 边界：不修改 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 下一步：test-first 创建 migration 015 PostgreSQL 合同测试并确认缺失 Schema RED。

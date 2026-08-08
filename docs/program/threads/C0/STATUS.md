@@ -816,3 +816,12 @@
 - 共享 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 已修改；本切片提交后 B 在继续共享 Control API Bootstrap 前必须同步。B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_1C_COMPLETE / COMMITTED`。
 - 提交：`feat(control-api): expose test recharge payment api`。下一步先冻结 A-BIZ-03.2 Payment Event 原子应用、Order paid、Credit issuance 与 Commission 边界。
+
+## 2026-08-08 A-BIZ-03.2 原子到账与额度发行计划
+
+- 已确认 A-BIZ-03.1A～03.1C 合入并推送 `main@baae8ef`；B Production Plane 既有合并保持不变。
+- 下一节点冻结为 A-BIZ-03.2：TEST `payment_succeeded` 在单一 PostgreSQL 事务中完成 PaymentEvent applied、RechargeOrder paid、Credit Lot 和 Credit Ledger issue。
+- migration 015 将增加 Credit Lot、Ledger Lot 关联与 PaymentEvent processed evidence；购买额度不过期，赠送额度使用订单冻结天数计算到期。
+- 本节点不实现 LIVE Provider、Commission、退款/拒付冲正、真实 SKU 数字或前端真实收款表述。
+- `payment_failed`、`refund_succeeded`、`chargeback_succeeded` 在对应状态机完成前稳定 rejected，不猜测、不发行负额度。
+- 下一步：先写 migration 015 PostgreSQL RED 合同测试，再实现 Schema。
