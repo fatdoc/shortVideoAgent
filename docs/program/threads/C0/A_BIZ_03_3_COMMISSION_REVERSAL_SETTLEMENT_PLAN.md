@@ -3,8 +3,8 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_03_3A_RED`
-- 当前基线：`857c2cf feat(control-api): expose test credit issuance results`
+- 状态：`03_3A_COMPLETE / READY_FOR_03_3B_PLANNING`
+- 当前基线：`d7d5fa3 docs(business-plane): freeze commission reversal plan`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）与 `A_ENGINEER_WAVE0_BOSS_DECISION_REPLY_2026-08-06.md`
 - 前置完成：A-BIZ-03.1 TEST Recharge/Payment Foundation、A-BIZ-03.2 Payment/Order/Credit 原子到账
 
@@ -401,3 +401,17 @@ A-BIZ-03.3 完成必须同时满足：
 ## 13. 下一步
 
 只开始 A-BIZ-03.3A：创建空 migration 016 与 PostgreSQL 合同测试，先确认缺失 Commission Schema 的有效 RED；不提前修改 Payment Repository、HTTP Bootstrap 或退款状态机。
+
+## 11. A-BIZ-03.3A 完成记录（2026-08-08）
+
+- 新增 Migration 016，建立六张不预置任何 TEST/LIVE Rule 的 Commission Shadow Ledger 表：Rule Version、Calculation Outcome、Accrual、Reversal、Settlement 与 Settlement Item。
+- Rule 使用整数分子/分母和显式舍入，ACTIVE/RETIRED 必须由 active PLATFORM `platform_admin` 批准；核心计算事实不可修改，生命周期仅允许 `DRAFT → ACTIVE → RETIRED`，同 mode/currency/scope 的已生效窗口不得重叠。
+- Outcome、Accrual、Reversal 与 Settlement Item 全部 append-only；Outcome 冻结 succeeded PaymentEvent、paid Order、Attribution、Channel、Rule、basis、currency 与 occurredAt 的一致性。
+- Accrual 必须匹配 `accrued` Outcome、未过保护期的直接 Channel Attribution、active Channel Organization 和唯一 ACTIVE Rule；数据库复算整数佣金并校验 `eligible_at`。
+- Reversal 只接受对应 Order 的 refund/chargeback PaymentEvent，类型必须一致，按 Accrual 行锁串行累计且不得超过原始佣金。
+- Settlement 数据库状态仅允许 `draft/reviewed/approved`，创建、审核、批准均要求 active PLATFORM administrator；Item 只可加入 draft，必须匹配 Channel/currency/自然月/cutoff 和已到达观察期的来源事实，`paid` 被数据库 check 明确拒绝。
+- down 在任一 Commission 审计事实存在时 fail closed；空 Schema 可完整回滚。
+- Test-first RED：1 file / 7 tests 因六张表不存在而全部失败；Green：定向 7/7，migration chain 联合 8/8。
+- 最终 Gate：Control API 45 files / 285 tests PASS；typecheck、build、ESLint、Prettier、Governance 与 `git diff --check` 全 PASS。
+- 未修改 Payment Repository、HTTP 或共享 App/Config/Server；未触碰 B 的 `apps/storycanvas/data/vendor/byteplus.ts`。
+- 下一步先冻结 A-BIZ-03.3B 的原子计提事务合同，再写 Repository PostgreSQL RED；不得直接把 Schema fixture 比例当成商业默认值。

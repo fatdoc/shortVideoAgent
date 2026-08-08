@@ -512,3 +512,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Settlement 仅有 `draft/reviewed/approved`，禁止 `paid`，不开放提现、KYC、税务或自动打款。
 - 03.3A 不修改共享 `app.ts` / `server.ts` / `config.ts`，因此 B 无需等待本切片的 Bootstrap 同步；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 下一动作：只写 03.3A PostgreSQL RED 测试，确认按预期因 migration 016 缺失失败后，再实现最小 Schema。
+
+## A-BIZ-03.3A Commission Shadow Ledger Schema 交接（2026-08-08）
+
+- 新增 `apps/control-api/src/db/migrations/016_commission_shadow_ledger.ts` 与 `commissionShadowLedger.postgres.test.ts`，并把 016 和六张表接入 `migrationChain.postgres.test.ts`。
+- 六类证据：Commission Rule Version、Calculation Outcome、Accrual、Reversal、Settlement、Settlement Item；Migration 不 seed Rule，测试中的 `15/100 + FLOOR + 7 days` 仅为 `TEST / NON_QUOTE` fixture。
+- Rule ACTIVE/RETIRED 需要 active PLATFORM `platform_admin`；计算事实不可变，生命周期仅 DRAFT→ACTIVE→RETIRED，有效窗口按 mode/currency/direct scope 串行校验且不得重叠。
+- Accrual 数据库端复核 applied succeeded Event、paid Order、冻结 Attribution、active Channel Organization、ACTIVE Rule、整数结果与 eligibleAt；Outcome、Accrual、Reversal 和 Item append-only。
+- Reversal 使用 Accrual row lock 校验累计不超额；Settlement 只允许 draft/reviewed/approved，数据库明确不接受 paid，所有审批人必须为 active Platform Admin。
+- Gate：016 定向 7/7；016 + migration chain 8/8；Control API 全量 45 files / 285 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
+- 03.3A 没有修改 Payment Repository、Service、Route 或共享 Bootstrap，B 无需等待；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 下一步 03.3B 必须先计划并写 PostgreSQL RED：把 Calculation Outcome/Accrual 加入现有 TEST succeeded Payment 同一事务，覆盖无归因、过期、Channel 不可用、无 Rule、多 Rule 冲突、replay、并发和中途失败。

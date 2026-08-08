@@ -870,3 +870,15 @@
 - 03.3A 只新增 Commission Schema 与 PostgreSQL 合同，不修改共享 App/Config/Server，B 无需为这一切片同步 Bootstrap。
 - 权威计划：`A_BIZ_03_3_COMMISSION_REVERSAL_SETTLEMENT_PLAN.md`；当前基线：`857c2cf`。
 - 当前状态：`A_BIZ_03_3_PLAN_FROZEN / READY_FOR_03_3A_RED`。
+
+## 2026-08-08 A-BIZ-03.3A Commission Shadow Ledger Schema 完成
+
+- Migration 016 已建立版本化 Commission Rule、Calculation Outcome、Accrual、Reversal、Settlement 与 Settlement Item 六张空表，不 seed 任何 TEST/LIVE Rule。
+- Rule 审批、生命周期、有效窗口不重叠与核心计算事实不可变由 PostgreSQL trigger 保护；佣金金额使用整数比例和显式舍入。
+- Outcome/Accrual/Reversal/Settlement Item append-only；数据库校验 Payment/Order/Attribution/Channel/Rule、金额、币种、事件时间、观察期和累计冲正一致性。
+- Settlement 只允许 `draft/reviewed/approved`，Platform Admin 才能创建/审核/批准，数据库禁止 `paid`；空 Schema 可回滚，存在审计事实时 rollback fail closed。
+- RED 证据：Migration 016 空骨架下 7/7 因表不存在失败；Green：016 定向 7/7、migration chain 联合 8/8、Control API 全量 45 files / 285 tests PASS。
+- typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 本切片未修改 Payment Repository、HTTP 或共享 Bootstrap；B 无需为 03.3A 同步共享入口，`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_03_3A_COMPLETE / READY_FOR_03_3B_PLANNING`。
+- 下一步：先冻结 03.3B succeeded Payment 原子佣金计提的 Repository/事务/失败语义，再写 RED；真实比例继续未授权。
