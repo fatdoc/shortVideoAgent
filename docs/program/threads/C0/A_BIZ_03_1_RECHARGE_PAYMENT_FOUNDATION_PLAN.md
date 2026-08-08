@@ -3,7 +3,7 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_03_1A_RED`
+- 状态：`03_1A_COMPLETE / 03_1B_COMPLETE / READY_FOR_03_1C`
 - 上游依据：`A_BIZ_00_3_REGISTRATION_TERMS_BILLING_ADR.md`（ACCEPTED）
 - 前置完成：A-BIZ-02.1～02.4（Terms、Invitation、Registration/Attribution 与前端）
 
@@ -186,6 +186,9 @@ git diff --check
 
 PostgreSQL 测试只允许专用 `_test` 数据库，并使用单 worker 避免共享 schema 并发竞争。Root 前端只在 03.1C/前端接线时运行；03.1A/03.1B 不因无关重页面并发超时修改 B 测试。
 
-## 8. 下一步
+## 8. 当前进度与下一步
 
-提交本计划后进入 A-BIZ-03.1A：新增空 `014_recharge_payment_foundation.ts` 与 PostgreSQL 合同测试，先证明缺表/缺约束 RED，再实现最小 Schema。不得在 RED 阶段 seed TEST Rule、写支付成功逻辑、追加 Credit Ledger 或创建 Commission 表。
+- A-BIZ-03.1A 已完成并提交：Migration 014 建立 Rule、RechargeOrder、Order Event 与 PaymentEvent Inbox Schema。
+- A-BIZ-03.1B 已完成并独立提交：新增 Payment Foundation Domain/Service、TEST/LIVE Provider 边界与 PostgreSQL Repository；定向 2 files / 20 tests、Control API 全量 42 files / 249 tests 通过。
+- 03.1B 保持 Order `created`、Payment Event `received`，没有 Credit Ledger 或 Commission 写入，也没有共享 Bootstrap/前端修改。
+- 下一步进入 A-BIZ-03.1C；先为 Recharge/Payment HTTP API、内部 TEST 鉴权、配置 fail-closed 与 Bootstrap 接线写 RED。03.1C 的共享 `app.ts` / `server.ts` / `config.ts` 修改必须独立提交并通知 B。

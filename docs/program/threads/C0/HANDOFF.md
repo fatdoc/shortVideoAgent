@@ -427,7 +427,6 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 03.1C 才会独立修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 并通知 B；LIVE Adapter 未配置时必须 503 fail closed，不能用 TEST Adapter 兜底。
 - 当前正式 SKU 售价、额度数量、币种范围、订单时限、退款周期、佣金比例仍未提供；Migration 不 seed 商业 Rule，测试数据必须显式 `TEST`。
 
-
 ## 2026-08-08 A-BIZ-03.1A Recharge / Payment Schema Handoff
 
 - Migration 014 已新增版本化 Credit Conversion Rule、Tenant Recharge Order、append-only Order Event 与 Payment Event Inbox；Migration 无商业 Rule seed，TEST/LIVE 必须显式区分。
@@ -438,3 +437,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Migration/chain 10/10，Control API 40 files / 229 tests；typecheck、build、ESLint、Prettier、Governance、diff check 全 PASS。
 - 03.1A 没有共享 Bootstrap 或前端改动，B 无需同步本提交来继续 StoryCanvas 独占开发；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 仍未触碰。
 - A 下一步进入 03.1B Domain / Repository / TEST Adapter。LIVE Adapter 必须默认 unavailable，TEST Adapter 不得作为 LIVE fallback；Payment Event 在 03.1 只持久化为 `received`。
+
+## 2026-08-08 A-BIZ-03.1B TEST Payment Domain / Repository Handoff
+
+- A 已新增 `apps/control-api/src/payments/`：领域类型/错误、独立 digest、Provider Port、TEST Adapter、LIVE unavailable Adapter、Service 与 PostgreSQL Repository。
+- RechargeOrder 只允许 active Tenant Context 的 `tenant_admin` 发起；服务端从 Context 派生 Tenant、User、Membership，并只接受显式 TEST Rule Version 与幂等键。Wallet、金额、币种、额度和 Attribution 均由事务内 Repository 解析/冻结。
+- Repository 对 order idempotency、Tenant Wallet 和 Provider identity 使用 PostgreSQL advisory lock；相同 digest replay、不同 digest 409。ACTIVE TEST Rule、Wallet、Membership 和目标 Order 均在事务内锁定/校验。
+- TestPaymentAdapter 只规范化 provider event id、event type、order id、integer minor amount、currency 与 occurred time；原始签名、密钥、卡数据或任意额外 payload 不进入 PaymentEvent Store。
+- LIVE Adapter 默认 503 unavailable，且 Provider mode 错配在调用 verify 前拒绝，不能调用 TEST Adapter 兜底。
+- 03.1B 只写 RechargeOrder `created` + append-only created Event，以及 PaymentEvent `received`；没有 paid、Credit issuance 或 Commission side effect，这些必须留给 03.2 原子处理。
+- Gate：定向 2 files / 20 tests，Control API 单 worker 42 files / 249 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
+- 本切片没有共享 Bootstrap 或前端改动，B 不需要为 StoryCanvas 独占工作同步本提交；若 B 开始充值/支付服务工作，则必须先同步 03.1A 与 03.1B。
+- 03.1B 已通过独立提交 `feat(control-api): add test payment foundation service` 收口。
+- A 下一步进入 03.1C，届时会独立修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 并通知 B 同步；当前不要把 TEST Adapter 描述为真实收款能力。

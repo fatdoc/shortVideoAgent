@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A `COMPLETE`
-- 当前任务：A-BIZ-03.1A Recharge/Payment Schema 已完成；下一步进入 03.1B Domain / Repository / TEST Adapter，继续保持 LIVE 支付、Credit issuance 与 Commission fail closed
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A～03.1B `COMPLETE`
+- 当前任务：A-BIZ-03.1B TEST Payment Domain / Repository 已完成并提交；下一步进入 03.1C HTTP API / Bootstrap，继续保持 LIVE 支付、Credit issuance 与 Commission fail closed
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -772,7 +772,6 @@
 - 当前状态：`A_BIZ_03_1_PLAN_FROZEN / READY_FOR_03_1A_RED`。
 - 下一步：独立提交计划，然后新增空 migration 014 与 PostgreSQL 合同测试，确认有效 RED 后再实现最小 Schema。
 
-
 ## 2026-08-08 A-BIZ-03.1A Recharge / Payment Schema 完成
 
 - Test-first RED 已确认：空 Migration 014 下 9 项 PostgreSQL 合同中 8 项因四张目标表不存在稳定失败；Fixture 和 001～013 基线可正常建立，不是测试环境或依赖故障。
@@ -787,3 +786,18 @@
 - 本切片未修改共享 Bootstrap、前端或 B 独占源码；`apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_1A_COMPLETE / COMMITTED`。
 - 下一步：独立提交 `feat(control-api): add recharge payment foundation schema`，随后进入 03.1B，先冻结 Domain/Repository/TEST Adapter 合同并完成 Test-first RED。
+
+## 2026-08-08 A-BIZ-03.1B TEST Payment Domain / Repository 完成
+
+- Test-first RED 已确认：Service 合同首次因 `payments/errors.js` 等领域模块缺失失败；PostgreSQL Repository 合同首次因 `payments/repository.js` 缺失失败，随后才补最小实现。
+- 新增 `PaymentFoundationService`：仅 active Tenant Context 的 `tenant_admin` 可创建订单；Tenant/User/Membership/Rule/idempotency 事实规范化后使用独立、至少 32 bytes Secret 的 HMAC-SHA-256 计算 request digest。
+- 客户端只能选择显式 `TEST` 的 Rule Version 和 idempotency key，不能传 Wallet、金额、币种、额度或 Attribution；LIVE 订单创建默认 503 fail closed。
+- 新增 `PaymentProvider` Port、`TestPaymentAdapter` 与 `UnavailableLivePaymentAdapter`；TEST Adapter 只输出 allowlist 安全字段，签名、密钥和原始敏感 payload 不进入 Store，LIVE 不回退 TEST，Provider mode 错配在验证前拒绝。
+- PostgreSQL Repository 使用事务级 advisory lock 串行化 Tenant order key、Tenant Wallet 与 Provider event identity；锁定 active Tenant Membership、ACTIVE TEST Rule、Wallet 和 RechargeOrder。
+- Tenant 尚无 Wallet 时在事务内安全创建 active `AI_VIDEO_CREDIT` Wallet；Rule 的 amount/currency/purchased/bonus facts 冻结到 RechargeOrder，并同步追加唯一 `created` Order Event。
+- 同 Tenant + idempotency key + digest 安全 replay，不同 digest 稳定 409；同 Provider identity + event digest 安全 replay，不同 digest 稳定 409。
+- Payment Event 先经 Provider 规范化，再只以 `received` 写入 Inbox；Repository 明确不更新 Order paid、不追加 Credit Ledger、不建立或计提 Commission。
+- RED 后定向 Gate 为 2 files / 20 tests PASS；最终 Control API 单 worker 42 files / 249 tests PASS。typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` PASS。
+- 本切片未修改共享 `app.ts` / `server.ts` / `config.ts`、前端或 B 独占源码；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_1B_COMPLETE / COMMITTED / READY_FOR_03_1C_RED`。
+- 下一步：进入 03.1C HTTP API / Bootstrap，先建立 Router/Bootstrap RED；共享接线必须独立提交并通知 B。
