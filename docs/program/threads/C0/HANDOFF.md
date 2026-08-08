@@ -588,3 +588,18 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - **B 同步要求**：`0433fdb` 修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts`。B 若继续修改这些文件，必须先同步该提交；未新增 Config 或 Secret。
 - StoryCanvas 和 B 的 `apps/storycanvas/data/vendor/byteplus.ts` 均未修改、未暂存、未提交。
 - A-BIZ-03.3 已完整收口；下一动作仅规划 A-BIZ-03.4 商业前端与审计，不直接扩大结算或资金能力。
+
+## A-BIZ-03.4 Commercial Frontend & Audit 计划交接（2026-08-08）
+
+- 权威计划：`A_BIZ_03_4_COMMERCIAL_FRONTEND_AUDIT_PLAN.md`；规划基线 `33b46ed`。
+- 源码审计确认：PilotRouter 当前把所有真实 Session 放入 Tenant Boundary，导致 PLATFORM/CHANNEL 被阻断；Pilot Sidebar/Topbar 默认依赖 Project；现有 Platform/Channel 商业页仍读取 Demo `useControlPlaneStore`；`pilotControlApi.ts` 尚无商业 API。
+- 关键合同缺口：PublicSession 只有 Organization ID，没有 canonical Channel ID；Settlement 零候选也需要独立 active Channel Directory。前端不得猜测两者相等，不得从 Commission 记录反推目录。
+- 六个切片顺序：03.4A Channel Reference/Directory + Strict Client → 03.4B Organization Route Policy → 03.4C Commission Audit → 03.4D TEST Settlement Draft UI → 03.4E Tenant Recharge Audit → 03.4F 共享 Router/Sidebar/Topbar 激活。
+- 03.4A 冻结新增 `GET /api/v1/channels/current` 与 `GET /api/v1/platform/channels?status=active&limit=100`；响应只含 channelId、organizationId、displayName、active status，不新增 Migration 或敏感商业字段。
+- Tenant Recharge 纳入 03.4E 的只读审计，且仅 `tenant_admin`；由于缺少安全 Product/SKU/Conversion Rule Directory，不开放 POST UI，不允许人工输入 Rule UUID。
+- Session/UX：真实 HttpOnly Cookie、`credentials: include`、`no-store`；401 清 Session 并安全回登录，403 保留 Session，404 隐藏 Scope，service/invalid response 显示安全 Request ID；loading、empty、retrying 和 retry 只访问真实 API。
+- Demo/Pilot 严格隔离，Pilot 错误不得回退 Mock；Settlement 必须持续显示 `TEST / draft / NON_QUOTE`、非到账、非提现、非 paid、非自动打款。
+- 明确排除 LIVE、真实比例、paid、提现、KYC、税务、发票、自动打款、真实 Provider、未规划 review/approve HTTP、RechargeOrder 创建、客户端“导出全部”和 StoryCanvas。
+- 首个实现 RED：CHANNEL Session Organization ID 与 Channel ID 故意不同，`GET /api/v1/channels/current` 必须返回 canonical Channel ID；当前应因 Route 缺失得到 `404 ROUTE_NOT_FOUND`。
+- A/B 通知：03.4A 共享 Control API Bootstrap 接线和 03.4F 共享 Router/Layout 激活必须分别独立 commit，完成后通知 B 同步；`apps/storycanvas/data/vendor/byteplus.ts` 始终不修改、不暂存、不提交。
+- 当前状态：`A_BIZ_03_4_PLAN_FROZEN / READY_FOR_03_4A_RED`；本轮只提交计划，等待开始实现指令，不 push。

@@ -104,6 +104,7 @@
 | 2026-08-08 | 冻结 A-BIZ-03.3 佣金影子账、TEST 全额安全冲正与结算草稿：版本化 Rule/Outcome/Accrual/Reversal，真实比例、部分退款和 paid 继续 fail closed                                                                                                                 | A_BIZ_03_3_PLAN_FROZEN                  |
 | 2026-08-08 | A-BIZ-03.3A 完成 Migration 016 Commission Shadow Ledger：六张空审计表、Platform Rule/Settlement 审批、Rule 窗口、整数计提、append-only 冲正、自然月 Settlement 与 fail-closed rollback；Control API 45 files / 285 tests 通过                             | A_BIZ_03_3A_COMPLETE                    |
 | 2026-08-08 | A-BIZ-03.3E 完成 TEST Settlement Draft、Migration 018 Reversal Item validator 修复、幂等/并发/跨月净额与共享 HTTP Bootstrap；Control API 54 files / 363 tests 全 Gate 通过                                                                                | A_BIZ_03_3_COMPLETE                     |
+| 2026-08-08 | 冻结 A-BIZ-03.4 商业前端与审计：先补 canonical Channel Reference/active Directory，再按 Organization 分流 Pilot，交付真实 Commission Audit、TEST Settlement Draft 与 Tenant Recharge 只读审计；Demo/Pilot 严格隔离                                        | A_BIZ_03_4_PLAN_FROZEN                  |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -146,3 +147,13 @@
 - 共享 Bootstrap 提交 `0433fdb` 挂载 Platform Admin POST Route；B 后续修改共享 App/Server 前必须同步。
 - 定向 Gate 9 + 26 + 19 tests；Control API 全量 54 files / 363 tests；typecheck/build/ESLint/Prettier/Governance/diff-check 全 PASS。
 - 03.3A～03.3E 全部完成；LIVE、真实比例、paid、提现、KYC、税务和自动打款继续排除。
+
+## 2026-08-08 · A-BIZ-03.4 Commercial Frontend & Audit Plan
+
+- 新增 `A_BIZ_03_4_COMMERCIAL_FRONTEND_AUDIT_PLAN.md`，冻结六个原子切片和共享提交边界。
+- 先补 `GET /api/v1/channels/current` 与 Platform active Channel Directory，禁止前端把 Organization ID 猜成 Channel ID，也禁止从 Commission 记录反推 Channel。
+- Pilot 按 PLATFORM/CHANNEL/TENANT 使用统一 Route Policy；Platform/Channel 脱离 Tenant Project Boundary，Demo Router/Store 保持不变。
+- Platform/Channel Commission Audit 为真实只读页；Platform Settlement 仅创建 `TEST / draft / NON_QUOTE`；Tenant Recharge 仅 `tenant_admin` 只读，不开放创建。
+- 冻结 401/403/404、Request ID、loading/empty/service error/retry 和敏感信息不泄漏；Pilot 失败绝不回退 Mock。
+- LIVE、真实佣金比例、paid、提现、KYC、税务、自动打款、未规划 review/approve HTTP、客户端完整导出和 StoryCanvas 继续排除。
+- 首个 RED 为 Current Channel canonical ID 合同；共享 Control API Bootstrap 与 Pilot Router/Layout 后续必须分别独立提交并通知 B。

@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE`
-- 当前任务：A-BIZ-03.3E TEST Settlement Draft 已完成并通过全量 Gate；下一节点只规划 A-BIZ-03.4 商业前端与审计，不提前扩张 LIVE、paid、提现、真实佣金比例或自动打款
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4 `PLAN_FROZEN`
+- 当前任务：A-BIZ-03.4 商业前端与审计计划已冻结；等待 03.4A canonical Channel Reference/Directory 首个 RED，不提前写 UI、LIVE、paid、提现、真实佣金比例或自动打款
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -955,3 +955,15 @@
 - B 同步要求：修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前同步 `0433fdb`。
 - StoryCanvas 未修改；`apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交。
 - 当前状态：`A_BIZ_03_3E_COMPLETE / A_BIZ_03_3_COMPLETE / READY_FOR_03_4_PLANNING`。
+
+## 2026-08-08 A-BIZ-03.4 Commercial Frontend & Audit 计划冻结
+
+- 权威计划：`A_BIZ_03_4_COMMERCIAL_FRONTEND_AUDIT_PLAN.md`；当前基线 `33b46ed`。
+- 冻结为六个原子切片：03.4A Channel Reference/Directory + Strict Client；03.4B Organization Route Policy；03.4C Platform/Channel Commission Audit；03.4D Platform TEST Settlement Draft UI；03.4E Tenant TEST RechargeOrder Audit；03.4F 共享 Pilot Router/Sidebar/Topbar 激活。
+- 关键前置合同：新增 `GET /api/v1/channels/current` 安全解析 canonical `channelId`，以及 `GET /api/v1/platform/channels?status=active&limit=100` 提供最小 active Channel Directory；前端禁止猜测 `channelId === organizationId`，也不得从 Commission 记录反推 Channel。
+- Pilot 必须按 PLATFORM/CHANNEL/TENANT 分流；所有默认路由、菜单、direct URL 与 returnTo 复用同一 Policy。Platform/Channel 不进入 Tenant Boundary、不显示 Project Selector；Tenant 保留现有 Project Context。
+- Demo 与 Pilot 严格隔离；Pilot 只使用 HttpOnly Session Cookie 和真实 Control API，失败时不回退 Mock。401 清 Session 并安全回登录，403 保留 Session，404 不泄漏 Scope，错误展示安全 Request ID。
+- Commission 页面只读安全投影；Settlement 页面必须显著标记 `TEST / draft / NON_QUOTE`、非到账、非提现、非 paid；Tenant Recharge 仅 `tenant_admin` 只读，不开放创建或 Conversion Rule UUID 输入。
+- 首个 RED：CHANNEL Session 的 `organizationId` 与 canonical `channelId` 使用不同 UUID，`GET /api/v1/channels/current` 必须返回 Repository 解析的 Channel ID；当前预期 `404 ROUTE_NOT_FOUND`。
+- 共享 Control API Bootstrap 与共享 Pilot Router/Layout 都必须分别独立 commit，并明确通知 B；StoryCanvas 与 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_03_4_PLAN_FROZEN / READY_FOR_03_4A_RED`；未收到实现指令前不修改业务代码，未收到 push 指令前不 push。
