@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
 - 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.2 `COMPLETE` / A-BIZ-03.3A～03.3C `COMPLETE`
-- 当前任务：A-BIZ-03.3C TEST 全额退款/拒付原子冲正已完成、通过全量 Gate 并独立提交；下一节点先重新审查 A-BIZ-03.3D Settlement Draft 或最新业务任务，不提前实现部分退款、真实 Provider 退款、真实佣金比例或自动结算
+- 当前任务：A-BIZ-03.3D Scoped Commission Read APIs 计划已冻结，准备以 RED 开始 Platform/Channel 安全只读审计；Settlement Draft 为后续 03.3E，不提前实现部分退款、真实 Provider 退款、真实佣金比例或自动结算
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -923,3 +923,12 @@
 - typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
 - 未修改共享 Bootstrap/HTTP 或 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_3C_COMPLETE / COMMITTED / READY_FOR_NEXT_PLANNING`；未收到 push 指令前不 push。
+
+## 2026-08-08 A-BIZ-03.3D Scoped Commission Read APIs 计划冻结
+
+- 权威计划：`A_BIZ_03_3D_SCOPED_COMMISSION_READ_APIS_PLAN.md`；实现基线 `66301c5`。
+- Platform Admin 提供全局 Calculation/Accrual/Reversal 和 manual-review bounded list；Channel Admin 仅能读取 canonical 自身 beneficiary Channel。
+- Tenant/Content Operator 探测返回 404；跨 Channel 返回 404；同 Scope 缺管理员角色返回 403。
+- 响应只包含最小审计投影，禁止 snapshot/digest、Provider payload/secret、审批凭据、Tenant/User/Referral 明细和其他 Channel 数据。
+- 03.3D 不创建 Rule、Settlement 或真实资金能力；共享 `app.ts` / `server.ts` 接线必须独立提交并通知 B 同步。
+- 下一步：先写 Commission Service/Repository/Router RED，再实现最小 Green。
