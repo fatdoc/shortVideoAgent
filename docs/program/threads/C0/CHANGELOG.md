@@ -103,3 +103,9 @@
 | 2026-08-08 | A-BIZ-03.2C 完成 TEST Payment HTTP 终态收口：首次 applied/rejected 与 replay 均为 200 并显式 replay header；Tenant RechargeOrder 安全展示 paid 与购买/赠送额度摘要；Control API 44 files / 278 tests 通过，A-BIZ-03.2 收口                                | A_BIZ_03_2_COMPLETE                     |
 | 2026-08-08 | 冻结 A-BIZ-03.3 佣金影子账、TEST 全额安全冲正与结算草稿：版本化 Rule/Outcome/Accrual/Reversal，真实比例、部分退款和 paid 继续 fail closed                                                                                                                 | A_BIZ_03_3_PLAN_FROZEN                  |
 | 2026-08-08 | A-BIZ-03.3A 完成 Migration 016 Commission Shadow Ledger：六张空审计表、Platform Rule/Settlement 审批、Rule 窗口、整数计提、append-only 冲正、自然月 Settlement 与 fail-closed rollback；Control API 45 files / 285 tests 通过                             | A_BIZ_03_3A_COMPLETE                    |
+
+## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
+
+- 新增 `A_BIZ_03_3B_ATOMIC_COMMISSION_ACCRUAL_PLAN.md`，冻结 TEST succeeded Payment 同事务 Calculation Outcome/Accrual 的事务顺序、决策矩阵、整数计算、RED 合同与 Gate。
+- 明确无默认佣金比例、多 Rule fail closed、Commission 写入失败全事务回滚，以及 LIVE/refund/HTTP/Settlement 排除边界。
+- 更新 03.3 总计划状态为 `03_3B_PLAN_FROZEN`。

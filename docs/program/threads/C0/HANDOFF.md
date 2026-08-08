@@ -523,3 +523,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：016 定向 7/7；016 + migration chain 8/8；Control API 全量 45 files / 285 tests；typecheck/build/ESLint/Prettier/Governance/diff check 全 PASS。
 - 03.3A 没有修改 Payment Repository、Service、Route 或共享 Bootstrap，B 无需等待；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 下一步 03.3B 必须先计划并写 PostgreSQL RED：把 Calculation Outcome/Accrual 加入现有 TEST succeeded Payment 同一事务，覆盖无归因、过期、Channel 不可用、无 Rule、多 Rule 冲突、replay、并发和中途失败。
+
+## A-BIZ-03.3B Atomic Commission Accrual 计划交接（2026-08-08）
+
+- 03.3B 细化计划已冻结在 `docs/program/threads/C0/A_BIZ_03_3B_ATOMIC_COMMISSION_ACCRUAL_PLAN.md`。
+- 仅接入 TEST `payment_succeeded`；每个 applied succeeded Event 必须恰好一条 Calculation Outcome，只有冻结直接 Attribution、active Channel Organization 与唯一匹配 ACTIVE TEST Rule 同时成立时才追加 Accrual。
+- PaymentEvent 必须先在事务内更新为 `applied`、Order 先更新为 `paid`，之后才能通过 migration 016 trigger 写 Commission；任何 Commission 失败仍回滚整笔 Payment/Order/Credit。
+- 无 Attribution、过期、Channel/Rule 不可用都不会套默认比例；多个匹配 Rule 明确 fail closed。
+- 本切片不改共享 Bootstrap 或 HTTP 合同，B 无需等待；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 下一步：编写并运行 03.3B PostgreSQL RED 合同，然后实现最小计算模块与 Repository 接入。

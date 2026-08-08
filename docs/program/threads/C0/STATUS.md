@@ -882,3 +882,11 @@
 - 本切片未修改 Payment Repository、HTTP 或共享 Bootstrap；B 无需为 03.3A 同步共享入口，`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_BIZ_03_3A_COMPLETE / READY_FOR_03_3B_PLANNING`。
 - 下一步：先冻结 03.3B succeeded Payment 原子佣金计提的 Repository/事务/失败语义，再写 RED；真实比例继续未授权。
+
+## 2026-08-08 A-BIZ-03.3B TEST Payment 原子佣金计提计划冻结
+
+- 权威细化计划：`A_BIZ_03_3B_ATOMIC_COMMISSION_ACCRUAL_PLAN.md`。
+- 成功路径将在现有 Payment/Order/Credit 同一事务内，先把 Order/PaymentEvent 更新为 `paid/applied`，再追加 Calculation Outcome，并在唯一合法 Rule 时追加 Accrual；Commission 写入失败必须回滚全部事实。
+- 无 Attribution 写 `not_attributed`；过期写 `attribution_expired`；Attribution/Channel/Rule 不可用写 `manual_review`；任何场景都不使用默认佣金比例。
+- LIVE、unsupported Event、refund/chargeback、HTTP 佣金查询与 Settlement 不在 03.3B 范围。
+- 下一动作：新增独立 PostgreSQL RED 合同，覆盖 accrued、无归因、过期、Channel/Rule 不可用、replay、并发、多 Rule 冲突和 Commission 中途失败。
