@@ -119,6 +119,80 @@ function isDatabaseScopeViolation(error: unknown): boolean {
   return ['23503', '23514', 'P0001'].includes(postgresError(error).code ?? '');
 }
 
+export type LockedRegistrationInvitation = Invitation;
+
+export async function lockRegistrationInvitationInTransaction(
+  transaction: Knex.Transaction,
+  input: {
+    tokenDigest: string;
+    emailNormalized: string;
+    usedAt: Date;
+  },
+): Promise<LockedRegistrationInvitation> {
+  const invitation = (await transaction('control_plane.invitations')
+    .where({ token_digest: input.tokenDigest })
+    .forUpdate()
+    .first()) as InvitationRow | undefined;
+  if (
+    !invitation ||
+    invitation.status !== 'active' ||
+    input.usedAt.getTime() < new Date(invitation.valid_from).getTime() ||
+    input.usedAt.getTime() >= new Date(invitation.expires_at).getTime() ||
+    invitation.used_count >= invitation.max_uses ||
+    (invitation.target_email_normalized !== null &&
+      invitation.target_email_normalized !== input.emailNormalized)
+  ) {
+    throw new InvitationUnavailableError();
+  }
+  return invitationFromRow(invitation);
+}
+
+export async function recordRegistrationInvitationUsageInTransaction(
+  transaction: Knex.Transaction,
+  input: {
+    invitation: LockedRegistrationInvitation;
+    invitationUsageId: string;
+    registrationId: string;
+    userId: string;
+    idempotencyKey: string;
+    requestDigest: string;
+    usedAt: Date;
+    createdAt: Date;
+  },
+): Promise<InvitationUsage> {
+  const existing = (await transaction('control_plane.invitation_usages')
+    .where({
+      invitation_id: input.invitation.invitationId,
+      idempotency_key: input.idempotencyKey,
+    })
+    .first()) as InvitationUsageRow | undefined;
+  if (existing) {
+    if (
+      existing.registration_id !== input.registrationId ||
+      existing.user_id !== input.userId ||
+      existing.request_digest !== input.requestDigest
+    ) {
+      throw new InvitationIdempotencyConflictError();
+    }
+    return usageFromRow(existing);
+  }
+
+  const [row] = (await transaction('control_plane.invitation_usages')
+    .insert({
+      invitation_usage_id: input.invitationUsageId,
+      invitation_id: input.invitation.invitationId,
+      registration_id: input.registrationId,
+      user_id: input.userId,
+      used_at: input.usedAt,
+      idempotency_key: input.idempotencyKey,
+      request_digest: input.requestDigest,
+      created_at: input.createdAt,
+    })
+    .returning('*')) as InvitationUsageRow[];
+  if (!row) throw new Error('registration Invitation Usage insert returned no row');
+  return usageFromRow(row);
+}
+
 export class PostgresInvitationRepository implements InvitationStore {
   constructor(
     private readonly database: Knex,

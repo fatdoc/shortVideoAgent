@@ -671,3 +671,20 @@
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_3A_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(control-api): add registration attribution schema`，随后进入 02.3B；先冻结统一事务 Repository/Unit of Work 的 RED，不修改共享 `app.ts` / `server.ts`。
+
+## 2026-08-08 A-BIZ-02.3B Atomic Registration Transaction 完成
+
+- Test-first RED 已确认：Registration Service 首次因领域模块缺失失败，PostgreSQL Repository 首次因 `repository.js` 缺失失败，随后才补最小实现。
+- 新增 Registration Domain/Service：email 规范化、12～1024 字符密码边界、显式 Terms 接受、四种路径输入约束、可注入 Email Verification Port 与默认 fail-closed Adapter。
+- Invitation Token 复用现有版本化 digest；注册 request digest 使用独立 Secret 的 HMAC-SHA-256，Secret 少于 32 bytes 拒绝启动；Store 不接收明文密码、邮箱验证 Token 或 Invitation Token。
+- 新增统一 PostgreSQL Registration Unit of Work：按幂等键和 normalized email 加事务级 advisory lock，并在单事务内完成 User、Organization/Tenant、Membership、Registration、Consent、Invitation Usage、首次 Attribution 与 created Event。
+- DIRECT、PLATFORM、CHANNEL 创建独立 Tenant 和 legacy tenant_admin Membership；TENANT_MEMBER 只加入邀请目标 Tenant，不创建第二个 Tenant。
+- Terms 与 Invitation 新增 transaction-bound helper，由 Registration Repository 在同一 Knex Transaction 中锁定 current Terms、Invitation 并写 Consent/Usage，未嵌套原 Repository 的独立事务。
+- 相同幂等键和相同 request digest 安全 replay；不同 digest、已有 User、stale Terms、不可用 Invitation 和数据库约束冲突稳定 fail closed，不泄漏数据库细节。
+- Channel Attribution 使用 Invitation 冻结 Channel，`protected_until` 严格由 PostgreSQL `completedAt + interval '12 months'` 计算；晚期 Attribution 失败会回滚 Invitation Usage、usedCount 及所有前置写入。
+- 定向 Gate：Registration Repository 6/6 PASS；Service/Registration/Terms/Invitation 相邻回归 4 files / 23 tests PASS。
+- 完整 Gate：Control API 单 worker 37 files / 202 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- 本切片未修改共享 `apps/control-api/src/app.ts` / `server.ts`，未开放 Public Registration API，也未自动签发 Session。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_3B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): add atomic registration transaction`；随后进入 02.3C Public Registration API / Bootstrap，先写 Router 与 Bootstrap RED，并在修改共享文件前确认 B 同步边界。

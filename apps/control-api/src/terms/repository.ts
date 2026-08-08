@@ -122,6 +122,77 @@ function consentFromRow(row: UserConsentRow): UserConsent {
   };
 }
 
+export type LockedRegistrationTerms = {
+  termsVersionId: string;
+  contentDigest: string;
+};
+
+export async function lockRegistrationTermsInTransaction(
+  transaction: Knex.Transaction,
+  input: {
+    documentCode: string;
+    locale: string;
+    termsVersionId: string;
+    asOf: Date;
+  },
+): Promise<LockedRegistrationTerms> {
+  const document = (await transaction('control_plane.terms_documents')
+    .whereRaw('lower(document_code) = lower(?)', [input.documentCode])
+    .where({ status: 'active' })
+    .forUpdate()
+    .first()) as TermsDocumentRow | undefined;
+  if (!document) throw new TermsVersionStaleError();
+
+  const current = (await transaction('control_plane.terms_versions')
+    .where({
+      terms_document_id: document.terms_document_id,
+      locale: input.locale,
+      status: 'PUBLISHED',
+    })
+    .where('effective_at', '<=', input.asOf)
+    .orderBy('effective_at', 'desc')
+    .orderBy('published_at', 'desc')
+    .orderBy('terms_version_id', 'desc')
+    .forUpdate()
+    .first()) as TermsVersionRow | undefined;
+  if (!current || current.terms_version_id !== input.termsVersionId) {
+    throw new TermsVersionStaleError();
+  }
+  return {
+    termsVersionId: current.terms_version_id,
+    contentDigest: current.content_digest,
+  };
+}
+
+export async function recordRegistrationConsentInTransaction(
+  transaction: Knex.Transaction,
+  input: {
+    userConsentId: string;
+    userId: string;
+    lockedTerms: LockedRegistrationTerms;
+    acceptedAt: Date;
+    registrationId: string;
+    evidenceMetadata: Record<string, unknown>;
+    createdAt: Date;
+  },
+): Promise<UserConsent> {
+  const [row] = (await transaction('control_plane.user_consents')
+    .insert({
+      user_consent_id: input.userConsentId,
+      user_id: input.userId,
+      terms_version_id: input.lockedTerms.termsVersionId,
+      content_digest_snapshot: input.lockedTerms.contentDigest,
+      accepted_at: input.acceptedAt,
+      acceptance_context: 'public_registration',
+      registration_id: input.registrationId,
+      evidence_metadata: input.evidenceMetadata,
+      created_at: input.createdAt,
+    })
+    .returning('*')) as UserConsentRow[];
+  if (!row) throw new Error('registration consent insert returned no row');
+  return consentFromRow(row);
+}
+
 export class PostgresTermsRepository implements TermsStore {
   constructor(
     private readonly database: Knex,
