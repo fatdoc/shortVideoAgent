@@ -19,6 +19,7 @@ const expectedMigrations = [
   '010_session_active_context.ts',
   '011_terms_versioning.ts',
   '012_invitation_lifecycle.ts',
+  '013_registration_attribution.ts',
 ];
 
 const expectedTables = [
@@ -37,6 +38,9 @@ const expectedTables = [
   'user_consents',
   'invitations',
   'invitation_usages',
+  'registrations',
+  'referral_attributions',
+  'referral_attribution_events',
   'users',
 ];
 
@@ -68,7 +72,7 @@ describe.runIf(hasDedicatedTestDatabase)('Control API migration chain', () => {
     await database.destroy();
   });
 
-  it('loads migrations 001 through 012 from an empty database and is idempotent on replay', async () => {
+  it('loads migrations 001 through 013 from an empty database and is idempotent on replay', async () => {
     const config = migrationConfig(import.meta.url);
     const [batch, migrations] = await database.migrate.latest(config);
 

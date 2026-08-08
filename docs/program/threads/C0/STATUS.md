@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-00.2～00.3 `ACCEPTED` / A-BIZ-01.1～01.3 `COMPLETE`
-- 当前任务：A-BIZ-01.3 Membership-bound Project Scope 已完成并通过完整 Gate；下一业务平台切片待按最新主计划冻结，不提前扩张成员、账务、渠道或 Support Grant API
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02.1～02.2 `COMPLETE` / A-BIZ-02.3A `COMPLETE`
+- 当前任务：A-BIZ-02.3A Registration/Attribution Schema 已完成并通过完整 Gate；下一步进入 02.3B 统一 PostgreSQL Registration Unit of Work，不提前开放半成品 Public API
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -656,3 +656,18 @@
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续不修改、不暂存、不提交；02.3A/02.3B 不碰共享 Bootstrap，02.3C 共享提交再通知 B。
 - 当前状态：`A_BIZ_02_3_PLAN_FROZEN / READY_FOR_TEST_FIRST_RED`。
 - 下一步：先写 Migration 013 PostgreSQL 合同并确认 RED，再实现最小 Schema；计划独立提交后执行。
+
+## 2026-08-08 A-BIZ-02.3A Registration / Attribution Schema 完成
+
+- Test-first RED 已确认：新增 PostgreSQL 合同首次因缺少 `013_registration_attribution` 模块失败，随后才实现最小 Schema。
+- Migration 013 新增 completed-only `registrations`、首次 `referral_attributions` 与 append-only `referral_attribution_events`，不保存失败注册半成品。
+- Registration 强制 normalized email、User、idempotency key 唯一，四种 Path 与 Invitation 类型一致，并验证 User/Membership/Tenant 和 released Terms 事实。
+- Attribution 必须与 Registration 的 User、Tenant、来源、Invitation 和完成时间一致；Channel 来源必须使用 Invitation 冻结 Channel，保护期严格为 PostgreSQL `interval '12 months'`。
+- Registration 与 Attribution 不可更新/删除，Attribution Event 不可更新/删除；每个 User/Registration 仅允许一条首次 Attribution，每条 Attribution 仅允许一个 `created` Event。
+- `user_consents.registration_id` 与 `invitation_usages.registration_id` 已收口正式 FK；迁移前存在孤立 Consent/Usage 时 fail closed，不删除、不伪造 Registration。
+- 013 down 只允许空事实回滚；存在 Registration、Attribution、Event 或关联 Consent/Usage 审计事实时拒绝破坏性回滚。
+- 定向 Gate：Migration 013 + chain 2 files / 11 tests PASS；完整 Control API 单 worker 35 files / 191 tests PASS / 0 SKIP。
+- Control API typecheck/build、定向 ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_02_3A_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): add registration attribution schema`，随后进入 02.3B；先冻结统一事务 Repository/Unit of Work 的 RED，不修改共享 `app.ts` / `server.ts`。

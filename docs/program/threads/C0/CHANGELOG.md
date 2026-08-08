@@ -86,3 +86,4 @@
 | 2026-08-07 | A-BIZ-02.2B 完成 Invitation Token/Domain/Service/PostgreSQL Repository、三 Scope 服务端派生、首次明文 Token、安全创建/撤销/消费 replay、Public unavailable 与原子 Usage 合同；Control API 32 files / 167 tests 通过 | A_BIZ_02_2B_COMPLETE                    |
 | 2026-08-07 | A-BIZ-02.2C 完成 body Token Public Preview、不可逆键限流、三 Scope 创建/列表、issuer 撤销、Session/路径 Scope fail-closed 与独立 Bootstrap；Control API 34 files / 181 tests 通过                                   | A_BIZ_02_2_COMPLETE                     |
 | 2026-08-08 | 冻结 A-BIZ-02.3 单一注册事务：四种服务端来源、Registration/Consent/Invitation Usage/Attribution 原子写入、12 个月归因快照、keyed HMAC 幂等、邮箱验证 fail closed 与 Public API 边界                                 | A_BIZ_02_3_PLAN_FROZEN                  |
+| 2026-08-08 | A-BIZ-02.3A 完成 migration 013 Registration/首次 Attribution/append-only Event、Consent/Usage 正式 FK、孤立事实迁移拒绝与审计型回滚保护；Control API 35 files / 191 tests 通过                                      | A_BIZ_02_3A_COMPLETE                    |
