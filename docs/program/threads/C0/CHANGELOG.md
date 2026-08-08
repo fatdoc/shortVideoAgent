@@ -93,3 +93,4 @@
 | 2026-08-08 | A-BIZ-02.4A 完成严格 Public Registration API Client：Terms/Invitation/Registration、安全错误映射、201/200 replay、敏感字段不落盘；定向 8/8、Build/Static PASS，既有 3 个重测试文件单独复跑全 PASS | A_BIZ_02_4A_COMPLETE |
 | 2026-08-08 | A-BIZ-02.4B 完成统一 fail-closed 注册页：Terms/Invitation 状态、严格表单、默认 Evidence unavailable、幂等重试、stale reload、201/replay 与无自动登录；定向联合 21/21、Build/Static PASS | A_BIZ_02_4B_COMPLETE |
 | 2026-08-08 | A-BIZ-02.4C 完成 Pilot 公开 `/register`、Invitation 查询 Token 一次性读取与 replace 清理、Login 注册入口、已登录默认路由及注册完成返回登录；联合 34/34、Build/Static PASS，A-BIZ-02.4 收口 | A_BIZ_02_4_COMPLETE |
+| 2026-08-08 | 冻结 A-BIZ-03.1 TEST Recharge/Payment Foundation：migration 014、Tenant Wallet/Order Scope、版本化转换 Rule、Payment Inbox、TEST/LIVE 隔离及先 received 后 03.2 原子到账边界 | A_BIZ_03_1_PLAN_FROZEN |

@@ -418,3 +418,11 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 联合 Gate：Router/Login/Registration/API Client 4 files / 34 tests PASS；build、ESLint、Prettier、Governance、diff check PASS。Root 并发仅剩既有 app smoke/ScriptEditor 4 个 5 秒超时，两文件单独运行分别 11/11、8/8 PASS。
 - 正式 Terms 和 Email Verification Provider 仍未就绪；当前页面必须继续明确 fail closed，不得增加 Fake Evidence、占位条款、自动登录或 Demo fallback。
 - B 的 StoryCanvas 与未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未被 A 修改、暂存或提交。
+
+## 2026-08-08 A-BIZ-03.1 Recharge / Payment Plan Handoff
+
+- A-BIZ-02.4 已由 `f266901` 收口；B 继续共享 Router/Login 开发前应先同步该提交。
+- A 下一节点为 A-BIZ-03.1，只做明确 TEST 的 Recharge/Payment 基础，不接真实收款、不发行 Credit、不计提 Commission。
+- 03.1A/03.1B 将限定在 Control API 新 migration、payment/recharge Domain/Repository/Adapter 与测试，不修改 B 独占目录或共享 Bootstrap。
+- 03.1C 才会独立修改 `apps/control-api/src/app.ts`、`server.ts`、`config.ts` 并通知 B；LIVE Adapter 未配置时必须 503 fail closed，不能用 TEST Adapter 兜底。
+- 当前正式 SKU 售价、额度数量、币种范围、订单时限、退款周期、佣金比例仍未提供；Migration 不 seed 商业 Rule，测试数据必须显式 `TEST`。

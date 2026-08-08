@@ -758,3 +758,16 @@
 - B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_02_4C_COMPLETE / A_BIZ_02_4_COMPLETE / READY_TO_COMMIT`。
 - 下一步：独立提交 `feat(web): wire public registration route`，通知 B 同步；正式 Terms 与 Email Verification Provider 仍未交付，真实注册继续 fail closed，不宣称已开放公网注册。
+
+## 2026-08-08 A-BIZ-03.1 TEST Recharge / Payment Foundation 计划冻结
+
+- 基于已接受的 A-BIZ-00.3 ADR 和已完成的 A-BIZ-02，下一节点进入 TEST Recharge/Payment，不接真实支付。
+- 基线确认：migration 001 已有 Tenant Wallet、Reservation 与 append-only Credit Ledger，但没有 RechargeOrder、PaymentEvent、转换 Rule、Provider Port 或充值发行链路；注册事务也不自动创建 Wallet。
+- 计划拆为 03.1A migration 014 Schema、03.1B Domain/Repository/TEST Adapter、03.1C HTTP API/Bootstrap 三个独立提交。
+- 03.1 只建立现金事实和 Payment Inbox；Payment Event 在本节点仅持久化为 `received`，订单 paid、Credit issuance 与 Commission 必须留给 03.2 原子处理，避免半到账。
+- 无正式 SKU/金额/币种/退款周期时不 seed Rule；测试 fixture 必须显式 `TEST`，LIVE Adapter 默认 unavailable 且不回退 TEST。
+- Migration 必须保护 Order/Wallet/Tenant、Buyer Membership、Rule 金额币种、Provider identity、TEST/LIVE 隔离、append-only evidence 和 fail-closed rollback。
+- 计划文件：`A_BIZ_03_1_RECHARGE_PAYMENT_FOUNDATION_PLAN.md`。
+- B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续不修改、不暂存、不提交；03.1A/03.1B 不碰共享 Bootstrap。
+- 当前状态：`A_BIZ_03_1_PLAN_FROZEN / READY_FOR_03_1A_RED`。
+- 下一步：独立提交计划，然后新增空 migration 014 与 PostgreSQL 合同测试，确认有效 RED 后再实现最小 Schema。
