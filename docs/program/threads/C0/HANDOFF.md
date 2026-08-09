@@ -727,3 +727,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 首个 RED：`MemberDirectoryService` 授权/canonical scope；随后 PostgreSQL 事务、并发、Session invalidation 和 legacy 一致性 RED。
 - 不实现角色编辑、成员新增/恢复/删除、批量操作、密码管理、Support Grant、全局 User suspend、Audit Export 或 StoryCanvas 改动。
 - 当前状态：`A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED`。
+
+## A-BIZ-06B Legacy Membership Trigger 合同勘误交接（2026-08-09）
+
+- 初版计划的“无需新增 Migration”已撤回：migration 010 的 `shadow_legacy_membership()` 在 legacy status-only UPDATE 时会删除所有 secondary roles，并产生额外 Membership version bump。
+- 新增前置原子切片 06B.1A / Migration 019；status-only legacy update 不得触碰 role rows，必须保留 secondary roles且 canonical version 恰好 `+1`。
+- 只有 `new.role_code IS DISTINCT FROM old.role_code` 时才保留既有 legacy 单角色兼容语义；rollback 恢复 migration 010 函数。
+- Service 授权/canonical Scope 首个 RED 已完成且本地定向 7 tests PASS，但 `members/**` 尚未提交；先提交 Migration 019，再继续 Repository/Service。
+- PostgreSQL 证据必须使用合法 `_test` database 且零 SKIP；StoryCanvas 与 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_06B_PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`；不 push。

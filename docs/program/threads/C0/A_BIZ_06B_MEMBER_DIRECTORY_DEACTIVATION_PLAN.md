@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED`
+- 状态：`PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`
 - 上游：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`
 - 实现基线：`93c7392 test(operations): add deterministic joint gate runner`
 
@@ -21,7 +21,7 @@ A-BIZ-06B 只补齐当前活动 Organization 的最小 Member Directory 与安�
 
 ## 2. 源码审计结论
 
-### 2.1 现有 Schema 足够，无需新增 Migration
+### 2.1 现有 canonical Schema 足够，但 legacy shadow trigger 必须先加固
 
 migration `008_organization_membership` 已提供：
 
@@ -38,7 +38,22 @@ migration `010_session_active_context` 已提供：
 
 因此 06B 不新增 Session revoke 表，也不新增显式 Session 扫表更新。成功 suspend 后，旧 Session 在下一次认证请求中因 Membership 非 active/version 不一致而返回 invalid。
 
-### 2.2 TENANT legacy shadow 是单向兼容写路径
+但 migration `010_session_active_context` 的 legacy shadow UPDATE 分支会在任何 legacy Membership UPDATE 时删除所有不等于 `new.role_code` 的 canonical secondary roles。status-only suspend 因此会误删 secondary roles，并由 role set trigger 产生额外 version bump，违反“只改 status、角色不变、version 恰好 +1”的冻结合同。
+
+修正决定：先新增 migration `019_harden_legacy_membership_shadow`，以 `create or replace function` 加固 legacy trigger；不新增业务表或 Session revoke 机制。
+
+### 2.2 Migration 019 legacy shadow 加固合同
+
+Migration 019 必须：
+
+- identity/scope immutable guard 保持不变；
+- legacy status-only UPDATE 只推进 canonical status，不触碰 `organization_membership_roles`；
+- 仅当 `new.role_code IS DISTINCT FROM old.role_code` 时，才执行既有单角色兼容语义：删除非新 primary role、插入新 role；
+- legacy status-only `active → suspended` 后 secondary roles 全部保留，canonical version 恰好 `+1`；
+- legacy role change 仍保持 migration 010 的既有兼容行为；
+- rollback 恢复 migration 010 的上一版 `shadow_legacy_membership()` 函数。
+
+### 2.3 TENANT legacy shadow 是单向兼容写路径
 
 现有触发器只把 `control_plane.memberships` 的 INSERT/UPDATE/DELETE shadow 到 canonical `organization_memberships`，没有 canonical → legacy 的反向触发器。Bootstrap 与 Registration 仍会写 legacy 表。
 
@@ -50,7 +65,7 @@ migration `010_session_active_context` 已提供：
 - 不允许先写 canonical、再无条件写 legacy 的双重状态变更；
 - 06B 不改变 Bootstrap 的显式白名单恢复语义。人工再次运行 Bootstrap 可能把其受管 Pilot Membership 恢复为 active，必须作为明确运营动作记录，不得描述为普通 HTTP 自动恢复。
 
-### 2.3 当前 HTTP 模式可直接复用
+### 2.4 当前 HTTP 模式可直接复用
 
 现有 Terms、Invitation、Commercial Channel、Commission 与 Settlement Route 已冻结：
 
@@ -178,7 +193,7 @@ Repository 必须在单一 PostgreSQL 事务内：
 5. 目标是当前 actor Membership 时返回稳定 409，禁止 self-suspend；
 6. active 目标的 `version` 与 `expectedVersion` 不一致时返回稳定 409；
 7. 若目标包含当前 Organization 的管理员角色，停用后必须仍至少有一个 active 管理员；否则返回稳定 409；
-8. 根据 2.2 的 canonical/legacy 兼容规则执行一次状态更新；
+8. 根据 2.2～2.3 的 migration/canonical/legacy 兼容规则执行一次状态更新；
 9. 重新读取 canonical Membership + User + roles，验证 status 为 suspended、version 已递增，并返回安全投影；
 10. 任一步失败时事务整体回滚，不允许出现 legacy/canonical 状态分叉或半更新。
 
@@ -244,6 +259,23 @@ Repository 必须在单一 PostgreSQL 事务内：
 docs(business-plane): freeze member deactivation contract
 ```
 
+### 06B.1A · Migration 019 Legacy Membership Shadow Hardening
+
+交付：
+
+- `019_harden_legacy_membership_shadow.ts`；
+- PostgreSQL RED/Green：status-only update 保留 secondary roles，status suspended，version 恰好 `+1`；
+- legacy role change 兼容回归；
+- migration chain `001..019` 与 rollback/reapply。
+
+不修改 `members/**`、`app.ts`、`server.ts` 或 StoryCanvas。
+
+建议提交：
+
+```text
+fix(control-api): preserve membership roles on legacy status updates
+```
+
 ### 06B.2 · Repository / Service
 
 交付：
@@ -304,7 +336,11 @@ feat(control-api): wire member operations routes
 3. Service 只把 actor canonical Organization/Membership 传给 Repository，不接受调用者覆盖 Scope；
 4. suspend 返回 Repository 的 replay 与安全投影，不在 Service 伪造 version/status。
 
-随后 PostgreSQL RED 冻结：
+Service 首个 RED 已按预期因模块缺失失败，最小 Service 授权/canonical Scope 实现已在工作区定向通过；在提交 Repository/Service 前，必须先完成独立 Migration 019 切片。
+
+Migration 019 首个 PostgreSQL RED：建立包含 `tenant_admin + content_operator` 的 TENANT canonical Membership，经 legacy status-only `active → suspended` 更新；旧函数会误删 secondary role，测试必须先失败。Green 后断言两个 roles 均保留、status 为 suspended、version 恰好 `+1`。
+
+随后 Repository PostgreSQL RED 冻结：
 
 - bounded/sorted canonical Directory；
 - cross-Organization 404；

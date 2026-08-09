@@ -154,13 +154,14 @@ test(operations): add deterministic joint gate runner
 
 ### 3.2 A-BIZ-06B · Minimal Member Directory / Deactivation Contract
 
-先写独立子计划，再按 Migration（若需要）、Repository/Service、Route、共享 Bootstrap 的顺序 test-first 实现。
+先写独立子计划，再按 Migration 019 legacy shadow 加固、Repository/Service、Route、共享 Bootstrap 的顺序 test-first 实现。
 
 必须冻结：
 
 - Member list 的 bounded、排序、最小 DTO、状态和角色投影；
 - PLATFORM / CHANNEL / TENANT 的可见范围与管理员角色；
 - suspension 的事务、version bump、Session 失效、幂等和并发语义；
+- legacy status-only update 必须保留 secondary roles，version 恰好 +1；
 - self-suspend、last-admin、inactive Organization/Membership 的 fail-closed 行为；
 - 401/403/404/409/422 与 Request ID；
 - 不泄露 password hash、Session token/digest、Invitation token/digest、内部 SQL 或完整 User 认证数据。

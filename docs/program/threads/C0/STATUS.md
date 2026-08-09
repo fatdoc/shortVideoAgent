@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A `COMPLETE` / A-BIZ-06B `PLAN_FROZEN`
-- 当前任务：A-BIZ-06B Member Directory/Deactivation 合同已冻结；下一步写 Repository/Service RED，再分离 Route 与共享 Bootstrap 接线
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A `COMPLETE` / A-BIZ-06B `PLAN_CORRECTED`
+- 当前任务：A-BIZ-06B 先完成 Migration 019 legacy shadow 加固，再继续 Repository/Service、Route 与共享 Bootstrap 接线
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1088,3 +1088,11 @@
 - 实施分为 Repository/Service、HTTP Route、共享 App/Server wiring 三个独立提交；共享 wiring 提交后必须通知 B 同步。
 - 首个 RED：Service 授权与 canonical Scope；随后 PostgreSQL RED 覆盖 Directory、version + 1、Session 失效、replay、last-admin、并发与 legacy 一致性。
 - 当前状态：`A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED`。
+
+## 2026-08-09 A-BIZ-06B Legacy Membership Trigger 合同勘误
+
+- Repository 预审发现 migration 010 的 legacy UPDATE trigger 会在 status-only 更新时删除 secondary roles，并触发额外 version bump。
+- 原“无需新增 Migration”结论撤回；冻结独立 06B.1A / Migration 019，仅加固 `shadow_legacy_membership()`，不新增业务表或 Session revoke 机制。
+- status-only legacy suspend 必须保留完整 canonical roles，status 变 suspended，version 恰好 `+1`；只有 legacy primary role 真正变化时才执行既有单角色兼容逻辑。
+- Migration 019 必须先以 PostgreSQL RED/Green 证明并独立提交，之后才继续 Member Repository；缺合法 `_test` PostgreSQL 时不得把 SKIP 记为 PASS。
+- 当前状态：`A_BIZ_06B_PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`。

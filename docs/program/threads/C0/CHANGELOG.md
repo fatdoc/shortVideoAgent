@@ -254,3 +254,10 @@
 - 审计确认无需新增 Migration；TENANT legacy shadow 为单向兼容写路径，存在 legacy row 时必须通过 legacy 更新推进 canonical，不做无规则双写。
 - Repository/Service、Route、共享 App/Server wiring 分开提交；共享 wiring 完成后通知 B。StoryCanvas 保持排除。
 - 首个 RED：Service 授权与 canonical Scope；随后补 PostgreSQL 事务、并发、Session 失效和 legacy 一致性合同。
+
+## 2026-08-09 · A-BIZ-06B Legacy Membership Trigger Plan Correction
+
+- 撤回“无需新增 Migration”结论：migration 010 legacy shadow UPDATE 会在 status-only suspend 时误删 secondary roles，并导致 version 不止 `+1`。
+- 冻结独立 Migration 019：status-only update 不触碰 role set；只有 legacy primary role 真正变化时才执行既有角色兼容逻辑；rollback 恢复旧函数。
+- Member Repository/Service 在 Migration 019 PostgreSQL RED/Green 与独立提交后继续；缺 `_test` database 时不得把 SKIP 记为 PASS。
+- StoryCanvas 与 B 的未跟踪 vendor 文件保持排除。
