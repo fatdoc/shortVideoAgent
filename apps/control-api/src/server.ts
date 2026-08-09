@@ -27,6 +27,9 @@ import { RegistrationService } from './registrations/service.js';
 import { PostgresPaymentFoundationRepository } from './payments/repository.js';
 import { createPaymentRouter } from './payments/routes.js';
 import { PaymentFoundationService } from './payments/service.js';
+import { PostgresCommercialChannelRepository } from './channels/repository.js';
+import { createCommercialChannelRouter } from './channels/routes.js';
+import { CommercialChannelService } from './channels/service.js';
 import { PostgresCommissionAuditRepository } from './commissions/repository.js';
 import { createCommissionAuditRouter } from './commissions/routes.js';
 import { CommissionAuditService } from './commissions/service.js';
@@ -97,6 +100,12 @@ const paymentRouter = createPaymentRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const commercialChannelRouter = createCommercialChannelRouter({
+  service: new CommercialChannelService(new PostgresCommercialChannelRepository(database)),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const commissionAuditRouter = createCommissionAuditRouter({
   service: new CommissionAuditService(new PostgresCommissionAuditRepository(database)),
   resolveSession: (token) => authService.resolve(token),
@@ -148,6 +157,7 @@ const app = createApp({
   contentRouter,
   productionRouter,
   paymentRouter,
+  commercialChannelRouter,
   commissionAuditRouter,
   commissionSettlementRouter,
   trustProxy: config.trustProxy,
