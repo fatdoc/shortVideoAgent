@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`
+- 状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY`
 - 上游：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`
 - 实现基线：`93c7392 test(operations): add deterministic joint gate runner`
 
@@ -394,3 +394,42 @@ LIVE_OPERATIONS_READY
 - Invitation/Registration 新逻辑；
 - LIVE Payment、真实佣金比例、paid、提现、KYC、税务、发票或自动打款；
 - StoryCanvas 任何代码、数据或运行时改动。
+
+## 12. 2026-08-09 · 实施与 Gate 收口
+
+A-BIZ-06B 已按原子切片完成：
+
+1. `de0c08a fix(control-api): preserve membership roles on legacy status updates`：Migration 019 与 rollback/reapply 合同；
+2. `8278d22 feat(control-api): add member directory deactivation service`：canonical Repository/Service、事务、并发、Session invalidation 与 legacy compatibility；
+3. `3087a06 feat(control-api): expose current organization members`：真实 Cookie HTTP Route、安全错误与 replay header；
+4. `0b177cf feat(control-api): wire member operations routes`：共享 App/Server Bootstrap 独立接线。
+
+关键行为证据：
+
+- legacy status-only RED 首次观察到 `tenant_admin + content_operator` 被错误缩减为单一 `tenant_admin`；Migration 019 Green 后 roles 全保留且 version 恰好 `+1`；
+- Directory bounded、确定性排序且只返回冻结的最小 Member DTO；
+- suspend 覆盖 403/404/409/422、self、last-admin、expired、stale version、duplicate replay、跨 Organization、并发串行化和事务回滚；
+- 被停用 Membership 的旧 Session 在下一次 Repository resolve 时失效；
+- Route 使用真实 Session Cookie/rotation、`no-store`、Request ID 与固定安全错误文案，异常路径不泄漏 SQL、password 或 stack。
+
+最终 Gate：
+
+```text
+Migration focused:       2 files / 4 tests PASS
+Repository/Service:      2 files / 14 tests PASS
+Route/Service:           2 files / 19 tests PASS
+App/Route wiring:        2 files / 24 tests PASS
+Control API full:       61 files / 414 tests PASS
+Typecheck/Build/ESLint/Prettier/Governance/diff-check: PASS
+StoryCanvas tracked diff: zero
+```
+
+共享 Bootstrap 提交 `0b177cf` 已要求 B 在修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前先同步。B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+
+本切片完成状态仅为：
+
+```text
+A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY
+```
+
+下一步为 `A_BIZ_06C` 规划；仍不得宣称 `A_BIZ_06_COMPLETE`、`FULL_JOINT_GATE_PASS`、`COMPLETE_IAM_CONSOLE` 或 `LIVE_OPERATIONS_READY`。

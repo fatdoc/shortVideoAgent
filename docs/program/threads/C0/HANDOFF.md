@@ -736,3 +736,17 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Service 授权/canonical Scope 首个 RED 已完成且本地定向 7 tests PASS，但 `members/**` 尚未提交；先提交 Migration 019，再继续 Repository/Service。
 - PostgreSQL 证据必须使用合法 `_test` database 且零 SKIP；StoryCanvas 与 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_BIZ_06B_PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`；不 push。
+
+## A-BIZ-06B Member Operations API 完成交接（2026-08-09）
+
+- 实现提交：`de0c08a` Migration 019、`8278d22` Repository/Service、`3087a06` HTTP Route、`0b177cf` 共享 Bootstrap；合同勘误提交为 `b8daf80`。
+- API：`GET /api/v1/organizations/current/members?status=all&limit=100`；`POST /api/v1/organizations/current/members/:membershipId/suspend`，body 仅 `{ expectedVersion }`。
+- 权限与 Scope：只信任真实 Session 的 active Organization/Membership；PLATFORM=`platform_admin`、CHANNEL=`channel_admin`、TENANT=`tenant_admin`；其他角色 403，跨 Organization/未知 Membership 404。
+- 数据与事务：读取 canonical Membership/roles；TENANT 存在 legacy row 时经 legacy update 推进 canonical；status-only suspend 保留 secondary roles、version 恰好 `+1`；replay 不再 bump；self、last-admin、expired、stale version、并发与数据库失败均安全处理。
+- Session：不新增 revoke 表；旧 Cookie 在下一次 `AuthService.resolve` 时因 Membership inactive/version 不一致失效。
+- HTTP：真实 `videoagent_session` Cookie、rotation Cookie、`cache-control: no-store`、strict query/path/body、401/403/404/409/422、Request ID 和固定安全文案；unexpected error 不泄漏 SQL、密码字段或 stack。
+- Gate：完整 Control API 61 files / 414 tests PASS，PostgreSQL suite 使用专用 `videoagent_control_test` 且零 SKIP；typecheck/build/ESLint/Prettier/Governance/diff-check 均 PASS。
+- **共享通知给 B**：`0b177cf` 已修改 `apps/control-api/src/app.ts`、`apps/control-api/src/app.test.ts`、`apps/control-api/src/server.ts`；B 修改这些共享文件前先同步该提交。
+- StoryCanvas tracked diff 为零，未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
+- 下一步只规划 06C Terms / Invitation / Member Pilot Operations UI，再按严格 Client、页面、共享 Router/Layout 原子切片实施；当前不 push。
+- 状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`。不得外推为完整 IAM、A-BIZ-06 完成、Full Joint Gate PASS 或 LIVE Operations Ready。

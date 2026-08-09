@@ -111,6 +111,7 @@
 | 2026-08-09 | A-BIZ-03.4A～03.4F 完整收口：真实商业 Client、Organization Policy、Commission/Recharge Audit、TEST Settlement Draft 与共享 Pilot Router/Layout 全部接通；前端 330/330 tests 与全工程 Gate 通过                                                            | A_BIZ_03_4_COMPLETE                     |
 | 2026-08-09 | 冻结 A-BIZ-06 运营收口与 A/B 联合 Gate：06A～06F 覆盖确定性 Gate runner、Member 合同、真实 Pilot 运营 UI/E2E、A/B 黄金路径、迁移回滚和文档；full 模式缺专用 PostgreSQL 或 B 基线必须 fail closed                                                          | A_BIZ_06_PLAN_FROZEN                    |
 | 2026-08-09 | A-BIZ-06A 完成 12-phase 确定性 Joint Gate manifest/runner：plan 只报 NOT_RUN，full 缺专用 PostgreSQL、B 基线或 06D/06E/06F 时 fail closed；StoryCanvas v0.2 定向 13/13 PASS                                                                               | A_BIZ_06A_COMPLETE                      |
+| 2026-08-09 | A-BIZ-06B 完成 Migration 019、Member Directory/Deactivation Repository/Service、真实 Cookie HTTP Route 与共享 Bootstrap；Control API 61 files / 414 tests PASS，旧 Session 下一次 resolve 失效                                                            | A_BIZ_06B_COMPLETE                      |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -261,3 +262,13 @@
 - 冻结独立 Migration 019：status-only update 不触碰 role set；只有 legacy primary role 真正变化时才执行既有角色兼容逻辑；rollback 恢复旧函数。
 - Member Repository/Service 在 Migration 019 PostgreSQL RED/Green 与独立提交后继续；缺 `_test` database 时不得把 SKIP 记为 PASS。
 - StoryCanvas 与 B 的未跟踪 vendor 文件保持排除。
+
+## 2026-08-09 · A-BIZ-06B Member Operations API Closure
+
+- Migration 019 已修复 legacy status-only Membership 更新误删 secondary roles 和额外 version bump；rollback/reapply 与 legacy role-change 兼容合同通过。
+- Repository/Service 已交付 current Organization bounded Member Directory 与事务化 suspend，覆盖管理员 Scope、跨 Organization 404、self、last-admin、expired、stale version、replay、并发、Session invalidation 与失败回滚。
+- HTTP 已交付 `GET /api/v1/organizations/current/members`、`POST /api/v1/organizations/current/members/:membershipId/suspend`，使用真实 Cookie/rotation、`no-store`、strict validation、Request ID 与安全错误 envelope。
+- 共享 Bootstrap 以 `0b177cf` 独立接线；B 后续修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前必须先同步。
+- Gate：Migration 2/4、Repository/Service 2/14、Route/Service 2/19、App/Route 2/24、Control API 全量 61 files / 414 tests PASS；typecheck、build、ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持排除。
+- 状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`；未宣称 A-BIZ-06、Full Joint Gate、完整 IAM 或 LIVE Operations 完成。

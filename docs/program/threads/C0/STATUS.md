@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A `COMPLETE` / A-BIZ-06B `PLAN_CORRECTED`
-- 当前任务：A-BIZ-06B 先完成 Migration 019 legacy shadow 加固，再继续 Repository/Service、Route 与共享 Bootstrap 接线
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE`
+- 当前任务：规划 A-BIZ-06C Terms / Invitation / Member Pilot Operations UI；尚未开始 06C 业务实现
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1096,3 +1096,14 @@
 - status-only legacy suspend 必须保留完整 canonical roles，status 变 suspended，version 恰好 `+1`；只有 legacy primary role 真正变化时才执行既有单角色兼容逻辑。
 - Migration 019 必须先以 PostgreSQL RED/Green 证明并独立提交，之后才继续 Member Repository；缺合法 `_test` PostgreSQL 时不得把 SKIP 记为 PASS。
 - 当前状态：`A_BIZ_06B_PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`。
+
+## 2026-08-09 A-BIZ-06B Member Operations API 完成
+
+- Migration 019 已加固 legacy Membership shadow：status-only 更新保留 secondary roles，canonical status 正确推进且 version 恰好 `+1`；legacy primary role 真变化仍保持既有单角色兼容语义。
+- 新增 canonical current-Organization Member Repository/Service：PLATFORM、CHANNEL、TENANT 仅对应管理员可操作，bounded/sorted 最小 DTO，跨 Organization 404，self-suspend、last-admin、expired、stale version 与并发均 fail closed。
+- suspend 对 TENANT legacy row 使用单向兼容写路径；duplicate replay 不二次 bump；失败事务全回滚；被停用成员的旧 Session 在下一次 Auth resolve 时失效。
+- HTTP 已提供 `GET /api/v1/organizations/current/members` 与 `POST /api/v1/organizations/current/members/:membershipId/suspend`，使用真实 Cookie/rotation、`no-store`、strict Zod、Request ID、安全错误 envelope 与显式 replay header。
+- 共享 Bootstrap 已在 `0b177cf` 接线；B 后续修改 `apps/control-api/src/app.ts`、`app.test.ts` 或 `server.ts` 前必须先同步。
+- Gate：Migration 定向 2 files / 4 tests、Repository/Service 2 files / 14 tests、Route/Service 2 files / 19 tests、App/Route 2 files / 24 tests、Control API 全量 61 files / 414 tests PASS；typecheck、build、ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`。未宣称 A-BIZ-06 总体完成、完整 IAM、LIVE Operations 或 Full Joint Gate 通过。

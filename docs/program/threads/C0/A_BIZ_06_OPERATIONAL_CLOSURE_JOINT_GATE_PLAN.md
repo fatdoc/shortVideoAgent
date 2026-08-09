@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`06B_PLAN_FROZEN / READY_FOR_06B_REPOSITORY_SERVICE_RED`
+- 状态：`06B_COMPLETE / READY_FOR_06C_PLANNING`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`69b8181 docs(business-plane): close commercial frontend audit`
 - 共享同步基线：Control API Bootstrap `856757b`；Pilot Router/Layout `b80e9ef`
@@ -451,3 +451,25 @@ A_BIZ_06A_COMPLETE / READY_FOR_06B_PLANNING
 ```text
 A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED
 ```
+
+## 13. 2026-08-09 · 06B Member Operations API 完成
+
+06B 已按勘误后的顺序完整交付：Migration 019 → Repository/Service → HTTP Route → Shared Bootstrap。
+
+- Migration 019 修复 legacy status-only update 删除 secondary roles 与多次 version bump 的风险；
+- current Organization Member Directory 与 suspend API 已使用 canonical Scope、真实 Session Cookie、bounded 最小投影和安全错误合同；
+- PLATFORM/CHANNEL/TENANT 只允许对应管理员；self、last-admin、inactive、stale version、跨 Organization、duplicate replay 与并发均 fail closed；
+- TENANT legacy row 使用既有单向 shadow 写路径，事务失败无半状态；旧 Session 在下一次 resolve 时失效；
+- 共享 Bootstrap 提交 `0b177cf` 已独立完成，B 修改 App/Server 共享文件前必须同步；StoryCanvas tracked diff 为零。
+
+证据：Control API 全量 `61 files / 414 tests PASS`，并通过 typecheck、build、ESLint、Prettier、Governance 与 diff-check。
+
+当前状态：
+
+```text
+A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY
+A_BIZ_06C_NOT_STARTED / READY_FOR_06C_PLANNING
+FULL_GATE_NOT_YET_EXECUTED
+```
+
+下一步先审计并冻结 06C 的严格 Pilot Client、Terms/Invitation/Member 页面和共享 Router/Layout 切片，不直接把 06B API 完成外推为完整 IAM 或 A-BIZ-06 完成。
