@@ -17,6 +17,7 @@ export type ControlApiDependencies = {
   commercialChannelRouter?: Router;
   commissionAuditRouter?: Router;
   commissionSettlementRouter?: Router;
+  memberDirectoryRouter?: Router;
   trustProxy?: boolean;
 };
 
@@ -76,6 +77,9 @@ export function createApp(dependencies: ControlApiDependencies) {
   }
   if (dependencies.commissionSettlementRouter) {
     app.use('/api/v1', dependencies.commissionSettlementRouter);
+  }
+  if (dependencies.memberDirectoryRouter) {
+    app.use('/api/v1', dependencies.memberDirectoryRouter);
   }
 
   app.use((_request, response) => {
