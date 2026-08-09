@@ -603,3 +603,17 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 首个实现 RED：CHANNEL Session Organization ID 与 Channel ID 故意不同，`GET /api/v1/channels/current` 必须返回 canonical Channel ID；当前应因 Route 缺失得到 `404 ROUTE_NOT_FOUND`。
 - A/B 通知：03.4A 共享 Control API Bootstrap 接线和 03.4F 共享 Router/Layout 激活必须分别独立 commit，完成后通知 B 同步；`apps/storycanvas/data/vendor/byteplus.ts` 始终不修改、不暂存、不提交。
 - 当前状态：`A_BIZ_03_4_PLAN_FROZEN / READY_FOR_03_4A_RED`；本轮只提交计划，等待开始实现指令，不 push。
+
+## A-BIZ-03.4A Commercial Channel Reference / Strict Client 完成交接（2026-08-09）
+
+- 核心提交 `461f494` 提供 `GET /api/v1/channels/current` 与 `GET /api/v1/platform/channels?status=active&limit=100`；响应分别为 `{ channel }` 与 `{ channels }`，仅投影 channelId、organizationId、displayName、active status。
+- Current Channel 由 Repository 通过 CHANNEL Organization mapping 解析 canonical Channel ID，禁止前端或服务层猜测 Organization ID 与 Channel ID 相等；mapping 缺失或 inactive 时 404。
+- Platform Directory 只列 active CHANNEL Organization，默认 `status=active&limit=100`，稳定按 displayName/channelId 升序；未知或非法 query 为 422。Scope 不匹配为 404，同 Scope 缺管理员角色为 403。
+- **B 同步要求**：共享 Bootstrap 提交 `856757b` 修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts`。B 后续修改这些文件前必须先同步；本切片未新增 Config 或 Secret。
+- 前端提交 `671fe3e` 扩展 `src/services/pilotControlApi.ts`，为 03.4C～03.4E 提供严格商业 API：Channel Reference/Directory、Platform/Channel Commission Audit、Platform TEST Settlement Draft 与 Tenant RechargeOrder bounded list。
+- 所有调用使用真实 Cookie Session；商业读取 `cache: no-store`；解析器严格验证 UUID、枚举、minor unit、currency 和带时区 timestamp。401/403/404/409/422/5xx、业务 code 与 Request ID 保持可判定。
+- 商业 Client 只接受 TEST；LIVE、非 JSON 或 malformed success response 均 fail closed；返回给 UI 的 DTO 删除 Provider code/event ID/digest 以及 RechargeOrder 的 Buyer/Membership/Wallet/Conversion Rule/Attribution 等敏感字段。
+- Demo/Pilot 保持严格隔离；未增加 Mock/localStorage fallback，未接 Router/Layout/UI，未实现 paid、提现、KYC、税务、自动打款、真实比例或 review/approve HTTP。
+- 验证证据：Control API 定向与全量、typecheck/build、前端 Client 16/16 与 build 均 PASS；PostgreSQL suites 在未注入 dedicated test DB 的默认环境中 SKIP。根并发测试曾有 3 个既有重型 UI 用例因 5 秒资源超时，失败文件单独复跑全部 PASS；最终收口改用 `npm test -- --maxWorkers=1`。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持排除。分支未 push。
+- 下一切片只做 03.4B 纯 Organization Commercial Route Policy；首个 RED：PLATFORM Session 默认路由为 `/platform/commission-audit`，且 Policy 必须拒绝其进入 Tenant Project Boundary。共享 Router/Sidebar/Topbar 激活仍保留到 03.4F 独立提交并通知 B。

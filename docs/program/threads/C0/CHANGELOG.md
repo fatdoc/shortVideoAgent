@@ -105,6 +105,7 @@
 | 2026-08-08 | A-BIZ-03.3A 完成 Migration 016 Commission Shadow Ledger：六张空审计表、Platform Rule/Settlement 审批、Rule 窗口、整数计提、append-only 冲正、自然月 Settlement 与 fail-closed rollback；Control API 45 files / 285 tests 通过                             | A_BIZ_03_3A_COMPLETE                    |
 | 2026-08-08 | A-BIZ-03.3E 完成 TEST Settlement Draft、Migration 018 Reversal Item validator 修复、幂等/并发/跨月净额与共享 HTTP Bootstrap；Control API 54 files / 363 tests 全 Gate 通过                                                                                | A_BIZ_03_3_COMPLETE                     |
 | 2026-08-08 | 冻结 A-BIZ-03.4 商业前端与审计：先补 canonical Channel Reference/active Directory，再按 Organization 分流 Pilot，交付真实 Commission Audit、TEST Settlement Draft 与 Tenant Recharge 只读审计；Demo/Pilot 严格隔离                                        | A_BIZ_03_4_PLAN_FROZEN                  |
+| 2026-08-09 | A-BIZ-03.4A 完成 canonical Channel Reference、Platform active Channel Directory、共享 Bootstrap 与严格 Pilot 商业 API Client；TEST-only、真实 Cookie/no-store、Request ID 与 fail-closed 解析边界已落地，未接 UI/Router/Layout                            | A_BIZ_03_4A_COMPLETE                    |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -157,3 +158,12 @@
 - 冻结 401/403/404、Request ID、loading/empty/service error/retry 和敏感信息不泄漏；Pilot 失败绝不回退 Mock。
 - LIVE、真实佣金比例、paid、提现、KYC、税务、自动打款、未规划 review/approve HTTP、客户端完整导出和 StoryCanvas 继续排除。
 - 首个 RED 为 Current Channel canonical ID 合同；共享 Control API Bootstrap 与 Pilot Router/Layout 后续必须分别独立提交并通知 B。
+
+## 2026-08-09 · A-BIZ-03.4A Commercial Channel Reference / Strict Client
+
+- 核心提交 `461f494` 新增 Current Channel Reference 与 Platform active Channel Directory；canonical Channel ID 由服务端 Repository mapping 解析，禁止猜测 Organization ID 等于 Channel ID。
+- 共享 Bootstrap 提交 `856757b` 挂载新 Router；B 修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前必须同步。
+- 前端提交 `671fe3e` 增加严格 Pilot 商业 Client，覆盖 Channel/Directory、Platform/Channel Commission Audit、Platform TEST Settlement Draft 与 Tenant RechargeOrder。
+- 冻结真实 Cookie、`no-store`、401/403/404/409/422/5xx、Request ID、严格 runtime parser、TEST-only 与敏感字段最小投影；LIVE 或 malformed response fail closed，绝不回退 Demo/Mock/localStorage。
+- Control API 定向/全量、typecheck/build 与前端 Client/build Gate 通过；默认无 dedicated test DB 时 PostgreSQL suites SKIP。StoryCanvas 未修改，B 的未跟踪 vendor 文件未纳入。
+- 下一 RED 为 03.4B 纯 Route Policy：PLATFORM 默认 `/platform/commission-audit` 且不得进入 Tenant Project Boundary；共享 Router/Layout 仍留待 03.4F。

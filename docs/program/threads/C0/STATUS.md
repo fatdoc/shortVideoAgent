@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4 `PLAN_FROZEN`
-- 当前任务：A-BIZ-03.4 商业前端与审计计划已冻结；等待 03.4A canonical Channel Reference/Directory 首个 RED，不提前写 UI、LIVE、paid、提现、真实佣金比例或自动打款
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A `COMPLETE`
+- 当前任务：A-BIZ-03.4A canonical Channel Reference/Directory 与 Strict Client 已完成；下一步 03.4B 先 test-first 实现纯 Organization Commercial Route Policy，不提前接共享 Router/Layout 或业务页面
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-08
+- 最近更新：2026-08-09
 
 ## 2026-07-30 单前端收口
 
@@ -967,3 +967,16 @@
 - 首个 RED：CHANNEL Session 的 `organizationId` 与 canonical `channelId` 使用不同 UUID，`GET /api/v1/channels/current` 必须返回 Repository 解析的 Channel ID；当前预期 `404 ROUTE_NOT_FOUND`。
 - 共享 Control API Bootstrap 与共享 Pilot Router/Layout 都必须分别独立 commit，并明确通知 B；StoryCanvas 与 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_BIZ_03_4_PLAN_FROZEN / READY_FOR_03_4A_RED`；未收到实现指令前不修改业务代码，未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4A Commercial Channel Reference / Strict Client 完成
+
+- 核心提交 `461f494`：新增 `GET /api/v1/channels/current` 与 `GET /api/v1/platform/channels?status=active&limit=100`，由 Repository 解析 canonical Channel ID 并只返回 active CHANNEL Organization 的最小目录投影。
+- Current Channel 禁止猜测 `organizationId === channelId`；Repository join `organizations` 重验 `organization_type = CHANNEL` 与 `status = active`。Directory 按 `displayName ASC + channelId ASC` 稳定排序，limit 在 Repository/Service 双层限制为 1～100。
+- Scope/错误合同：错误 Scope、跨 Scope 与缺失 canonical mapping 为 404；同 PLATFORM/CHANNEL Scope 缺管理员角色为 403；非法或未知 query 为 422；响应保持 `cache-control: no-store`。
+- 共享 Bootstrap 提交 `856757b`：修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 并挂载 Commercial Channel Router。B 修改这些共享文件前必须同步该提交。
+- 前端提交 `671fe3e`：扩展严格 `pilotControlApi`，覆盖 Current Channel、active Directory、Platform/Channel Commission Audit、Platform TEST Settlement Draft 与 Tenant RechargeOrder bounded list。
+- Client 全请求使用真实 Session Cookie；商业读取 `no-store`；严格解析 UUID、枚举、safe integer minor unit、currency、带时区 timestamp；保留 401/403/404/409/422/5xx、业务 code 与 Request ID。
+- Client 只接受 TEST 商业事实，LIVE 与 malformed/non-JSON success fail closed；安全 DTO 排除 Provider 标识/摘要、Buyer/Membership/Wallet/Attribution 等敏感字段；Pilot 失败不回退 Demo、Mock 或 localStorage。
+- 验证：Channel 定向 17 PASS / 3 PostgreSQL SKIP，App + Router 22 PASS，Control API 全量 31 files / 219 PASS / 165 PostgreSQL SKIP，typecheck/build PASS；前端 Client 16/16 PASS，build PASS。并发根测试的 3 个既有重型 UI 用例曾触发 5 秒资源超时，失败文件单独复跑 19/19 PASS；最终 Gate 使用单 worker。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。未实现 UI、LIVE、真实比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
+- 当前状态：`A_BIZ_03_4A_COMPLETE / READY_FOR_03_4B_RED`；下一 RED 为纯 Route Policy：PLATFORM Session 默认路由必须是 `/platform/commission-audit`，且不得进入 Tenant Project Boundary。未收到 push 指令前不 push。
