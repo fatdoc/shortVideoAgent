@@ -25,6 +25,7 @@ const expectedMigrations = [
   '016_commission_shadow_ledger.ts',
   '017_full_test_payment_reversal.ts',
   '018_fix_commission_settlement_item_validation.ts',
+  '019_harden_legacy_membership_shadow.ts',
 ];
 
 const expectedTables = [
@@ -88,7 +89,7 @@ describe.runIf(hasDedicatedTestDatabase)('Control API migration chain', () => {
     await database.destroy();
   });
 
-  it('loads migrations 001 through 018 from an empty database and is idempotent on replay', async () => {
+  it('loads migrations 001 through 019 from an empty database and is idempotent on replay', async () => {
     const config = migrationConfig(import.meta.url);
     const [batch, migrations] = await database.migrate.latest(config);
 
