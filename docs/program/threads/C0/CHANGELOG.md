@@ -196,3 +196,12 @@
 - 成功仅显示当前 API Draft，零候选/零额是合法结果；不伪造服务端记录或本地可恢复数据，并明确非到账、非提现、非 paid、非自动打款。
 - 定向 8/8 PASS；全量单 worker 311/315 PASS，4 个既有 5 秒 UI timeout 用例隔离 13/13 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。
 - 未修改共享 Router/Sidebar/Topbar、Control API 或 StoryCanvas；下一 RED 为 03.4E Tenant Recharge Audit 真实 scoped GET 与 tenant_admin-only 页面能力。
+
+## 2026-08-09 · A-BIZ-03.4E Tenant TEST RechargeOrder Audit
+
+- 新增独立 Pilot Tenant RechargeOrder 只读审计页与 7 项测试；只使用 Session canonical tenantId 调用真实 bounded 50 GET。
+- 严格限定 TENANT `tenant_admin`；content operator 在调用 API 前拒绝，缺 Tenant Context fail closed，不接受 URL/Project/手工 Scope 覆盖。
+- 安全展示 TEST 金额、购买/赠送额度、赠送到期、短引用、UTC 时间及退款/争议状态；不暴露敏感 ID、Provider、Rule、Attribution、Buyer 或 Wallet。
+- 显著声明 `TEST · READ ONLY · NON_QUOTE`，状态不代表真实收款、到账、可用余额或退款完成；无 POST、支付模拟、退款动作或 Mock fallback。
+- 定向 7/7、全量 40 files / 322 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS；共享 Router/Layout 与 StoryCanvas 未修改。
+- 下一 RED 为 03.4F 共享 Pilot Router/Layout 四 Scope 激活；该共享提交完成后必须通知 B 同步。

@@ -654,3 +654,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：定向 8/8 PASS；全量前端 311/315 PASS，4 个既有 5 秒 UI timeout 用例对应文件隔离复跑 13/13 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
 - 本切片没有共享文件或 StoryCanvas 改动，B 无需同步共享导航；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除，分支不 push。
 - 下一切片 03.4E：Tenant TEST RechargeOrder 只读审计。首个 RED 要求只使用当前 Session canonical `tenantId` 调用真实 GET，严格 `tenant_admin` 页面能力，无 POST、Demo 或 Mock fallback。
+
+## A-BIZ-03.4E Tenant TEST RechargeOrder Audit 完成交接（2026-08-09）
+
+- 新增独立 Pilot `PilotTenantRechargeAuditPage.tsx` 与 7 项测试；页面尚未接入共享 Router/Sidebar/Topbar，最终激活仍只在 03.4F。
+- 数据 Scope 只来自 Session canonical `activeContext.tenantId`，真实 GET bounded 50；不接受 URL、Project、文本框或客户端 Tenant 覆盖，也不读取 Demo Store/Mock/localStorage。
+- 页面级权限继续 fail closed：仅 TENANT `tenant_admin` 调用 API；`content_operator` 在请求前拒绝且保留 Session，缺 tenantId 不猜测 Organization 或 Project。
+- 安全投影包含 TEST 金额、购买/赠送额度、赠送到期、短 Order reference、UTC 时间和全部受支持状态；Tenant/完整 Order/Provider/Rule/Attribution/Buyer/Wallet 信息不进入 UI。
+- paid/refunded/disputed 均明确为 TEST 只读审计状态，不表示真实收款、到账、可用余额或退款完成；没有 POST、支付模拟、退款按钮、搜索或导出。
+- loading/empty/ready/retrying 与 401/403/404/5xx/invalid response 已冻结；Retry 清空旧投影且只访问真实 API，401 清 Session/Project Context，错误仅显示安全文案和 Request ID。
+- Gate：定向 7/7、全量前端 40/40 files 与 322/322 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
+- 未修改共享 Router/Layout、Control API 或 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除，分支不 push。
+- 下一切片 03.4F 是共享 Pilot Router/Sidebar/Topbar 激活，必须独立提交并通知 B：PLATFORM/CHANNEL 脱离 Tenant Project Boundary，TENANT 保持既有 Project Boundary，菜单/direct URL/default/returnTo 全部复用 03.4B Policy。

@@ -1018,3 +1018,16 @@
 - Gate：03.4D 定向 8/8 PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` PASS。全量单 worker为 37/39 files、311/315 tests PASS，4 个既有重型 UI 用例触发 5 秒 timeout；对应 Script Editor 8/8 与 Brand Brain 5/5 隔离复跑 PASS。
 - 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_4D_COMPLETE / READY_FOR_03_4E_RED`。下一 RED：Tenant Recharge Audit 页面必须只使用 Session 的 canonical `tenantId` 调用真实 bounded GET，`content_operator` 不得获得页面能力，且页面不得出现 Recharge POST 或 Mock fallback。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4E Tenant TEST RechargeOrder Audit 完成
+
+- 新增独立 Pilot 页面 `src/pages/pilot/PilotTenantRechargeAuditPage.tsx` 与 7 项页面测试；首个 RED 因目标页面模块不存在按预期失败，Router/Layout 接线继续保留到 03.4F。
+- 页面只使用当前 Session `activeContext.tenantId` 调用真实 `listTenantRechargeOrders(tenantId, 50)`；不接受 URL、Project 或手工 Tenant 覆盖，不读取 Demo Store、Mock 或 localStorage。
+- 页面自身也 fail closed：仅 TENANT Scope 的 `tenant_admin` 可加载；`content_operator` 在调用 API 前得到 403 语义，缺 canonical Tenant Context 得到安全 404 语义。
+- 只读安全投影显示 TEST 金额、购买/赠送额度、赠送到期、短 Order reference、UTC 时间和 created/pending/paid/partially_refunded/refunded/cancelled/disputed 状态；不暴露 Tenant ID、完整 Order ID、Provider、Rule、Attribution、Buyer 或 Wallet 字段。
+- UI 显著标记 `TEST · READ ONLY · NON_QUOTE` 与 bounded 50；明确 paid/refunded/disputed 仅为 TEST 审计状态，不代表真实收款、到账、可用余额或退款完成。
+- 页面没有 Recharge POST、支付模拟、退款动作、任意搜索或完整导出；Retry 先清空旧投影，只请求真实 API。状态覆盖 loading、empty、ready、retrying、401、403、404、network/5xx 与 invalid response。
+- 401 清 Session/Project Context；403 保留 Session；错误只显示固定安全文案与 Request ID，不渲染原始 body 或敏感 DTO；Pilot 失败绝不回退 Mock。
+- Gate：03.4E 定向 7/7 PASS；全量前端单 worker 40/40 files、322/322 tests PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4E_COMPLETE / READY_FOR_03_4F_RED`。下一 RED：PLATFORM/CHANNEL Session 必须绕过 Tenant Project Boundary 并进入各自默认商业页，同时 Pilot Sidebar/Topbar 不得显示 Project Selector。03.4F 是共享 Router/Layout 独立提交，完成后必须通知 B 同步。未收到 push 指令前不 push。
