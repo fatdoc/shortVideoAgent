@@ -205,3 +205,12 @@
 - 显著声明 `TEST · READ ONLY · NON_QUOTE`，状态不代表真实收款、到账、可用余额或退款完成；无 POST、支付模拟、退款动作或 Mock fallback。
 - 定向 7/7、全量 40 files / 322 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS；共享 Router/Layout 与 StoryCanvas 未修改。
 - 下一 RED 为 03.4F 共享 Pilot Router/Layout 四 Scope 激活；该共享提交完成后必须通知 B 同步。
+
+## 2026-08-09 · A-BIZ-03.4F Pilot Organization Commercial Workbenches
+
+- 共享 Router 改为 PLATFORM/CHANNEL/TENANT 组织级分流，并统一复用 03.4B Policy 处理默认路由、安全 returnTo、direct URL、403/404 与菜单能力。
+- PLATFORM/CHANNEL 脱离 Tenant Project Boundary，分别接入真实 Commission Audit；Platform 同时接入 `TEST Settlement Draft`。TENANT 保留 Project Context，并为 `tenant_admin` 接入 RechargeOrder 只读审计。
+- Sidebar/Topbar 按 Organization Scope 显示商业菜单、home 和工作台名称；Platform/Channel 不显示 Project Selector，Content Operator 不显示 Tenant Recharge。
+- Pilot 跨 Scope 路由使用安全 404、同 Scope 缺角色使用 403，且 Pilot 404 不提供 Demo 链接；Demo Router/Store/UI 保持不变。
+- 首个 Router RED 按预期证明旧全局 Tenant Boundary 阻断 Platform；最终定向 20/20、全量 40 files / 330 tests PASS，TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。
+- StoryCanvas 未修改；本共享 Router/Layout 切片必须独立提交并通知 B 先同步后再修改共享导航。

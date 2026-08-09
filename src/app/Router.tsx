@@ -13,9 +13,14 @@ import { pilotRuntime } from '../config/pilotRuntime';
 import { DEMO_PROJECT_ID } from '../domain/constants';
 import { authorizeDemoNavigationRoute } from '../domain/demoRouteAccess';
 import {
+  PILOT_COMMERCIAL_ROUTE_MANIFEST,
+  authorizePilotOrganizationRoute,
+  resolvePilotOrganizationDefaultRoute,
+  resolvePilotOrganizationEntryPath,
+  type PilotCommercialRouteManifestEntry,
+} from '../domain/pilotOrganizationRoutePolicy';
+import {
   TENANT_ROUTE_MANIFEST,
-  authorizeTenantWorkbenchRoute,
-  resolveTenantDefaultRoute,
   type TenantRouteManifestEntry,
 } from '../domain/unifiedTenantWorkbench';
 import { AppShell } from '../layouts/AppShell';
@@ -23,6 +28,12 @@ import { NotFoundPage } from '../pages/NotFoundPage';
 import { RouteAccessDeniedPage } from '../pages/auth/RouteAccessDeniedPage';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegistrationPage } from '../pages/auth/RegistrationPage';
+import {
+  PilotChannelCommissionAuditPage,
+  PilotPlatformCommissionAuditPage,
+} from '../pages/pilot/PilotCommissionAuditPages';
+import { PilotPlatformSettlementDraftPage } from '../pages/pilot/PilotSettlementDraftPage';
+import { PilotTenantRechargeAuditPage } from '../pages/pilot/PilotTenantRechargeAuditPage';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
 import {
@@ -411,40 +422,37 @@ function visiblePilotProjects(session: PilotSession, projects: readonly PilotPro
   return projects.map((project) => ({ projectId: project.id, tenantId }));
 }
 
-function safePilotReturnPath(
+function pilotPolicyContext(session: PilotSession, projects: readonly PilotProject[]) {
+  return {
+    organizationType: session.activeContext.organizationType,
+    tenantId: session.activeContext.tenantId,
+    roleCodes: session.activeContext.roles,
+    visibleProjects: visiblePilotProjects(session, projects),
+  };
+}
+
+function pilotEntryPath(
   candidate: unknown,
   session: PilotSession,
   projects: readonly PilotProject[],
 ): string | null {
-  if (
-    typeof candidate !== 'string' ||
-    candidate.length === 0 ||
-    candidate !== candidate.trim() ||
-    Array.from(candidate).some((character) => {
-      const code = character.charCodeAt(0);
-      return code <= 31 || code === 127;
-    })
-  ) {
-    return null;
-  }
-
-  const decision = authorizeTenantWorkbenchRoute({
-    pathname: candidate,
-    sessionTenantId: session.activeContext.tenantId,
-    roleCodes: session.roles,
-    visibleProjects: visiblePilotProjects(session, projects),
+  const decision = resolvePilotOrganizationEntryPath({
+    ...pilotPolicyContext(session, projects),
+    candidate,
   });
-  return decision.status === 'allowed' ? candidate : null;
+  return decision.status === 'allowed' ? decision.path : null;
 }
 
 function pilotDefaultPath(session: PilotSession, projects: readonly PilotProject[]): string | null {
-  const decision = resolveTenantDefaultRoute({
-    runtimeMode: 'pilot',
-    sessionTenantId: session.activeContext.tenantId,
-    roleCodes: session.roles,
-    visibleProjects: visiblePilotProjects(session, projects),
-  });
+  const decision = resolvePilotOrganizationDefaultRoute(pilotPolicyContext(session, projects));
   return decision.status === 'allowed' ? decision.path : null;
+}
+
+function waitsForPilotProjectContext(session: PilotSession | null, projectStatus: string): boolean {
+  return (
+    session?.activeContext.organizationType === 'TENANT' &&
+    (projectStatus === 'idle' || projectStatus === 'loading')
+  );
 }
 
 function PilotLoginEntry() {
@@ -463,7 +471,7 @@ function PilotLoginEntry() {
   if (
     status === 'idle' ||
     status === 'hydrating' ||
-    (session && (projectStatus === 'idle' || projectStatus === 'loading'))
+    waitsForPilotProjectContext(session, projectStatus)
   ) {
     return (
       <div className="d2-session-loading" role="status">
@@ -474,10 +482,7 @@ function PilotLoginEntry() {
   if (status === 'service_error') return <PilotServiceError />;
   if (session) {
     const returnTo = (location.state as { from?: unknown } | null)?.from;
-    const target =
-      safePilotReturnPath(returnTo, session, projects) ??
-      pilotDefaultPath(session, projects) ??
-      '/pilot';
+    const target = pilotEntryPath(returnTo, session, projects) ?? '/pilot';
     return <Navigate to={target} replace />;
   }
   return <LoginPage onRegister={() => navigate('/register')} />;
@@ -516,7 +521,7 @@ function PilotRegistrationEntry() {
   if (
     status === 'idle' ||
     status === 'hydrating' ||
-    (session && (projectStatus === 'idle' || projectStatus === 'loading'))
+    waitsForPilotProjectContext(session, projectStatus)
   ) {
     return (
       <div className="d2-session-loading" role="status">
@@ -559,37 +564,26 @@ function PilotTenantContextRequired() {
   );
 }
 
-function PilotTenantBoundary() {
-  const session = usePilotAuthStore((state) => state.session);
-  const projectStatus = usePilotProjectContextStore((state) => state.status);
-  const supportedRole =
-    session?.roles.includes('tenant_admin') || session?.roles.includes('content_operator');
-
-  if (!session) return null;
-  if (projectStatus === 'unauthorized') return <Navigate to="/login" replace />;
-  if (
-    session.activeContext.organizationType !== 'TENANT' ||
-    session.tenant === null ||
-    !session.activeContext.tenantId ||
-    !supportedRole ||
-    projectStatus === 'tenant_context_required'
-  ) {
-    return <PilotTenantContextRequired />;
-  }
-  return <Outlet />;
-}
-
 function PilotDefaultEntry() {
   const session = usePilotAuthStore((state) => state.session);
   const projectStatus = usePilotProjectContextStore((state) => state.status);
   const projects = usePilotProjectContextStore((state) => state.projects);
 
   if (!session) return null;
-  if (projectStatus === 'idle' || projectStatus === 'loading') {
+  if (waitsForPilotProjectContext(session, projectStatus)) {
     return <div role="status">正在加载真实项目范围...</div>;
   }
-  const target = pilotDefaultPath(session, projects);
-  return target ? <Navigate to={target} replace /> : <PilotTenantContextRequired />;
+
+  const decision = resolvePilotOrganizationDefaultRoute(pilotPolicyContext(session, projects));
+  if (decision.status === 'allowed') return <Navigate to={decision.path} replace />;
+  if (decision.status === 'tenant-context-required') return <PilotTenantContextRequired />;
+  return (
+    <PilotStatePage
+      testId="pilot-route-permission-denied"
+      title="无权进入当前组织工作台"
+      message="当前 Membership 缺少组织工作台所需角色。前端不会回退 Demo 或扩大可见范围。"
+    />
+  );
 }
 
 function PilotProjectServiceError() {
@@ -677,6 +671,96 @@ function PilotProjectsPage() {
   );
 }
 
+function PilotNotFoundPage() {
+  return (
+    <PilotStatePage
+      testId="pilot-route-not-found"
+      title="页面不存在"
+      message="该路由未在当前组织 Scope 注册，或不属于当前 Membership。系统不会披露其他组织页面，也不会回退 Demo。"
+    />
+  );
+}
+
+function PilotRouteDenied({ label }: { label: string }) {
+  return (
+    <PilotStatePage
+      testId="pilot-route-permission-denied"
+      title={`无权访问${label}`}
+      message="当前 Role 不具备该 Manifest 路由的能力。隐藏菜单不会替代服务端授权。"
+    />
+  );
+}
+
+function PilotProjectsRoute() {
+  const location = useLocation();
+  const session = usePilotAuthStore((state) => state.session);
+  const projectStatus = usePilotProjectContextStore((state) => state.status);
+  const projects = usePilotProjectContextStore((state) => state.projects);
+
+  if (!session) return null;
+  const decision = authorizePilotOrganizationRoute({
+    ...pilotPolicyContext(session, projects),
+    pathname: `${location.pathname}${location.search}${location.hash}`,
+  });
+  if (decision.status === 'scope-not-found' || decision.status === 'unregistered') {
+    return <PilotNotFoundPage />;
+  }
+  if (decision.status === 'permission-denied') return <PilotRouteDenied label="项目" />;
+  if (decision.status === 'tenant-context-required') return <PilotTenantContextRequired />;
+  if (projectStatus === 'unauthorized') return <Navigate to="/login" replace />;
+  if (projectStatus === 'tenant_context_required') return <PilotTenantContextRequired />;
+  return <PilotProjectsPage />;
+}
+
+function PilotCommercialRoute({
+  route,
+  children,
+}: {
+  route: PilotCommercialRouteManifestEntry;
+  children: ReactNode;
+}) {
+  const location = useLocation();
+  const session = usePilotAuthStore((state) => state.session);
+  const projectStatus = usePilotProjectContextStore((state) => state.status);
+  const projects = usePilotProjectContextStore((state) => state.projects);
+
+  if (!session) return null;
+  const decision = authorizePilotOrganizationRoute({
+    ...pilotPolicyContext(session, projects),
+    pathname: `${location.pathname}${location.search}${location.hash}`,
+  });
+  if (decision.status === 'scope-not-found' || decision.status === 'unregistered') {
+    return <PilotNotFoundPage />;
+  }
+  if (decision.status === 'permission-denied') return <PilotRouteDenied label={route.label} />;
+  if (decision.status === 'tenant-context-required') return <PilotTenantContextRequired />;
+  if (decision.status !== 'allowed' || decision.routeKind !== 'commercial') {
+    return <PilotNotFoundPage />;
+  }
+
+  if (route.requiresProjectContext) {
+    if (projectStatus === 'unauthorized') return <Navigate to="/login" replace />;
+    if (projectStatus === 'idle' || projectStatus === 'loading') {
+      return <div role="status">正在加载真实项目范围...</div>;
+    }
+    if (projectStatus === 'service_error') return <PilotProjectServiceError />;
+    if (projectStatus === 'tenant_context_required') return <PilotTenantContextRequired />;
+    if (projectStatus === 'forbidden') return <PilotRouteDenied label={route.label} />;
+  }
+
+  return children;
+}
+
+function pilotCommercialPage(route: PilotCommercialRouteManifestEntry): ReactNode {
+  if (route.key === 'platform-commission-audit') return <PilotPlatformCommissionAuditPage />;
+  if (route.key === 'platform-commission-settlements') {
+    return <PilotPlatformSettlementDraftPage />;
+  }
+  if (route.key === 'channel-commission-audit') return <PilotChannelCommissionAuditPage />;
+  if (route.key === 'tenant-recharge-orders') return <PilotTenantRechargeAuditPage />;
+  return <PilotNotFoundPage />;
+}
+
 function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   const location = useLocation();
   const session = usePilotAuthStore((state) => state.session);
@@ -684,6 +768,17 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   const projects = usePilotProjectContextStore((state) => state.projects);
 
   if (!session) return null;
+  const decision = authorizePilotOrganizationRoute({
+    ...pilotPolicyContext(session, projects),
+    pathname: `${location.pathname}${location.search}${location.hash}`,
+  });
+  if (decision.status === 'scope-not-found' || decision.status === 'unregistered') {
+    return <PilotNotFoundPage />;
+  }
+  if (decision.status === 'permission-denied') return <PilotRouteDenied label={route.label} />;
+  if (decision.status === 'tenant-context-required') return <PilotTenantContextRequired />;
+  if (projectStatus === 'unauthorized') return <Navigate to="/login" replace />;
+  if (projectStatus === 'tenant_context_required') return <PilotTenantContextRequired />;
   if (projectStatus === 'idle' || projectStatus === 'loading') {
     return <div role="status">正在加载真实项目范围...</div>;
   }
@@ -697,15 +792,6 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
       />
     );
   }
-
-  const decision = authorizeTenantWorkbenchRoute({
-    pathname: `${location.pathname}${location.search}${location.hash}`,
-    sessionTenantId: session.activeContext.tenantId,
-    roleCodes: session.roles,
-    visibleProjects: visiblePilotProjects(session, projects),
-  });
-
-  if (decision.status === 'tenant-context-required') return <PilotTenantContextRequired />;
   if (decision.status === 'project-not-found') {
     return (
       <PilotStatePage
@@ -715,16 +801,9 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
       />
     );
   }
-  if (decision.status === 'permission-denied') {
-    return (
-      <PilotStatePage
-        testId="pilot-route-permission-denied"
-        title={`无权访问${route.label}`}
-        message="当前 Role 不具备该 Manifest 路由的能力。隐藏菜单不会替代服务端授权。"
-      />
-    );
+  if (decision.status !== 'allowed' || decision.routeKind !== 'tenant') {
+    return <PilotNotFoundPage />;
   }
-  if (decision.status === 'unregistered') return <NotFoundPage />;
 
   const projectCopy = decision.projectId ? `Project ${decision.projectId} · ` : '';
   if (route.pilotReadiness === 'handoff-required') {
@@ -765,20 +844,29 @@ function PilotRouter() {
         <Route path="/login" element={<PilotLoginEntry />} />
         <Route path="/register" element={<PilotRegistrationEntry />} />
         <Route element={<PilotRequireSession />}>
-          <Route element={<PilotTenantBoundary />}>
-            <Route element={<AppShell />}>
-              <Route index element={<PilotDefaultEntry />} />
-              <Route path="/pilot" element={<PilotDefaultEntry />} />
-              <Route path="/projects" element={<PilotProjectsPage />} />
-              {manifestRoutes.map((route) => (
-                <Route
-                  key={route.key}
-                  path={route.pattern}
-                  element={<PilotManifestRoute route={route} />}
-                />
-              ))}
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
+          <Route element={<AppShell />}>
+            <Route index element={<PilotDefaultEntry />} />
+            <Route path="/pilot" element={<PilotDefaultEntry />} />
+            <Route path="/projects" element={<PilotProjectsRoute />} />
+            {manifestRoutes.map((route) => (
+              <Route
+                key={route.key}
+                path={route.pattern}
+                element={<PilotManifestRoute route={route} />}
+              />
+            ))}
+            {PILOT_COMMERCIAL_ROUTE_MANIFEST.map((route) => (
+              <Route
+                key={route.key}
+                path={route.path}
+                element={
+                  <PilotCommercialRoute route={route}>
+                    {pilotCommercialPage(route)}
+                  </PilotCommercialRoute>
+                }
+              />
+            ))}
+            <Route path="*" element={<PilotNotFoundPage />} />
           </Route>
         </Route>
       </Routes>

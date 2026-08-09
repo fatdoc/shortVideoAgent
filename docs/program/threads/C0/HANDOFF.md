@@ -666,3 +666,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：定向 7/7、全量前端 40/40 files 与 322/322 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
 - 未修改共享 Router/Layout、Control API 或 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除，分支不 push。
 - 下一切片 03.4F 是共享 Pilot Router/Sidebar/Topbar 激活，必须独立提交并通知 B：PLATFORM/CHANNEL 脱离 Tenant Project Boundary，TENANT 保持既有 Project Boundary，菜单/direct URL/default/returnTo 全部复用 03.4B Policy。
+
+## A-BIZ-03.4F 组织商业工作台激活完成交接（2026-08-09）
+
+- 共享 `src/app/Router.tsx` 已从全局 Tenant Boundary 改为组织级分流：PLATFORM/CHANNEL 直接进入真实商业 Shell，TENANT 继续保留 Project Context、Project Selector 与既有 Tenant Manifest。
+- 默认路由冻结为 PLATFORM `/platform/commission-audit`、CHANNEL `/channel/commission-audit`、TENANT 首个可见 Project/空列表 `/projects`；登录 returnTo 只接受 03.4B Policy 授权的当前 Scope 站内路径。
+- Platform 菜单为佣金审计、`TEST 结算草稿`；Channel 菜单为佣金审计；Tenant Admin 增加 `TEST 充值记录`，Content Operator 不显示该菜单且 direct URL 返回 403。
+- 跨 Scope 已注册商业或 Tenant 路由返回 Pilot 安全 404；同 Scope 缺角色返回 403。Pilot 404 不展示 Demo 链接，Pilot 页面/API 失败不回退 Demo、Mock 或 localStorage。
+- Platform/Channel Topbar 不读取 Project Selector 作为进入条件；TENANT 保留 Selector。商业页面 title/home/workbench label 已按 Organization Scope 接通。
+- Router 定向 20/20、全量前端 40 files / 330 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。StoryCanvas tracked diff 为零，未跟踪 vendor 文件继续排除，不 push。
+- **B 同步要求**：本切片独立提交修改共享 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx`。B 后续修改共享导航前必须先同步该提交，避免重新引入全局 Tenant Boundary 或重复维护商业权限判断。
+- 下一步只做 A-BIZ-03.4 文档收口；不实现 LIVE、真实佣金比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。

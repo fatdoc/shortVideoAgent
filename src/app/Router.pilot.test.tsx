@@ -25,6 +25,27 @@ vi.mock('../pages/auth/RegistrationPage', () => ({
   ),
 }));
 
+vi.mock('../pages/pilot/PilotCommissionAuditPages', () => ({
+  PilotPlatformCommissionAuditPage: () => (
+    <div data-testid="pilot-platform-commission-audit">平台佣金审计空列表</div>
+  ),
+  PilotChannelCommissionAuditPage: () => (
+    <div data-testid="pilot-channel-commission-audit">渠道佣金审计空列表</div>
+  ),
+}));
+
+vi.mock('../pages/pilot/PilotSettlementDraftPage', () => ({
+  PilotPlatformSettlementDraftPage: () => (
+    <div data-testid="pilot-platform-settlement-draft">TEST 结算草稿</div>
+  ),
+}));
+
+vi.mock('../pages/pilot/PilotTenantRechargeAuditPage', () => ({
+  PilotTenantRechargeAuditPage: () => (
+    <div data-testid="pilot-tenant-recharge-audit">Tenant TEST 充值记录</div>
+  ),
+}));
+
 import App from './App';
 import type { PilotProject, PilotSession } from '../services/pilotControlApi';
 import { usePilotAuthStore } from '../stores/pilotAuthStore';
@@ -94,6 +115,40 @@ function setTenantContext(role: 'tenant_admin' | 'content_operator' = 'content_o
       sessionMembershipId: 'membership-1',
       roleCodes: [role],
     },
+    error: null,
+    requestId: null,
+  });
+}
+
+function setOrganizationContext(
+  organizationType: 'PLATFORM' | 'CHANNEL',
+  role: 'platform_admin' | 'channel_admin' | 'pilot_support',
+) {
+  const session: PilotSession = {
+    ...tenantSession,
+    tenant: null,
+    roles: [role],
+    activeContext: {
+      ...tenantSession.activeContext,
+      organizationId: organizationType === 'PLATFORM' ? 'platform-1' : 'organization-channel-1',
+      organizationType,
+      organizationDisplayName: organizationType === 'PLATFORM' ? '试点平台' : '试点渠道',
+      primaryRole: role,
+      roles: [role],
+      tenantId: null,
+    },
+  };
+  usePilotAuthStore.setState({
+    status: 'authenticated',
+    session,
+    error: null,
+    requestId: null,
+  });
+  usePilotProjectContextStore.setState({
+    status: 'tenant_context_required',
+    projects: [],
+    activeProjectId: null,
+    context: null,
     error: null,
     requestId: null,
   });
@@ -212,41 +267,111 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     expect(screen.queryByText(/demo-local-001/)).not.toBeInTheDocument();
   });
 
-  it('fails closed for a non-Tenant Pilot session without entering a Demo workbench', async () => {
-    const platformSession: PilotSession = {
-      ...tenantSession,
-      tenant: null,
-      roles: ['platform_admin'],
-      activeContext: {
-        ...tenantSession.activeContext,
-        organizationId: 'platform-1',
-        organizationType: 'PLATFORM',
-        organizationDisplayName: '试点平台',
-        primaryRole: 'platform_admin',
-        roles: ['platform_admin'],
-        tenantId: null,
-      },
-    };
-    usePilotAuthStore.setState({
-      status: 'authenticated',
-      session: platformSession,
-      error: null,
-      requestId: null,
-    });
-    usePilotProjectContextStore.setState({
-      status: 'tenant_context_required',
-      projects: [],
-      activeProjectId: null,
-      context: null,
-      error: null,
-      requestId: null,
-    });
+  it('routes a Platform session into the commercial shell without Tenant Project Context', async () => {
+    setOrganizationContext('PLATFORM', 'platform_admin');
     render(<App />);
 
-    expect(await screen.findByTestId('pilot-tenant-context-required')).toHaveTextContent(
-      '需要 Tenant 上下文',
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/platform/commission-audit');
+    });
+    expect(screen.getByTestId('pilot-platform-commission-audit')).toBeInTheDocument();
+    expect(screen.getByTestId('pilot-app-shell')).toBeInTheDocument();
+    expect(screen.queryByTestId('pilot-tenant-context-required')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /佣金审计/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /TEST 结算草稿/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /项目/ })).not.toBeInTheDocument();
+  });
+
+  it('routes a Channel session into its audit shell without a Project selector', async () => {
+    setOrganizationContext('CHANNEL', 'channel_admin');
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/channel/commission-audit');
+    });
+    expect(screen.getByTestId('pilot-channel-commission-audit')).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /佣金审计/ })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /TEST 结算草稿/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /项目/ })).not.toBeInTheDocument();
+  });
+
+  it('adds Tenant Recharge audit only for tenant administrators', async () => {
+    setTenantContext('tenant_admin');
+    window.history.replaceState({}, '', '/enterprise/recharge-orders');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-tenant-recharge-audit')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '当前 Pilot 项目' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /TEST 充值记录/ })).toBeInTheDocument();
+  });
+
+  it('returns 403 semantics before loading Tenant Recharge for a content operator', async () => {
+    setTenantContext('content_operator');
+    window.history.replaceState({}, '', '/enterprise/recharge-orders');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-route-permission-denied')).toHaveTextContent(
+      '无权访问TEST 充值记录',
     );
-    expect(screen.queryByTestId('pilot-app-shell')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pilot-tenant-recharge-audit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /TEST 充值记录/ })).not.toBeInTheDocument();
+  });
+
+  it('returns 404 semantics for a registered route outside the active organization Scope', async () => {
+    setOrganizationContext('PLATFORM', 'platform_admin');
+    window.history.replaceState({}, '', '/channel/commission-audit');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-route-not-found')).toHaveTextContent('页面不存在');
+    expect(screen.queryByTestId('pilot-channel-commission-audit')).not.toBeInTheDocument();
+    expect(screen.queryByText('进入 Demo 脚本')).not.toBeInTheDocument();
+  });
+
+  it('returns 403 semantics for a same-Scope Platform session without the required role', async () => {
+    setOrganizationContext('PLATFORM', 'pilot_support');
+    window.history.replaceState({}, '', '/platform/commission-audit');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-route-permission-denied')).toHaveTextContent(
+      '无权访问佣金审计',
+    );
+    expect(screen.queryByTestId('pilot-platform-commission-audit')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /佣金审计/ })).not.toBeInTheDocument();
+  });
+
+  it('restores an authorized Platform commercial returnTo without waiting for Project Context', async () => {
+    setOrganizationContext('PLATFORM', 'platform_admin');
+    window.history.replaceState(
+      { usr: { from: '/platform/commission-settlements?period=2026-07' }, key: 'pilot-login' },
+      '',
+      '/login',
+    );
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/platform/commission-settlements');
+      expect(window.location.search).toBe('?period=2026-07');
+    });
+    expect(screen.getByTestId('pilot-platform-settlement-draft')).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+  });
+
+  it('rejects a cross-Scope Platform returnTo and falls back to the Platform default', async () => {
+    setOrganizationContext('PLATFORM', 'platform_admin');
+    window.history.replaceState(
+      { usr: { from: '/channel/commission-audit' }, key: 'pilot-login' },
+      '',
+      '/login',
+    );
+    render(<App />);
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/platform/commission-audit');
+    });
+    expect(screen.getByTestId('pilot-platform-commission-audit')).toBeInTheDocument();
+    expect(screen.queryByTestId('pilot-channel-commission-audit')).not.toBeInTheDocument();
   });
 
   it('hides an unassigned direct Project URL as not found', async () => {
@@ -298,6 +423,38 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     );
     expect(screen.getByTestId('pilot-app-shell')).toBeInTheDocument();
     expect(usePilotAuthStore.getState().session).toEqual(tenantSession);
+  });
+
+  it('keeps a direct Project route service failure as a retryable service error', async () => {
+    usePilotAuthStore.setState({
+      status: 'authenticated',
+      session: {
+        ...tenantSession,
+        roles: ['tenant_admin'],
+        activeContext: {
+          ...tenantSession.activeContext,
+          primaryRole: 'tenant_admin',
+          roles: ['tenant_admin'],
+        },
+      },
+      error: null,
+      requestId: null,
+    });
+    usePilotProjectContextStore.setState({
+      status: 'service_error',
+      projects: [],
+      activeProjectId: null,
+      context: null,
+      error: '项目服务不可用',
+      requestId: 'req-project-route-500',
+    });
+    window.history.replaceState({}, '', '/projects/project-alpha/brand');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-project-service-error')).toHaveTextContent(
+      '项目服务不可用 请求 ID：req-project-route-500',
+    );
+    expect(screen.queryByTestId('pilot-project-not-found')).not.toBeInTheDocument();
   });
 
   it('rejects an unsafe login return target and falls back to the server-visible Project', async () => {

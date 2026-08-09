@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A～03.4C `COMPLETE`
-- 当前任务：A-BIZ-03.4C Platform/Channel Commission Audit 真实只读页面已完成；下一步 03.4D test-first 实现 Platform TEST Settlement Draft 安全操作页，不提前修改共享 Router/Sidebar/Topbar
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A～03.4F `COMPLETE`
+- 当前任务：A-BIZ-03.4F 共享 Pilot Router/Sidebar/Topbar 已完成组织级商业工作台激活；下一步独立收口 A-BIZ-03.4 文档，不扩展 LIVE、支付、提现或未规划审批能力
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1031,3 +1031,14 @@
 - Gate：03.4E 定向 7/7 PASS；全量前端单 worker 40/40 files、322/322 tests PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
 - 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_4E_COMPLETE / READY_FOR_03_4F_RED`。下一 RED：PLATFORM/CHANNEL Session 必须绕过 Tenant Project Boundary 并进入各自默认商业页，同时 Pilot Sidebar/Topbar 不得显示 Project Selector。03.4F 是共享 Router/Layout 独立提交，完成后必须通知 B 同步。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4F 组织商业工作台激活完成
+
+- 首个 RED 证明 PLATFORM Session 仍被旧 `PilotTenantBoundary` 阻断；Green 后 PLATFORM/CHANNEL 不再等待或进入 Tenant Project Boundary，分别默认进入 `/platform/commission-audit` 与 `/channel/commission-audit`。
+- 共享 Router 现在统一复用 03.4B Organization Policy 处理默认路由、安全 returnTo、菜单/direct URL 和 Scope/Role 授权；跨 Scope 已注册路由返回安全 404，同 Scope 缺角色返回 403，不回退 Demo/Mock。
+- Platform 菜单接入佣金审计与 `TEST 结算草稿`，Channel 菜单只接入佣金审计；Tenant Admin 增加 `TEST 充值记录`，Content Operator 菜单隐藏且 direct URL 在页面加载前拒绝。
+- Platform/Channel Topbar 不显示 Project Selector，并使用各自商业工作台 home/label；TENANT 保留现有 Project Selector、Project 默认路由、空列表和 Project Scope 服务错误/Request ID 语义。
+- Pilot 404 使用独立安全状态，不展示 Demo 导航；真实商业页面继续保留 loading/empty/retry、401/403/404/5xx、Request ID、敏感信息最小投影和 TEST-only 声明。
+- Gate：03.4F Router 定向 20/20 PASS；全量前端 40/40 files、330/330 tests PASS；TypeScript、定向 ESLint、Build、Prettier、Governance、`git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- Demo Router/Store/UI 保持不变；StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；不 push。
+- 当前状态：`A_BIZ_03_4F_COMPLETE / A_BIZ_03_4_COMPLETE / READY_FOR_03_4_DOCS_CLOSE`。共享 Router/Layout 提交完成后，B 修改 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 前必须先同步。

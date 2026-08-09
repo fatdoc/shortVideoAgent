@@ -16,6 +16,10 @@ const { Header } = Layout;
 
 function pageTitle(pathname: string) {
   if (pathname === '/projects') return '项目';
+  if (pathname === '/platform/commission-audit') return '平台佣金审计';
+  if (pathname === '/platform/commission-settlements') return 'TEST 结算草稿';
+  if (pathname === '/channel/commission-audit') return '渠道佣金审计';
+  if (pathname === '/enterprise/recharge-orders') return 'TEST 充值记录';
   if (pathname === '/platform/overview') return '平台概览';
   if (pathname === '/platform/catalog') return '产品与演示 RateCard';
   if (pathname === '/platform/organizations') return '渠道与企业组织';
@@ -166,24 +170,40 @@ function PilotTopbar() {
   const activeProjectId = usePilotProjectContextStore((state) => state.activeProjectId);
   const projectStatus = usePilotProjectContextStore((state) => state.status);
   const title = pageTitle(location.pathname);
+  const organizationType = session?.activeContext.organizationType;
+  const tenantWorkbench = organizationType === 'TENANT';
+  const home =
+    organizationType === 'PLATFORM'
+      ? '/platform/commission-audit'
+      : organizationType === 'CHANNEL'
+        ? '/channel/commission-audit'
+        : '/pilot';
+  const workbenchLabel =
+    organizationType === 'PLATFORM'
+      ? '平台商业审计'
+      : organizationType === 'CHANNEL'
+        ? '渠道商业审计'
+        : '统一创作工作台';
 
   return (
-    <HeaderFrame home="/pilot" workbenchLabel="统一创作工作台" title={title}>
-      <Select
-        aria-label="当前 Pilot 项目"
-        size="small"
-        value={activeProjectId ?? undefined}
-        placeholder="未选择项目"
-        loading={projectStatus === 'loading'}
-        disabled={projects.length === 0 || projectStatus === 'loading'}
-        popupMatchSelectWidth={260}
-        options={projects.map((project) => ({ value: project.id, label: project.name }))}
-        onChange={(projectId) => {
-          void selectProject(projectId).then((result) => {
-            if (result?.status === 'ready') navigate(ROUTES.brand(projectId));
-          });
-        }}
-      />
+    <HeaderFrame home={home} workbenchLabel={workbenchLabel} title={title}>
+      {tenantWorkbench ? (
+        <Select
+          aria-label="当前 Pilot 项目"
+          size="small"
+          value={activeProjectId ?? undefined}
+          placeholder="未选择项目"
+          loading={projectStatus === 'loading'}
+          disabled={projects.length === 0 || projectStatus === 'loading'}
+          popupMatchSelectWidth={260}
+          options={projects.map((project) => ({ value: project.id, label: project.name }))}
+          onChange={(projectId) => {
+            void selectProject(projectId).then((result) => {
+              if (result?.status === 'ready') navigate(ROUTES.brand(projectId));
+            });
+          }}
+        />
+      ) : null}
       <Tag icon={<UserOutlined />} color="cyan">
         {session?.user.displayName ?? '未登录'} · {session?.activeContext.primaryRole ?? '无角色'}
       </Tag>
