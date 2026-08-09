@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A `COMPLETE`
-- 当前任务：A-BIZ-03.4A canonical Channel Reference/Directory 与 Strict Client 已完成；下一步 03.4B 先 test-first 实现纯 Organization Commercial Route Policy，不提前接共享 Router/Layout 或业务页面
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A～03.4B `COMPLETE`
+- 当前任务：A-BIZ-03.4B 纯 Organization Commercial Route Policy 已完成；下一步 03.4C test-first 实现 Platform/Channel Commission Audit 真实只读页面，不提前修改共享 Router/Sidebar/Topbar
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -980,3 +980,15 @@
 - 验证：Channel 定向 17 PASS / 3 PostgreSQL SKIP，App + Router 22 PASS，Control API 全量 31 files / 219 PASS / 165 PostgreSQL SKIP，typecheck/build PASS；前端 Client 16/16 PASS，build PASS。并发根测试的 3 个既有重型 UI 用例曾触发 5 秒资源超时，失败文件单独复跑 19/19 PASS；最终 Gate 使用单 worker。
 - StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。未实现 UI、LIVE、真实比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
 - 当前状态：`A_BIZ_03_4A_COMPLETE / READY_FOR_03_4B_RED`；下一 RED 为纯 Route Policy：PLATFORM Session 默认路由必须是 `/platform/commission-audit`，且不得进入 Tenant Project Boundary。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4B Pilot Organization Commercial Route Policy 完成
+
+- 新增 `src/domain/pilotOrganizationRoutePolicy.ts` 与 15 项权限测试；首个 RED 因目标 Policy 模块不存在按预期失败，随后最小实现转绿。
+- 冻结四条商业路由 Manifest：Platform Commission Audit、Platform TEST Settlement Draft、Channel Commission Audit、Tenant TEST RechargeOrder Audit；Manifest 统一提供 Scope、Role、Capability、菜单与 Project Context 事实。
+- 默认路由：PLATFORM `platform_admin` → `/platform/commission-audit`，CHANNEL `channel_admin` → `/channel/commission-audit`，均明确不需要 Tenant Project Context；TENANT 继续复用现有稳定首个可见 Project Brand，无 Project 时进入 `/projects`。
+- 越权语义：跨 Organization 或探测其他 Scope 的已注册路由为 `scope-not-found`（03.4F 映射 404）；同 Scope 缺所需角色为 `permission-denied`（映射 403）；`pilot_support` 不自动继承商业权限。
+- Tenant `/enterprise/recharge-orders` 仅 `tenant_admin`；`content_operator` 菜单为空且直接 URL 为 permission denied。Tenant Project 路由继续委托既有 `authorizeTenantWorkbenchRoute`，不创建 Demo Project fallback。
+- 安全 returnTo 只保留当前 Session Policy 允许的站内路径；外部 URL、协议相对 URL、未知、控制字符、反斜杠与跨 Scope 候选统一回当前 Scope 安全默认路由，缺角色时不得借 fallback 获权。
+- 全量前端单 worker：37 files 中 36 PASS，295/296 tests PASS；唯一失败为既有 `app.smoke` 重型 UI 用例超过 5 秒，对应文件随后 11/11 PASS。03.4B 定向 15/15、TypeScript、ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS。
+- 本切片只新增纯 Domain Policy 与测试；未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、业务页面、Control API 或 StoryCanvas。B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4B_COMPLETE / READY_FOR_03_4C_RED`。下一 RED：Platform Commission Audit 页面必须只调用真实 `pilotControlApi` 并先呈现 loading/empty 状态，不得读取 Demo `useControlPlaneStore`。未收到 push 指令前不 push。

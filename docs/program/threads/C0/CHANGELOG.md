@@ -106,6 +106,7 @@
 | 2026-08-08 | A-BIZ-03.3E 完成 TEST Settlement Draft、Migration 018 Reversal Item validator 修复、幂等/并发/跨月净额与共享 HTTP Bootstrap；Control API 54 files / 363 tests 全 Gate 通过                                                                                | A_BIZ_03_3_COMPLETE                     |
 | 2026-08-08 | 冻结 A-BIZ-03.4 商业前端与审计：先补 canonical Channel Reference/active Directory，再按 Organization 分流 Pilot，交付真实 Commission Audit、TEST Settlement Draft 与 Tenant Recharge 只读审计；Demo/Pilot 严格隔离                                        | A_BIZ_03_4_PLAN_FROZEN                  |
 | 2026-08-09 | A-BIZ-03.4A 完成 canonical Channel Reference、Platform active Channel Directory、共享 Bootstrap 与严格 Pilot 商业 API Client；TEST-only、真实 Cookie/no-store、Request ID 与 fail-closed 解析边界已落地，未接 UI/Router/Layout                            | A_BIZ_03_4A_COMPLETE                    |
+| 2026-08-09 | A-BIZ-03.4B 完成纯 Organization Commercial Route Policy：四路 Manifest、PLATFORM/CHANNEL/TENANT 默认路由、跨 Scope 404 语义、同 Scope 403、Tenant Recharge 角色限制与安全 returnTo；未修改共享 Router/Layout                                              | A_BIZ_03_4B_COMPLETE                    |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -167,3 +168,12 @@
 - 冻结真实 Cookie、`no-store`、401/403/404/409/422/5xx、Request ID、严格 runtime parser、TEST-only 与敏感字段最小投影；LIVE 或 malformed response fail closed，绝不回退 Demo/Mock/localStorage。
 - Control API 定向/全量、typecheck/build 与前端 Client/build Gate 通过；默认无 dedicated test DB 时 PostgreSQL suites SKIP。StoryCanvas 未修改，B 的未跟踪 vendor 文件未纳入。
 - 下一 RED 为 03.4B 纯 Route Policy：PLATFORM 默认 `/platform/commission-audit` 且不得进入 Tenant Project Boundary；共享 Router/Layout 仍留待 03.4F。
+
+## 2026-08-09 · A-BIZ-03.4B Pilot Organization Commercial Route Policy
+
+- 新增纯 Domain Policy 与 15 项测试，冻结四条商业路由 Manifest、Scope/Role/Capability、菜单和 Project Context。
+- PLATFORM/CHANNEL 默认进入各自 Commission Audit 且不依赖 Tenant Project；TENANT 保留现有首个可见 Project/空 Project 列表策略。
+- 跨 Organization route probe 为 not-found 语义，同 Scope 缺角色为 permission denied；`pilot_support` 不继承权限，Tenant Recharge 仅 `tenant_admin`。
+- returnTo 只保留当前 Policy 允许的站内路径；外部、未知、跨 Scope 与 malformed 候选回安全默认路由，缺角色不通过 fallback 获权。
+- 未修改 Router/Sidebar/Topbar、页面、Control API 或 StoryCanvas；全量唯一 5 秒 UI timeout 的文件定向 11/11 PASS，其余工程 Gate 全 PASS。
+- 下一 RED：03.4C Platform Commission Audit 页面只调用真实 `pilotControlApi` 并覆盖 loading/empty，不读取 Demo Store。

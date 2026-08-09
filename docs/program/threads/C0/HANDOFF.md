@@ -617,3 +617,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证证据：Control API 定向与全量、typecheck/build、前端 Client 16/16 与 build 均 PASS；PostgreSQL suites 在未注入 dedicated test DB 的默认环境中 SKIP。根并发测试曾有 3 个既有重型 UI 用例因 5 秒资源超时，失败文件单独复跑全部 PASS；最终收口改用 `npm test -- --maxWorkers=1`。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持排除。分支未 push。
 - 下一切片只做 03.4B 纯 Organization Commercial Route Policy；首个 RED：PLATFORM Session 默认路由为 `/platform/commission-audit`，且 Policy 必须拒绝其进入 Tenant Project Boundary。共享 Router/Sidebar/Topbar 激活仍保留到 03.4F 独立提交并通知 B。
+
+## A-BIZ-03.4B Pilot Organization Commercial Route Policy 完成交接（2026-08-09）
+
+- 新增纯 Domain `pilotOrganizationRoutePolicy.ts`，冻结四条商业路由的 Organization Scope、角色、Capability、菜单顺序与 Project Context；对应测试 15/15 PASS。
+- 默认路由：PLATFORM 管理员进入 `/platform/commission-audit`，CHANNEL 管理员进入 `/channel/commission-audit`，两者不读取 Tenant Project Context；TENANT 继续委托现有 Pilot Project 默认策略。
+- direct URL：跨 Scope 已注册路由返回 `scope-not-found`，同 Scope 缺角色返回 `permission-denied`；Tenant Recharge 只允许 `tenant_admin`，`content_operator` 为 403 语义；`pilot_support` 没有隐式权限。
+- returnTo 由同一 Policy 授权；只接受当前 Scope 允许的站内路径。外部、未知、跨 Scope、空白/控制字符、双斜杠或反斜杠候选回安全默认路由，不能通过 fallback 放大权限。
+- Tenant Project Route 继续复用 `authorizeTenantWorkbenchRoute` 与 `resolveTenantDefaultRoute`，保持 Project not-found、Role denial 和无 Demo fallback 的既有合同。
+- 本切片没有接入共享 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`，也没有修改页面或 Bootstrap；因此 B 本切片无需同步共享文件。共享激活仍只允许在 03.4F 独立提交并再次通知 B。
+- Gate：全量前端 295/296 PASS，唯一既有重型 UI 用例触发 5 秒 timeout；对应 `app.smoke` 文件定向复跑 11/11 PASS。Policy 15/15、TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持排除；分支不 push。
+- 下一切片为 03.4C Platform/Channel Commission Audit 真实只读页。首个 RED 要求 Platform 页面仅使用真实 `pilotControlApi`，覆盖 loading/empty，并证明不会读取 Demo `useControlPlaneStore`；Router 激活继续延后到 03.4F。
