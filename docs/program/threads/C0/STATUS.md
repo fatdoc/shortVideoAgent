@@ -1,9 +1,9 @@
 # C0 STATUS
 
 - 岗位：总项目负责人 / 总架构师
-- 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A～03.4F `COMPLETE`
-- 当前任务：A-BIZ-03.4F 共享 Pilot Router/Sidebar/Topbar 已完成组织级商业工作台激活；下一步独立收口 A-BIZ-03.4 文档，不扩展 LIVE、支付、提现或未规划审批能力
+- 当前阶段：A 业务平台 Wave 3 · 充值、支付事件、佣金账与商业审计
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.4 `COMPLETE`
+- 当前任务：A-BIZ-03.4 商业前端与审计已完整收口；下一步只规划 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate，不直接扩展 LIVE、支付、提现或未规划审批能力
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1042,3 +1042,15 @@
 - Gate：03.4F Router 定向 20/20 PASS；全量前端 40/40 files、330/330 tests PASS；TypeScript、定向 ESLint、Build、Prettier、Governance、`git diff --check` 全 PASS，仅保留既有大 chunk warning。
 - Demo Router/Store/UI 保持不变；StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；不 push。
 - 当前状态：`A_BIZ_03_4F_COMPLETE / A_BIZ_03_4_COMPLETE / READY_FOR_03_4_DOCS_CLOSE`。共享 Router/Layout 提交完成后，B 修改 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 前必须先同步。
+
+## 2026-08-09 A-BIZ-03.4 商业前端与审计完整收口
+
+- 03.4A～03.4F 已按独立原子提交完成：Channel Reference/Directory 与严格 Client、Organization Route Policy、Platform/Channel Commission Audit、Platform TEST Settlement Draft、Tenant Recharge Audit、共享 Pilot Router/Layout 激活。
+- 最终实现基线为 `b80e9ef feat(pilot): activate organization commercial workbenches`；PLATFORM 默认进入 `/platform/commission-audit`，CHANNEL 默认进入 `/channel/commission-audit`，TENANT 保留首个可见 Project/空列表 `/projects`。
+- Pilot 商业 API 只使用真实 Session Cookie 与 `no-store`，严格保留 401/403/404/409/422/5xx、业务 code 和 Request ID；malformed/non-JSON success fail closed，失败不回退 Demo、Mock 或 localStorage。
+- Platform/Channel/Tenant 菜单、默认路由、returnTo 与 direct URL 统一复用 Organization Policy；跨 Scope 为安全 404，同 Scope 缺角色为 403，Content Operator 不获得 Tenant Recharge 能力。
+- Commission/Recharge 页面只显示 bounded TEST 安全投影；Settlement 只允许 `TEST / draft / NON_QUOTE`，不表达到账、提现、paid 或自动打款。
+- 最终 Gate：Router 定向 20/20、前端全量 40/40 files 与 330/330 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
+- 共享同步点：Control API Bootstrap 为 `856757b`；Router/Sidebar/Topbar 为 `b80e9ef`。B 修改对应共享文件前必须先同步。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除；分支不 push。
+- 当前状态：`A_BIZ_03_4_COMPLETE / READY_FOR_A_BIZ_06_PLANNING`。下一步先冻结 Wave 4 运营收口、联合 E2E、迁移/回滚、README 与 A/B 联合 Gate，不直接写实现。

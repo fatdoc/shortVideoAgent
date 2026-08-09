@@ -3,9 +3,10 @@
 - 日期：2026-08-08
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_03_4A_RED`
+- 状态：`COMPLETE / COMMITTED / GATE_PASS`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_BIZ_03_3_COMMISSION_REVERSAL_SETTLEMENT_PLAN.md`
 - 前置提交：`33b46ed docs(business-plane): close test settlement drafts`
+- 实现提交：`461f494`、`856757b`、`671fe3e`、`f31a0c9`、`65e89a5`、`7ddc52d`、`fc5f5a7`、`b80e9ef`
 
 ## 1. 本节点目标
 
@@ -533,4 +534,20 @@ A-BIZ-03.4 已冻结为六个切片：
 03.4F Shared Pilot Router/Sidebar/Topbar Activation
 ```
 
-下一步只允许先执行 03.4A 的 canonical Channel Reference RED。未收到开始实现指令前，不修改业务代码。
+A-BIZ-03.4A～03.4F 已全部完成并通过适用 Gate。当前商业前端只承载真实 Session Cookie 下的 TEST 审计事实，Demo/Pilot、Organization Scope、角色权限和敏感信息边界保持严格隔离。
+
+当前状态：`A_BIZ_03_4_COMPLETE / READY_FOR_A_BIZ_06_PLANNING`。下一步只允许先冻结 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate 计划；在新计划明确 E2E、运营说明、迁移/回滚和联合验收边界前，不直接扩张业务实现。
+
+## 14. 完成记录（2026-08-09）
+
+- 03.4A 通过 `461f494`、`856757b`、`671fe3e` 完成 canonical Current Channel、Platform active Channel Directory、共享 HTTP Bootstrap 与严格 Pilot 商业 Client；前端不猜测 `organizationId === channelId`。
+- 03.4B 提交 `f31a0c9` 冻结 Organization Commercial Route Manifest/Policy、安全默认路由、returnTo、跨 Scope 404、同 Scope 403 和 Tenant Recharge 角色能力。
+- 03.4C 提交 `65e89a5` 完成 Platform/Channel Commission Audit 真实只读页；Channel 严格先解析 canonical Channel，再读取 scoped TEST 审计事实。
+- 03.4D 提交 `7ddc52d` 完成 Platform TEST Settlement Draft 安全操作页；beneficiary 只来自 active Channel Directory，幂等重试稳定，零候选/零额是合法 Draft。
+- 03.4E 提交 `fc5f5a7` 完成 Tenant Admin TEST RechargeOrder 只读审计；只使用 Session canonical tenantId，Content Operator 在请求前拒绝。
+- 03.4F 共享提交 `b80e9ef` 激活 PLATFORM/CHANNEL/TENANT Pilot 工作台；Platform/Channel 脱离 Tenant Project Boundary，Tenant 保留 Project Context，Sidebar/Topbar/直接 URL 统一复用 03.4B Policy。
+- 真实 Session Cookie、`no-store`、401/403/404/409/422/5xx、Request ID、loading/empty/retry、invalid response 与敏感信息最小投影均已冻结；Retry 不保留旧成功投影，也不回退 Demo、Mock 或 localStorage。
+- Settlement 始终明确为 `TEST / draft / NON_QUOTE`，非到账、非提现、非 paid、非自动打款；没有实现 LIVE、真实佣金比例、review/approve HTTP、KYC、税务、发票或真实 Provider。
+- 最终前端 Gate：Router 定向 `20/20`、全量 `40/40 files / 330/330 tests` PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- **B 同步要求**：修改共享 Control API Bootstrap 前同步 `856757b`；修改共享 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx` 前同步 `b80e9ef`。
+- StoryCanvas tracked diff 保持为零；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push。

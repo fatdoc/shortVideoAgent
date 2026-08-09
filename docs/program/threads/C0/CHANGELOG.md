@@ -108,6 +108,7 @@
 | 2026-08-09 | A-BIZ-03.4A 完成 canonical Channel Reference、Platform active Channel Directory、共享 Bootstrap 与严格 Pilot 商业 API Client；TEST-only、真实 Cookie/no-store、Request ID 与 fail-closed 解析边界已落地，未接 UI/Router/Layout                            | A_BIZ_03_4A_COMPLETE                    |
 | 2026-08-09 | A-BIZ-03.4B 完成纯 Organization Commercial Route Policy：四路 Manifest、PLATFORM/CHANNEL/TENANT 默认路由、跨 Scope 404 语义、同 Scope 403、Tenant Recharge 角色限制与安全 returnTo；未修改共享 Router/Layout                                              | A_BIZ_03_4B_COMPLETE                    |
 | 2026-08-09 | A-BIZ-03.4C 完成 Platform/Channel Commission Audit 真实只读页：canonical Channel 两段加载、bounded TEST 安全投影、loading/empty/retry 与 401/403/404/5xx/invalid response；Demo/Router/Layout 保持不变                                                    | A_BIZ_03_4C_COMPLETE                    |
+| 2026-08-09 | A-BIZ-03.4A～03.4F 完整收口：真实商业 Client、Organization Policy、Commission/Recharge Audit、TEST Settlement Draft 与共享 Pilot Router/Layout 全部接通；前端 330/330 tests 与全工程 Gate 通过                                                            | A_BIZ_03_4_COMPLETE                     |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -214,3 +215,13 @@
 - Pilot 跨 Scope 路由使用安全 404、同 Scope 缺角色使用 403，且 Pilot 404 不提供 Demo 链接；Demo Router/Store/UI 保持不变。
 - 首个 Router RED 按预期证明旧全局 Tenant Boundary 阻断 Platform；最终定向 20/20、全量 40 files / 330 tests PASS，TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。
 - StoryCanvas 未修改；本共享 Router/Layout 切片必须独立提交并通知 B 先同步后再修改共享导航。
+
+## 2026-08-09 · A-BIZ-03.4 Commercial Frontend & Audit Closure
+
+- 03.4A～03.4F 已完成并独立提交，最终实现基线 `b80e9ef`；Pilot 现按 PLATFORM/CHANNEL/TENANT 严格分流，Demo/Pilot 数据与导航保持隔离。
+- canonical Channel Reference、active Channel Directory、严格 Session Cookie Client、Organization Route Policy、Platform/Channel Commission Audit、Platform TEST Settlement Draft 与 Tenant Recharge Audit 已全部接通。
+- 统一冻结 401/403/404/409/422/5xx、Request ID、loading/empty/retry、invalid response 与敏感信息最小投影；失败不回退 Demo/Mock/localStorage。
+- Settlement 仍只为 `TEST / draft / NON_QUOTE`，不实现 LIVE、真实佣金比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
+- 最终 Gate：Router 20/20、前端全量 40 files / 330 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。
+- 共享同步点为 Control API Bootstrap `856757b` 与 Router/Layout `b80e9ef`；B 修改对应共享文件前必须同步。StoryCanvas tracked diff 为零，未跟踪 vendor 文件继续排除。
+- 下一步只规划 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate，不直接扩大实现。

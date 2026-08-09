@@ -677,3 +677,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Router 定向 20/20、全量前端 40 files / 330 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。StoryCanvas tracked diff 为零，未跟踪 vendor 文件继续排除，不 push。
 - **B 同步要求**：本切片独立提交修改共享 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx`。B 后续修改共享导航前必须先同步该提交，避免重新引入全局 Tenant Boundary 或重复维护商业权限判断。
 - 下一步只做 A-BIZ-03.4 文档收口；不实现 LIVE、真实佣金比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
+
+## A-BIZ-03.4 商业前端与审计完整收口交接（2026-08-09）
+
+- 权威计划 `A_BIZ_03_4_COMMERCIAL_FRONTEND_AUDIT_PLAN.md` 已转为 `COMPLETE / COMMITTED / GATE_PASS`；03.4A～03.4F 全部完成。
+- 提交链：`461f494` Channel Reference/Directory、`856757b` 共享 Control API Bootstrap、`671fe3e` Strict Client、`f31a0c9` Route Policy、`65e89a5` Commission Audit、`7ddc52d` TEST Settlement Draft、`fc5f5a7` Tenant Recharge Audit、`b80e9ef` 共享 Router/Layout。
+- 真实 Pilot 已按 PLATFORM/CHANNEL/TENANT 分流；默认路由、Sidebar、Topbar、direct URL 与 returnTo 共用同一 Policy。跨 Scope 404、同 Scope 缺角色 403，`pilot_support` 不自动继承商业权限。
+- Channel Audit 不接受任意 Channel ID，必须先由 `/api/v1/channels/current` 解析 canonical Channel；Settlement beneficiary 只来自 Platform active Channel Directory；Tenant Recharge 只使用 Session canonical tenantId。
+- 页面统一覆盖 loading/empty/ready/retrying、401/403/404、network/5xx、invalid response 与 Request ID；Retry 清旧投影，Pilot 失败绝不回退 Demo/Mock/localStorage，也不泄露 Provider、digest、Rule 比例或身份关系明细。
+- Settlement 始终是 `TEST / draft / NON_QUOTE`，非到账、非提现、非 paid、非自动打款；LIVE、真实比例、review/approve HTTP、KYC、税务、发票和真实 Provider 均未实现。
+- Gate：Router 20/20、前端全量 330/330 PASS，TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零。
+- **B 同步要求**：修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前同步 `856757b`；修改 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 前同步 `b80e9ef`。
+- 当前仅剩 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`，A 不修改、不暂存、不提交；分支保持未 push。
+- 下一节点只允许先规划 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate；在计划冻结前不直接增加 E2E、运营命令、LIVE 商业能力或审批流程。
