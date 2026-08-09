@@ -629,3 +629,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：全量前端 295/296 PASS，唯一既有重型 UI 用例触发 5 秒 timeout；对应 `app.smoke` 文件定向复跑 11/11 PASS。Policy 15/15、TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持排除；分支不 push。
 - 下一切片为 03.4C Platform/Channel Commission Audit 真实只读页。首个 RED 要求 Platform 页面仅使用真实 `pilotControlApi`，覆盖 loading/empty，并证明不会读取 Demo `useControlPlaneStore`；Router 激活继续延后到 03.4F。
+
+## A-BIZ-03.4C Platform/Channel Commission Audit 完成交接（2026-08-09）
+
+- 新增独立 Pilot `PilotCommissionAuditPages.tsx`，没有在 Demo Platform/Channel 页面内增加条件分支，也没有读取 Demo `useControlPlaneStore`；Router/Layout 接线仍保留到 03.4F。
+- Platform Audit 使用严格 `pilotControlApi` 读取 Payment Events、Calculations、Accruals、Reversals、Manual Reviews，统一 bounded 50；Manual Review 只有只读“需平台人工处理”队列，不存在 review/approve 按钮或 HTTP。
+- Channel Audit 的加载顺序已测试冻结：先 `GET /api/v1/channels/current`，再把返回的 canonical `channelId` 传给三类 Channel Audit API。Organization ID 与 Channel ID 不相等时仍只使用 canonical Channel ID；页面没有跨 Channel 搜索或手工输入。
+- 状态合同：loading/empty/ready/retrying、401/403/404、network/5xx、invalid response 均有独立安全投影；Retry 清空旧成功数据并只请求真实 API；401 清 Session/Project Context，403 保留会话，404 不泄漏其他 Scope。
+- 安全投影只显示 TEST 类型、状态、minor-unit 格式金额、安全 reason code、缩短后的引用和时间；错误仅显示固定文案与 Request ID，不渲染原始服务端消息或敏感 Provider/Rule/User/Tenant 内容。
+- 页面明确 `TEST · READ ONLY`、bounded window，并声明不表示已到账、可提现、paid 或自动打款；继续排除 LIVE、真实比例、paid、提现、KYC、税务、自动打款和未规划 review/approve HTTP。
+- RED/GREEN：页面模块不存在时首个 RED；最终定向 11/11 PASS。全量前端单 worker 为 37/38 files、306/307 tests PASS，唯一失败是既有 `app.smoke` 重型 UI 用例超过 5 秒，该用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS，仅既有大 chunk warning。
+- 本切片未修改共享 Router/Sidebar/Topbar、Control API 或 StoryCanvas，B 无需同步共享文件；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除，分支不 push。
+- 下一切片 03.4D：Platform TEST Settlement Draft 安全操作页。首个 RED 要求 beneficiary 只能来自真实 active Channel Directory，页面显著显示 `TEST / draft / NON_QUOTE`，且没有手工 UUID 输入或伪造历史列表。

@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A～03.4B `COMPLETE`
-- 当前任务：A-BIZ-03.4B 纯 Organization Commercial Route Policy 已完成；下一步 03.4C test-first 实现 Platform/Channel Commission Audit 真实只读页面，不提前修改共享 Router/Sidebar/Topbar
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.3 `COMPLETE` / A-BIZ-03.4A～03.4C `COMPLETE`
+- 当前任务：A-BIZ-03.4C Platform/Channel Commission Audit 真实只读页面已完成；下一步 03.4D test-first 实现 Platform TEST Settlement Draft 安全操作页，不提前修改共享 Router/Sidebar/Topbar
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -992,3 +992,16 @@
 - 全量前端单 worker：37 files 中 36 PASS，295/296 tests PASS；唯一失败为既有 `app.smoke` 重型 UI 用例超过 5 秒，对应文件随后 11/11 PASS。03.4B 定向 15/15、TypeScript、ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS。
 - 本切片只新增纯 Domain Policy 与测试；未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、业务页面、Control API 或 StoryCanvas。B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_4B_COMPLETE / READY_FOR_03_4C_RED`。下一 RED：Platform Commission Audit 页面必须只调用真实 `pilotControlApi` 并先呈现 loading/empty 状态，不得读取 Demo `useControlPlaneStore`。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4C Platform/Channel Commission Audit 完成
+
+- 新增独立 Pilot 页面 `src/pages/pilot/PilotCommissionAuditPages.tsx` 与 11 项页面测试；Demo 的 `PlatformManagementPages.tsx`、`ChannelCommercialPages.tsx` 和 `useControlPlaneStore` 保持不变。
+- 首个 RED 因目标页面模块不存在按预期失败；实现后页面测试 11/11 PASS，并证明 Platform 页面只调用真实 `pilotControlApi`、先呈现 loading、随后进入真实 empty/ready。
+- Platform 页面并行读取 bounded 50 的 Payment Events、Calculations、Accruals、Reversals 与 Manual Reviews；仅显示 TEST 最小安全投影，不推导真实比例，不提供 review/approve 操作。
+- Channel 页面严格先调用 `readCurrentChannel()`，再使用服务端返回的 canonical `channelId` 请求 Calculation/Accrual/Reversal；测试故意令 Organization ID 与 Channel ID 不同，且禁止 URL、文本框或下拉框覆盖 Channel Scope。
+- 状态模型覆盖 loading、empty、ready、retrying、401、403、404、network/5xx 与 invalid response。Retry 会先清空旧投影，只重试真实 API；401 清除 Pilot Session 与 Project Context，403 保留 Session，404 使用通用 Scope 文案。
+- 错误 UI 仅显示固定安全文案与可用 Request ID，不渲染原始 error body、Provider payload、stack、SQL、Secret 或完整敏感 DTO；Pilot 失败绝不回退 Demo、Mock 或 localStorage。
+- 页面持续标记 `TEST · READ ONLY` 和 bounded window，并明确“不表示已到账、可提现、paid 或自动打款”；未实现 LIVE、真实比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
+- Gate：03.4C 定向 11/11 PASS；全量前端单 worker 为 37/38 files、306/307 tests PASS，唯一失败是既有 `app.smoke` 重型 UI 用例超过 5 秒，该用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4C_COMPLETE / READY_FOR_03_4D_RED`。下一 RED：Settlement Draft 页面必须先从真实 active Channel Directory 加载 beneficiary 选项，显著显示 `TEST / draft / NON_QUOTE`，并证明不会提供手工 Channel UUID 输入或伪造历史列表。未收到 push 指令前不 push。

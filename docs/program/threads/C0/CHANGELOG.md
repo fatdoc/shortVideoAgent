@@ -107,6 +107,7 @@
 | 2026-08-08 | 冻结 A-BIZ-03.4 商业前端与审计：先补 canonical Channel Reference/active Directory，再按 Organization 分流 Pilot，交付真实 Commission Audit、TEST Settlement Draft 与 Tenant Recharge 只读审计；Demo/Pilot 严格隔离                                        | A_BIZ_03_4_PLAN_FROZEN                  |
 | 2026-08-09 | A-BIZ-03.4A 完成 canonical Channel Reference、Platform active Channel Directory、共享 Bootstrap 与严格 Pilot 商业 API Client；TEST-only、真实 Cookie/no-store、Request ID 与 fail-closed 解析边界已落地，未接 UI/Router/Layout                            | A_BIZ_03_4A_COMPLETE                    |
 | 2026-08-09 | A-BIZ-03.4B 完成纯 Organization Commercial Route Policy：四路 Manifest、PLATFORM/CHANNEL/TENANT 默认路由、跨 Scope 404 语义、同 Scope 403、Tenant Recharge 角色限制与安全 returnTo；未修改共享 Router/Layout                                              | A_BIZ_03_4B_COMPLETE                    |
+| 2026-08-09 | A-BIZ-03.4C 完成 Platform/Channel Commission Audit 真实只读页：canonical Channel 两段加载、bounded TEST 安全投影、loading/empty/retry 与 401/403/404/5xx/invalid response；Demo/Router/Layout 保持不变                                                    | A_BIZ_03_4C_COMPLETE                    |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -177,3 +178,12 @@
 - returnTo 只保留当前 Policy 允许的站内路径；外部、未知、跨 Scope 与 malformed 候选回安全默认路由，缺角色不通过 fallback 获权。
 - 未修改 Router/Sidebar/Topbar、页面、Control API 或 StoryCanvas；全量唯一 5 秒 UI timeout 的文件定向 11/11 PASS，其余工程 Gate 全 PASS。
 - 下一 RED：03.4C Platform Commission Audit 页面只调用真实 `pilotControlApi` 并覆盖 loading/empty，不读取 Demo Store。
+
+## 2026-08-09 · A-BIZ-03.4C Platform/Channel Commission Audit
+
+- 新增独立 Pilot Platform/Channel Commission Audit 页面与 11 项测试；Demo 页面与 Demo Store 保持不变，首个 RED 因页面模块不存在按预期失败。
+- Platform 加载 Payment Event、Calculation、Accrual、Reversal、Manual Review；Channel 严格先解析 canonical Channel，再读取该 Channel 三类审计事实。
+- 冻结 loading/empty/ready/retrying、401/403/404、network/5xx、invalid response 与 Request ID；Retry 清空旧投影且不回退 Mock，401 清 Session。
+- UI 仅显示 bounded TEST 安全投影，显著声明非到账、非提现、非 paid、非自动打款；不提供真实比例或 review/approve 操作。
+- 定向 11/11 PASS；全量单 worker 为 37/38 files、306/307 tests PASS，唯一既有 5 秒 UI timeout 用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS；Router/Layout、Control API、StoryCanvas 未修改。
+- 下一 RED：03.4D beneficiary 只从真实 active Channel Directory 选择，并显示 `TEST / draft / NON_QUOTE`，不允许手工 UUID 或伪造历史列表。
