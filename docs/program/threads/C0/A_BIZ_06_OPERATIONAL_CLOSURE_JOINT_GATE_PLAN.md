@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`06A_COMPLETE / READY_FOR_06B_PLANNING`
+- 状态：`06B_PLAN_FROZEN / READY_FOR_06B_REPOSITORY_SERVICE_RED`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`69b8181 docs(business-plane): close commercial frontend audit`
 - 共享同步基线：Control API Bootstrap `856757b`；Pilot Router/Layout `b80e9ef`
@@ -427,4 +427,26 @@ Gate 证据：
 ```text
 JOINT_GATE_RUNNER_READY / FULL_GATE_NOT_YET_EXECUTED
 A_BIZ_06A_COMPLETE / READY_FOR_06B_PLANNING
+```
+
+## 12. 2026-08-09 · 06B Member Directory / Deactivation 合同冻结
+
+权威子计划：`A_BIZ_06B_MEMBER_DIRECTORY_DEACTIVATION_PLAN.md`。
+
+冻结结论：
+
+- 使用 canonical-current-organization 路由：`GET /api/v1/organizations/current/members` 与 `POST /api/v1/organizations/current/members/:membershipId/suspend`；
+- PLATFORM/CHANNEL/TENANT 分别只允许 `platform_admin`、`channel_admin`、`tenant_admin`；`pilot_support` 和 `content_operator` 不扩权；
+- Directory bounded 100、确定性排序、最小 DTO，不返回 User/Organization/Session/Invitation/Provider 内部字段；
+- suspend 使用 strict `expectedVersion`、资源状态 replay、self-suspend、last-admin、expired、stale version 与跨 Organization fail closed；
+- 现有 Membership version trigger 与 Auth Session resolve 已足够实现下一请求失效，不新增 Session revoke Schema；
+- TENANT legacy shadow 为单向兼容写路径：存在 legacy row 时通过 legacy 更新推进 canonical status/version，禁止无规则双写；
+- Repository/Service、Route、共享 App/Server wiring 分为独立提交；共享 wiring 完成后必须通知 B 同步。
+
+首个 RED 为 `MemberDirectoryService` 授权/Scope 单元测试，随后补 PostgreSQL 事务、并发、Session 失效与 legacy 一致性 RED。
+
+当前状态：
+
+```text
+A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED
 ```

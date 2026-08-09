@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A `COMPLETE`
-- 当前任务：A-BIZ-06A 确定性 Joint Gate Manifest/Runner 已完成；下一步先冻结 06B 最小 Member Directory/Deactivation 子计划，再写 Repository/HTTP RED
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A `COMPLETE` / A-BIZ-06B `PLAN_FROZEN`
+- 当前任务：A-BIZ-06B Member Directory/Deactivation 合同已冻结；下一步写 Repository/Service RED，再分离 Route 与共享 Bootstrap 接线
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1076,3 +1076,15 @@
 - 现有 cross-plane contract Gate 真实暴露存量缺口：StoryCanvas v0.1 跨 package TS export 兼容失败，A3 package/grant HTTP Oracle 返回 500；最终 full Gate 继续 fail closed，06A 不掩盖或越界修改 B 文件。
 - 本提交属于根共享 Gate 基线。B 后续修改联合 Gate、StoryCanvas v0.2 定向测试或根 package scripts 前必须先同步；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_BIZ_06A_COMPLETE / JOINT_GATE_RUNNER_READY / READY_FOR_06B_PLANNING`；不 push。
+
+## 2026-08-09 A-BIZ-06B Member Directory / Deactivation 合同冻结
+
+- 权威子计划：`A_BIZ_06B_MEMBER_DIRECTORY_DEACTIVATION_PLAN.md`；当前基线 `93c7392`，不 push。
+- 路由冻结为 current Organization：bounded Member Directory 与单 Membership suspend，不接受客户端覆盖 Organization/Channel/Tenant scope。
+- PLATFORM/CHANNEL/TENANT 分别只允许 `platform_admin`、`channel_admin`、`tenant_admin`；`pilot_support` 与 `content_operator` 同 Scope 返回 403。
+- Directory 返回 Membership ID、姓名、邮箱、status、primary role、roles、version、timestamps、isCurrentActor；不返回 User/Organization/Tenant/Channel ID、Session、Token/digest、password、Invitation 或 Provider 内部字段。
+- suspend 冻结 strict `expectedVersion`、重复请求资源状态 replay、self-suspend、last-admin、expired、stale version、跨 Organization 404 与并发串行化。
+- 不新增 Migration：现有 version trigger 与 Auth resolve 已让旧 Session 在下一次请求失效。TENANT 存在 legacy shadow row 时经 legacy 更新推进 canonical，禁止无规则双写。
+- 实施分为 Repository/Service、HTTP Route、共享 App/Server wiring 三个独立提交；共享 wiring 提交后必须通知 B 同步。
+- 首个 RED：Service 授权与 canonical Scope；随后 PostgreSQL RED 覆盖 Directory、version + 1、Session 失效、replay、last-admin、并发与 legacy 一致性。
+- 当前状态：`A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED`。

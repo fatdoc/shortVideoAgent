@@ -713,3 +713,17 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 未宣称 Root full PASS：并发负载下两个既有 App smoke timeout；单独提高 timeout 后逻辑通过。现有 cross-plane Gate 另暴露 v0.1 TS export 与 A3 HTTP 500 存量缺口。
 - 共享通知：06A 修改根 `package.json` 和联合 Gate 基线，B 必须先同步本提交再修改相关脚本/测试；A 未修改 StoryCanvas tracked 文件或 `byteplus.ts`。
 - 下一步先冻结 06B Member Directory/Deactivation 子计划，明确 bounded DTO、suspend/version bump、Session 失效、last-admin/self-suspend 与 403/404/409/422，再进入 RED；不 push。
+
+## A-BIZ-06B Member Directory / Deactivation 合同交接（2026-08-09）
+
+- 权威计划：`docs/program/threads/C0/A_BIZ_06B_MEMBER_DIRECTORY_DEACTIVATION_PLAN.md`；实现基线 `93c7392`，分支不 push。
+- canonical 路由：`GET /api/v1/organizations/current/members?status=all&limit=100`、`POST /api/v1/organizations/current/members/:membershipId/suspend`，body 仅 `{ expectedVersion }`。
+- 授权：PLATFORM=`platform_admin`、CHANNEL=`channel_admin`、TENANT=`tenant_admin`；`pilot_support`/`content_operator` 不扩权。跨 Organization 或未知 Membership 安全 404。
+- DTO 只含 Membership ID、displayName、email、status、primaryRole、roles、version、timestamps、isCurrentActor；禁止 User/Organization/Tenant/Channel ID、password、Session、Invitation、Provider、SQL/stack。
+- suspend：active→suspended/version+1；已 suspended 返回 replay 且不再 bump；expired、self、last-admin、stale version 返回稳定 409；管理员识别使用完整 roles 集合。
+- Session 失效复用 migration 010 的 active/version 校验，不新增 revoke Schema；被停用成员旧 Cookie 在下一次 resolve 时 invalid。
+- TENANT legacy trigger 只有 legacy→canonical；存在 legacy row 时通过 legacy update 原子推进 canonical，避免无规则双写。Bootstrap 显式重跑仍可能恢复其受管 Pilot Membership，属于明确运营动作。
+- 提交拆分：06B.2 Repository/Service、06B.3 HTTP Route、06B.4 App/Server 共享 wiring；06B.4 必须独立提交并通知 B。
+- 首个 RED：`MemberDirectoryService` 授权/canonical scope；随后 PostgreSQL 事务、并发、Session invalidation 和 legacy 一致性 RED。
+- 不实现角色编辑、成员新增/恢复/删除、批量操作、密码管理、Support Grant、全局 User suspend、Audit Export 或 StoryCanvas 改动。
+- 当前状态：`A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED`。

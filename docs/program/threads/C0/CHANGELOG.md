@@ -245,3 +245,12 @@
 - Gate：manifest 7/7、Root Build、Control API typecheck/build、StoryCanvas v0.2 targeted 13/13、ESLint、Prettier、Governance、diff-check PASS。
 - Root 默认全量测试在并发压力下存在两个既有 smoke timeout；cross-plane Gate 暴露 v0.1 TS export 与 A3 HTTP 500 存量缺口，均被如实保留为最终 Gate 风险而非伪造 PASS。
 - StoryCanvas tracked diff 为零；本根 package/Joint Gate 共享提交需通知 B 先同步。下一步冻结 06B Member Directory/Deactivation 子计划。
+
+## 2026-08-09 · A-BIZ-06B Member Directory / Deactivation Contract
+
+- 新增 `A_BIZ_06B_MEMBER_DIRECTORY_DEACTIVATION_PLAN.md`，冻结 current Organization Member Directory 与 suspend HTTP、DTO、授权、事务、并发和安全错误合同。
+- PLATFORM/CHANNEL/TENANT 仅对应管理员可操作；`pilot_support`、`content_operator` 不扩权；跨 Organization Membership 安全 404。
+- suspend 使用 strict `expectedVersion`，保护 replay、self-suspend、last-admin、expired 与 stale version；成功依赖既有 Membership version + Auth resolve 让旧 Session 下一请求失效。
+- 审计确认无需新增 Migration；TENANT legacy shadow 为单向兼容写路径，存在 legacy row 时必须通过 legacy 更新推进 canonical，不做无规则双写。
+- Repository/Service、Route、共享 App/Server wiring 分开提交；共享 wiring 完成后通知 B。StoryCanvas 保持排除。
+- 首个 RED：Service 授权与 canonical Scope；随后补 PostgreSQL 事务、并发、Session 失效和 legacy 一致性合同。
