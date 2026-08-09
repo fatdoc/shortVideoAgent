@@ -109,6 +109,7 @@
 | 2026-08-09 | A-BIZ-03.4B 完成纯 Organization Commercial Route Policy：四路 Manifest、PLATFORM/CHANNEL/TENANT 默认路由、跨 Scope 404 语义、同 Scope 403、Tenant Recharge 角色限制与安全 returnTo；未修改共享 Router/Layout                                              | A_BIZ_03_4B_COMPLETE                    |
 | 2026-08-09 | A-BIZ-03.4C 完成 Platform/Channel Commission Audit 真实只读页：canonical Channel 两段加载、bounded TEST 安全投影、loading/empty/retry 与 401/403/404/5xx/invalid response；Demo/Router/Layout 保持不变                                                    | A_BIZ_03_4C_COMPLETE                    |
 | 2026-08-09 | A-BIZ-03.4A～03.4F 完整收口：真实商业 Client、Organization Policy、Commission/Recharge Audit、TEST Settlement Draft 与共享 Pilot Router/Layout 全部接通；前端 330/330 tests 与全工程 Gate 通过                                                            | A_BIZ_03_4_COMPLETE                     |
+| 2026-08-09 | 冻结 A-BIZ-06 运营收口与 A/B 联合 Gate：06A～06F 覆盖确定性 Gate runner、Member 合同、真实 Pilot 运营 UI/E2E、A/B 黄金路径、迁移回滚和文档；full 模式缺专用 PostgreSQL 或 B 基线必须 fail closed                                                          | A_BIZ_06_PLAN_FROZEN                    |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -225,3 +226,12 @@
 - 最终 Gate：Router 20/20、前端全量 40 files / 330 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。
 - 共享同步点为 Control API Bootstrap `856757b` 与 Router/Layout `b80e9ef`；B 修改对应共享文件前必须同步。StoryCanvas tracked diff 为零，未跟踪 vendor 文件继续排除。
 - 下一步只规划 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate，不直接扩大实现。
+
+## 2026-08-09 · A-BIZ-06 Operational Closure & A/B Joint Gate Plan
+
+- 新增 `A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`，冻结 06A～06F 原子切片、A/B 所有权、共享提交边界和最终 Gate 语义。
+- 审计确认现有 Playwright 只覆盖 Demo/localStorage，Control API PostgreSQL suites 缺 `CONTROL_API_TEST_DATABASE_URL` 时可能 SKIP，根目录也没有统一 Joint Gate manifest/runner。
+- full Gate 缺合法 `_test` PostgreSQL、B 可同步干净基线或 required phase 时必须非零退出；`--list`/`--plan` 及快速模式不得汇总为最终 PASS。
+- Member 管理先冻结最小 Directory/Deactivation HTTP，再实现真实 Pilot UI；不实现任意角色编辑、删除成员、密码管理、伪造 Audit/Export 或未规划 review/approve。
+- 商业能力继续为 `TEST / NON_QUOTE`，Settlement 为 `TEST + draft`；不实现 LIVE、paid、提现、KYC、税务或自动打款。
+- 首个 06A RED：manifest 必须列全 Root、Control PostgreSQL、C01、StoryCanvas v0.2、Pilot Playwright、Build、Governance、diff-check，且 full 模式缺专用数据库必须 fail closed。

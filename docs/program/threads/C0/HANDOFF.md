@@ -690,3 +690,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - **B 同步要求**：修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前同步 `856757b`；修改 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 前同步 `b80e9ef`。
 - 当前仅剩 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`，A 不修改、不暂存、不提交；分支保持未 push。
 - 下一节点只允许先规划 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate；在计划冻结前不直接增加 E2E、运营命令、LIVE 商业能力或审批流程。
+
+## A-BIZ-06 Operational Closure & A/B Joint Gate 计划交接（2026-08-09）
+
+- 权威计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`；规划基线 `69b8181`。
+- 06A～06F 已冻结：Joint Gate manifest/runner、Member Directory/Deactivation 合同、Terms/Invitation/Member Pilot UI、专用 PostgreSQL + 真实 Cookie E2E、A/B 黄金路径、迁移/回滚与最终运营文档。
+- 当前 E2E 只有 Demo/localStorage 路径；Control API PostgreSQL suites 缺专用 URL 时可能 SKIP；最终 full Gate 必须对数据库、B 基线和 required phase fail closed。
+- 06A 首个 RED 固定为：manifest 必须覆盖 Root、Control PostgreSQL、C01 Contract、StoryCanvas v0.2 定向、Pilot Playwright、Build、Governance、diff-check；`--full` 缺合法 `_test` URL 非零退出。
+- Member 前端不得先行猜测合同；06B 必须先冻结 bounded Directory、status/role 最小投影、suspend 事务、Membership version bump、Session 失效、last-admin/self-suspend 和 403/404/409/422。
+- Pilot UI 继续真实 Session Cookie + `no-store`，失败不回退 Demo/Mock/localStorage；错误只显示固定文案与 Request ID，不泄露 Session、Invitation Token/digest、Provider payload、Grant、SQL、stack 或完整敏感 DTO。
+- TEST 商业边界不变：不实现 LIVE、真实佣金比例、paid、提现、KYC、税务、发票、自动打款或未规划 review/approve HTTP；不伪造 Audit Log 或完整导出。
+- A 不修改 StoryCanvas 或 B 的 `apps/storycanvas/data/vendor/byteplus.ts`。06A 根 Joint Gate runner 属于共享协作基线，必须独立提交并通知 B 同步。
+- 当前状态：`A_BIZ_06_PLAN_FROZEN / READY_FOR_06A_RED`；用户已授权无阻塞时连续推进，计划提交后直接进入 06A，不 push。

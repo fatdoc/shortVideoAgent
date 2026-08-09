@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 3 · 充值、支付事件、佣金账与商业审计
 - 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.4 `COMPLETE`
-- 当前任务：A-BIZ-03.4 商业前端与审计已完整收口；下一步只规划 Wave 4 / A-BIZ-06 运营收口与 A/B 联合 Gate，不直接扩展 LIVE、支付、提现或未规划审批能力
+- 当前任务：A-BIZ-06 运营收口与 A/B 联合 Gate 计划已冻结；下一步 test-first 实现 06A 确定性 Joint Gate Manifest/Runner，不直接扩展 LIVE、支付、提现或未规划审批能力
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1054,3 +1054,14 @@
 - 共享同步点：Control API Bootstrap 为 `856757b`；Router/Sidebar/Topbar 为 `b80e9ef`。B 修改对应共享文件前必须先同步。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除；分支不 push。
 - 当前状态：`A_BIZ_03_4_COMPLETE / READY_FOR_A_BIZ_06_PLANNING`。下一步先冻结 Wave 4 运营收口、联合 E2E、迁移/回滚、README 与 A/B 联合 Gate，不直接写实现。
+
+## 2026-08-09 A-BIZ-06 Operational Closure & A/B Joint Gate 计划冻结
+
+- 权威计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`；当前实现基线 `69b8181`。
+- 源码审计确认：现有 Playwright 仅覆盖 Demo/localStorage；Control API PostgreSQL suites 在缺 `CONTROL_API_TEST_DATABASE_URL` 时可能 SKIP；根目录没有统一 Joint Gate manifest/runner。
+- 冻结 06A～06F：确定性 Joint Gate、最小 Member Directory/Deactivation、Terms/Invitation/Member Pilot UI、专用 PostgreSQL + 真实 Session Cookie E2E、A/B 黄金路径、迁移/回滚与最终运营文档。
+- full Gate 必须 fail closed：缺合法 `_test` PostgreSQL、B 可同步基线或 required phase 时非零退出；`--list`/`--plan` 和快速模式不得冒充最终 PASS。
+- 统一冻结 401/403/404/409/422、Request ID、loading/empty/retry/inactive、Demo/Pilot 隔离与敏感信息最小投影；Pilot 失败不得回退 Mock/localStorage。
+- Commercial 仍严格为 `TEST / NON_QUOTE`；Settlement 仍为 `TEST + draft`，非到账、非提现、非 paid；不实现 LIVE、真实比例、KYC、税务、自动打款或未规划 review/approve HTTP。
+- A 不修改 StoryCanvas；B 未提供已提交且可同步的干净基线前，06E 与最终 A/B full Gate 保持未完成。`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_06_PLAN_FROZEN / READY_FOR_06A_RED`。首个 RED：Joint Gate manifest 必须列全 required phases，且 `--full` 缺专用 PostgreSQL URL 必须失败，不能让 PostgreSQL suite 静默 SKIP 后宣称 PASS。
