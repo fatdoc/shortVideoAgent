@@ -1,9 +1,9 @@
 # C0 STATUS
 
 - 岗位：总项目负责人 / 总架构师
-- 当前阶段：A 业务平台 Wave 3 · 充值、支付事件、佣金账与商业审计
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1～03.4 `COMPLETE`
-- 当前任务：A-BIZ-06 运营收口与 A/B 联合 Gate 计划已冻结；下一步 test-first 实现 06A 确定性 Joint Gate Manifest/Runner，不直接扩展 LIVE、支付、提现或未规划审批能力
+- 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A `COMPLETE`
+- 当前任务：A-BIZ-06A 确定性 Joint Gate Manifest/Runner 已完成；下一步先冻结 06B 最小 Member Directory/Deactivation 子计划，再写 Repository/HTTP RED
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1065,3 +1065,14 @@
 - Commercial 仍严格为 `TEST / NON_QUOTE`；Settlement 仍为 `TEST + draft`，非到账、非提现、非 paid；不实现 LIVE、真实比例、KYC、税务、自动打款或未规划 review/approve HTTP。
 - A 不修改 StoryCanvas；B 未提供已提交且可同步的干净基线前，06E 与最终 A/B full Gate 保持未完成。`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_BIZ_06_PLAN_FROZEN / READY_FOR_06A_RED`。首个 RED：Joint Gate manifest 必须列全 required phases，且 `--full` 缺专用 PostgreSQL URL 必须失败，不能让 PostgreSQL suite 静默 SKIP 后宣称 PASS。
+
+## 2026-08-09 A-BIZ-06A Deterministic Joint Gate Runner 完成
+
+- 首个 RED 按预期因 manifest 模块缺失失败；Green 后新增 12-phase 机器可读 manifest、Root runner、StoryCanvas v0.2 显式定向 wrapper、package scripts 与 Pilot README。
+- `--list`/`--plan` 只输出 `NOT_RUN`；`--full` 缺专用 `_test` PostgreSQL、06D/06E/06F 或 B 基线时退出 2，不执行 required commands，不宣称 PASS。
+- runner 对 Provider 环境变量清空并保持日志脱敏；不打印 PostgreSQL URL/密码，不启动 LIVE Payment/Settlement/媒体调用，不修改 StoryCanvas。
+- Gate：manifest 7/7、Root Build、Control API typecheck/build、StoryCanvas v0.2 targeted 13/13、ESLint、Prettier、Governance、diff-check PASS；full preflight 按预期 BLOCKED。
+- Root 默认全量测试在并发负载下 328/330，两个既有 App smoke timeout；提高单测 timeout 后剩余逻辑通过，因此不把本次结果记为 Root full PASS。
+- 现有 cross-plane contract Gate 真实暴露存量缺口：StoryCanvas v0.1 跨 package TS export 兼容失败，A3 package/grant HTTP Oracle 返回 500；最终 full Gate 继续 fail closed，06A 不掩盖或越界修改 B 文件。
+- 本提交属于根共享 Gate 基线。B 后续修改联合 Gate、StoryCanvas v0.2 定向测试或根 package scripts 前必须先同步；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_06A_COMPLETE / JOINT_GATE_RUNNER_READY / READY_FOR_06B_PLANNING`；不 push。

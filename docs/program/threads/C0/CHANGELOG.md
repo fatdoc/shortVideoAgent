@@ -110,6 +110,7 @@
 | 2026-08-09 | A-BIZ-03.4C 完成 Platform/Channel Commission Audit 真实只读页：canonical Channel 两段加载、bounded TEST 安全投影、loading/empty/retry 与 401/403/404/5xx/invalid response；Demo/Router/Layout 保持不变                                                    | A_BIZ_03_4C_COMPLETE                    |
 | 2026-08-09 | A-BIZ-03.4A～03.4F 完整收口：真实商业 Client、Organization Policy、Commission/Recharge Audit、TEST Settlement Draft 与共享 Pilot Router/Layout 全部接通；前端 330/330 tests 与全工程 Gate 通过                                                            | A_BIZ_03_4_COMPLETE                     |
 | 2026-08-09 | 冻结 A-BIZ-06 运营收口与 A/B 联合 Gate：06A～06F 覆盖确定性 Gate runner、Member 合同、真实 Pilot 运营 UI/E2E、A/B 黄金路径、迁移回滚和文档；full 模式缺专用 PostgreSQL 或 B 基线必须 fail closed                                                          | A_BIZ_06_PLAN_FROZEN                    |
+| 2026-08-09 | A-BIZ-06A 完成 12-phase 确定性 Joint Gate manifest/runner：plan 只报 NOT_RUN，full 缺专用 PostgreSQL、B 基线或 06D/06E/06F 时 fail closed；StoryCanvas v0.2 定向 13/13 PASS                                                                               | A_BIZ_06A_COMPLETE                      |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -235,3 +236,12 @@
 - Member 管理先冻结最小 Directory/Deactivation HTTP，再实现真实 Pilot UI；不实现任意角色编辑、删除成员、密码管理、伪造 Audit/Export 或未规划 review/approve。
 - 商业能力继续为 `TEST / NON_QUOTE`，Settlement 为 `TEST + draft`；不实现 LIVE、paid、提现、KYC、税务或自动打款。
 - 首个 06A RED：manifest 必须列全 Root、Control PostgreSQL、C01、StoryCanvas v0.2、Pilot Playwright、Build、Governance、diff-check，且 full 模式缺专用数据库必须 fail closed。
+
+## 2026-08-09 · A-BIZ-06A Deterministic Joint Gate Runner
+
+- 先写 manifest/runner RED，确认因模块缺失失败；随后新增 12-phase 机器可读 manifest、fail-closed Root runner 和 StoryCanvas v0.2 显式定向 wrapper。
+- 增加 Root manifest/plan/full scripts；`--list`/`--plan` 只输出 `NOT_RUN`，full 缺 dedicated PostgreSQL、B baseline 或未来 required slice 时退出 2。
+- Provider Secret 在 child process 环境中清空，日志不输出数据库 URL/密码；runner 不执行 LIVE 商业或付费媒体调用。
+- Gate：manifest 7/7、Root Build、Control API typecheck/build、StoryCanvas v0.2 targeted 13/13、ESLint、Prettier、Governance、diff-check PASS。
+- Root 默认全量测试在并发压力下存在两个既有 smoke timeout；cross-plane Gate 暴露 v0.1 TS export 与 A3 HTTP 500 存量缺口，均被如实保留为最终 Gate 风险而非伪造 PASS。
+- StoryCanvas tracked diff 为零；本根 package/Joint Gate 共享提交需通知 B 先同步。下一步冻结 06B Member Directory/Deactivation 子计划。

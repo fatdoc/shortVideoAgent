@@ -15,7 +15,10 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
-    "validate:governance": "node scripts/validate-governance.mjs"
+    "validate:governance": "node scripts/validate-governance.mjs",
+    "test:joint-gate:manifest": "node --test scripts/joint-gate-manifest.test.mjs",
+    "test:joint-gate:plan": "node scripts/run-joint-gate.mjs --plan",
+    "test:joint-gate:full": "node scripts/run-joint-gate.mjs --full"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

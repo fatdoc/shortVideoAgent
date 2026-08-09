@@ -702,3 +702,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - TEST 商业边界不变：不实现 LIVE、真实佣金比例、paid、提现、KYC、税务、发票、自动打款或未规划 review/approve HTTP；不伪造 Audit Log 或完整导出。
 - A 不修改 StoryCanvas 或 B 的 `apps/storycanvas/data/vendor/byteplus.ts`。06A 根 Joint Gate runner 属于共享协作基线，必须独立提交并通知 B 同步。
 - 当前状态：`A_BIZ_06_PLAN_FROZEN / READY_FOR_06A_RED`；用户已授权无阻塞时连续推进，计划提交后直接进入 06A，不 push。
+
+## A-BIZ-06A Deterministic Joint Gate Runner 完成交接（2026-08-09）
+
+- 新增 `scripts/joint-gate-manifest.mjs`、`scripts/run-joint-gate.mjs`、`scripts/run-storycanvas-v02-targeted.mjs` 与 7 项 manifest/runner 测试。
+- Root scripts：`test:joint-gate:manifest`、`test:joint-gate:plan`、`test:joint-gate:full`；full 当前应 fail closed，不是尚未满足前置条件时的成功入口。
+- manifest 固定 12 个 required phase：Root Unit、Control PG、C01/A3/B3 Contract、StoryCanvas v0.2 targeted、Pilot E2E、A/B Golden Path、Build、Governance、diff-check、migration rollback/reapply。
+- 缺 `CONTROL_API_TEST_DATABASE_URL`、B baseline 或 06D/06E/06F 实现时 full runner 退出 2 并输出脱敏 BLOCKED code；`--plan` 只列 `NOT_RUN`。
+- Gate：06A 7/7、Build、Control typecheck/build、StoryCanvas v0.2 13/13、ESLint/Prettier/Governance/diff-check PASS；服务仍为 SaaS 200、StoryCanvas root 401 正常监听。
+- 未宣称 Root full PASS：并发负载下两个既有 App smoke timeout；单独提高 timeout 后逻辑通过。现有 cross-plane Gate 另暴露 v0.1 TS export 与 A3 HTTP 500 存量缺口。
+- 共享通知：06A 修改根 `package.json` 和联合 Gate 基线，B 必须先同步本提交再修改相关脚本/测试；A 未修改 StoryCanvas tracked 文件或 `byteplus.ts`。
+- 下一步先冻结 06B Member Directory/Deactivation 子计划，明确 bounded DTO、suspend/version bump、Session 失效、last-admin/self-suspend 与 403/404/409/422，再进入 RED；不 push。

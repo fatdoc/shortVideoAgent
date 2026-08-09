@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_06A_RED`
+- 状态：`06A_COMPLETE / READY_FOR_06B_PLANNING`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`69b8181 docs(business-plane): close commercial frontend audit`
 - 共享同步基线：Control API Bootstrap `856757b`；Pilot Router/Layout `b80e9ef`
@@ -399,3 +399,32 @@ A_BIZ_06_PLAN_FROZEN / READY_FOR_06A_RED
 ```
 
 用户已授权连续推进，因此计划提交后若无真实阻塞，直接进入 06A test-first，不在普通步骤间暂停；仍然不 push。
+
+## 11. 2026-08-09 · 06A 实施结果
+
+06A 已按 test-first 完成：
+
+- RED：`scripts/joint-gate-manifest.test.mjs` 首次因 `joint-gate-manifest.mjs` 不存在而稳定失败；
+- Green：新增机器可读 manifest、fail-closed runner、StoryCanvas v0.2 显式定向 wrapper、Root scripts 和 Pilot README；
+- manifest 固定 12 个 required phase，并记录 owner、availability、commands、preconditions 和 StoryCanvas v0.2 evidence paths；
+- `--list` / `--plan` 只输出 `NOT_RUN` 与 `FULL_GATE_NOT_YET_EXECUTED`；
+- `--full` 缺专用 PostgreSQL、06D/06E/06F 或 B 基线时退出 2，并只输出脱敏 BLOCKED code；
+- Provider 环境变量在 child process 中清空，不打印数据库 URL、密码或 Provider Secret；
+- 06A 未修改 StoryCanvas tracked 文件，未执行 LIVE/付费动作。
+
+Gate 证据：
+
+- Joint Gate manifest：7/7 PASS；
+- Joint Gate plan：PASS，12 phases 全部为 `NOT_RUN`；
+- full preflight：按预期 BLOCKED / exit 2；
+- Root Build：PASS；Control API typecheck/build：PASS；
+- StoryCanvas v0.2 targeted：13/13 PASS；ESLint、Prettier、Governance、diff-check：PASS；
+- Root 全量默认测试在并发 Gate 压力下为 328/330，两个既有 App smoke 超时；单独重跑其中稳定剩余项并提高 test timeout 后逻辑通过。该性能/timeout 风险不得记作 Root full PASS；
+- 现有 cross-plane contract Gate 真实暴露两项存量缺口：StoryCanvas v0.1 boundary 的跨 package TS module export 兼容失败，以及 A3 package/grant HTTP Oracle 返回 500。06A 不掩盖或越界修复，最终 full Gate 继续 fail closed。
+
+当前状态：
+
+```text
+JOINT_GATE_RUNNER_READY / FULL_GATE_NOT_YET_EXECUTED
+A_BIZ_06A_COMPLETE / READY_FOR_06B_PLANNING
+```
