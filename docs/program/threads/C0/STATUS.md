@@ -1005,3 +1005,16 @@
 - Gate：03.4C 定向 11/11 PASS；全量前端单 worker 为 37/38 files、306/307 tests PASS，唯一失败是既有 `app.smoke` 重型 UI 用例超过 5 秒，该用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
 - 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_03_4C_COMPLETE / READY_FOR_03_4D_RED`。下一 RED：Settlement Draft 页面必须先从真实 active Channel Directory 加载 beneficiary 选项，显著显示 `TEST / draft / NON_QUOTE`，并证明不会提供手工 Channel UUID 输入或伪造历史列表。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4D Platform TEST Settlement Draft 完成
+
+- 新增独立 Pilot 页面 `src/pages/pilot/PilotSettlementDraftPage.tsx` 与 8 项页面测试；首个 RED 因目标页面模块不存在按预期失败，Router/Layout 接线继续保留到 03.4F。
+- 页面只从真实 `pilotControlApi.listActiveChannels(100)` 读取 active Channel Directory；beneficiary 使用 canonical `channelId` 下拉选择，不提供手工 UUID、Commission 反推、Demo Store、Mock 或 localStorage fallback。
+- 表单把币种固定为 `CNY`，把 month 转为 UTC 自然月起点，并要求带 `Z` 的 `cutoffAt` 不早于下一 UTC 月起点；前端无效事实在调用 API 前 fail closed。
+- 创建请求只能是 `paymentMode: TEST`；页面标题、表单确认、错误重试与成功区持续标记 `TEST / draft / NON_QUOTE`，并明确非到账、非提现、非 paid、非自动打款。
+- 幂等合同已冻结：同一业务事实失败重试复用同一 key；beneficiary、period 或 cutoff 改变后轮换 key；409 保留 Request ID 且不自动换 key 绕过冲突；key 不展示在 UI。
+- 成功后仅展示本次严格解析的 API Draft；零候选/零额 Draft 是合法审计结果。当前无 Settlement GET，因此页面不伪造服务端记录、不用本地成功结果冒充可恢复数据。
+- Directory/Submit 状态覆盖 loading、empty、retrying、401、403、404、409、network/5xx 与 invalid response；401 清 Session/Project Context，错误只显示固定安全文案与 Request ID，不泄漏原始服务端 body。
+- Gate：03.4D 定向 8/8 PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` PASS。全量单 worker为 37/39 files、311/315 tests PASS，4 个既有重型 UI 用例触发 5 秒 timeout；对应 Script Editor 8/8 与 Brand Brain 5/5 隔离复跑 PASS。
+- 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4D_COMPLETE / READY_FOR_03_4E_RED`。下一 RED：Tenant Recharge Audit 页面必须只使用 Session 的 canonical `tenantId` 调用真实 bounded GET，`content_operator` 不得获得页面能力，且页面不得出现 Recharge POST 或 Mock fallback。未收到 push 指令前不 push。

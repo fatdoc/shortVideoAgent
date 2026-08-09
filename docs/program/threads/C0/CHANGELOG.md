@@ -187,3 +187,12 @@
 - UI 仅显示 bounded TEST 安全投影，显著声明非到账、非提现、非 paid、非自动打款；不提供真实比例或 review/approve 操作。
 - 定向 11/11 PASS；全量单 worker 为 37/38 files、306/307 tests PASS，唯一既有 5 秒 UI timeout 用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS；Router/Layout、Control API、StoryCanvas 未修改。
 - 下一 RED：03.4D beneficiary 只从真实 active Channel Directory 选择，并显示 `TEST / draft / NON_QUOTE`，不允许手工 UUID 或伪造历史列表。
+
+## 2026-08-09 · A-BIZ-03.4D Platform TEST Settlement Draft
+
+- 新增独立 Pilot TEST Settlement Draft 页面与 8 项测试；首个 RED 因页面模块缺失按预期失败，Router/Layout 激活继续留到 03.4F。
+- beneficiary 只来自真实 active Channel Directory，使用 canonical Channel ID；无手工 UUID、Commission 反推、Demo Store 或 Mock fallback。
+- 创建合同固定 `TEST / draft / NON_QUOTE`、CNY、UTC 自然月与安全 cutoff；同事实重试复用幂等 key，事实变化才轮换，409 不自动换 key。
+- 成功仅显示当前 API Draft，零候选/零额是合法结果；不伪造服务端记录或本地可恢复数据，并明确非到账、非提现、非 paid、非自动打款。
+- 定向 8/8 PASS；全量单 worker 311/315 PASS，4 个既有 5 秒 UI timeout 用例隔离 13/13 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check PASS。
+- 未修改共享 Router/Sidebar/Topbar、Control API 或 StoryCanvas；下一 RED 为 03.4E Tenant Recharge Audit 真实 scoped GET 与 tenant_admin-only 页面能力。

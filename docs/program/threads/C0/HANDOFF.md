@@ -641,3 +641,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - RED/GREEN：页面模块不存在时首个 RED；最终定向 11/11 PASS。全量前端单 worker 为 37/38 files、306/307 tests PASS，唯一失败是既有 `app.smoke` 重型 UI 用例超过 5 秒，该用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS，仅既有大 chunk warning。
 - 本切片未修改共享 Router/Sidebar/Topbar、Control API 或 StoryCanvas，B 无需同步共享文件；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除，分支不 push。
 - 下一切片 03.4D：Platform TEST Settlement Draft 安全操作页。首个 RED 要求 beneficiary 只能来自真实 active Channel Directory，页面显著显示 `TEST / draft / NON_QUOTE`，且没有手工 UUID 输入或伪造历史列表。
+
+## A-BIZ-03.4D Platform TEST Settlement Draft 完成交接（2026-08-09）
+
+- 新增独立 Pilot `PilotSettlementDraftPage.tsx` 与 8 项测试；页面未接入共享 Router/Sidebar/Topbar，03.4F 前不会改变现有导航。
+- beneficiary 只能来自真实 active Channel Directory；页面使用服务端 canonical `channelId`，不提供手工 UUID，不从 Commission 记录反推，也不读取 Demo `useControlPlaneStore`。
+- 创建事实固定 `paymentMode: TEST`、`currency: CNY`、UTC 自然月起点与带时区 cutoff；cutoff 早于 period end 时前端拒绝且不调用 API。
+- 同一可重试事实保持稳定幂等 key，用户修改 Channel/month/cutoff 后才轮换；409 显示安全冲突与 Request ID，并继续用原 key 重试，禁止自动换 key 绕过冲突。
+- 成功区只展示当前 API 返回的严格 Draft。零候选/零额属于合法成功；不伪造服务端记录，不把本地结果描述成可恢复数据。
+- 页面全程显著标记 `TEST / draft / NON_QUOTE`，明确非到账、非提现、非 paid、非自动打款；继续排除 LIVE、真实比例、KYC、税务、自动打款与 review/approve HTTP。
+- 状态覆盖 Directory loading/empty/retry/error 与 Submit submitting/success/401/403/404/409/5xx/invalid response；401 清 Session/Project Context，原始错误 body 与幂等 key 不进入 UI。
+- Gate：定向 8/8 PASS；全量前端 311/315 PASS，4 个既有 5 秒 UI timeout 用例对应文件隔离复跑 13/13 PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
+- 本切片没有共享文件或 StoryCanvas 改动，B 无需同步共享导航；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除，分支不 push。
+- 下一切片 03.4E：Tenant TEST RechargeOrder 只读审计。首个 RED 要求只使用当前 Session canonical `tenantId` 调用真实 GET，严格 `tenant_admin` 页面能力，无 POST、Demo 或 Mock fallback。
