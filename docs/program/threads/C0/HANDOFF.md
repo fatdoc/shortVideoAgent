@@ -832,3 +832,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate 证据：Browser `22/22 PASS`；Registration HTTP/PostgreSQL `20/20 PASS`；Control API typecheck/build、Root Build、Prettier、Governance、diff-check PASS。StoryCanvas tracked clean，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
 - 下一步进入 06D.6。首个 RED 已知为真实 Platform Commission Audit 页面显示“无商业审计权限”并收到 403；先审计 Commission Router/Repository Scope 谓词，再补 Operations/TEST Commercial/Security Matrix。不得因 06D.4 Router 壳层 PASS 而宣称商业 Gate PASS。
 - `pilot-browser-e2e` 继续 `planned`/BLOCKED；不激活 Joint Gate，不进入 06E/06F，不 push，不修改 StoryCanvas。
+
+## A-BIZ-06D.6 Operations / TEST Commercial / Security 交接（2026-08-10）
+
+- 06D.6 提交链：`bf054aa` 初始 Operations/Commercial Matrix，`08144a5`～`d309aa1` 关闭 Router scope、Tenant canonical scope 与 Settlement period/date 合同，`9872780`/`ebdd145` 完成 recovery matrix，`f56f48e`/`7f2bc82`/`426103b` 完成跨组织 404、敏感浏览器表面和 artifact 扫描。
+- 完整 Pilot Browser Gate：真实 Google Chrome `150.0.7871.125`、专用 `videoagent_control_test`、单 worker `39/39 PASS / 0 SKIP`；artifact scanner 单测 `3/3 PASS`。
+- 真实 Cookie、Request ID、401/403/404/409/503、retry、empty/ready 和 Session invalidation 均有证据；Pilot Storage 为空，失败不回退 Demo/Mock/localStorage。
+- 跨组织 Channel/Tenant API 对存在但无权与未知资源返回等价安全 404；错误体只含 `error.code/message/requestId`，不含目标 ID。
+- Settlement 只创建 TEST draft，submit retry 复用相同 body `idempotencyKey`；零候选是有效审计结果，不代表到账、提现、paid Settlement 或自动打款。
+- DOM、URL、console、pageerror、requestfailed 和 artifact 未发现 Session、密码、Invitation/verification Token、Terms digest、内部 snapshot、Grant、SQL 或 stack 泄漏；trace/video 保持关闭，HAR/trace/video artifact 会被 runner 拒绝。
+- 下一步进入 06D.7：独立修改 Joint Gate manifest/runner，将 `pilot-browser-e2e` 从 `planned` 改为 `ready`、命令切到 `npm run test:e2e:pilot` 并移除 `PILOT_BROWSER_E2E_NOT_IMPLEMENTED` blocker；随后更新 README/C0/桌面知识库。
+- 06E/06F 与 B external baseline 继续保持未完成；不 push，不修改 StoryCanvas。

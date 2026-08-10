@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06C `COMPLETE` / `A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS`
-- 当前任务：A-BIZ-06D.6 Operations / TEST Commercial / Security Matrix；首个 RED 为真实 Platform Commission Audit 403
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06C `COMPLETE` / `A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS`
+- 当前任务：A-BIZ-06D.7 Joint Gate Activation & Documentation Closure
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1183,3 +1183,14 @@
 - **共享通知给 B**：Public Registration stale Terms HTTP 合同现为 `409 TERMS_VERSION_STALE`；B 修改 Registration/Terms HTTP 合同时必须先同步 `c492c36`。共享 Pilot E2E runtime 基线为 `bda23ac`。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；根 `5173` 与 StoryCanvas `10588` 服务保持运行。
 - 当前状态：`A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED`。下一个真实 RED 是 Platform Commission Audit 页面返回 403；`pilot-browser-e2e` 仍为 `planned`/BLOCKED，尚未激活 Joint Gate，尚未进入 06E/06F。
+
+## 2026-08-10 A-BIZ-06D.6 Operations / TEST Commercial / Security 完成
+
+- 提交链 `bf054aa`～`426103b` 完成真实 Operations/Commercial/Security Browser Matrix；修复 Commission Router fallthrough、canonical Tenant scope、Settlement period/date 投影，并加入 recovery、安全 404、敏感浏览器表面与 artifact 扫描。
+- Terms、Invitation、Member、Tenant RechargeOrder、Platform/Channel Commission Audit、active Channel Directory 与 Platform TEST Settlement Draft 均覆盖 loading/empty/ready/error/retry；成功事实来自真实 Control API，不由 route mock 提供。
+- Channel/Tenant 跨组织探测对“存在但无权”和“未知”返回等价 `404`、`no-store`、固定安全错误与独立 Request ID，不泄露目标 ID。
+- Settlement submit 的不确定失败重试复用相同业务事实和 body `idempotencyKey`；结果保持 `TEST / draft / CNY / zero-candidate`，明确非到账、非提现、非 paid Settlement、非自动打款。
+- 敏感矩阵验证 HttpOnly Session Cookie 不可由页面读取，Pilot localStorage/sessionStorage 均为空；DOM、URL、console、pageerror、requestfailed 和 artifact 不泄露密码、Session、Invitation/verification Token、Terms digest、内部 snapshot、Grant、SQL 或 stack。
+- 真实 Google Chrome `150.0.7871.125`、专用 PostgreSQL `videoagent_control_test`、单 worker完整 Gate：`39/39 PASS / 0 SKIP`；artifact scanner 单测 `3/3 PASS`。
+- StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；根 `5173` 与 StoryCanvas `10588` 服务继续运行。
+- 当前状态：`A_BIZ_06D_6_COMPLETE / READY_FOR_06D_7_JOINT_GATE_ACTIVATION`。尚未进入 06E/06F，不宣称 A-BIZ-06 或 Full Joint Gate 完成。

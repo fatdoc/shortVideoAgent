@@ -3,7 +3,7 @@
 - 日期：2026-08-10
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED`
+- 状态：`A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS / READY_FOR_06D_7_JOINT_GATE_ACTIVATION`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`
 - 前置提交：`1b3af9c docs(business-plane): close pilot operations ui`
 - 共享同步基线：Pilot Router/Layout `26400fa`
@@ -106,7 +106,7 @@ A-BIZ-06D 只建立可重复、fail-closed 的真实 Pilot 浏览器 E2E 环境�
 - Pilot E2E 使用专用 loopback ports，端口占用时 fail closed，不静默换端口。
 - 父 runner 顺序执行 preflight → reset/migrate/seed → Control API ready → Vite ready → Playwright → cleanup。
 - 浏览器只访问 Vite origin；API 请求通过显式 proxy，同源携带真实 HttpOnly Cookie。
-- Playwright 使用单 worker、非 fully parallel；trace `retain-on-failure`、screenshot `only-on-failure`、video `retain-on-failure`。
+- Playwright 使用单 worker、非 fully parallel；trace `off`、screenshot `only-on-failure`、video `off`；父 runner 在成功或失败退出前扫描 artifact，拒绝 trace/HAR/video 及明文 Secret 残留。
 - 运行成功清理进程并撤销/清空测试 Session；运行失败保留数据库现场供诊断，下一次运行先 reset，另提供显式 cleanup 命令。
 
 ### 3.5 UI 与安全断言
@@ -175,7 +175,7 @@ Gate：合法 `_test` PostgreSQL 零 SKIP；连续运行两次结果一致；开
 - Registration success、相同请求 replay、变化请求 idempotency conflict、duplicate、verification unavailable/failed 与失败恢复；
 - Token 从 URL 立即清除，刷新不恢复。
 
-### 06D.6 · Operations / TEST Commercial / Security Matrix
+### 06D.6 · Operations / TEST Commercial / Security Matrix — COMPLETE (`bf054aa`～`426103b`)
 
 覆盖：
 
@@ -185,6 +185,10 @@ Gate：合法 `_test` PostgreSQL 零 SKIP；连续运行两次结果一致；开
 - TEST/draft/non-payment/non-withdrawal 文案；
 - 跨组织 API 探测安全 404；
 - DOM、console、pageerror、network error 和 artifact 敏感信息检查。
+
+Gate：真实 Google Chrome `150.0.7871.125`，专用 `videoagent_control_test`，单 worker `39/39 PASS / 0 SKIP`。覆盖真实 HttpOnly Cookie、Request ID、401/403/404/409/503、安全 retry、跨组织等价 404、Pilot Storage 空、无 Demo/Mock fallback，以及 TEST Settlement `draft`/非到账/非提现/非自动打款边界。
+
+安全收口：浏览器可读 DOM、URL、Cookie、localStorage/sessionStorage、console、pageerror 与 requestfailed 均不暴露 Session、密码、Invitation/verification Token、Terms digest、内部 calculation snapshot、Grant、SQL 或 stack；artifact scanner 额外拒绝 trace/HAR/video 和可搜索明文 Secret。
 
 ### 06D.7 · Joint Gate Activation & Documentation Closure
 
@@ -238,7 +242,7 @@ A-BIZ-06D 按 `Environment Guard → Reset/Seed → Browser Runtime → Auth/Rou
 当前状态：
 
 ```text
-A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED
+A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS / READY_FOR_06D_7_JOINT_GATE_ACTIVATION
 ```
 
 06D.1～06D.2 已完成唯一 `_test` PostgreSQL 输入、开发库拒绝、实际 database identity 核对、受保护 reset、19 个 migration、固定 Scope fixture、每轮临时凭据和 postcondition verify。专用 `videoagent_control_test` 定向 Gate 为 `2 files / 14 tests PASS / 0 SKIP`，连续两轮安全 fingerprint 一致，且 `liveFactCount: 0`、`activeSessionCount: 0`。
@@ -249,4 +253,8 @@ A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPER
 
 06D.5 Public Lifecycle 完成后，完整 Pilot Browser Gate 为 `22/22 PASS`。fixture 的 canonical Terms document code 已由错误的 `pilot-e2e-registration` 修正为 `registration-notice`；stale Terms HTTP 语义已由错误的 `503 TERMS_NOT_AVAILABLE` 修正为 `409 TERMS_VERSION_STALE`。Invitation Token 只在当前组件内存使用，立即从 URL 清除，刷新不恢复，且不进入 DOM、Storage、日志或 artifact；Registration 覆盖 success、无自动 Session、replay、idempotency conflict、duplicate、verification unavailable/failed recovery、stale Terms 与全部 Terms retired。
 
-下一个可执行 RED 进入 06D.6：真实 Platform Commission Audit 页面当前显示“无商业审计权限”，对应真实商业 API 403。必须先定位 Commission Router/Repository 的 Scope 谓词，再扩展 Terms/Invitation/Member 与 TEST Recharge/Commission/Settlement 的 loading/empty/error/retry、安全 404 和敏感信息矩阵。`pilot-browser-e2e` 仍保持 `planned`/BLOCKED；尚未激活 Joint Gate，尚未进入 06E/06F。
+06D.6 已以 `bf054aa`～`426103b` 完成真实 Operations/Commercial/Security Browser Matrix。期间修复 Commission Router 对无关 `/api/v1/*` 的错误 403 吞路由、Tenant canonical scope 与 Settlement calendar date 投影；Terms/Invitation/Member 和 TEST Recharge/Commission/Settlement 均覆盖 loading/empty/error/retry。跨组织 Channel/Tenant 探测对“存在但无权”和“未知”返回等价安全 404；Settlement retry 保持相同业务事实与 body `idempotencyKey`，最终仍仅创建 TEST draft。
+
+完整 Pilot Browser Gate 使用真实 Google Chrome `150.0.7871.125`、专用 `videoagent_control_test` 与单 worker执行，结果 `39/39 PASS / 0 SKIP`。真实 Session Cookie 为 HttpOnly，Pilot Storage 为空，失败不回退 Demo/Mock/localStorage；DOM/URL/console/pageerror/requestfailed 与 artifact 扫描未发现 Secret、Token、digest、内部 snapshot、Grant、SQL 或 stack 泄漏。
+
+下一步只进入 06D.7：将 Joint Gate `pilot-browser-e2e` phase 切换为 `ready`、改用真实 `npm run test:e2e:pilot` runner 并移除 06D slice blocker，再同步 README/C0/桌面知识库和验证 manifest/plan/full fail-closed。06E/06F 与 B external baseline 仍未进入，不宣称 Full Joint Gate PASS。

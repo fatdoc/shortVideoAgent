@@ -339,3 +339,12 @@
 - Invitation Token 不进入 URL、DOM、Storage、日志或 artifact；Pilot 成功事实不由 Mock 提供，失败不回退 Demo/localStorage。
 - 共享通知：B 修改 Registration/Terms HTTP 前同步 `c492c36`，修改 Pilot E2E runtime 前同步 `bda23ac`。
 - 06D.6 首个 RED 为真实 Platform Commission Audit 403；Joint Gate 仍未激活，06E/06F 未进入，StoryCanvas tracked clean。
+
+## 2026-08-10 · A-BIZ-06D.6 Operations / TEST Commercial / Security Complete
+
+- `bf054aa`～`426103b` 完成 Terms/Invitation/Member 与 TEST Recharge/Commission/Settlement 的真实浏览器 loading/empty/ready/error/retry 矩阵。
+- 修复 Commission Router fallthrough、Tenant canonical recharge scope、Settlement period/date 投影；成功事实均来自真实 Control API。
+- 跨组织 Channel/Tenant 探测对存在但无权与未知资源返回等价安全 404；错误体最小且不泄露目标 ID。
+- 敏感浏览器表面与 artifact scanner 覆盖 Session/密码/Token/digest/内部 snapshot/Grant/SQL/stack；Pilot Storage 为空，不回退 Demo/Mock。
+- 真实 Google Chrome `150.0.7871.125`、专用 `videoagent_control_test`、单 worker完整 Gate `39/39 PASS / 0 SKIP`；artifact scanner `3/3 PASS`。
+- Settlement 保持 TEST/draft/zero-candidate/非到账/非提现/非自动打款；06E/06F、B external baseline 和 Full Joint Gate 仍未完成。
