@@ -482,6 +482,8 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCommissionSettlementRepository
     await expect(repository.createDraft(record())).resolves.toEqual({
       replayed: false,
       value: expect.objectContaining({
+        periodStart: '2026-08-01',
+        periodEnd: '2026-09-01',
         grossAccrualAmountMinor: 0,
         grossReversalAmountMinor: 0,
         netAmountMinor: 0,
