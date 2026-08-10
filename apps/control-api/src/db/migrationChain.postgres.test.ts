@@ -1,65 +1,18 @@
 import knex, { type Knex } from 'knex';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  CONTROL_API_MIGRATION_FINGERPRINT_TABLES,
+  CONTROL_API_MIGRATION_NAMES,
+} from './migrationContract.js';
 import { migrationConfig } from './migrationConfig.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
 const hasDedicatedTestDatabase = /_test$/.test(testDatabaseName);
 
-const expectedMigrations = [
-  '001_pilot_core.ts',
-  '002_auth_session_rotation.ts',
-  '003_content_tenant_integrity.ts',
-  '004_production_package_grant.ts',
-  '005_production_security_hardening.ts',
-  '006_organization_foundation.ts',
-  '007_channel_foundation.ts',
-  '008_organization_membership.ts',
-  '009_project_assignment.ts',
-  '010_session_active_context.ts',
-  '011_terms_versioning.ts',
-  '012_invitation_lifecycle.ts',
-  '013_registration_attribution.ts',
-  '014_recharge_payment_foundation.ts',
-  '015_atomic_credit_issuance.ts',
-  '016_commission_shadow_ledger.ts',
-  '017_full_test_payment_reversal.ts',
-  '018_fix_commission_settlement_item_validation.ts',
-  '019_harden_legacy_membership_shadow.ts',
-];
+const expectedMigrations = [...CONTROL_API_MIGRATION_NAMES];
 
-const expectedTables = [
-  'auth_sessions',
-  'channels',
-  'organization_memberships',
-  'organization_membership_roles',
-  'organizations',
-  'project_assignment_backfill_runs',
-  'project_assignments',
-  'project_grants',
-  'projects',
-  'tenants',
-  'terms_documents',
-  'terms_versions',
-  'user_consents',
-  'invitations',
-  'invitation_usages',
-  'registrations',
-  'referral_attributions',
-  'referral_attribution_events',
-  'credit_conversion_rule_versions',
-  'recharge_orders',
-  'recharge_order_events',
-  'payment_events',
-  'credit_lots',
-  'commission_rule_versions',
-  'commission_calculation_outcomes',
-  'commission_accruals',
-  'commission_reversals',
-  'commission_settlements',
-  'commission_settlement_items',
-  'users',
-];
+const expectedTables = [...CONTROL_API_MIGRATION_FINGERPRINT_TABLES];
 
 async function resetDatabase(database: Knex): Promise<void> {
   await database.raw('drop schema if exists control_plane cascade');

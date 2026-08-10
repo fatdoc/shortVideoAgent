@@ -86,7 +86,7 @@ test('rejects invalid, non-PostgreSQL, non-test, and development database URLs',
   }
 });
 
-test('accepts only the environment boundary but remains fail closed until the database gate exists', () => {
+test('accepts the environment boundary but fails closed when the database connection is unavailable', () => {
   const result = runRunner({
     PILOT_E2E: 'true',
     CONTROL_API_TEST_DATABASE_URL: secretUrl,
@@ -94,7 +94,7 @@ test('accepts only the environment boundary but remains fail closed until the da
   const output = outputOf(result);
 
   assert.notEqual(result.status, 0);
-  assert.match(output, /MIGRATION_GATE_IMPLEMENTATION_PENDING/);
+  assert.match(output, /MIGRATION_GATE_CONNECTION_FAILED/);
   assert.doesNotMatch(output, /MIGRATION_GATE_ENVIRONMENT_REJECTED/);
   assert.doesNotMatch(output, /RUNNING_MIGRATION_GATE/);
   assert.doesNotMatch(output, /MIGRATION_ROLLBACK_REAPPLY_PASS/);
