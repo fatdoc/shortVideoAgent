@@ -16,7 +16,9 @@ const visibleProjects = [
 describe('A-BIZ-03.4B Pilot commercial route manifest', () => {
   it('freezes the four commercial routes and their canonical scopes', () => {
     expect(
-      PILOT_COMMERCIAL_ROUTE_MANIFEST.map((route) => ({
+      PILOT_COMMERCIAL_ROUTE_MANIFEST.filter(
+        (route) => !route.capability.includes('.operations.'),
+      ).map((route) => ({
         path: route.path,
         organizationType: route.organizationType,
         roles: route.roles,
@@ -324,24 +326,114 @@ describe('A-BIZ-03.4B commercial menu visibility', () => {
         organizationType: 'PLATFORM',
         roleCodes: ['platform_admin'],
       }).map((item) => item.path),
-    ).toEqual(['/platform/commission-audit', '/platform/commission-settlements']);
+    ).toEqual([
+      '/platform/commission-audit',
+      '/platform/commission-settlements',
+      '/platform/terms',
+      '/platform/invitations',
+      '/platform/members',
+    ]);
     expect(
       buildPilotCommercialMenu({
         organizationType: 'CHANNEL',
         roleCodes: ['channel_admin'],
       }).map((item) => item.path),
-    ).toEqual(['/channel/commission-audit']);
+    ).toEqual(['/channel/commission-audit', '/channel/invitations', '/channel/members']);
     expect(
       buildPilotCommercialMenu({
         organizationType: 'TENANT',
         roleCodes: ['tenant_admin'],
       }).map((item) => item.path),
-    ).toEqual(['/enterprise/recharge-orders']);
+    ).toEqual(['/enterprise/recharge-orders', '/enterprise/invitations', '/enterprise/members']);
     expect(
       buildPilotCommercialMenu({
         organizationType: 'TENANT',
         roleCodes: ['content_operator'],
       }),
     ).toEqual([]);
+  });
+});
+
+describe('A-BIZ-06C.6 operations route activation', () => {
+  it('freezes Project-independent Terms, Invitation and Member routes in the shared manifest', () => {
+    expect(
+      PILOT_COMMERCIAL_ROUTE_MANIFEST.filter((route) =>
+        route.capability.includes('.operations.'),
+      ).map((route) => ({
+        path: route.path,
+        organizationType: route.organizationType,
+        roles: route.roles,
+        requiresProjectContext: route.requiresProjectContext,
+      })),
+    ).toEqual([
+      {
+        path: '/platform/terms',
+        organizationType: 'PLATFORM',
+        roles: ['platform_admin'],
+        requiresProjectContext: false,
+      },
+      {
+        path: '/platform/invitations',
+        organizationType: 'PLATFORM',
+        roles: ['platform_admin'],
+        requiresProjectContext: false,
+      },
+      {
+        path: '/platform/members',
+        organizationType: 'PLATFORM',
+        roles: ['platform_admin'],
+        requiresProjectContext: false,
+      },
+      {
+        path: '/channel/invitations',
+        organizationType: 'CHANNEL',
+        roles: ['channel_admin'],
+        requiresProjectContext: false,
+      },
+      {
+        path: '/channel/members',
+        organizationType: 'CHANNEL',
+        roles: ['channel_admin'],
+        requiresProjectContext: false,
+      },
+      {
+        path: '/enterprise/invitations',
+        organizationType: 'TENANT',
+        roles: ['tenant_admin'],
+        requiresProjectContext: false,
+      },
+      {
+        path: '/enterprise/members',
+        organizationType: 'TENANT',
+        roles: ['tenant_admin'],
+        requiresProjectContext: false,
+      },
+    ]);
+  });
+
+  it('authorizes a Tenant operations returnTo without a visible Project but does not grant content_operator', () => {
+    expect(
+      resolvePilotOrganizationEntryPath({
+        candidate: '/enterprise/invitations?status=active',
+        organizationType: 'TENANT',
+        tenantId,
+        roleCodes: ['tenant_admin'],
+        visibleProjects: [],
+      }),
+    ).toEqual({
+      status: 'allowed',
+      path: '/enterprise/invitations?status=active',
+      source: 'return-to',
+      requiresProjectContext: false,
+    });
+    expect(
+      authorizePilotOrganizationRoute({
+        pathname: '/enterprise/members',
+        organizationType: 'TENANT',
+        tenantId,
+        roleCodes: ['content_operator'],
+        visibleProjects: [],
+      }),
+    ).toEqual({ status: 'permission-denied' });
   });
 });

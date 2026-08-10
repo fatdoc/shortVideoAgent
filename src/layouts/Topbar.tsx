@@ -6,6 +6,7 @@ import { resolveWorkbenchKind, WORKBENCH_OPTIONS } from '../components/workbench
 import { pilotRuntime } from '../config/pilotRuntime';
 import { layout, zIndex } from '../design/tokens';
 import { PROJECT_STATUS_LABEL, ROUTES } from '../domain/constants';
+import { authorizePilotOrganizationRoute } from '../domain/pilotOrganizationRoutePolicy';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useAuthStore } from '../stores/authStore';
@@ -20,6 +21,9 @@ function pageTitle(pathname: string) {
   if (pathname === '/platform/commission-settlements') return 'TEST 结算草稿';
   if (pathname === '/channel/commission-audit') return '渠道佣金审计';
   if (pathname === '/enterprise/recharge-orders') return 'TEST 充值记录';
+  if (pathname === '/platform/terms') return 'Terms 运营';
+  if (pathname.endsWith('/invitations')) return '邀请管理';
+  if (pathname.endsWith('/members')) return '成员管理';
   if (pathname === '/platform/overview') return '平台概览';
   if (pathname === '/platform/catalog') return '产品与演示 RateCard';
   if (pathname === '/platform/organizations') return '渠道与企业组织';
@@ -171,7 +175,25 @@ function PilotTopbar() {
   const projectStatus = usePilotProjectContextStore((state) => state.status);
   const title = pageTitle(location.pathname);
   const organizationType = session?.activeContext.organizationType;
-  const tenantWorkbench = organizationType === 'TENANT';
+  const routeDecision = session
+    ? authorizePilotOrganizationRoute({
+        pathname: location.pathname,
+        organizationType: session.activeContext.organizationType,
+        tenantId: session.activeContext.tenantId,
+        roleCodes: session.activeContext.roles,
+        visibleProjects: session.activeContext.tenantId
+          ? projects.map((project) => ({
+              projectId: project.id,
+              tenantId: session.activeContext.tenantId!,
+            }))
+          : [],
+      })
+    : null;
+  const projectIndependentRoute =
+    routeDecision?.status === 'allowed' &&
+    routeDecision.routeKind === 'commercial' &&
+    !routeDecision.route.requiresProjectContext;
+  const showTenantProjectSelector = organizationType === 'TENANT' && !projectIndependentRoute;
   const home =
     organizationType === 'PLATFORM'
       ? '/platform/commission-audit'
@@ -187,7 +209,7 @@ function PilotTopbar() {
 
   return (
     <HeaderFrame home={home} workbenchLabel={workbenchLabel} title={title}>
-      {tenantWorkbench ? (
+      {showTenantProjectSelector ? (
         <Select
           aria-label="当前 Pilot 项目"
           size="small"

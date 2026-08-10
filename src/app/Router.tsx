@@ -32,8 +32,19 @@ import {
   PilotChannelCommissionAuditPage,
   PilotPlatformCommissionAuditPage,
 } from '../pages/pilot/PilotCommissionAuditPages';
+import {
+  PilotChannelInvitationsPage,
+  PilotPlatformInvitationsPage,
+  PilotTenantInvitationsPage,
+} from '../pages/pilot/PilotInvitationOperationsPages';
+import {
+  PilotChannelMembersPage,
+  PilotPlatformMembersPage,
+  PilotTenantMembersPage,
+} from '../pages/pilot/PilotMemberOperationsPages';
 import { PilotPlatformSettlementDraftPage } from '../pages/pilot/PilotSettlementDraftPage';
 import { PilotTenantRechargeAuditPage } from '../pages/pilot/PilotTenantRechargeAuditPage';
+import { PilotTermsOperationsPage } from '../pages/pilot/PilotTermsOperationsPage';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
 import {
@@ -431,25 +442,18 @@ function pilotPolicyContext(session: PilotSession, projects: readonly PilotProje
   };
 }
 
-function pilotEntryPath(
-  candidate: unknown,
-  session: PilotSession,
-  projects: readonly PilotProject[],
-): string | null {
-  const decision = resolvePilotOrganizationEntryPath({
-    ...pilotPolicyContext(session, projects),
-    candidate,
-  });
-  return decision.status === 'allowed' ? decision.path : null;
-}
-
 function pilotDefaultPath(session: PilotSession, projects: readonly PilotProject[]): string | null {
   const decision = resolvePilotOrganizationDefaultRoute(pilotPolicyContext(session, projects));
   return decision.status === 'allowed' ? decision.path : null;
 }
 
-function waitsForPilotProjectContext(session: PilotSession | null, projectStatus: string): boolean {
+function waitsForPilotProjectContext(
+  session: PilotSession | null,
+  projectStatus: string,
+  requiresProjectContext = true,
+): boolean {
   return (
+    requiresProjectContext &&
     session?.activeContext.organizationType === 'TENANT' &&
     (projectStatus === 'idle' || projectStatus === 'loading')
   );
@@ -468,10 +472,20 @@ function PilotLoginEntry() {
     if (status === 'idle') void hydrate();
   }, [hydrate, status]);
 
+  const returnTo = (location.state as { from?: unknown } | null)?.from;
+  const entryDecision = session
+    ? resolvePilotOrganizationEntryPath({
+        ...pilotPolicyContext(session, projects),
+        candidate: returnTo,
+      })
+    : null;
+  const entryRequiresProjectContext =
+    entryDecision?.status === 'allowed' ? entryDecision.requiresProjectContext : true;
+
   if (
     status === 'idle' ||
     status === 'hydrating' ||
-    waitsForPilotProjectContext(session, projectStatus)
+    waitsForPilotProjectContext(session, projectStatus, entryRequiresProjectContext)
   ) {
     return (
       <div className="d2-session-loading" role="status">
@@ -481,8 +495,7 @@ function PilotLoginEntry() {
   }
   if (status === 'service_error') return <PilotServiceError />;
   if (session) {
-    const returnTo = (location.state as { from?: unknown } | null)?.from;
-    const target = pilotEntryPath(returnTo, session, projects) ?? '/pilot';
+    const target = entryDecision?.status === 'allowed' ? entryDecision.path : '/pilot';
     return <Navigate to={target} replace />;
   }
   return <LoginPage onRegister={() => navigate('/register')} />;
@@ -758,6 +771,13 @@ function pilotCommercialPage(route: PilotCommercialRouteManifestEntry): ReactNod
   }
   if (route.key === 'channel-commission-audit') return <PilotChannelCommissionAuditPage />;
   if (route.key === 'tenant-recharge-orders') return <PilotTenantRechargeAuditPage />;
+  if (route.key === 'platform-terms') return <PilotTermsOperationsPage />;
+  if (route.key === 'platform-invitations') return <PilotPlatformInvitationsPage />;
+  if (route.key === 'platform-members') return <PilotPlatformMembersPage />;
+  if (route.key === 'channel-invitations') return <PilotChannelInvitationsPage />;
+  if (route.key === 'channel-members') return <PilotChannelMembersPage />;
+  if (route.key === 'tenant-invitations') return <PilotTenantInvitationsPage />;
+  if (route.key === 'tenant-members') return <PilotTenantMembersPage />;
   return <PilotNotFoundPage />;
 }
 

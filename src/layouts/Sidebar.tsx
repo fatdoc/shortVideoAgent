@@ -113,6 +113,13 @@ const iconByTenantMenuKey: Record<string, React.ReactNode> = {
   'platform-commission-settlements': <WalletOutlined />,
   'channel-commission-audit': <SafetyCertificateOutlined />,
   'tenant-recharge-orders': <WalletOutlined />,
+  'platform-terms': <FileTextOutlined />,
+  'platform-invitations': <InboxOutlined />,
+  'platform-members': <ApartmentOutlined />,
+  'channel-invitations': <InboxOutlined />,
+  'channel-members': <ApartmentOutlined />,
+  'tenant-invitations': <InboxOutlined />,
+  'tenant-members': <ApartmentOutlined />,
 };
 
 function shellItems(
@@ -254,9 +261,9 @@ function PilotSidebar() {
     : [];
   const subtitle =
     organizationType === 'PLATFORM'
-      ? '平台商业审计'
+      ? '平台运营与审计'
       : organizationType === 'CHANNEL'
-        ? '渠道商业审计'
+        ? '渠道运营与审计'
         : '统一创作工作台';
 
   return (

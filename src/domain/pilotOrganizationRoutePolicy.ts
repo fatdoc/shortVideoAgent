@@ -11,7 +11,14 @@ export type PilotCommercialRouteCapability =
   | 'platform.commission.audit.read'
   | 'platform.commission.settlement.create'
   | 'channel.commission.audit.read'
-  | 'tenant.recharge.audit.read';
+  | 'tenant.recharge.audit.read'
+  | 'platform.operations.terms.manage'
+  | 'platform.operations.invitations.manage'
+  | 'platform.operations.members.manage'
+  | 'channel.operations.invitations.manage'
+  | 'channel.operations.members.manage'
+  | 'tenant.operations.invitations.manage'
+  | 'tenant.operations.members.manage';
 
 export interface PilotCommercialRouteManifestEntry {
   key: string;
@@ -68,6 +75,83 @@ export const PILOT_COMMERCIAL_ROUTE_MANIFEST = [
     organizationType: 'TENANT',
     roles: ['tenant_admin'],
     requiresProjectContext: true,
+    showInMenu: true,
+  },
+  {
+    key: 'platform-terms',
+    path: '/platform/terms',
+    label: 'Terms 运营',
+    order: 30,
+    capability: 'platform.operations.terms.manage',
+    organizationType: 'PLATFORM',
+    roles: ['platform_admin'],
+    requiresProjectContext: false,
+    showInMenu: true,
+  },
+  {
+    key: 'platform-invitations',
+    path: '/platform/invitations',
+    label: '邀请管理',
+    order: 40,
+    capability: 'platform.operations.invitations.manage',
+    organizationType: 'PLATFORM',
+    roles: ['platform_admin'],
+    requiresProjectContext: false,
+    showInMenu: true,
+  },
+  {
+    key: 'platform-members',
+    path: '/platform/members',
+    label: '成员管理',
+    order: 50,
+    capability: 'platform.operations.members.manage',
+    organizationType: 'PLATFORM',
+    roles: ['platform_admin'],
+    requiresProjectContext: false,
+    showInMenu: true,
+  },
+  {
+    key: 'channel-invitations',
+    path: '/channel/invitations',
+    label: '邀请管理',
+    order: 20,
+    capability: 'channel.operations.invitations.manage',
+    organizationType: 'CHANNEL',
+    roles: ['channel_admin'],
+    requiresProjectContext: false,
+    showInMenu: true,
+  },
+  {
+    key: 'channel-members',
+    path: '/channel/members',
+    label: '成员管理',
+    order: 30,
+    capability: 'channel.operations.members.manage',
+    organizationType: 'CHANNEL',
+    roles: ['channel_admin'],
+    requiresProjectContext: false,
+    showInMenu: true,
+  },
+  {
+    key: 'tenant-invitations',
+    path: '/enterprise/invitations',
+    label: '邀请管理',
+    order: 30,
+    capability: 'tenant.operations.invitations.manage',
+    organizationType: 'TENANT',
+    roles: ['tenant_admin'],
+    requiresProjectContext: false,
+    showInMenu: true,
+  },
+  {
+    key: 'tenant-members',
+    path: '/enterprise/members',
+    label: '成员管理',
+    order: 40,
+    capability: 'tenant.operations.members.manage',
+    organizationType: 'TENANT',
+    roles: ['tenant_admin'],
+    requiresProjectContext: false,
     showInMenu: true,
   },
 ] as const satisfies readonly PilotCommercialRouteManifestEntry[];

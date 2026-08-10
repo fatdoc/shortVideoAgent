@@ -46,6 +46,30 @@ vi.mock('../pages/pilot/PilotTenantRechargeAuditPage', () => ({
   ),
 }));
 
+vi.mock('../pages/pilot/PilotTermsOperationsPage', () => ({
+  PilotTermsOperationsPage: () => (
+    <div data-testid="pilot-platform-terms-operations">Platform Terms 运营</div>
+  ),
+}));
+
+vi.mock('../pages/pilot/PilotInvitationOperationsPages', () => ({
+  PilotPlatformInvitationsPage: () => (
+    <div data-testid="pilot-platform-invitations">Platform 邀请管理</div>
+  ),
+  PilotChannelInvitationsPage: () => (
+    <div data-testid="pilot-channel-invitations">Channel 邀请管理</div>
+  ),
+  PilotTenantInvitationsPage: () => (
+    <div data-testid="pilot-tenant-invitations">Tenant 邀请管理</div>
+  ),
+}));
+
+vi.mock('../pages/pilot/PilotMemberOperationsPages', () => ({
+  PilotPlatformMembersPage: () => <div data-testid="pilot-platform-members">Platform 成员管理</div>,
+  PilotChannelMembersPage: () => <div data-testid="pilot-channel-members">Channel 成员管理</div>,
+  PilotTenantMembersPage: () => <div data-testid="pilot-tenant-members">Tenant 成员管理</div>,
+}));
+
 import App from './App';
 import type { PilotProject, PilotSession } from '../services/pilotControlApi';
 import { usePilotAuthStore } from '../stores/pilotAuthStore';
@@ -470,5 +494,126 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       expect(window.location.pathname).toBe('/projects/project-alpha/brand');
     });
     expect(screen.getByTestId('pilot-route-handoff')).toBeInTheDocument();
+  });
+});
+
+describe('A-BIZ-06C.6 Pilot operations workbench activation', () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState({}, '', '/pilot');
+    usePilotAuthStore.setState({
+      status: 'anonymous',
+      session: null,
+      error: null,
+      requestId: null,
+    });
+    usePilotProjectContextStore.getState().reset();
+  });
+
+  it('activates Platform Terms, Invitation and Member navigation from the shared manifest', async () => {
+    setOrganizationContext('PLATFORM', 'platform_admin');
+    window.history.replaceState({}, '', '/platform/terms');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-platform-terms-operations')).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Terms 运营/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /邀请管理/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /成员管理/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+  });
+
+  it('activates the canonical Channel Invitation page without Tenant Project context', async () => {
+    setOrganizationContext('CHANNEL', 'channel_admin');
+    window.history.replaceState({}, '', '/channel/invitations');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-channel-invitations')).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+  });
+
+  it('keeps Tenant Member operations available during Project service failure without forging a Project', async () => {
+    setTenantContext('tenant_admin');
+    usePilotProjectContextStore.setState({
+      status: 'service_error',
+      projects: [],
+      activeProjectId: null,
+      context: null,
+      error: 'Project service unavailable',
+      requestId: 'project-500',
+    });
+    window.history.replaceState({}, '', '/enterprise/members');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-tenant-members')).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /邀请管理/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /成员管理/ })).toBeInTheDocument();
+    expect(screen.queryByText('Project service unavailable')).not.toBeInTheDocument();
+  });
+
+  it('restores a Tenant operations returnTo without waiting for Project Context', async () => {
+    setTenantContext('tenant_admin');
+    usePilotProjectContextStore.setState({
+      status: 'loading',
+      projects: [],
+      activeProjectId: null,
+      context: null,
+      error: null,
+      requestId: null,
+    });
+    window.history.replaceState(
+      { usr: { from: '/enterprise/invitations' }, key: 'pilot-login-operations' },
+      '',
+      '/login',
+    );
+    render(<App />);
+
+    await waitFor(() => expect(window.location.pathname).toBe('/enterprise/invitations'));
+    expect(screen.getByTestId('pilot-tenant-invitations')).toBeInTheDocument();
+    expect(screen.queryByLabelText('当前 Pilot 项目')).not.toBeInTheDocument();
+  });
+
+  it('uses 404 for cross-Scope probes and 403 for missing same-Scope operation roles', async () => {
+    setOrganizationContext('PLATFORM', 'platform_admin');
+    window.history.replaceState({}, '', '/channel/members');
+    const first = render(<App />);
+    expect(await screen.findByTestId('pilot-route-not-found')).toBeInTheDocument();
+    first.unmount();
+
+    setTenantContext('content_operator');
+    window.history.replaceState({}, '', '/enterprise/members');
+    render(<App />);
+    expect(await screen.findByTestId('pilot-route-permission-denied')).toHaveTextContent(
+      '无权访问成员管理',
+    );
+    expect(screen.queryByTestId('pilot-tenant-members')).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /成员管理/ })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      pathname: '/platform/invitations',
+      organizationType: 'PLATFORM' as const,
+      role: 'platform_admin' as const,
+      testId: 'pilot-platform-invitations',
+    },
+    {
+      pathname: '/platform/members',
+      organizationType: 'PLATFORM' as const,
+      role: 'platform_admin' as const,
+      testId: 'pilot-platform-members',
+    },
+    {
+      pathname: '/channel/members',
+      organizationType: 'CHANNEL' as const,
+      role: 'channel_admin' as const,
+      testId: 'pilot-channel-members',
+    },
+  ])('maps $pathname to its real operations page', async (entry) => {
+    setOrganizationContext(entry.organizationType, entry.role);
+    window.history.replaceState({}, '', entry.pathname);
+    render(<App />);
+
+    expect(await screen.findByTestId(entry.testId)).toBeInTheDocument();
   });
 });
