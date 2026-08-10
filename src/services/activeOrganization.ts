@@ -1,3 +1,4 @@
+import { isDemoBrowserPersistenceEnabled } from '../config/demoPersistencePolicy';
 import {
   CONTROL_PLANE_FIXTURE_ID,
   type ActiveOrganizationContext,
@@ -146,7 +147,7 @@ export function resolveActiveOrganization(
 }
 
 export function loadActiveOrganizationId(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return null;
   try {
     return window.localStorage.getItem(ACTIVE_ORGANIZATION_STORAGE_KEY);
   } catch {
@@ -155,7 +156,7 @@ export function loadActiveOrganizationId(): string | null {
 }
 
 export function saveActiveOrganizationId(organizationId: string): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return;
   window.localStorage.setItem(
     ACTIVE_ORGANIZATION_STORAGE_KEY,
     organizationId,

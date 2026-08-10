@@ -1,3 +1,4 @@
+import { isDemoBrowserPersistenceEnabled } from '../config/demoPersistencePolicy';
 import { authorizeDemoNavigationRoute } from '../domain/demoRouteAccess';
 import {
   DEMO_SESSION_VERSION,
@@ -57,7 +58,7 @@ const SESSION_ORGANIZATION_TYPE = {
 } as const satisfies Record<string, DemoSessionOrganizationType>;
 
 function getLocalStorage(): Storage | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return null;
   try {
     return window.localStorage;
   } catch {

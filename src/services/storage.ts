@@ -1,8 +1,9 @@
+import { isDemoBrowserPersistenceEnabled } from '../config/demoPersistencePolicy';
 import { STORAGE_KEY } from '../domain/constants';
 import type { DemoWorkspace } from '../domain/types';
 
 export function loadWorkspace(): DemoWorkspace | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return null;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -13,16 +14,16 @@ export function loadWorkspace(): DemoWorkspace | null {
 }
 
 export function saveWorkspace(workspace: DemoWorkspace): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
 }
 
 export function clearWorkspace(): void {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return;
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
 export function hasPersistedWorkspace(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return false;
   return window.localStorage.getItem(STORAGE_KEY) != null;
 }
