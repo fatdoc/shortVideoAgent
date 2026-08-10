@@ -107,6 +107,20 @@ function dateOnly(value: Date | string): string {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+function postgresDateOnly(value: Date | string): string {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new CommissionSettlementEvidenceInvalidError(
+      'Commission Settlement period date is invalid.',
+    );
+  }
+  const year = String(parsed.getFullYear()).padStart(4, '0');
+  const month = String(parsed.getMonth() + 1).padStart(2, '0');
+  const day = String(parsed.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function sumSafe(left: number, right: number, field: string): number {
   const result = left + right;
   if (!Number.isSafeInteger(result)) {
@@ -624,8 +638,8 @@ export class PostgresCommissionSettlementRepository implements CommissionSettlem
       paymentMode: 'TEST',
       beneficiaryChannelId: row.beneficiary_channel_id,
       currency: row.currency,
-      periodStart: dateOnly(row.period_start),
-      periodEnd: dateOnly(row.period_end),
+      periodStart: postgresDateOnly(row.period_start),
+      periodEnd: postgresDateOnly(row.period_end),
       cutoffAt: iso(row.cutoff_at),
       status: 'draft',
       grossAccrualAmountMinor,
