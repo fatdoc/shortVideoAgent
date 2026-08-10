@@ -86,6 +86,12 @@ describe.runIf(hasDedicatedTestDatabase)('Pilot E2E deterministic PostgreSQL lif
     const verified = await verifyPilotE2eSeed(database);
     expect(verified).toEqual(second.summary);
 
+    const storedTermsDocument = await database('control_plane.terms_documents')
+      .select('document_code')
+      .where({ terms_document_id: pilotE2eFixtureIds.termsDocument })
+      .first<{ document_code: string }>();
+    expect(storedTermsDocument?.document_code).toBe('registration-notice');
+
     const storedPlatform = await database('control_plane.users')
       .select('password_hash')
       .where({ user_id: pilotE2eFixtureIds.users.platformAdmin })

@@ -270,7 +270,7 @@ export async function seedPilotE2eDatabase(
 
     await transaction('control_plane.terms_documents').insert({
       terms_document_id: ids.termsDocument,
-      document_code: 'pilot-e2e-registration',
+      document_code: 'registration-notice',
       title: 'Pilot E2E 注册服务条款',
       status: 'active',
     });
