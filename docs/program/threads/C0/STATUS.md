@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / A-BIZ-06C.1 `COMPLETE`
-- 当前任务：A-BIZ-06C.2 strict Terms/Invitation Pilot Client RED/Green；Member Client 已先行完成
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / A-BIZ-06C.1～06C.2 `COMPLETE`
+- 当前任务：A-BIZ-06C.3 Platform Terms Operations Page RED/Green
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1126,3 +1126,14 @@
 - PostgreSQL/Service/Route 证据：Terms 32/32、Invitation 37/37 PASS；Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_06C_1_COMPLETE / BOUNDED_OPERATIONS_READS_READY / READY_FOR_06C_2_CLIENTS`。未宣称 06C、正式 Terms、完整 IAM、Full Joint Gate 或 LIVE Operations 完成。
+
+## 2026-08-10 A-BIZ-06C.2 Strict Pilot Operations Client 完成
+
+- Member strict Client 已由 `9ac03d8` 先行交付；本切片新增 Terms `310920e` 与 Invitation `5c3617a` 两个独立提交。
+- Terms Client 覆盖 bounded Document/Version list、create document、create/update DRAFT、publish 与 retire；只发送冻结 HTTP 字段，并严格校验 UUID、status、SHA-256 digest、带时区 timestamp、nullable 发布事实与 replay header。
+- Invitation Client 覆盖 Platform/Channel/Tenant bounded list/create 与 revoke；Channel 只接受显式 canonical channelId，Tenant 只接受显式 Session tenantId，不猜测 Organization ID。
+- Invitation Token 仅从首次 create 调用返回给当前调用方内存；replay 必须为 `null`，不恢复历史 Token，不写 localStorage/sessionStorage/URL/log/trace。
+- 所有 management GET 使用真实 Cookie 与 `cache: no-store`；成功 DTO 对未知/敏感字段 fail closed，错误保留 401/403/404/409/422/5xx、业务 code 与 Request ID，失败不回退 Demo/Mock。
+- Gate：`src/services/pilotControlApi.test.ts` 30/30 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_06C_2_COMPLETE / STRICT_OPERATIONS_CLIENT_READY / READY_FOR_06C_3_TERMS_PAGE_RED`。下一 RED 为 Platform Terms 页面从真实 Document Directory 恢复 loading/empty/ready/error/retry，且 Pilot 失败不得读取 Demo Store。

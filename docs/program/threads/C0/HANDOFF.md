@@ -771,3 +771,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Terms 32/32、Invitation 37/37、Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零。
 - 下一步只进入 06C.2 strict Terms/Invitation Pilot Client；既有 Member Client 提交为 `9ac03d8`。不得回退 Demo/Mock/localStorage，也不得持久化 Invitation Token。
 - 状态：`A_BIZ_06C_1_COMPLETE / READY_FOR_06C_2_CLIENTS`；不 push，不外推为 06C 或 A-BIZ-06 总体完成。
+
+## A-BIZ-06C.2 Strict Pilot Operations Client 完成交接（2026-08-10）
+
+- Client 原子提交：Member `9ac03d8`、Terms `310920e`、Invitation `5c3617a`；本轮没有修改共享 Router/Layout、Control API 或 StoryCanvas。
+- Terms 已接入 bounded management list 与完整已冻结 mutation：create document、create/update DRAFT、publish、retire；响应严格校验精确 DTO、UUID、enum、digest、timestamp、nullable 字段与 `idempotency-replayed`。
+- Invitation 已接入 Platform/Channel/Tenant list/create/revoke；Channel 调用必须由页面先解析 canonical current channelId，Tenant 调用只使用 Session tenantId，Client 不接受 ID 推测。
+- 首次 create Token 只返回当前调用栈；replay Token 必须为 `null`，不会从历史状态恢复，也不会写浏览器持久化、URL、日志、trace 或列表。
+- 所有 management GET 使用 `credentials: include` 与 `cache: no-store`；未知/敏感成功字段 fail closed；401/403/404/409/422/5xx 与 Request ID 由 `PilotControlApiError` 保留；无 Demo/Mock/localStorage fallback。
+- Gate：Pilot Control API adapter 30/30 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零，`byteplus.ts` 始终排除。
+- 下一步进入 06C.3 Platform Terms Operations Page。首个页面 RED：真实 Document Directory 的 loading → empty/ready/error/retry 状态必须可观察，刷新只从服务端恢复，失败不得读取 Demo Store。
+- 状态：`A_BIZ_06C_2_COMPLETE / READY_FOR_06C_3_TERMS_PAGE_RED`；不 push，不外推为正式 Terms 上线、06C/A-BIZ-06 总体完成、Full Joint Gate PASS 或 LIVE Operations Ready。

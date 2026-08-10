@@ -290,3 +290,13 @@
 - Repository/Service 与 HTTP 分成四个原子提交：`8feda7f`、`1f4d768`、`7c31089`、`b6ff3db`。
 - Terms 32/32、Invitation 37/37 PASS；Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS。
 - StoryCanvas 未修改；下一步为 06C.2 strict Terms/Invitation Pilot Client，禁止 Demo/Mock fallback 与 Invitation Token 持久化。
+
+## 2026-08-10 · A-BIZ-06C.2 Strict Pilot Operations Client
+
+- Member、Terms、Invitation 严格 Pilot Client 已分别以 `9ac03d8`、`310920e`、`5c3617a` 交付，保持原子提交。
+- Terms Client 支持 bounded Document/Version directories 与 create document、create/update DRAFT、publish、retire；只发送冻结字段并严格解析 replay 证据。
+- Invitation Client 支持 Platform/Channel/Tenant bounded list/create/revoke；canonical Channel/Tenant ID 必须显式传入，禁止由 Organization ID 猜测。
+- 精确 DTO 与敏感字段 fail-closed 已覆盖 UUID、enum、count、email、digest、timestamp、nullable facts、Token replay；首次 Token 只存在当前调用方内存，replay 不恢复。
+- 真实 Cookie、management `no-store`、安全错误 status/code/Request ID、Demo/Pilot 隔离保持不变；无 Mock/localStorage fallback。
+- Pilot Client 定向 30/30、Root Build、ESLint、Prettier、Governance、diff-check PASS；StoryCanvas 与未跟踪 `byteplus.ts` 未修改。
+- 状态推进到 `A_BIZ_06C_2_COMPLETE / READY_FOR_06C_3_TERMS_PAGE_RED`。
