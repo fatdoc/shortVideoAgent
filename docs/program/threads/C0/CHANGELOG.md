@@ -114,6 +114,7 @@
 | 2026-08-09 | A-BIZ-06B 完成 Migration 019、Member Directory/Deactivation Repository/Service、真实 Cookie HTTP Route 与共享 Bootstrap；Control API 61 files / 414 tests PASS，旧 Session 下一次 resolve 失效                                                            | A_BIZ_06B_COMPLETE                             |
 | 2026-08-10 | 冻结 A-BIZ-06C Pilot Operations UI：先补 Terms Document/Version bounded reads 与 Invitation bounded list，再交付 strict Client、Terms/Invitation/Member 页面和单独 Router/Layout 激活；Token/Scope/Terms 正文 fail closed                                 | A_BIZ_06C_PLAN_FROZEN                          |
 | 2026-08-10 | 冻结 A-BIZ-06E A/B Golden Path Joint Gate：先加固 B baseline commit attestation，再冻结 B Storyboard Draft → A authority/approval → Package 与 server-mediated Canvas Entry；缺 Wave 4 clean baseline 时保持阻断                                          | A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE |
+| 2026-08-10 | A-BIZ-06E.0 完成 B baseline attestation：Full Gate 要求完整 commit object 且为当前 HEAD ancestor；missing/invalid/not-ancestor fail closed，manifest 12/12 PASS，06E/06F blockers 保留                                                                    | A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE  |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -366,3 +367,11 @@
 - 冻结 Storyboard Draft provenance、A-owned Storyboard Version/Approval、approved Script/Storyboard 双绑定 Production Package 与 server-mediated Canvas bootstrap；raw Grant 不进入浏览器敏感表面。
 - 首个 RED 为非法非空 baseline commit attestation；共享 Joint Gate Green 后必须通知 B。
 - 状态：`A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`；未激活 `ab-golden-path`，未宣称 A-BIZ-06 或 Full Joint Gate 完成。
+
+## 2026-08-10 · A-BIZ-06E.0 B Baseline Attestation Complete
+
+- RED `f29a0bd`、shared Green `94fabe1`、matrix `cf6bf58` 完成 Joint Gate B baseline object/ancestor 证明。
+- missing、invalid、not-ancestor 与 valid synchronized commit 全覆盖；manifest `12/12 PASS`，非法输入不回显且不执行 required commands。
+- `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED` 继续保留，`ab-golden-path` 未激活。
+- 共享通知：B 修改 Joint Gate manifest/runner 前同步 `94fabe1`。
+- 状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。

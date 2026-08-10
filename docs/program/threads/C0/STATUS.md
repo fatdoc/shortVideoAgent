@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `PLAN_FROZEN / WAITING_FOR_B_BASELINE` / `FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A-BIZ-06E.0 B baseline attestation RED；Golden Path 实现等待 B-owned Wave 4 clean baseline
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E.0 `COMPLETE / WAITING_FOR_B_BASELINE` / `FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A-BIZ-06F Migration/Rollback 与 Ops Docs 前置审计；06E Golden Path 等待 B-owned Wave 4 clean baseline
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1217,3 +1217,13 @@
 - Canvas bootstrap 采用 server-mediated 方向；raw Grant accessToken 不进入 DOM、URL、Storage、props、日志、trace、截图、report 或错误 envelope。
 - 06E.0 可在等待 B 时前置加固 Joint Gate：非空但不存在/未同步的 baseline commit 必须阻断，不执行 required commands，不移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。共享 manifest/runner Green 后必须通知 B。
 - 06E.3～06E.6 只有 B 提供明确、可同步、tracked clean 的 Wave 4 commit 后才可执行。当前状态：`A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-10 A-BIZ-06E.0 B Baseline Attestation 完成
+
+- RED `f29a0bd` 冻结“非空但不存在的 baseline 不能通过”合同；Green `94fabe1` 将 `ab-golden-path` 与 `storycanvas-build-targeted` 的前置从 `non-empty` 改为 `git-commit-ancestor`。
+- Full preflight 现在要求完整 40 位 SHA、真实 commit object 且为当前 integration `HEAD` 的 ancestor；missing / invalid / not-ancestor 分别返回稳定安全 blocker。
+- Matrix `cf6bf58` 覆盖 missing、invalid、not-ancestor、valid synchronized commit；manifest `12/12 PASS`，plan PASS。
+- 非法值不回显，required commands 不执行；合法当前 HEAD 只保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED`。
+- **共享通知给 B**：B 修改 Joint Gate manifest/runner 前必须同步 `94fabe1`；后续 handoff commit 必须已同步进入当前集成祖先链，旧 D2 ref 不能解除前置。
+- StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push，服务继续运行。
+- 当前状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。下一步并行审计 06F A-owned migration/README，不进入 06E.1 实现。

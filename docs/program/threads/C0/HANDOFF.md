@@ -869,3 +869,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 提供 baseline 时必须给出明确 commit、Wave 4 能力/测试清单、tracked clean 证明、共享合同依赖与 Provider 限制；双方同步后再进入 06E.1 实现。
 - 工作区仅保留 B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`；禁止 `git add .`，不得修改、暂存、提交或删除该文件。根 `5173` 与 StoryCanvas `10588` 服务保持运行，不 push。
 - 等待 B baseline 期间，可完成 06E.0 与并行审计 06F A-owned migration/README 工作；不得激活 `ab-golden-path` 或宣称 A-BIZ-06 / Full Joint Gate 完成。
+
+## A-BIZ-06E.0 B Baseline Attestation 交接（2026-08-10）
+
+- 提交链：RED `f29a0bd` → shared Green `94fabe1` → attestation matrix `cf6bf58`。
+- `JOINT_GATE_B_BASELINE_COMMIT` 必须是完整 40 位 Git commit SHA、可解析为 commit object，且 `git merge-base --is-ancestor <sha> HEAD` 成立。
+- blocker：缺失 `JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED`；非法 `JOINT_GATE_B_BASELINE_COMMIT_INVALID`；未同步 `JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR`。
+- manifest tests `12/12 PASS`；invalid/not-ancestor 输出不包含原始 SHA/值，不出现 `RUNNING` 或 `JOINT_GATE_PASS`；06E/06F slice blockers继续保留。
+- **B 必须同步 `94fabe1`** 后再修改 `scripts/joint-gate-manifest.mjs` 或 `scripts/run-joint-gate.mjs`。B 的 Wave 4 handoff commit 必须进入 A 集成历史，不能只提供未同步分支名或旧 `origin/dev/production-plane@84d922c`。
+- 06E.0 完成不代表 B baseline 已到、Storyboard authority 已实现或 `ab-golden-path` 已激活；状态仍为 `WAITING_FOR_B_BASELINE`。
+- A 下一步转入 06F A-owned migration/rollback 与 Ops Docs 审计；不修改 StoryCanvas 或 B-owned 页面，不处理未跟踪 `byteplus.ts`，不 push。

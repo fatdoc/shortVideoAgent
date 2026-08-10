@@ -3,10 +3,10 @@
 - 日期：2026-08-10
 - 负责人：工程师 A（业务平台）/ 工程师 B（生产与画布）
 - 分支：`dev/business-plane`
-- 状态：`A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE`
+- 状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`54555cc docs(business-plane): close deterministic pilot browser gate`
-- 共享同步基线：Pilot Browser Joint Gate `c154b1e`
+- 共享同步基线：Pilot Browser Joint Gate `c154b1e`；B Baseline Attestation `94fabe1`
 
 ## 1. 本节点目标
 
@@ -181,6 +181,16 @@ A-owned，可在等待 B handoff 时前置：
 
 > 使用合法 dedicated PostgreSQL URL 和不存在的非空 `JOINT_GATE_B_BASELINE_COMMIT` 执行 Full preflight，必须返回 `JOINT_GATE_B_BASELINE_COMMIT_INVALID`，不得出现 `RUNNING`、提交值或 `JOINT_GATE_PASS`，并继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。
 
+完成证据（2026-08-10）：
+
+- RED `f29a0bd` 证明原 runner 只校验 non-empty；
+- Green `94fabe1` 将 A/B-owned phases 的 validator 改为 `git-commit-ancestor`，依次校验 40 位 commit、commit object 与 HEAD ancestor；
+- Matrix `cf6bf58` 覆盖 missing、invalid、not-ancestor 与 valid synchronized commit；
+- manifest `12/12 PASS`，非法值不回显、不执行 required commands，valid HEAD 只保留 06E/06F slice blockers；
+- `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 未移除，`ab-golden-path` 仍为 `external`。
+
+**共享通知给 B**：修改 `scripts/joint-gate-manifest.mjs` 或 `scripts/run-joint-gate.mjs` 前必须同步 `94fabe1`；B handoff 必须提供已进入集成 HEAD 祖先链的完整 commit SHA。
+
 ### 4.2 A-BIZ-06E.1 · Storyboard Authority / Bootstrap Contract
 
 A/B 共同冻结、A 负责权威持久化：
@@ -345,9 +355,9 @@ A-BIZ-06E 按以下顺序推进：
 → 06E.6 Joint Gate Activation
 ```
 
-当前首个 RED 为非法 B baseline commit attestation。由于 B 尚未提供 Wave 4 clean baseline，Golden Path 实现与 Gate 保持阻断：
+06E.0 baseline attestation 已完成。由于 B 尚未提供 Wave 4 clean baseline，06E.1 实现、Golden Path Browser Gate 与 phase 激活继续阻断；A 转入 06F A-owned migration/README 并行审计：
 
 ```text
-A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE
+A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE
 FULL_JOINT_GATE_STILL_BLOCKED
 ```

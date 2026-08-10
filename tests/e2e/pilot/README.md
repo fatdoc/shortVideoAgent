@@ -41,7 +41,7 @@ Semantics:
 - `CONTROL_API_TEST_DATABASE_URL` must be a dedicated PostgreSQL database whose name ends in `_test`. Missing or development database URLs block the full Gate before tests, so PostgreSQL suites cannot silently skip and still be reported as passed.
 - StoryCanvas v0.2 runtime, security, public route, and durable receiver tests are listed explicitly because the package default `npm test` script does not cover all of them.
 - Provider secrets are cleared for child processes. The runner does not start LIVE payment, settlement, media generation, or paid provider calls.
-- `JOINT_GATE_B_BASELINE_COMMIT` is an external synchronization assertion, not an instruction for A to edit StoryCanvas.
+- `JOINT_GATE_B_BASELINE_COMMIT` is an external synchronization assertion, not an instruction for A to edit StoryCanvas. It must be a full 40-character commit SHA that resolves to a commit and is already an ancestor of the current integration `HEAD`; missing, invalid, or unsynchronized values block the full Gate before any required command runs.
 
 ### Pilot browser phase evidence
 
