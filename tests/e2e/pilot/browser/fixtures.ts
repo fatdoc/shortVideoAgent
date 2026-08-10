@@ -14,7 +14,7 @@ export type PilotE2eAccountKey =
   | 'tenantAdminB';
 
 export type PilotE2eInvitationKey = 'valid' | 'expired' | 'revoked' | 'exhausted';
-export type PilotE2eVerificationMode = 'valid' | 'failed';
+export type PilotE2eVerificationMode = 'valid' | 'failed' | 'recovering';
 
 interface PilotE2eCredential {
   email: string;
@@ -127,18 +127,25 @@ export async function installEmailVerificationBridge(
   page: Page,
   mode: PilotE2eVerificationMode = 'valid',
 ): Promise<void> {
-  const token = mode === 'valid' ? verificationToken : invalidVerificationToken;
-  await page.addInitScript(
-    ({ evidence }) => {
-      Object.defineProperty(window, '__PILOT_E2E_EMAIL_VERIFICATION__', {
-        configurable: false,
-        enumerable: false,
-        writable: false,
-        value: () => evidence,
-      });
-    },
-    { evidence: token },
-  );
+  const evidence = {
+    valid: verificationToken,
+    invalid: invalidVerificationToken,
+    mode,
+  };
+  await page.addInitScript(({ valid, invalid, mode: bridgeMode }) => {
+    let calls = 0;
+    Object.defineProperty(window, '__PILOT_E2E_EMAIL_VERIFICATION__', {
+      configurable: false,
+      enumerable: false,
+      writable: false,
+      value: () => {
+        calls += 1;
+        if (bridgeMode === 'failed') return invalid;
+        if (bridgeMode === 'recovering' && calls === 1) return invalid;
+        return valid;
+      },
+    });
+  }, evidence);
 }
 
 export async function login(page: Page, key: PilotE2eAccountKey): Promise<void> {
