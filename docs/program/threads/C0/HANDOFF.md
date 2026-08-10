@@ -879,3 +879,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - **B 必须同步 `94fabe1`** 后再修改 `scripts/joint-gate-manifest.mjs` 或 `scripts/run-joint-gate.mjs`。B 的 Wave 4 handoff commit 必须进入 A 集成历史，不能只提供未同步分支名或旧 `origin/dev/production-plane@84d922c`。
 - 06E.0 完成不代表 B baseline 已到、Storyboard authority 已实现或 `ab-golden-path` 已激活；状态仍为 `WAITING_FOR_B_BASELINE`。
 - A 下一步转入 06F A-owned migration/rollback 与 Ops Docs 审计；不修改 StoryCanvas 或 B-owned 页面，不处理未跟踪 `byteplus.ts`，不 push。
+
+## 2026-08-10 A-BIZ-06F Migration/Rollback 与 Final Joint Gate 计划冻结
+
+- 新增权威计划 `A_BIZ_06F_MIGRATION_ROLLBACK_FINAL_GATE_PLAN.md`；06F 顺序固定为 environment/destructive guard → fresh migrate/one-batch rollback/reapply → failure/redaction matrix → shared phase activation → Ops Docs/final report → Final Joint Gate。
+- 当前 Joint Gate 已预留 `migration-rollback-reapply`，但 runner 不存在，phase 仍为 `planned`，`MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED` 继续阻断 Full Gate。
+- 普通 `apps/control-api` migration/rollback CLI 不可直接用于 Gate；06F 必须要求 `PILOT_E2E=true`、显式 `CONTROL_API_TEST_DATABASE_URL`、专用 PostgreSQL `_test`、禁止 `DATABASE_URL` fallback，并在任何 destructive SQL 前核对 `current_database()`。
+- 复用 `apps/control-api/src/e2e/environment.ts`，不复制 URL guard；日志只允许稳定 code、database name/host category、batch/count/duration，禁止完整 URL、username/password、SQL、stack、Token 或 Secret。
+- migration chain 当前为 001～019。真实 Gate 只在 fresh、empty、dedicated DB 上执行 reset → latest → replay no-op → rollback one batch → empty verify → deterministic reapply → final fingerprint → cleanup。
+- 首个 RED 已冻结：环境缺失/非法/非 `_test`/开发主库时，runner 必须在 `RUNNING_MIGRATION_GATE` 和任何 DROP/migration 前失败，且不泄漏原始环境值。
+- **给 B 的预告**：06F.4 会独立修改 `scripts/joint-gate-manifest.mjs` / `scripts/run-joint-gate.mjs` 并给出同步 commit；本次计划冻结尚未改变共享运行合同。
+- 06F.6 仍被 06E/B baseline 阻断；不得将 migration 准备工作外推为 A-BIZ-06 或 Full Joint Gate 完成。
+- StoryCanvas tracked diff 仍为零，`apps/storycanvas/data/vendor/byteplus.ts` 继续不修改、不暂存、不提交；分支不 push，服务继续运行。

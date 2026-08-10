@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E.0 `COMPLETE / WAITING_FOR_B_BASELINE` / `FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A-BIZ-06F Migration/Rollback 与 Ops Docs 前置审计；06E Golden Path 等待 B-owned Wave 4 clean baseline
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E.0 `COMPLETE / WAITING_FOR_B_BASELINE` / A-BIZ-06F `PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED` / `FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A-BIZ-06F.1 Migration Gate Environment/Destructive Guard RED；06E Golden Path 等待 B-owned Wave 4 clean baseline
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1227,3 +1227,15 @@
 - **共享通知给 B**：B 修改 Joint Gate manifest/runner 前必须同步 `94fabe1`；后续 handoff commit 必须已同步进入当前集成祖先链，旧 D2 ref 不能解除前置。
 - StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push，服务继续运行。
 - 当前状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。下一步并行审计 06F A-owned migration/README，不进入 06E.1 实现。
+
+## 2026-08-10 A-BIZ-06F Migration/Rollback 与 Final Joint Gate 计划冻结
+
+- 新增 `A_BIZ_06F_MIGRATION_ROLLBACK_FINAL_GATE_PLAN.md`，冻结 06F.1～06F.6：安全环境边界、fresh forward/one-batch rollback/reapply、失败与脱敏矩阵、Joint Gate phase 激活、Ops Docs/最终报告和最终 Full Gate。
+- 当前 `migration-rollback-reapply` phase 仍为 `planned`，runner `scripts/run-control-api-migration-gate.mjs` 尚不存在，`MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED` 必须保留。
+- 普通 `db:migrate` / `db:rollback` 不具备 destructive Gate 所需的 `PILOT_E2E=true`、专用 `_test` URL、禁止 `DATABASE_URL` fallback 和 `current_database()` identity 二次校验，不能直接作为 Joint Gate。
+- 06F 将复用 `apps/control-api/src/e2e/environment.ts` 的权威 guard；任何 environment 或 identity 失败必须在 DROP/migrate/rollback 前非零退出，且不输出完整 URL、用户名、密码、SQL 或 stack。
+- migration chain 当前冻结为 001～019；rollback 必须在 fresh、empty、dedicated `_test` DB 上验证 one-batch 语义，随后 deterministic reapply 并比对最终 fingerprint。
+- 首个 RED：缺失 `PILOT_E2E=true` 或 URL 缺失/非法/非 `_test`/开发主库时，migration runner 不得进入 `RUNNING_MIGRATION_GATE`，不得执行 destructive operation，也不得泄漏凭据。
+- 06F.4 修改共享 Joint Gate manifest/runner 时必须独立提交并通知 B；当前计划提交不改变共享运行合同。
+- 06F.6 继续等待 06E 与 B baseline；在全部 required phases 零 SKIP 前不得宣称 `A_BIZ_06_COMPLETE` 或 `JOINT_GATE_PASS`。
+- 当前状态：`A_BIZ_06F_PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED / FULL_JOINT_GATE_STILL_BLOCKED`。StoryCanvas tracked diff 保持为零，B-owned 未跟踪 vendor 文件继续排除。

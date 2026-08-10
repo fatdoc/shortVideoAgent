@@ -375,3 +375,11 @@
 - `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED` 继续保留，`ab-golden-path` 未激活。
 - 共享通知：B 修改 Joint Gate manifest/runner 前同步 `94fabe1`。
 - 状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-10 · A-BIZ-06F Migration/Rollback 与 Final Joint Gate 计划
+
+- 冻结 06F.1～06F.6：专用 `_test` DB 安全边界、identity 二次校验、fresh migrate → one-batch rollback → deterministic reapply、失败脱敏、Joint Gate phase 激活、Ops Docs/Final Report 与最终 Full Gate。
+- 普通 migration CLI 不作为 destructive Gate；复用 Pilot E2E environment guard，环境或 identity 失败必须在任何 DROP/migration 前非零退出。
+- migration chain 当前为 001～019；真实 rollback 只在 fresh、empty、dedicated DB 上执行并验证最终 fingerprint。
+- 首个 RED 为缺失/非法/非 `_test`/开发主库环境的 pre-destructive 拒绝与凭据不泄漏。
+- 状态：`A_BIZ_06F_PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED / FULL_JOINT_GATE_STILL_BLOCKED`；最终 Gate 继续等待 06E/B baseline。
