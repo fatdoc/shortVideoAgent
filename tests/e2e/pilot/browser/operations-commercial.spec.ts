@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Response } from '@playwright/test';
-import { login, PILOT_E2E_CHANNEL_A_ID } from './fixtures';
+import { login, PILOT_E2E_CHANNEL_A_ID, PILOT_E2E_TENANT_A_ID } from './fixtures';
 
 const platformAuditPaths = [
   '/api/v1/platform/payment-events',
@@ -15,6 +15,8 @@ const channelAuditPaths = [
   `/api/v1/channels/${PILOT_E2E_CHANNEL_A_ID}/commission-audit/accruals`,
   `/api/v1/channels/${PILOT_E2E_CHANNEL_A_ID}/commission-audit/reversals`,
 ] as const;
+
+const tenantRechargePath = `/api/v1/tenants/${PILOT_E2E_TENANT_A_ID}/recharge-orders`;
 
 async function openLogin(page: Page): Promise<void> {
   await page.goto('/login');
@@ -73,5 +75,28 @@ test.describe.serial('Pilot Operations and TEST commercial browser matrix', () =
     );
     await expect(page.getByTestId('pilot-channel-commission-audit-ready')).toBeVisible();
     await expect(page.getByText('TEST · READ ONLY').first()).toBeVisible();
+  });
+
+  test('loads the current Tenant TEST RechargeOrder audit without exposing a write flow', async ({
+    page,
+  }) => {
+    const statuses = new Map<string, number>();
+    page.on('response', (response) => {
+      const path = auditedPath(response, [tenantRechargePath]);
+      if (path) statuses.set(path, response.status());
+    });
+
+    await openLogin(page);
+    await login(page, 'tenantAdminA');
+    await page.goto('/enterprise/recharge-orders');
+
+    await expect.poll(() => statuses.get(tenantRechargePath)).toBe(200);
+    await expect(page.getByTestId('pilot-tenant-recharge-ready')).toBeVisible();
+    await expect(page.getByText('TEST · READ ONLY').first()).toBeVisible();
+    await expect(page.getByText(/非真实收款、非可用余额承诺/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /创建|立即充值|模拟支付|发起退款/ })).toHaveCount(
+      0,
+    );
+    await expect(page.getByRole('textbox')).toHaveCount(0);
   });
 });
