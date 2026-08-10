@@ -748,6 +748,20 @@ function timezoneTimestamp(value: unknown): value is string {
   );
 }
 
+function utcMonthStart(value: unknown): value is string {
+  if (typeof value !== 'string' || !MONTH_START_PATTERN.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function consecutiveUtcMonthPeriod(start: string, end: string): boolean {
+  const startDate = new Date(`${start}T00:00:00.000Z`);
+  const expectedEnd = new Date(
+    Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 1),
+  );
+  return expectedEnd.toISOString().slice(0, 10) === end;
+}
+
 function nullableTimezoneTimestamp(value: unknown): value is string | null {
   return value === null || timezoneTimestamp(value);
 }
@@ -997,8 +1011,9 @@ function parseSettlement(value: unknown): PilotCommissionSettlementDraft {
     value.paymentMode !== 'TEST' ||
     !uuid(value.beneficiaryChannelId) ||
     !currency(value.currency) ||
-    !timezoneTimestamp(value.periodStart) ||
-    !timezoneTimestamp(value.periodEnd) ||
+    !utcMonthStart(value.periodStart) ||
+    !utcMonthStart(value.periodEnd) ||
+    !consecutiveUtcMonthPeriod(value.periodStart, value.periodEnd) ||
     !timezoneTimestamp(value.cutoffAt) ||
     value.status !== 'draft' ||
     !safeInteger(value.grossAccrualAmountMinor, 0) ||
