@@ -854,3 +854,18 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - **B 同步要求**：`c154b1e` 修改共享 `scripts/joint-gate-manifest.mjs`、`scripts/run-joint-gate.mjs`。B 在修改 Joint Gate phase 或 runner 前必须先同步；不要恢复 06D blocker，也不要绕过 lifecycle runner。
 - StoryCanvas tracked clean，`apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned 未跟踪状态；分支未 push，根 `5173` 与 StoryCanvas `10588` 继续运行。
 - 下一步为 06E A/B Golden Path 前置审计。没有 B-owned clean baseline 与明确同步提交时，Full Gate 必须继续 fail closed；06F Migration/Rollback 也尚未开始。
+
+## A-BIZ-06E A/B Golden Path Joint Gate 计划交接（2026-08-10）
+
+- 权威子计划：`docs/program/threads/C0/A_BIZ_06E_A_B_GOLDEN_PATH_JOINT_GATE_PLAN.md`。
+- 当前状态：`A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。
+- 当前 B remote-tracking ref `origin/dev/production-plane@84d922c` 是 2026-08-02 D2 handoff，不满足 Wave 4 Golden Path baseline；不得用该旧提交或非空字符串解除 Joint Gate external precondition。
+- 06E 冻结顺序：06E.0 baseline attestation → 06E.1 Storyboard authority/bootstrap contract → 06E.2 A strict client → 06E.3 B Pilot pages → 06E.4 shared Router/Bridge → 06E.5 real browser gate → 06E.6 Joint Gate activation。
+- 首个 RED：给 Full preflight 一个不存在的非空 `JOINT_GATE_B_BASELINE_COMMIT`，必须返回 `JOINT_GATE_B_BASELINE_COMMIT_INVALID`，不得运行 required commands、回显原始值或消除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。
+- 当前 A-owned Control API 已有 Project、Script approval、Production Package/Grant 与 introspection；frontend Pilot client 只有 Project list/read，尚无真实 Script/Storyboard/Production client。
+- 当前 Storyboard authority 缺口必须先补：B draft 不能直接覆盖权威 Storyboard；A 保存版本、人工审批并绑定 approved Script digest 后才能签发 Package。现有 `storyboardFromScript(scriptPayload)` 不得作为 06E 成功事实。
+- Canvas Entry 冻结为 server-mediated bootstrap；raw Grant accessToken 不进入浏览器可持久化或 artifact 表面。B Canvas 只消费合法 Package/Grant，不接受 Demo Grant fallback。
+- A 禁止修改 `apps/storycanvas/**`、`src/features/storycanvas/**`、`src/pages/storyboard/**`、`src/pages/script-editor/**`、`src/components/storyboard/**`、`src/components/script/**`；`src/pages/production/IntegratedStoryCanvasPage.tsx` 也由 B 修改。
+- B 提供 baseline 时必须给出明确 commit、Wave 4 能力/测试清单、tracked clean 证明、共享合同依赖与 Provider 限制；双方同步后再进入 06E.1 实现。
+- 工作区仅保留 B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`；禁止 `git add .`，不得修改、暂存、提交或删除该文件。根 `5173` 与 StoryCanvas `10588` 服务保持运行，不 push。
+- 等待 B baseline 期间，可完成 06E.0 与并行审计 06F A-owned migration/README 工作；不得激活 `ab-golden-path` 或宣称 A-BIZ-06 / Full Joint Gate 完成。

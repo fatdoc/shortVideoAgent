@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / `PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A-BIZ-06E A/B Golden Path 前置审计；等待 B-owned clean baseline 后才能执行联合实现与 Gate
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `PLAN_FROZEN / WAITING_FOR_B_BASELINE` / `FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A-BIZ-06E.0 B baseline attestation RED；Golden Path 实现等待 B-owned Wave 4 clean baseline
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1206,3 +1206,14 @@
 - **共享通知给 B**：B 修改 Joint Gate manifest/runner 前必须同步 `c154b1e`；该提交改变 Full Gate 的 Pilot Browser phase 环境与执行命令。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。根 `5173` 与 StoryCanvas `10588` 服务继续运行；分支未 push。
 - 当前状态：`A_BIZ_06D_COMPLETE / PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`。下一步只能审计 06E 前置与 B baseline，不得把 06D 完成外推为 A-BIZ-06 或 Full Joint Gate 完成。
+
+## 2026-08-10 A-BIZ-06E A/B Golden Path Joint Gate 计划冻结
+
+- 新增 `A_BIZ_06E_A_B_GOLDEN_PATH_JOINT_GATE_PLAN.md`，冻结 baseline attestation、Storyboard authority、server-mediated Canvas bootstrap、A/B 页面接线、真实浏览器 Gate 与 Joint Gate 激活顺序。
+- 当前 `origin/dev/production-plane@84d922c` 仅是 2026-08-02 D2 基线，不是 Wave 4 handoff；工作区 B-owned `apps/storycanvas/data/vendor/byteplus.ts` 仍为未跟踪文件，A 不修改、不暂存、不提交。
+- A 已有真实 Tenant Project Context、Script/Production API 与 Grant introspection；但 Pilot Script/Storyboard/Canvas 页面仍依赖 Demo Store、`DEMO_PROJECT_ID`、LocalStorage 和 Demo Grant/Bridge。
+- 阻断性缺口为 Storyboard authority：当前 Production Package 仍从 approved Script payload 的 `storyboard` 字段构建，不能证明 B draft 已由 A 保存并人工批准。
+- 冻结 B draft provenance → A-owned Storyboard Version/Approval → approved Script/Storyboard 双绑定 → Production Package 的 fail-closed 事实链。
+- Canvas bootstrap 采用 server-mediated 方向；raw Grant accessToken 不进入 DOM、URL、Storage、props、日志、trace、截图、report 或错误 envelope。
+- 06E.0 可在等待 B 时前置加固 Joint Gate：非空但不存在/未同步的 baseline commit 必须阻断，不执行 required commands，不移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。共享 manifest/runner Green 后必须通知 B。
+- 06E.3～06E.6 只有 B 提供明确、可同步、tracked clean 的 Wave 4 commit 后才可执行。当前状态：`A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。
