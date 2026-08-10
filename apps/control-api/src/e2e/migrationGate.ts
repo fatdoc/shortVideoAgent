@@ -37,12 +37,23 @@ export type MigrationGateOutput = {
   error(line: string): void;
 };
 
-class MigrationGateStageError extends Error {
-  constructor(readonly code: string) {
-    super(code);
-    this.name = 'MigrationGateStageError';
+export class MigrationGateOperationError extends Error {
+  constructor(
+    readonly code: string,
+    message = code,
+  ) {
+    super(message);
+    this.name = 'MigrationGateOperationError';
   }
 }
+
+export type MigrationGateRuntime = {
+  createDatabase(environment: PilotE2eEnvironment): Knex;
+  assertIdentity(database: Knex, environment: PilotE2eEnvironment): Promise<void>;
+  execute(database: Knex, output: MigrationGateOutput): Promise<void>;
+  cleanup(database: Knex): Promise<void>;
+  destroy(database: Knex): Promise<void>;
+};
 
 type MigrationFingerprint = {
   appliedMigrations: string[];
@@ -93,7 +104,7 @@ async function runStage<T>(code: string, operation: () => Promise<T>): Promise<T
   try {
     return await operation();
   } catch {
-    throw new MigrationGateStageError(code);
+    throw new MigrationGateOperationError(code);
   }
 }
 
@@ -235,9 +246,23 @@ async function executeMigrationGate(database: Knex, output: MigrationGateOutput)
   output.info('MIGRATION_GATE_FINGERPRINT_PASS');
 }
 
+const defaultMigrationGateRuntime: MigrationGateRuntime = {
+  createDatabase: createMigrationDatabase,
+  assertIdentity: assertPilotE2eDatabaseIdentity,
+  execute: executeMigrationGate,
+  async cleanup(database) {
+    await resetMigrationState(database);
+    await verifyEmptyMigrationState(database);
+  },
+  async destroy(database) {
+    await database.destroy();
+  },
+};
+
 export async function runControlApiMigrationGate(
   environment: NodeJS.ProcessEnv,
   output: MigrationGateOutput,
+  runtime: MigrationGateRuntime = defaultMigrationGateRuntime,
 ): Promise<number> {
   const inspection = inspectMigrationGateEnvironment(environment);
   if (!inspection.ok) {
@@ -245,14 +270,21 @@ export async function runControlApiMigrationGate(
     return 2;
   }
 
-  const database = createMigrationDatabase(inspection.environment);
+  let database: Knex;
+  try {
+    database = runtime.createDatabase(inspection.environment);
+  } catch {
+    output.error('MIGRATION_GATE_CONNECTION_FAILED');
+    return 1;
+  }
+
   let identityVerified = false;
   let primaryFailure: string | null = null;
   let cleanupFailed = false;
 
   try {
     try {
-      await assertPilotE2eDatabaseIdentity(database, inspection.environment);
+      await runtime.assertIdentity(database, inspection.environment);
       identityVerified = true;
     } catch (error) {
       if (error instanceof PilotE2eEnvironmentError) {
@@ -267,10 +299,10 @@ export async function runControlApiMigrationGate(
       `RUNNING_MIGRATION_GATE database=${inspection.summary.databaseName} host=${inspection.summary.databaseHostCategory}`,
     );
     try {
-      await executeMigrationGate(database, output);
+      await runtime.execute(database, output);
     } catch (error) {
       primaryFailure =
-        error instanceof MigrationGateStageError
+        error instanceof MigrationGateOperationError
           ? error.code
           : 'MIGRATION_GATE_REAPPLY_VERIFICATION_FAILED';
       output.error(primaryFailure);
@@ -278,8 +310,7 @@ export async function runControlApiMigrationGate(
   } finally {
     if (identityVerified) {
       try {
-        await resetMigrationState(database);
-        await verifyEmptyMigrationState(database);
+        await runtime.cleanup(database);
         output.info('MIGRATION_GATE_CLEANUP_PASS');
       } catch {
         cleanupFailed = true;
@@ -287,7 +318,7 @@ export async function runControlApiMigrationGate(
       }
     }
     try {
-      await database.destroy();
+      await runtime.destroy(database);
     } catch {
       cleanupFailed = true;
       output.error('MIGRATION_GATE_CLEANUP_FAILED');
