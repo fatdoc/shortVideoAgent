@@ -100,7 +100,7 @@ export const jointGatePhases = [
       {
         type: 'environment',
         name: 'JOINT_GATE_B_BASELINE_COMMIT',
-        validator: 'non-empty',
+        validator: 'git-commit-ancestor',
       },
       {
         type: 'slice',
@@ -142,7 +142,7 @@ export const jointGatePhases = [
       {
         type: 'environment',
         name: 'JOINT_GATE_B_BASELINE_COMMIT',
-        validator: 'non-empty',
+        validator: 'git-commit-ancestor',
       },
     ],
   },
