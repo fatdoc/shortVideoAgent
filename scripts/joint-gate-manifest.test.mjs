@@ -15,6 +15,11 @@ const repositoryHead = spawnSync('git', ['rev-parse', 'HEAD'], {
   cwd: repositoryRoot,
   encoding: 'utf8',
 }).stdout.trim();
+const nonAncestorCommit = spawnSync(
+  'git',
+  ['rev-list', '--all', '--not', 'HEAD', '--max-count=1'],
+  { cwd: repositoryRoot, encoding: 'utf8' },
+).stdout.trim();
 
 const requiredPhaseIds = [
   'root-unit',
@@ -200,6 +205,33 @@ test('--full rejects a non-empty baseline value that is not a synchronized Git c
   assert.doesNotMatch(output, /RUNNING/);
   assert.doesNotMatch(output, new RegExp(invalidBaseline));
   assert.doesNotMatch(output, /JOINT_GATE_PASS/);
+});
+
+test('--full requires an explicit B baseline attestation', () => {
+  const result = runRunner(['--full'], {
+    CONTROL_API_TEST_DATABASE_URL:
+      'postgres://videoagent:do-not-print@127.0.0.1:54329/videoagent_control_test',
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.notEqual(result.status, 0);
+  assert.match(output, /JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED/);
+  assert.match(output, /AB_GOLDEN_PATH_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(output, /RUNNING|JOINT_GATE_PASS/);
+});
+
+test('--full rejects a valid Git commit that is not synchronized into HEAD', () => {
+  assert.match(nonAncestorCommit, /^[0-9a-f]{40}$/);
+  const result = runRunner(['--full'], {
+    CONTROL_API_TEST_DATABASE_URL:
+      'postgres://videoagent:do-not-print@127.0.0.1:54329/videoagent_control_test',
+    JOINT_GATE_B_BASELINE_COMMIT: nonAncestorCommit,
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.notEqual(result.status, 0);
+  assert.match(output, /JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR/);
+  assert.match(output, /AB_GOLDEN_PATH_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(output, new RegExp(nonAncestorCommit));
+  assert.doesNotMatch(output, /RUNNING|JOINT_GATE_PASS/);
 });
 
 test('--full fails closed before tests when the dedicated PostgreSQL URL is missing', () => {
