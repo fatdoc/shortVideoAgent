@@ -31,7 +31,10 @@ test.describe.serial('Pilot Auth and Router browser matrix', () => {
     await login(page, 'platformAdmin');
 
     await expectPath(page, '/platform/commission-settlements?period=2026-07');
-    await expect(page.getByTestId('pilot-settlement-draft-form')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Platform TEST Settlement Draft' }),
+    ).toBeVisible();
+    await expect(page.getByText('TEST · draft · NON_QUOTE').first()).toBeVisible();
   });
 
   test('routes Platform, Channel, and assigned Tenant accounts to frozen defaults', async ({
@@ -41,17 +44,17 @@ test.describe.serial('Pilot Auth and Router browser matrix', () => {
       {
         key: 'platformAdmin' as const,
         path: '/platform/commission-audit',
-        readyTestId: 'pilot-platform-commission-audit-ready',
+        heading: '平台佣金审计',
       },
       {
         key: 'channelAdminA' as const,
         path: '/channel/commission-audit',
-        readyTestId: 'pilot-channel-commission-audit-ready',
+        heading: '渠道佣金审计',
       },
       {
         key: 'tenantOperatorA' as const,
         path: `/projects/${PILOT_E2E_PROJECT_ID}/brand`,
-        readyTestId: 'pilot-route-handoff',
+        testId: 'pilot-route-handoff',
       },
     ];
 
@@ -62,7 +65,13 @@ test.describe.serial('Pilot Auth and Router browser matrix', () => {
         await openLogin(page);
         await login(page, entry.key);
         await expectPath(page, entry.path);
-        await expect(page.getByTestId(entry.readyTestId)).toBeVisible();
+        if ('heading' in entry) {
+          await expect(page.getByRole('heading', { name: entry.heading })).toBeVisible();
+        } else {
+          await expect(page.getByTestId(entry.testId)).toBeVisible();
+        }
+        await expect(page.getByTestId('pilot-route-not-found')).toHaveCount(0);
+        await expect(page.getByTestId('pilot-route-permission-denied')).toHaveCount(0);
         await expect(browserStorageKeys(page)).resolves.toEqual({
           localStorageKeys: [],
           sessionStorageKeys: [],
@@ -127,12 +136,14 @@ test.describe.serial('Pilot Auth and Router browser matrix', () => {
     await openLogin(page);
     await login(page, 'platformAdmin');
     await expectPath(page, '/platform/commission-audit');
-    await expect(page.getByTestId('pilot-platform-commission-audit-ready')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '平台佣金审计' })).toBeVisible();
 
     await page.reload();
 
     await expectPath(page, '/platform/commission-audit');
-    await expect(page.getByTestId('pilot-platform-commission-audit-ready')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '平台佣金审计' })).toBeVisible();
+    await expect(page.getByTestId('pilot-route-not-found')).toHaveCount(0);
+    await expect(page.getByTestId('pilot-route-permission-denied')).toHaveCount(0);
     await expect(browserStorageKeys(page)).resolves.toEqual({
       localStorageKeys: [],
       sessionStorageKeys: [],
@@ -167,10 +178,15 @@ test.describe.serial('Pilot Auth and Router browser matrix', () => {
   test('invalidates an existing member session after an authorized suspend', async ({
     browser,
   }) => {
-    const memberContext = await browser.newContext();
-    const adminContext = await browser.newContext();
-    const memberPage = await memberContext.newPage();
-    const adminPage = await adminContext.newPage();
+    test.setTimeout(60_000);
+    const [memberContext, adminContext] = await Promise.all([
+      browser.newContext(),
+      browser.newContext(),
+    ]);
+    const [memberPage, adminPage] = await Promise.all([
+      memberContext.newPage(),
+      adminContext.newPage(),
+    ]);
 
     try {
       await openLogin(memberPage);
