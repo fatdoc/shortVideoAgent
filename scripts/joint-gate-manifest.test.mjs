@@ -11,6 +11,10 @@ import {
 
 const repositoryRoot = process.cwd();
 const runnerPath = path.join(repositoryRoot, 'scripts/run-joint-gate.mjs');
+const repositoryHead = spawnSync('git', ['rev-parse', 'HEAD'], {
+  cwd: repositoryRoot,
+  encoding: 'utf8',
+}).stdout.trim();
 
 const requiredPhaseIds = [
   'root-unit',
@@ -98,6 +102,21 @@ test('Pilot browser phase is ready and delegates to the deterministic lifecycle 
   ]);
 });
 
+test('B-owned phases require an attested synchronized Git commit baseline', () => {
+  for (const phaseId of ['ab-golden-path', 'storycanvas-build-targeted']) {
+    const phase = jointGatePhases.find(({ id }) => id === phaseId);
+    assert.ok(phase);
+    assert.ok(
+      phase.preconditions.some(
+        (precondition) =>
+          precondition.type === 'environment' &&
+          precondition.name === 'JOINT_GATE_B_BASELINE_COMMIT' &&
+          precondition.validator === 'git-commit-ancestor',
+      ),
+    );
+  }
+});
+
 test('dedicated PostgreSQL validation rejects missing, non-PostgreSQL, and development database URLs', () => {
   assert.deepEqual(validateDedicatedPostgresTestUrl(undefined), {
     ok: false,
@@ -156,7 +175,7 @@ test('--full remains blocked on unfinished required slices even with external UR
   const result = runRunner(['--full'], {
     CONTROL_API_TEST_DATABASE_URL:
       'postgres://videoagent:do-not-print@127.0.0.1:54329/videoagent_control_test',
-    JOINT_GATE_B_BASELINE_COMMIT: 'b-owned-clean-baseline',
+    JOINT_GATE_B_BASELINE_COMMIT: repositoryHead,
   });
   assert.notEqual(result.status, 0);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PILOT_BROWSER_E2E_NOT_IMPLEMENTED/);
@@ -164,6 +183,23 @@ test('--full remains blocked on unfinished required slices even with external UR
   assert.match(`${result.stdout}\n${result.stderr}`, /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /do-not-print/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /JOINT_GATE_PASS/);
+});
+
+test('--full rejects a non-empty baseline value that is not a synchronized Git commit', () => {
+  const invalidBaseline = 'invalid-baseline-must-not-be-echoed';
+  const result = runRunner(['--full'], {
+    CONTROL_API_TEST_DATABASE_URL:
+      'postgres://videoagent:do-not-print@127.0.0.1:54329/videoagent_control_test',
+    JOINT_GATE_B_BASELINE_COMMIT: invalidBaseline,
+  });
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.notEqual(result.status, 0);
+  assert.match(output, /JOINT_GATE_B_BASELINE_COMMIT_INVALID/);
+  assert.match(output, /AB_GOLDEN_PATH_NOT_IMPLEMENTED/);
+  assert.match(output, /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(output, /RUNNING/);
+  assert.doesNotMatch(output, new RegExp(invalidBaseline));
+  assert.doesNotMatch(output, /JOINT_GATE_PASS/);
 });
 
 test('--full fails closed before tests when the dedicated PostgreSQL URL is missing', () => {
