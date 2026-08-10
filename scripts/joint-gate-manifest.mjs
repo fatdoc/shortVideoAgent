@@ -76,15 +76,15 @@ export const jointGatePhases = [
     id: 'pilot-browser-e2e',
     owner: 'A',
     requiredInFull: true,
-    availability: 'planned',
+    availability: 'ready',
     description:
       'Run the Wave 4 browser matrix with a real Session Cookie and deterministic dedicated database harness.',
-    commands: [command('npx', ['playwright', 'test', 'tests/e2e/pilot/pilot-operational.spec.ts'])],
+    commands: [command('npm', ['run', 'test:e2e:pilot'])],
     preconditions: [
       {
-        type: 'slice',
-        name: 'A-BIZ-06D',
-        code: 'PILOT_BROWSER_E2E_NOT_IMPLEMENTED',
+        type: 'environment',
+        name: 'CONTROL_API_TEST_DATABASE_URL',
+        validator: 'dedicated-postgres-test-url',
       },
     ],
   },

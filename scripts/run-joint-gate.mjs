@@ -108,6 +108,8 @@ function sanitizedEnvironment() {
   return {
     ...process.env,
     NODE_ENV: 'test',
+    PILOT_E2E: 'true',
+    PILOT_E2E_BROWSER_CHANNEL: 'chrome',
     ARK_API_KEY: '',
     BYTEPLUS_TTS_ACCESS_TOKEN: '',
     BYTEPLUS_TTS_APP_ID: '',
