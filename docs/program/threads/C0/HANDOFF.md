@@ -820,3 +820,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 下一步是 06D.3：先在 `publicRegistrationApi` 增加 digest mismatch RED/GREEN，再实现双端 test-only verification adapter、同源 Vite proxy、Pilot Playwright config 与父 lifecycle runner。
 - 06D.3 将修改共享 `vite.config.ts`、根 `package.json`，并可能修改 Control API server/config 和前端 runtime/service；必须形成独立共享提交，并通知 B 在修改这些文件前同步。
 - 当前状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`；`pilot-browser-e2e` 仍为 `planned`/BLOCKED，不进入 06E/06F，不宣称 A-BIZ-06 或 Full Joint Gate 完成。
+
+## A-BIZ-06D.3～06D.5 Pilot Browser Gate 交接（2026-08-10）
+
+- 06D.3 提交链：`fd4e3de` digest RED、`cc6f50b` digest Green、`002ed5f` verification adapter 合同、`147872b` test-only verification、`1f901c0` Demo persistence 阻断、`bda23ac` 同源 Browser runtime。
+- 06D.4 提交链：`9bddd47` Browser Matrix、`5512bfe` 非 Tenant Auth Scope 隔离、`6a8c4be` canonical Tenant Organization Context、`8480f80` 稳定矩阵；真实 Auth/Router Gate `10/10 PASS`。
+- 06D.5 提交链：`c5f5248` 初始 Public Registration Matrix、`a4ad473` canonical `registration-notice` fixture、`778419e` 扩展 lifecycle matrix、`c492c36` stale Terms HTTP 修复；完整 Pilot Browser Gate `22/22 PASS`。
+- stale Terms canonical 响应为 `409 TERMS_VERSION_STALE`，不再错误映射为 `503 TERMS_NOT_AVAILABLE`；B 修改 Registration/Terms HTTP 前必须同步 `c492c36`。
+- Invitation Token 仅在首次当前组件内存中使用，URL 立即清除，刷新不恢复；测试失败输出只保留稳定 code/布尔安全事实，不打印 Token、密码、Cookie、digest、SQL 或内部 DTO。
+- Registration 使用真实 API 与专用 `_test` PostgreSQL，覆盖 direct success、无自动 Session、identical replay、changed-facts idempotency conflict、duplicate identity、verification unavailable/failed recovery、stale Terms 和 Terms unavailable；成功事实不由 route mock 提供。
+- Gate 证据：Browser `22/22 PASS`；Registration HTTP/PostgreSQL `20/20 PASS`；Control API typecheck/build、Root Build、Prettier、Governance、diff-check PASS。StoryCanvas tracked clean，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
+- 下一步进入 06D.6。首个 RED 已知为真实 Platform Commission Audit 页面显示“无商业审计权限”并收到 403；先审计 Commission Router/Repository Scope 谓词，再补 Operations/TEST Commercial/Security Matrix。不得因 06D.4 Router 壳层 PASS 而宣称商业 Gate PASS。
+- `pilot-browser-e2e` 继续 `planned`/BLOCKED；不激活 Joint Gate，不进入 06E/06F，不 push，不修改 StoryCanvas。

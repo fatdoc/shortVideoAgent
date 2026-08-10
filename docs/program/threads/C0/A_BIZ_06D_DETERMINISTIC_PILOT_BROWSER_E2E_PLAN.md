@@ -3,7 +3,7 @@
 - 日期：2026-08-10
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`
+- 状态：`A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`
 - 前置提交：`1b3af9c docs(business-plane): close pilot operations ui`
 - 共享同步基线：Pilot Router/Layout `26400fa`
@@ -145,7 +145,7 @@ A-BIZ-06D 只建立可重复、fail-closed 的真实 Pilot 浏览器 E2E 环境�
 
 Gate：合法 `_test` PostgreSQL 零 SKIP；连续运行两次结果一致；开发库 guard 测试不执行 destructive SQL。
 
-### 06D.3 · Test-only Verification & Same-origin Browser Runtime
+### 06D.3 · Test-only Verification & Same-origin Browser Runtime — COMPLETE (`fd4e3de`～`bda23ac`)
 
 交付：
 
@@ -156,7 +156,7 @@ Gate：合法 `_test` PostgreSQL 零 SKIP；连续运行两次结果一致；开
 
 共享通知：该切片会修改根 `vite.config.ts`、`package.json`、可能的前端 runtime/service 与 Control API server/config；必须独立提交并通知 B，B 修改共享文件前先同步该提交。
 
-### 06D.4 · Auth / Router Browser Matrix
+### 06D.4 · Auth / Router Browser Matrix — COMPLETE (`9bddd47`～`8480f80`)
 
 覆盖：
 
@@ -166,7 +166,7 @@ Gate：合法 `_test` PostgreSQL 零 SKIP；连续运行两次结果一致；开
 - Tenant Project Context 与 Project-independent Operations route；
 - logout、刷新恢复与 suspend 后旧 Session 失效。
 
-### 06D.5 · Terms / Invitation / Registration Browser Matrix
+### 06D.5 · Terms / Invitation / Registration Browser Matrix — COMPLETE (`c5f5248`～`c492c36`)
 
 覆盖：
 
@@ -238,11 +238,15 @@ A-BIZ-06D 按 `Environment Guard → Reset/Seed → Browser Runtime → Auth/Rou
 当前状态：
 
 ```text
-A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED
+A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED
 ```
 
-06D.1 已以 `2f5131e` 完成唯一 `_test` PostgreSQL 输入、开发库拒绝、实际 database identity 核对与安全摘要；06D.2 已以 `4c05157` 完成受保护 reset、19 个 migration、固定 Scope fixture、每轮临时凭据和 postcondition verify。
+06D.1～06D.2 已完成唯一 `_test` PostgreSQL 输入、开发库拒绝、实际 database identity 核对、受保护 reset、19 个 migration、固定 Scope fixture、每轮临时凭据和 postcondition verify。专用 `videoagent_control_test` 定向 Gate 为 `2 files / 14 tests PASS / 0 SKIP`，连续两轮安全 fingerprint 一致，且 `liveFactCount: 0`、`activeSessionCount: 0`。
 
-专用 `videoagent_control_test` 定向 Gate 为 `2 files / 14 tests PASS / 0 SKIP`；连续两轮安全 fingerprint 均为 `18ca4b0a2c335500639b62a8222ca9f88229ab620ec24726da047051d30d9737`。CLI 不输出凭据，`liveFactCount: 0`，`activeSessionCount: 0`。
+06D.3 已完成 Public Terms 正文 SHA-256 重算、双端 test-only verification adapter、Demo browser persistence 阻断、同源 Vite proxy、真实 Control API lifecycle 与单 worker Playwright runner。共享 runtime 提交为 `bda23ac`；B 修改根 `vite.config.ts`、`package.json` 或 Pilot E2E runtime 前必须先同步。
 
-下一个可执行 RED 是 Public Terms：服务端返回格式合法但 `content` 与 `contentDigest` 不匹配时，Client 必须 fail closed，不返回被篡改正文、不回退 Demo/Mock，并映射为安全 invalid-response 状态。`pilot-browser-e2e` 仍保持 `planned`/BLOCKED。
+06D.4 Auth/Router Browser Gate 为 `10/10 PASS`：真实登录、HttpOnly Session 刷新恢复、三 Scope 默认路由、safe returnTo、Tenant Project-independent route、跨 Scope 404、同 Scope缺角色 403、logout 与 suspend 后旧 Session 失效均已覆盖。`5512bfe` 修复非 Tenant Scope Auth 隔离，`6a8c4be` 保留 canonical Tenant Organization Context。
+
+06D.5 Public Lifecycle 完成后，完整 Pilot Browser Gate 为 `22/22 PASS`。fixture 的 canonical Terms document code 已由错误的 `pilot-e2e-registration` 修正为 `registration-notice`；stale Terms HTTP 语义已由错误的 `503 TERMS_NOT_AVAILABLE` 修正为 `409 TERMS_VERSION_STALE`。Invitation Token 只在当前组件内存使用，立即从 URL 清除，刷新不恢复，且不进入 DOM、Storage、日志或 artifact；Registration 覆盖 success、无自动 Session、replay、idempotency conflict、duplicate、verification unavailable/failed recovery、stale Terms 与全部 Terms retired。
+
+下一个可执行 RED 进入 06D.6：真实 Platform Commission Audit 页面当前显示“无商业审计权限”，对应真实商业 API 403。必须先定位 Commission Router/Repository 的 Scope 谓词，再扩展 Terms/Invitation/Member 与 TEST Recharge/Commission/Settlement 的 loading/empty/error/retry、安全 404 和敏感信息矩阵。`pilot-browser-e2e` 仍保持 `planned`/BLOCKED；尚未激活 Joint Gate，尚未进入 06E/06F。

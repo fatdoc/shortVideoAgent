@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06C `COMPLETE` / `A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY`
-- 当前任务：A-BIZ-06D.3 Public Terms digest mismatch RED 与 test-only same-origin runtime
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06C `COMPLETE` / `A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS`
+- 当前任务：A-BIZ-06D.6 Operations / TEST Commercial / Security Matrix；首个 RED 为真实 Platform Commission Audit 403
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1172,3 +1172,14 @@
 - Postcondition 包含 `migrationCount: 19`、`organizationCount: 5`、`userCount: 8`、`membershipCount: 8`、`liveFactCount: 0`、`activeSessionCount: 0`；未 seed LIVE、paid/提现、KYC、税务、发票或自动打款。
 - Control API typecheck/build、定向 ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
 - 当前状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`。Joint Gate `pilot-browser-e2e` 仍保持 `planned`/BLOCKED；下一 RED 为 Public Terms 正文与合法格式 digest 不匹配时 Client 必须 fail closed，不展示正文且不回退 Demo/Mock。
+
+## 2026-08-10 A-BIZ-06D.3～06D.5 Pilot Browser Gate 进展
+
+- 06D.3 以 `fd4e3de`～`bda23ac` 完成 Public Terms digest fail-closed、双端 test-only verification、Demo persistence 阻断、同源 Vite proxy、真实 Control API lifecycle 与单 worker Playwright runner；非 test 环境继续 fail closed。
+- 06D.4 以 `9bddd47`～`8480f80` 完成 Auth/Router Browser Matrix，真实 Gate `10/10 PASS`；覆盖匿名回跳、PLATFORM/CHANNEL/TENANT 默认路由、direct URL、Project-independent Tenant Operations、403/404、刷新、logout 与 suspend Session invalidation。
+- 06D.5 以 `c5f5248`、`a4ad473`、`778419e` 完成 Public Lifecycle Matrix；canonical Terms fixture code 修正为 `registration-notice`，完整 Pilot Browser Gate `22/22 PASS`。
+- `c492c36` 将 stale Terms 从错误的 `503 TERMS_NOT_AVAILABLE` 修正为 canonical `409 TERMS_VERSION_STALE`；Registration HTTP/PostgreSQL 定向 `20/20 PASS`，Control API typecheck/build、Root Build、Governance、Prettier、diff-check PASS。
+- Invitation Token 立即从 URL 清除，刷新不恢复，不进入 DOM、localStorage/sessionStorage、日志或 artifact；Registration 成功不自动创建 Session，replay/conflict/duplicate/verification recovery/stale/unavailable 均使用真实 API 事实。
+- **共享通知给 B**：Public Registration stale Terms HTTP 合同现为 `409 TERMS_VERSION_STALE`；B 修改 Registration/Terms HTTP 合同时必须先同步 `c492c36`。共享 Pilot E2E runtime 基线为 `bda23ac`。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；根 `5173` 与 StoryCanvas `10588` 服务保持运行。
+- 当前状态：`A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED`。下一个真实 RED 是 Platform Commission Audit 页面返回 403；`pilot-browser-e2e` 仍为 `planned`/BLOCKED，尚未激活 Joint Gate，尚未进入 06E/06F。

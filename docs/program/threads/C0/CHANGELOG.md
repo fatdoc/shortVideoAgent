@@ -329,3 +329,13 @@
 - 专用 `videoagent_control_test` 定向验证 `2 files / 14 tests PASS / 0 SKIP`；连续两轮 fingerprint 一致，`liveFactCount: 0`、`activeSessionCount: 0`。
 - 未 seed LIVE、paid/提现、KYC、税务、发票或自动打款；Joint Gate `pilot-browser-e2e` 继续 `planned`/BLOCKED。
 - StoryCanvas tracked diff 为零，B 的未跟踪 `byteplus.ts` 未修改或暂存；下一 RED 为 Public Terms digest mismatch fail-closed。
+
+## 2026-08-10 · A-BIZ-06D.3～06D.5 Pilot Browser Gate
+
+- 完成 Public Terms SHA-256 digest fail-closed、显式 test-only verification、Demo persistence 阻断、同源 Vite/Control API lifecycle 和单 worker Playwright runner。
+- Auth/Router Browser Matrix `10/10 PASS`，覆盖真实 Cookie Session、三 Scope 默认路由、safe returnTo、403/404、刷新、logout 与 suspend invalidation。
+- Public Lifecycle 将完整 Pilot Browser Gate 扩展为 `22/22 PASS`；canonical Terms fixture code 修正为 `registration-notice`。
+- stale Terms HTTP 从错误的 `503 TERMS_NOT_AVAILABLE` 修正为 `409 TERMS_VERSION_STALE`；Registration HTTP/PostgreSQL 定向 `20/20 PASS`。
+- Invitation Token 不进入 URL、DOM、Storage、日志或 artifact；Pilot 成功事实不由 Mock 提供，失败不回退 Demo/localStorage。
+- 共享通知：B 修改 Registration/Terms HTTP 前同步 `c492c36`，修改 Pilot E2E runtime 前同步 `bda23ac`。
+- 06D.6 首个 RED 为真实 Platform Commission Audit 403；Joint Gate 仍未激活，06E/06F 未进入，StoryCanvas tracked clean。
