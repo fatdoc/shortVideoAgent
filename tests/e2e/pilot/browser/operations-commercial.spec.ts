@@ -17,6 +17,8 @@ const channelAuditPaths = [
 ] as const;
 
 const tenantRechargePath = `/api/v1/tenants/${PILOT_E2E_TENANT_A_ID}/recharge-orders`;
+const activeChannelDirectoryPath = '/api/v1/platform/channels';
+const settlementDraftPath = '/api/v1/platform/commission-settlements';
 
 async function openLogin(page: Page): Promise<void> {
   await page.goto('/login');
@@ -98,5 +100,55 @@ test.describe.serial('Pilot Operations and TEST commercial browser matrix', () =
       0,
     );
     await expect(page.getByRole('textbox')).toHaveCount(0);
+  });
+
+  test('creates only a zero-candidate Platform TEST settlement draft from the active Channel Directory', async ({
+    page,
+  }) => {
+    const statuses = new Map<string, number>();
+    const paths = [activeChannelDirectoryPath, settlementDraftPath];
+    page.on('response', (response) => {
+      const path = auditedPath(response, paths);
+      if (path) statuses.set(path, response.status());
+    });
+
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await page.goto('/platform/commission-settlements');
+
+    await expect.poll(() => statuses.get(activeChannelDirectoryPath)).toBe(200);
+    await expect(page.getByTestId('pilot-settlement-draft-form')).toBeVisible();
+    await page.getByLabel('Active beneficiary Channel').selectOption(PILOT_E2E_CHANNEL_A_ID);
+    await page.getByLabel('UTC 结算自然月').fill('2026-06');
+    await page.getByLabel('UTC 截止时间').fill('2026-07-01T00:00');
+    const settlementResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === settlementDraftPath,
+    );
+    await page.getByRole('button', { name: '创建 TEST draft' }).click();
+
+    const created = await settlementResponse;
+    expect(created.status()).toBe(201);
+    expect(created.headers()['idempotency-replayed']).toBe('false');
+    await expect(created.json()).resolves.toMatchObject({
+      settlement: {
+        paymentMode: 'TEST',
+        status: 'draft',
+        beneficiaryChannelId: PILOT_E2E_CHANNEL_A_ID,
+        currency: 'CNY',
+        netAmountMinor: 0,
+        itemCount: 0,
+      },
+    });
+    await expect.poll(() => statuses.get(settlementDraftPath)).toBe(201);
+    const result = page.getByTestId('pilot-settlement-current-draft');
+    await expect(result).toBeVisible();
+    await expect(result).toContainText('零候选是有效审计结果，不是创建失败');
+    await expect(result).toContainText('TEST · draft · NON_QUOTE');
+    await expect(result).toContainText('非到账、非提现、非 paid、非自动打款');
+    await expect(page.getByRole('button', { name: /review|approve|paid|提现|打款/i })).toHaveCount(
+      0,
+    );
   });
 });
