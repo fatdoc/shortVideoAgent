@@ -30,7 +30,143 @@ function auditedPath(response: Response, paths: readonly string[]): string | nul
   return paths.find((path) => url.pathname === path) ?? null;
 }
 
+async function expectPath(page: Page, expected: string): Promise<void> {
+  await expect.poll(() => new URL(page.url()).pathname).toBe(expected);
+}
+
+async function holdServiceErrorUntilRestore(
+  page: Page,
+  urlPattern: string,
+  requestId: string,
+): Promise<{ release: () => void; restore: () => Promise<void> }> {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const handler = async (route: Parameters<Parameters<Page['route']>[1]>[0]) => {
+    await gate;
+    await route.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      headers: { 'cache-control': 'no-store', 'x-request-id': requestId },
+      body: JSON.stringify({
+        error: { code: 'INTERNAL_ERROR', message: '服务暂不可用。', requestId },
+      }),
+    });
+  };
+  await page.route(urlPattern, handler);
+  return {
+    release,
+    restore: () => page.unroute(urlPattern, handler),
+  };
+}
+
 test.describe.serial('Pilot Operations and TEST commercial browser matrix', () => {
+  test('fails closed then retries the real Platform Terms directories', async ({ page }) => {
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await expectPath(page, '/platform/commission-audit');
+
+    const requestId = 'pilot-e2e-terms-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      '**/api/v1/platform/terms/documents?**',
+      requestId,
+    );
+    await page.goto('/platform/terms');
+    await expect(page.getByTestId('pilot-terms-documents-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-terms-documents-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/v1/platform/terms/documents' &&
+        response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试 Document Directory' }).click();
+    await recovered;
+
+    await expect(page.getByTestId('pilot-terms-documents-ready')).toBeVisible();
+    await expect(page.getByTestId('pilot-terms-versions-ready')).toBeVisible();
+  });
+
+  test('shows a real empty Platform Invitation directory after a retryable service error', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await expectPath(page, '/platform/commission-audit');
+
+    const requestId = 'pilot-e2e-invitations-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      '**/api/v1/platform/invitations?**',
+      requestId,
+    );
+    await page.goto('/platform/invitations');
+    await expect(page.getByTestId('pilot-invitations-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-invitations-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/v1/platform/invitations' &&
+        response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试真实邀请目录' }).click();
+    await recovered;
+
+    await expect(page.getByTestId('pilot-invitations-empty')).toBeVisible();
+    await expect(page.getByTestId('pilot-invitation-one-time-token')).toHaveCount(0);
+  });
+
+  test('retries the real Platform Member directory and preserves a real empty filter', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await expectPath(page, '/platform/commission-audit');
+
+    const requestId = 'pilot-e2e-members-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      '**/api/v1/organizations/current/members?**',
+      requestId,
+    );
+    await page.goto('/platform/members');
+    await expect(page.getByTestId('pilot-members-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-members-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/v1/organizations/current/members' &&
+        response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试真实成员目录' }).click();
+    await recovered;
+    await expect(page.getByTestId('pilot-members-ready')).toBeVisible();
+
+    const emptyFilter = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/v1/organizations/current/members' &&
+        new URL(response.url()).searchParams.get('status') === 'expired' &&
+        response.status() === 200,
+    );
+    await page.getByLabel('Member status filter').selectOption('expired');
+    await emptyFilter;
+    await expect(page.getByTestId('pilot-members-empty')).toBeVisible();
+  });
+
   test('loads every real Platform TEST commercial audit endpoint for a Platform Admin', async ({
     page,
   }) => {
