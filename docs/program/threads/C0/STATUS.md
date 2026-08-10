@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / A-BIZ-06C `PLAN_FROZEN`
-- 当前任务：A-BIZ-06C.1 bounded Terms/Invitation management read 合同与首个 strict Pilot Client RED
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / A-BIZ-06C.1 `COMPLETE`
+- 当前任务：A-BIZ-06C.2 strict Terms/Invitation Pilot Client RED/Green；Member Client 已先行完成
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1117,3 +1117,12 @@
 - Invitation Token 仅首次创建响应内存态最小展示；不持久化、不进 URL/日志/trace。Terms 正文只允许授权管理员录入业务/法务提供内容，工程师不 seed、不代写、不自动发布。
 - 首个 RED：`listPilotCurrentOrganizationMembers()` 真实 Cookie、`no-store`、bounded query、strict Member DTO 与敏感字段拒绝。
 - 当前状态：`A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED`。未宣称 06C、A-BIZ-06、完整 IAM、正式 Terms、Full Joint Gate 或 LIVE Operations 完成。
+
+## 2026-08-10 A-BIZ-06C.1 Bounded Operations Reads 完成
+
+- Terms 新增 Platform Admin bounded Document/Version directories；Repository/Service 与 HTTP 分为 `8feda7f`、`1f4d768` 两个独立提交。
+- Invitation management list 新增 `all|active|revoked|exhausted|expired` 与 `limit=1..100`；Repository/Service 与 HTTP 分为 `7c31089`、`b6ff3db` 两个独立提交。
+- 两类 GET 均使用真实 Session Cookie/rotation、`cache-control: no-store`、strict query/path、422 安全错误与 Request ID；expired 只按服务端 `asOf` 计算。
+- PostgreSQL/Service/Route 证据：Terms 32/32、Invitation 37/37 PASS；Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_06C_1_COMPLETE / BOUNDED_OPERATIONS_READS_READY / READY_FOR_06C_2_CLIENTS`。未宣称 06C、正式 Terms、完整 IAM、Full Joint Gate 或 LIVE Operations 完成。

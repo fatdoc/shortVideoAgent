@@ -762,3 +762,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 06C.6 是共享 Router/Layout 提交，完成后必须通知 B 同步；StoryCanvas 与 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
 - 首个 RED：`listPilotCurrentOrganizationMembers()` strict Client 合同；随后继续 Terms/Invitation bounded Repository/Route RED，不在普通步骤间暂停。
 - 不得外推为完整 IAM、正式 Terms 上线、A-BIZ-06 完成、Full Joint Gate PASS 或 LIVE Operations Ready。
+
+## A-BIZ-06C.1 Bounded Operations Reads 完成交接（2026-08-10）
+
+- Terms management 已提供 bounded `GET /api/v1/platform/terms/documents` 与 `GET /api/v1/platform/terms/documents/:documentId/versions`；status 默认 `all`，limit 默认 100 且限定 1..100。
+- Invitation 三类 management GET 已统一提供 `all|active|revoked|exhausted|expired` 与 limit 1..100；expired 使用服务端 `asOf`，列表不返回 token/digest/idempotency 敏感事实。
+- 提交顺序：`8feda7f` Terms Repository/Service、`1f4d768` Terms HTTP、`7c31089` Invitation Repository/Service、`b6ff3db` Invitation HTTP。
+- Gate：Terms 32/32、Invitation 37/37、Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零。
+- 下一步只进入 06C.2 strict Terms/Invitation Pilot Client；既有 Member Client 提交为 `9ac03d8`。不得回退 Demo/Mock/localStorage，也不得持久化 Invitation Token。
+- 状态：`A_BIZ_06C_1_COMPLETE / READY_FOR_06C_2_CLIENTS`；不 push，不外推为 06C 或 A-BIZ-06 总体完成。

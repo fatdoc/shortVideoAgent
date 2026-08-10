@@ -282,3 +282,11 @@
 - Invitation Token 只在首次 create 当前内存态最小展示；Terms 正文只由授权管理员录入业务/法务提供内容，工程师不 seed、不代写、不自动发布。
 - Shared Router/Sidebar/Topbar 只在 06C.6 独立提交并通知 B；StoryCanvas 保持排除。
 - 状态：`A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED`；未宣称 06C、A-BIZ-06、完整 IAM、正式 Terms、Full Joint Gate 或 LIVE Operations 完成。
+
+## 2026-08-10 · A-BIZ-06C.1 Bounded Operations Reads
+
+- Terms 增加 bounded Platform Document/Version management directories，冻结 status、limit、稳定排序、缺 Document 404、真实 Cookie/rotation、no-store、strict 422 与 Request ID。
+- Invitation 三类 management list 增加 status/limit；Repository 二次 clamp，expired 按服务端 asOf，active/revoked/exhausted/expired 过滤均有 PostgreSQL 证据。
+- Repository/Service 与 HTTP 分成四个原子提交：`8feda7f`、`1f4d768`、`7c31089`、`b6ff3db`。
+- Terms 32/32、Invitation 37/37 PASS；Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas 未修改；下一步为 06C.2 strict Terms/Invitation Pilot Client，禁止 Demo/Mock fallback 与 Invitation Token 持久化。
