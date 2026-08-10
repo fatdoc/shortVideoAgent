@@ -15,6 +15,7 @@ import {
   listPilotChannelCommissionAccruals,
   listPilotChannelCommissionCalculations,
   listPilotChannelCommissionReversals,
+  listPilotCurrentOrganizationMembers,
   listPilotPlatformCommissionAccruals,
   listPilotPlatformCommissionCalculations,
   listPilotPlatformCommissionManualReviews,
@@ -26,6 +27,7 @@ import {
   logoutPilotSession,
   readPilotCurrentChannel,
   readPilotProject,
+  suspendPilotCurrentOrganizationMember,
 } from './pilotControlApi';
 
 const session = {
@@ -572,6 +574,122 @@ describe('pilot Control API adapter', () => {
         cutoffAt: '2026-09-01T00:00:00.000Z',
         idempotencyKey: 'settlement:test:malformed-response',
       }),
+    ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
+  });
+
+  it('lists bounded current Organization members with real Cookie, no-store, and strict DTO parsing', async () => {
+    const member = {
+      membershipId: '71000000-0000-4000-8000-000000000001',
+      displayName: '运营成员',
+      email: 'operator@example.com',
+      status: 'active',
+      primaryRole: 'tenant_admin',
+      roles: ['tenant_admin'],
+      version: 2,
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+      isCurrentActor: false,
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ members: [member] }));
+
+    await expect(listPilotCurrentOrganizationMembers('all', 25)).resolves.toEqual([member]);
+    expect(fetch).toHaveBeenCalledWith(
+      'https://control.example.com/api/v1/organizations/current/members?status=all&limit=25',
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
+    );
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects invalid Member bounds and sensitive or malformed Member projections', async () => {
+    await expect(listPilotCurrentOrganizationMembers('all', 0)).rejects.toMatchObject({
+      code: 'INVALID_LIST_LIMIT',
+    });
+    await expect(listPilotCurrentOrganizationMembers('all', 101)).rejects.toMatchObject({
+      code: 'INVALID_LIST_LIMIT',
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse({
+        members: [
+          {
+            membershipId: '71000000-0000-4000-8000-000000000001',
+            displayName: '运营成员',
+            email: 'operator@example.com',
+            status: 'active',
+            primaryRole: 'tenant_admin',
+            roles: ['tenant_admin'],
+            version: 0,
+            createdAt: 'not-a-time',
+            updatedAt: '2026-08-10T00:00:00.000Z',
+            isCurrentActor: false,
+            tokenDigest: 'must-not-cross-client-boundary',
+          },
+        ],
+      }),
+    );
+
+    await expect(listPilotCurrentOrganizationMembers()).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+    });
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('suspends a current Organization member with expectedVersion and replay evidence', async () => {
+    const member = {
+      membershipId: '71000000-0000-4000-8000-000000000002',
+      displayName: '待停用成员',
+      email: 'member@example.com',
+      status: 'suspended',
+      primaryRole: 'content_operator',
+      roles: ['content_operator'],
+      version: 3,
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-10T01:00:00.000Z',
+      isCurrentActor: false,
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ member }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'member-suspend-1',
+          'idempotency-replayed': 'true',
+        },
+      }),
+    );
+
+    await expect(suspendPilotCurrentOrganizationMember(member.membershipId, 2)).resolves.toEqual({
+      member,
+      replayed: true,
+    });
+    expect(fetch).toHaveBeenCalledWith(
+      `https://control.example.com/api/v1/organizations/current/members/${member.membershipId}/suspend`,
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: expect.objectContaining({ 'content-type': 'application/json' }),
+        body: JSON.stringify({ expectedVersion: 2 }),
+      }),
+    );
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects invalid Member suspend input and malformed replay evidence', async () => {
+    await expect(
+      suspendPilotCurrentOrganizationMember('not-a-membership-id', 2),
+    ).rejects.toMatchObject({ code: 'INVALID_MEMBERSHIP_ID' });
+    await expect(
+      suspendPilotCurrentOrganizationMember('71000000-0000-4000-8000-000000000002', 0),
+    ).rejects.toMatchObject({ code: 'INVALID_MEMBER_VERSION' });
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ member: {} }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'idempotency-replayed': 'maybe' },
+      }),
+    );
+    await expect(
+      suspendPilotCurrentOrganizationMember('71000000-0000-4000-8000-000000000002', 2),
     ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
   });
 

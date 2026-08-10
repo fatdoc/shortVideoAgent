@@ -176,6 +176,27 @@ export interface PilotRechargeOrderAudit {
   updatedAt: string;
 }
 
+export type PilotMemberStatus = 'active' | 'suspended' | 'expired';
+export type PilotMemberStatusFilter = PilotMemberStatus | 'all';
+
+export interface PilotCurrentOrganizationMember {
+  membershipId: string;
+  displayName: string;
+  email: string;
+  status: PilotMemberStatus;
+  primaryRole: PilotRole;
+  roles: PilotRole[];
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+  isCurrentActor: boolean;
+}
+
+export interface PilotMemberSuspendResult {
+  member: PilotCurrentOrganizationMember;
+  replayed: boolean;
+}
+
 export class PilotControlApiError extends Error {
   readonly code: string;
   readonly status: number | null;
@@ -506,6 +527,25 @@ const RECHARGE_ORDER_STATUSES = new Set<PilotRechargeOrderStatus>([
   'cancelled',
   'disputed',
 ]);
+const MEMBER_STATUSES = new Set<PilotMemberStatus>(['active', 'suspended', 'expired']);
+const MEMBER_STATUS_FILTERS = new Set<PilotMemberStatusFilter>([
+  'all',
+  'active',
+  'suspended',
+  'expired',
+]);
+const MEMBER_PROJECTION_KEYS = new Set([
+  'membershipId',
+  'displayName',
+  'email',
+  'status',
+  'primaryRole',
+  'roles',
+  'version',
+  'createdAt',
+  'updatedAt',
+  'isCurrentActor',
+]);
 
 function uuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value);
@@ -536,6 +576,20 @@ function safeInteger(value: unknown, minimum?: number): value is number {
     typeof value === 'number' &&
     Number.isSafeInteger(value) &&
     (minimum === undefined || value >= minimum)
+  );
+}
+
+function exactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>): boolean {
+  const keys = Object.keys(value);
+  return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+function normalizedEmail(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length <= 254 &&
+    value === value.trim() &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
   );
 }
 
@@ -822,8 +876,100 @@ function parseRechargeOrder(value: unknown): {
   };
 }
 
+function parseCurrentOrganizationMember(value: unknown): PilotCurrentOrganizationMember {
+  if (!isRecord(value) || !exactKeys(value, MEMBER_PROJECTION_KEYS)) {
+    throw invalidResponse('Control API 返回了无效的成员目录数据。');
+  }
+  const status = value.status;
+  const primaryRole = value.primaryRole;
+  const roles = parseRoles(value.roles);
+  if (
+    !uuid(value.membershipId) ||
+    !requiredString(value.displayName) ||
+    value.displayName !== value.displayName.trim() ||
+    !normalizedEmail(value.email) ||
+    typeof status !== 'string' ||
+    !MEMBER_STATUSES.has(status as PilotMemberStatus) ||
+    typeof primaryRole !== 'string' ||
+    !PILOT_ROLES.has(primaryRole as PilotRole) ||
+    !roles ||
+    !roles.includes(primaryRole as PilotRole) ||
+    !safeInteger(value.version, 1) ||
+    !timezoneTimestamp(value.createdAt) ||
+    !timezoneTimestamp(value.updatedAt) ||
+    typeof value.isCurrentActor !== 'boolean'
+  ) {
+    throw invalidResponse('Control API 返回了无效的成员目录数据。');
+  }
+  return {
+    membershipId: value.membershipId,
+    displayName: value.displayName,
+    email: value.email,
+    status: status as PilotMemberStatus,
+    primaryRole: primaryRole as PilotRole,
+    roles,
+    version: value.version,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    isCurrentActor: value.isCurrentActor,
+  };
+}
+
 function commercialRead(path: string) {
   return request(path, { cache: 'no-store' });
+}
+
+export async function listPilotCurrentOrganizationMembers(
+  status: PilotMemberStatusFilter = 'all',
+  limit = 100,
+): Promise<PilotCurrentOrganizationMember[]> {
+  if (!MEMBER_STATUS_FILTERS.has(status)) {
+    throw new PilotControlApiError('INVALID_MEMBER_STATUS', '成员目录 status 无效。', null, null);
+  }
+  const bounded = listLimit(limit);
+  const { body } = await commercialRead(
+    `/api/v1/organizations/current/members?status=${encodeURIComponent(status)}&limit=${bounded}`,
+  );
+  return parseList(
+    body,
+    'members',
+    parseCurrentOrganizationMember,
+    'Control API 返回了无效的成员目录。',
+  );
+}
+
+export async function suspendPilotCurrentOrganizationMember(
+  membershipId: string,
+  expectedVersion: number,
+): Promise<PilotMemberSuspendResult> {
+  const canonicalMembershipId = requireUuid(
+    membershipId,
+    'INVALID_MEMBERSHIP_ID',
+    'Membership ID 无效。',
+  );
+  if (!safeInteger(expectedVersion, 1)) {
+    throw new PilotControlApiError(
+      'INVALID_MEMBER_VERSION',
+      '成员 expectedVersion 必须为正整数。',
+      null,
+      null,
+    );
+  }
+  const { response, body } = await request(
+    `/api/v1/organizations/current/members/${encodeURIComponent(canonicalMembershipId)}/suspend`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ expectedVersion }),
+    },
+  );
+  const replayedHeader = response.headers.get('idempotency-replayed');
+  if (!(replayedHeader === 'true' || replayedHeader === 'false')) {
+    throw invalidResponse('Control API 返回了无效的成员停用幂等状态。');
+  }
+  return {
+    member: parseCurrentOrganizationMember(isRecord(body) ? body.member : null),
+    replayed: replayedHeader === 'true',
+  };
 }
 
 export async function readPilotCurrentChannel(): Promise<PilotCommercialChannelReference> {
@@ -1011,6 +1157,8 @@ export const pilotControlApi = {
   logout: logoutPilotSession,
   listProjects: listPilotProjects,
   readProject: readPilotProject,
+  listCurrentOrganizationMembers: listPilotCurrentOrganizationMembers,
+  suspendCurrentOrganizationMember: suspendPilotCurrentOrganizationMember,
   readCurrentChannel: readPilotCurrentChannel,
   listActiveChannels: listPilotActiveChannels,
   listPlatformPaymentEvents: listPilotPlatformPaymentEvents,
