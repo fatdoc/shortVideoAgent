@@ -77,6 +77,27 @@ test('StoryCanvas v0.2 phase explicitly records tests omitted by the package def
   assert.notDeepEqual(phase.commands[0].args, ['--prefix', 'apps/storycanvas', 'test']);
 });
 
+test('Pilot browser phase is ready and delegates to the deterministic lifecycle runner', () => {
+  const phase = jointGatePhases.find(({ id }) => id === 'pilot-browser-e2e');
+  assert.ok(phase);
+  assert.equal(phase.availability, 'ready');
+  assert.deepEqual(phase.commands, [
+    {
+      executable: 'npm',
+      args: ['run', 'test:e2e:pilot'],
+      cwd: '.',
+      shell: false,
+    },
+  ]);
+  assert.deepEqual(phase.preconditions, [
+    {
+      type: 'environment',
+      name: 'CONTROL_API_TEST_DATABASE_URL',
+      validator: 'dedicated-postgres-test-url',
+    },
+  ]);
+});
+
 test('dedicated PostgreSQL validation rejects missing, non-PostgreSQL, and development database URLs', () => {
   assert.deepEqual(validateDedicatedPostgresTestUrl(undefined), {
     ok: false,
@@ -138,7 +159,7 @@ test('--full remains blocked on unfinished required slices even with external UR
     JOINT_GATE_B_BASELINE_COMMIT: 'b-owned-clean-baseline',
   });
   assert.notEqual(result.status, 0);
-  assert.match(`${result.stdout}\n${result.stderr}`, /PILOT_BROWSER_E2E_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PILOT_BROWSER_E2E_NOT_IMPLEMENTED/);
   assert.match(`${result.stdout}\n${result.stderr}`, /AB_GOLDEN_PATH_NOT_IMPLEMENTED/);
   assert.match(`${result.stdout}\n${result.stderr}`, /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /do-not-print/);
