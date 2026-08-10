@@ -12,6 +12,7 @@ import type {
   CreateInvitationRecord,
   Invitation,
   InvitationStatus,
+  ListInvitationsInput,
   InvitationStore,
   InvitationType,
   InvitationUsage,
@@ -117,6 +118,11 @@ function isCreationIdempotencyViolation(error: unknown): boolean {
 
 function isDatabaseScopeViolation(error: unknown): boolean {
   return ['23503', '23514', 'P0001'].includes(postgresError(error).code ?? '');
+}
+
+function boundedLimit(limit: number): number {
+  if (!Number.isSafeInteger(limit)) return 100;
+  return Math.min(100, Math.max(1, limit));
 }
 
 export type LockedRegistrationInvitation = Invitation;
@@ -273,15 +279,25 @@ export class PostgresInvitationRepository implements InvitationStore {
     }
   }
 
-  async listByIssuerOrganization(issuerOrganizationId: string, asOf: Date): Promise<Invitation[]> {
-    const rows = (await this.database('control_plane.invitations')
-      .where({ issuer_organization_id: issuerOrganizationId })
+  async listByIssuerOrganization(input: ListInvitationsInput): Promise<Invitation[]> {
+    const query = this.database('control_plane.invitations').where({
+      issuer_organization_id: input.issuerOrganizationId,
+    });
+    if (input.status === 'expired') {
+      query.where({ status: 'active' }).where('expires_at', '<=', input.asOf);
+    } else if (input.status === 'active') {
+      query.where({ status: 'active' }).where('expires_at', '>', input.asOf);
+    } else if (input.status !== 'all') {
+      query.where({ status: input.status });
+    }
+    const rows = (await query
       .orderBy('created_at', 'desc')
-      .orderBy('invitation_id', 'desc')) as InvitationRow[];
+      .orderBy('invitation_id', 'desc')
+      .limit(boundedLimit(input.limit))) as InvitationRow[];
     return rows.map((row) => {
       const invitation = invitationFromRow(row);
       return invitation.status === 'active' &&
-        new Date(invitation.expiresAt).getTime() <= asOf.getTime()
+        new Date(invitation.expiresAt).getTime() <= input.asOf.getTime()
         ? { ...invitation, status: 'expired' }
         : invitation;
     });
