@@ -9,6 +9,8 @@ import type {
   CreateTermsDocumentInput,
   CreateTermsDraftInput,
   CurrentTerms,
+  TermsDocumentStatusFilter,
+  TermsVersionStatusFilter,
   RecordTermsConsentInput,
   ReplayableResult,
   TermsActor,
@@ -23,6 +25,8 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
 const digestPattern = /^[0-9a-f]{64}$/;
 const evidenceKeys = new Set(['channel', 'explicitAccepted', 'requestId']);
 const evidenceChannels = new Set(['web', 'admin', 'api']);
+const documentStatuses = new Set<TermsDocumentStatusFilter>(['all', 'active', 'retired']);
+const versionStatuses = new Set<TermsVersionStatusFilter>(['all', 'DRAFT', 'PUBLISHED', 'RETIRED']);
 
 function trimmed(value: string, field: string, maxLength: number): string {
   const normalized = value.trim();
@@ -49,6 +53,27 @@ function validDate(value: Date, field: string): Date {
   return value;
 }
 
+function boundedLimit(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 100) {
+    throw new TermsValidationError('limit must be an integer between 1 and 100.');
+  }
+  return value;
+}
+
+function documentStatus(value: TermsDocumentStatusFilter): TermsDocumentStatusFilter {
+  if (!documentStatuses.has(value)) {
+    throw new TermsValidationError('status must be all, active, or retired.');
+  }
+  return value;
+}
+
+function versionStatus(value: TermsVersionStatusFilter): TermsVersionStatusFilter {
+  if (!versionStatuses.has(value)) {
+    throw new TermsValidationError('status must be all, DRAFT, PUBLISHED, or RETIRED.');
+  }
+  return value;
+}
+
 function consentEvidence(value: ConsentEvidence): ConsentEvidence {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new TermsValidationError('evidenceMetadata must be an object.');
@@ -69,6 +94,29 @@ function consentEvidence(value: ConsentEvidence): ConsentEvidence {
 
 export class TermsService {
   constructor(private readonly store: TermsStore) {}
+
+  async listDocuments(
+    actor: TermsActor,
+    status: TermsDocumentStatusFilter,
+    limit: number,
+  ): Promise<TermsDocument[]> {
+    this.requirePlatformAdmin(actor);
+    return this.store.listDocuments({ status: documentStatus(status), limit: boundedLimit(limit) });
+  }
+
+  async listVersions(
+    actor: TermsActor,
+    termsDocumentId: string,
+    status: TermsVersionStatusFilter,
+    limit: number,
+  ): Promise<TermsVersion[]> {
+    this.requirePlatformAdmin(actor);
+    return this.store.listVersions({
+      termsDocumentId: uuid(termsDocumentId, 'termsDocumentId'),
+      status: versionStatus(status),
+      limit: boundedLimit(limit),
+    });
+  }
 
   async createDocument(actor: TermsActor, input: CreateTermsDocumentInput): Promise<TermsDocument> {
     this.requirePlatformAdmin(actor);

@@ -49,6 +49,8 @@ const consent: UserConsent = {
 
 function store(overrides: Partial<TermsStore> = {}): TermsStore {
   return {
+    listDocuments: vi.fn(async () => [document]),
+    listVersions: vi.fn(async () => [version]),
     createDocument: vi.fn(async () => document),
     createDraft: vi.fn(async () => ({ ...version, status: 'DRAFT' as const })),
     updateDraft: vi.fn(async () => ({ ...version, status: 'DRAFT' as const })),
@@ -68,6 +70,69 @@ function store(overrides: Partial<TermsStore> = {}): TermsStore {
 }
 
 describe('TermsService', () => {
+  it('allows only a PLATFORM platform_admin to read bounded Terms management lists', async () => {
+    const listDocuments = vi.fn<TermsStore['listDocuments']>(async () => [document]);
+    const listVersions = vi.fn<TermsStore['listVersions']>(async () => [version]);
+    const service = new TermsService(store({ listDocuments, listVersions }));
+
+    await expect(service.listDocuments(platformAdmin, 'active', 25)).resolves.toEqual([document]);
+    expect(listDocuments).toHaveBeenCalledWith({ status: 'active', limit: 25 });
+    await expect(
+      service.listVersions(platformAdmin, ` ${document.termsDocumentId} `, 'PUBLISHED', 50),
+    ).resolves.toEqual([version]);
+    expect(listVersions).toHaveBeenCalledWith({
+      termsDocumentId: document.termsDocumentId,
+      status: 'PUBLISHED',
+      limit: 50,
+    });
+
+    const rejectedActors: TermsActor[] = [
+      { ...platformAdmin, organizationType: 'CHANNEL' },
+      { ...platformAdmin, organizationType: 'TENANT' },
+      { ...platformAdmin, roles: ['pilot_support'] },
+      { ...platformAdmin, roles: ['content_operator'] },
+    ];
+    listDocuments.mockClear();
+    listVersions.mockClear();
+    for (const rejectedActor of rejectedActors) {
+      await expect(service.listDocuments(rejectedActor, 'all', 100)).rejects.toBeInstanceOf(
+        TermsPermissionDeniedError,
+      );
+      await expect(
+        service.listVersions(rejectedActor, document.termsDocumentId, 'all', 100),
+      ).rejects.toBeInstanceOf(TermsPermissionDeniedError);
+    }
+    expect(listDocuments).not.toHaveBeenCalled();
+    expect(listVersions).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid Terms management filters before reaching the store', async () => {
+    const listDocuments = vi.fn<TermsStore['listDocuments']>();
+    const listVersions = vi.fn<TermsStore['listVersions']>();
+    const service = new TermsService(store({ listDocuments, listVersions }));
+
+    await expect(
+      service.listDocuments(platformAdmin, 'inactive' as never, 100),
+    ).rejects.toBeInstanceOf(TermsValidationError);
+    await expect(service.listDocuments(platformAdmin, 'all', 0)).rejects.toBeInstanceOf(
+      TermsValidationError,
+    );
+    await expect(service.listDocuments(platformAdmin, 'all', 101)).rejects.toBeInstanceOf(
+      TermsValidationError,
+    );
+    await expect(
+      service.listVersions(platformAdmin, 'not-a-uuid', 'all', 100),
+    ).rejects.toBeInstanceOf(TermsValidationError);
+    await expect(
+      service.listVersions(platformAdmin, document.termsDocumentId, 'ARCHIVED' as never, 100),
+    ).rejects.toBeInstanceOf(TermsValidationError);
+    await expect(
+      service.listVersions(platformAdmin, document.termsDocumentId, 'all', 1.5),
+    ).rejects.toBeInstanceOf(TermsValidationError);
+    expect(listDocuments).not.toHaveBeenCalled();
+    expect(listVersions).not.toHaveBeenCalled();
+  });
+
   it('allows only a PLATFORM platform_admin to mutate Terms', async () => {
     const createDocument = vi.fn<TermsStore['createDocument']>();
     const service = new TermsService(store({ createDocument }));
