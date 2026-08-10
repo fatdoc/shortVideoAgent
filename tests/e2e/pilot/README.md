@@ -36,8 +36,22 @@ Semantics:
 
 - `test:joint-gate:manifest` validates the machine-readable phase contract and fail-closed preflight.
 - `test:joint-gate:plan` prints every required phase as `NOT_RUN`; it does not execute commands and is not a pass report.
-- `test:joint-gate:full` executes required phases only after all preconditions are satisfied. Until 06D/06E/06F and the B-owned clean baseline are available, it must exit non-zero with `JOINT_GATE_BLOCKED`.
+- `pilot-browser-e2e` is now `ready` and delegates to the deterministic lifecycle runner `npm run test:e2e:pilot`; the full runner injects `PILOT_E2E=true` and freezes the browser channel to real Google Chrome.
+- `test:joint-gate:full` executes required phases only after all preconditions are satisfied. A-BIZ-06D is complete, but until 06E/06F and the B-owned clean baseline are available it must still exit non-zero with `JOINT_GATE_BLOCKED`.
 - `CONTROL_API_TEST_DATABASE_URL` must be a dedicated PostgreSQL database whose name ends in `_test`. Missing or development database URLs block the full Gate before tests, so PostgreSQL suites cannot silently skip and still be reported as passed.
 - StoryCanvas v0.2 runtime, security, public route, and durable receiver tests are listed explicitly because the package default `npm test` script does not cover all of them.
 - Provider secrets are cleared for child processes. The runner does not start LIVE payment, settlement, media generation, or paid provider calls.
 - `JOINT_GATE_B_BASELINE_COMMIT` is an external synchronization assertion, not an instruction for A to edit StoryCanvas.
+
+### Pilot browser phase evidence
+
+The activated phase requires an explicit dedicated PostgreSQL URL and never accepts the development database:
+
+```bash
+PILOT_E2E=true \
+PILOT_E2E_BROWSER_CHANNEL=chrome \
+CONTROL_API_TEST_DATABASE_URL='<dedicated PostgreSQL database ending in _test>' \
+npm run test:e2e:pilot
+```
+
+A-BIZ-06D closure evidence used real Google Chrome `150.0.7871.125`, a dedicated `videoagent_control_test` PostgreSQL database, and a single Playwright worker. The complete matrix passed `39/39` with `0 SKIP`, including the post-run artifact scanner. This activates only the Pilot browser phase; it does not make the A/B golden path, migration rollback/reapply phase, B-owned baseline, or Full Joint Gate pass.

@@ -3,7 +3,7 @@
 - 日期：2026-08-10
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS / READY_FOR_06D_7_JOINT_GATE_ACTIVATION`
+- 状态：`A_BIZ_06D_COMPLETE / PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`
 - 前置提交：`1b3af9c docs(business-plane): close pilot operations ui`
 - 共享同步基线：Pilot Router/Layout `26400fa`
@@ -190,12 +190,13 @@ Gate：真实 Google Chrome `150.0.7871.125`，专用 `videoagent_control_test`�
 
 安全收口：浏览器可读 DOM、URL、Cookie、localStorage/sessionStorage、console、pageerror 与 requestfailed 均不暴露 Session、密码、Invitation/verification Token、Terms digest、内部 calculation snapshot、Grant、SQL 或 stack；artifact scanner 额外拒绝 trace/HAR/video 和可搜索明文 Secret。
 
-### 06D.7 · Joint Gate Activation & Documentation Closure
+### 06D.7 · Joint Gate Activation & Documentation Closure — COMPLETE (`346a183`, `c154b1e`)
 
-- `pilot-browser-e2e` 仅在 06D.4～06D.6 全部 PASS 后改为 `ready` 并移除 slice blocker；
-- 更新 Pilot E2E README、C0 STATUS/HANDOFF/CHANGELOG 与桌面知识库；
-- 记录 PostgreSQL URL 类别、browser/version、测试数量、零 SKIP 和 StoryCanvas tracked clean；
-- 不激活 06E/06F，不宣称 Full Joint Gate PASS。
+- RED `346a183` 冻结 `pilot-browser-e2e` 必须为 `ready`、只委托 `npm run test:e2e:pilot`，并拒绝继续输出 `PILOT_BROWSER_E2E_NOT_IMPLEMENTED`；
+- Green `c154b1e` 将 phase 激活为 `ready`，改用真实 lifecycle runner，并以 `CONTROL_API_TEST_DATABASE_URL` 的 dedicated PostgreSQL guard 替换 06D slice blocker；
+- Full runner 为子进程固定注入 `PILOT_E2E=true` 与 `PILOT_E2E_BROWSER_CHANNEL=chrome`，继续清空 paid provider secrets；
+- manifest `8/8 PASS`，plan 明确列出 ready phase；带专用 `_test` URL 的 full preflight 退出 `2`，不再含 06D blocker，仍因 06E/06F/B external precondition 正确 BLOCKED；
+- 已更新 Pilot E2E README、C0 STATUS/HANDOFF/CHANGELOG 与桌面知识库；不宣称 Full Joint Gate PASS。
 
 ## 5. 验证矩阵
 
@@ -242,7 +243,7 @@ A-BIZ-06D 按 `Environment Guard → Reset/Seed → Browser Runtime → Auth/Rou
 当前状态：
 
 ```text
-A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS / READY_FOR_06D_7_JOINT_GATE_ACTIVATION
+A_BIZ_06D_COMPLETE / PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED
 ```
 
 06D.1～06D.2 已完成唯一 `_test` PostgreSQL 输入、开发库拒绝、实际 database identity 核对、受保护 reset、19 个 migration、固定 Scope fixture、每轮临时凭据和 postcondition verify。专用 `videoagent_control_test` 定向 Gate 为 `2 files / 14 tests PASS / 0 SKIP`，连续两轮安全 fingerprint 一致，且 `liveFactCount: 0`、`activeSessionCount: 0`。
@@ -257,4 +258,4 @@ A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS / READY_
 
 完整 Pilot Browser Gate 使用真实 Google Chrome `150.0.7871.125`、专用 `videoagent_control_test` 与单 worker执行，结果 `39/39 PASS / 0 SKIP`。真实 Session Cookie 为 HttpOnly，Pilot Storage 为空，失败不回退 Demo/Mock/localStorage；DOM/URL/console/pageerror/requestfailed 与 artifact 扫描未发现 Secret、Token、digest、内部 snapshot、Grant、SQL 或 stack 泄漏。
 
-下一步只进入 06D.7：将 Joint Gate `pilot-browser-e2e` phase 切换为 `ready`、改用真实 `npm run test:e2e:pilot` runner 并移除 06D slice blocker，再同步 README/C0/桌面知识库和验证 manifest/plan/full fail-closed。06E/06F 与 B external baseline 仍未进入，不宣称 Full Joint Gate PASS。
+06D.7 已以 `346a183`、`c154b1e` 激活 Joint Gate `pilot-browser-e2e` phase：真实命令为 `npm run test:e2e:pilot`，precondition 为专用 `_test` PostgreSQL，06D slice blocker 已移除。manifest `8/8 PASS`，plan 正确列为 `ready`；Full Gate preflight 在 06E/06F/B external precondition 未满足时继续退出 `2` 且不执行 required commands。A-BIZ-06D 已完成，但 A-BIZ-06、06E/06F、B baseline 与 Full Joint Gate 仍未完成。

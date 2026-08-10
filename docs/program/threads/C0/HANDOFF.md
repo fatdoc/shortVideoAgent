@@ -843,3 +843,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - DOM、URL、console、pageerror、requestfailed 和 artifact 未发现 Session、密码、Invitation/verification Token、Terms digest、内部 snapshot、Grant、SQL 或 stack 泄漏；trace/video 保持关闭，HAR/trace/video artifact 会被 runner 拒绝。
 - 下一步进入 06D.7：独立修改 Joint Gate manifest/runner，将 `pilot-browser-e2e` 从 `planned` 改为 `ready`、命令切到 `npm run test:e2e:pilot` 并移除 `PILOT_BROWSER_E2E_NOT_IMPLEMENTED` blocker；随后更新 README/C0/桌面知识库。
 - 06E/06F 与 B external baseline 继续保持未完成；不 push，不修改 StoryCanvas。
+
+## A-BIZ-06D.7 Joint Gate 激活与阶段收口交接（2026-08-10）
+
+- RED `346a183`、Green `c154b1e` 已将 `pilot-browser-e2e` 从 `planned` 激活为 `ready`；phase 只调用 `npm run test:e2e:pilot`，并以 `CONTROL_API_TEST_DATABASE_URL` dedicated PostgreSQL guard 取代 06D slice blocker。
+- Full runner 固定注入 `PILOT_E2E=true` 与真实 Chrome channel；Provider Secret 继续被清空。不得改回直接 `npx playwright`，否则会绕过 reset/migrate/seed/verify、服务生命周期、cleanup 与 artifact scanner。
+- 验证：manifest `8/8 PASS`、plan ready；Full preflight 使用 `videoagent_control_test` URL 时退出 `2`，不再包含 `PILOT_BROWSER_E2E_NOT_IMPLEMENTED`，仍包含 `JOINT_GATE_B_BASELINE_COMMIT_REQUIRED`、`AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED`。
+- 06D 最终证据：Google Chrome `150.0.7871.125`、单 worker `39/39 PASS / 0 SKIP`、真实 HttpOnly Cookie、Pilot Storage 空、无 Demo/Mock fallback、跨组织等价 404、artifact scanner PASS；Settlement 仍仅 TEST draft/非到账/非提现/非 paid/非自动打款。
+- Root Build、Control API typecheck/build、Governance、Prettier/diff-check PASS；Root 全仓 ESLint 仍受既有 StoryCanvas/生成文件/历史测试基线阻断，本轮未修改或吸收这些问题。
+- **B 同步要求**：`c154b1e` 修改共享 `scripts/joint-gate-manifest.mjs`、`scripts/run-joint-gate.mjs`。B 在修改 Joint Gate phase 或 runner 前必须先同步；不要恢复 06D blocker，也不要绕过 lifecycle runner。
+- StoryCanvas tracked clean，`apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned 未跟踪状态；分支未 push，根 `5173` 与 StoryCanvas `10588` 继续运行。
+- 下一步为 06E A/B Golden Path 前置审计。没有 B-owned clean baseline 与明确同步提交时，Full Gate 必须继续 fail closed；06F Migration/Rollback 也尚未开始。

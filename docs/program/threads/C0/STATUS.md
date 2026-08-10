@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06C `COMPLETE` / `A_BIZ_06D_6_COMPLETE / OPERATIONS_COMMERCIAL_SECURITY_BROWSER_GATE_PASS`
-- 当前任务：A-BIZ-06D.7 Joint Gate Activation & Documentation Closure
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / `PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A-BIZ-06E A/B Golden Path 前置审计；等待 B-owned clean baseline 后才能执行联合实现与 Gate
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1194,3 +1194,15 @@
 - 真实 Google Chrome `150.0.7871.125`、专用 PostgreSQL `videoagent_control_test`、单 worker完整 Gate：`39/39 PASS / 0 SKIP`；artifact scanner 单测 `3/3 PASS`。
 - StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；根 `5173` 与 StoryCanvas `10588` 服务继续运行。
 - 当前状态：`A_BIZ_06D_6_COMPLETE / READY_FOR_06D_7_JOINT_GATE_ACTIVATION`。尚未进入 06E/06F，不宣称 A-BIZ-06 或 Full Joint Gate 完成。
+
+## 2026-08-10 A-BIZ-06D.7 Joint Gate 激活与阶段收口完成
+
+- RED `346a183` 冻结 Pilot Browser phase 的 ready/runner/precondition 合同；Green `c154b1e` 修改共享 `scripts/joint-gate-manifest.mjs` 与 `scripts/run-joint-gate.mjs`。
+- `pilot-browser-e2e` 已从 `planned` 激活为 `ready`，唯一命令为 `npm run test:e2e:pilot`；06D 的 `PILOT_BROWSER_E2E_NOT_IMPLEMENTED` slice blocker 已移除。
+- phase 继续要求显式 dedicated PostgreSQL `_test` URL；Full runner 固定传递 `PILOT_E2E=true`、`PILOT_E2E_BROWSER_CHANNEL=chrome`，并继续清空 paid provider secrets。
+- manifest `8/8 PASS`，plan 正确列出 ready phase；带 `videoagent_control_test` URL 的 full preflight 退出 `2`，只保留 06E/06F/B external blockers，不含数据库 URL/password，也不宣称 `JOINT_GATE_PASS`。
+- 06D 最终浏览器证据保持为真实 Google Chrome `150.0.7871.125`、专用 PostgreSQL、单 worker `39/39 PASS / 0 SKIP`；Session/Storage/Request ID/跨组织 404/敏感 artifact 与 TEST draft 边界均已覆盖。
+- Root Build、Control API typecheck/build、Governance、Prettier/diff-check PASS。Root 全仓 ESLint 仍被既有 StoryCanvas 源码、生成目录和历史测试 `any` 基线阻断（本轮未修改这些文件）；不得将其误报为本切片回归或全仓 Lint PASS。
+- **共享通知给 B**：B 修改 Joint Gate manifest/runner 前必须同步 `c154b1e`；该提交改变 Full Gate 的 Pilot Browser phase 环境与执行命令。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。根 `5173` 与 StoryCanvas `10588` 服务继续运行；分支未 push。
+- 当前状态：`A_BIZ_06D_COMPLETE / PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`。下一步只能审计 06E 前置与 B baseline，不得把 06D 完成外推为 A-BIZ-06 或 Full Joint Gate 完成。

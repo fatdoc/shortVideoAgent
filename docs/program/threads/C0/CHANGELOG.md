@@ -348,3 +348,12 @@
 - 敏感浏览器表面与 artifact scanner 覆盖 Session/密码/Token/digest/内部 snapshot/Grant/SQL/stack；Pilot Storage 为空，不回退 Demo/Mock。
 - 真实 Google Chrome `150.0.7871.125`、专用 `videoagent_control_test`、单 worker完整 Gate `39/39 PASS / 0 SKIP`；artifact scanner `3/3 PASS`。
 - Settlement 保持 TEST/draft/zero-candidate/非到账/非提现/非自动打款；06E/06F、B external baseline 和 Full Joint Gate 仍未完成。
+
+## 2026-08-10 · A-BIZ-06D.7 Joint Gate Activation Complete
+
+- `346a183` 冻结 Pilot Browser phase ready contract；`c154b1e` 将 Joint Gate manifest/runner 接到真实 `npm run test:e2e:pilot` lifecycle。
+- `pilot-browser-e2e` 现为 `ready`，要求 dedicated PostgreSQL `_test` URL，并由 Full runner固定启用 `PILOT_E2E=true` 与 Chrome channel；06D blocker 已移除。
+- manifest `8/8 PASS`、plan ready；Full preflight 仍因 06E/06F/B external precondition 退出 `2`，未输出数据库 Secret，未宣称 PASS。
+- 06D 最终浏览器证据保持 `39/39 PASS / 0 SKIP`，Google Chrome `150.0.7871.125`，专用 `videoagent_control_test`，artifact scanner PASS。
+- 共享通知：B 修改 Joint Gate manifest/runner 前同步 `c154b1e`；StoryCanvas tracked clean，未跟踪 `byteplus.ts` 未修改或暂存，分支未 push。
+- 状态：`A_BIZ_06D_COMPLETE / PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`；06E/06F 与 B baseline 仍未完成。
