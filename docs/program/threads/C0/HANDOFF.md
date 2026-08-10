@@ -808,3 +808,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 06D.3 会触碰根 `vite.config.ts`、`package.json` 及可能的 Control API server/config 和前端 runtime/service，必须独立提交并明确通知 B。
 - 首个 RED 是 destructive reset 前的专用数据库身份与脱敏 guard；在 Green 前不得写 reset SQL 或把 Pilot Playwright 当 Gate 证据。
 - 不进入 06E/06F，不修改 StoryCanvas，不 push；状态 `A_BIZ_06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`。
+
+## A-BIZ-06D.1～06D.2 Dedicated DB Harness 交接（2026-08-10）
+
+- 06D.1 `2f5131e` 已完成 Environment Contract：只接受 `PILOT_E2E=true`、唯一 `CONTROL_API_TEST_DATABASE_URL`、PostgreSQL `_test`，显式拒绝开发库，并在 destructive reset 前执行 `current_database()` 身份核对；安全摘要不泄露 URL、用户名或密码。
+- 06D.2 `4c05157` 已完成 `e2e:reset-seed`：guarded reset → 完整 19 migration → 固定 Scope seed → postcondition verify；只删除 `control_plane` schema 与 migration metadata，不操作其他业务 schema。
+- Fixture 含 1 Platform、2 Channels、2 Tenants、8 个独立用户/Membership、Tenant Project/Content Operator Assignment、Published Terms、valid/expired/revoked/exhausted Invitation、Registration/Channel attribution、TEST Recharge/Payment/Commission Accrual，以及 Channel B 零候选 TEST Settlement Draft。
+- 所有账号密码、Invitation Token、verification Token 每轮临时生成，只通过模块返回值留在父进程内存；CLI 只输出安全摘要并标记 `credentialOutput: false`。
+- 专用 `videoagent_control_test` 定向 Gate 为 `2 files / 14 tests PASS / 0 SKIP`；连续两轮 fingerprint 均为 `18ca4b0a2c335500639b62a8222ca9f88229ab620ec24726da047051d30d9737`；`liveFactCount: 0`，`activeSessionCount: 0`。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push。
+- 下一步是 06D.3：先在 `publicRegistrationApi` 增加 digest mismatch RED/GREEN，再实现双端 test-only verification adapter、同源 Vite proxy、Pilot Playwright config 与父 lifecycle runner。
+- 06D.3 将修改共享 `vite.config.ts`、根 `package.json`，并可能修改 Control API server/config 和前端 runtime/service；必须形成独立共享提交，并通知 B 在修改这些文件前同步。
+- 当前状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`；`pilot-browser-e2e` 仍为 `planned`/BLOCKED，不进入 06E/06F，不宣称 A-BIZ-06 或 Full Joint Gate 完成。

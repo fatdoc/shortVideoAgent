@@ -321,3 +321,11 @@
 - 06D 最低矩阵覆盖 Auth/Router、Terms/Invitation/Registration、Member、TEST Recharge/Commission/Settlement、跨组织 404 与敏感信息不泄漏。
 - Joint Gate `pilot-browser-e2e` 仍保持 planned/BLOCKED，直到 06D.4～06D.6 真实 PASS；06E/06F 与 B external baseline 未推进。
 - StoryCanvas tracked 文件与 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除；不 push。
+
+## 2026-08-10 · A-BIZ-06D.1～06D.2 Dedicated DB Harness Complete
+
+- `2f5131e` 完成 Pilot E2E 环境合同：显式 Harness flag、唯一 `_test` PostgreSQL 输入、开发库拒绝、实际 database identity 核对、loopback 端口与安全摘要。
+- `4c05157` 完成 guarded reset、完整 19 migration、固定 Scope/业务 fixture、每轮临时凭据和 postcondition verify；CLI 不输出密码或 Token。
+- 专用 `videoagent_control_test` 定向验证 `2 files / 14 tests PASS / 0 SKIP`；连续两轮 fingerprint 一致，`liveFactCount: 0`、`activeSessionCount: 0`。
+- 未 seed LIVE、paid/提现、KYC、税务、发票或自动打款；Joint Gate `pilot-browser-e2e` 继续 `planned`/BLOCKED。
+- StoryCanvas tracked diff 为零，B 的未跟踪 `byteplus.ts` 未修改或暂存；下一 RED 为 Public Terms digest mismatch fail-closed。

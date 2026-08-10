@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / `A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY`
-- 当前任务：A-BIZ-06D.1 Environment Contract & Dedicated DB Guard RED
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06C `COMPLETE` / `A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY`
+- 当前任务：A-BIZ-06D.3 Public Terms digest mismatch RED 与 test-only same-origin runtime
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1161,3 +1161,14 @@
 - 冻结切片：06D.1 Environment Guard → 06D.2 Reset/Seed → 06D.3 Verification/Proxy/Runner → 06D.4 Auth/Router → 06D.5 Public Lifecycle → 06D.6 Operations/TEST Commercial/Security → 06D.7 Joint Gate 激活与文档收口。
 - 首个 RED：数据库 URL 缺失、指向开发库或实际 `current_database()` 身份不一致时，必须在任何 destructive SQL 前失败，且日志不得泄漏完整 URL、用户名或密码。
 - 06E/06F 与 B external baseline 继续保持未完成；StoryCanvas tracked diff 必须为零，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
+
+## 2026-08-10 A-BIZ-06D.1～06D.2 Dedicated DB Harness 完成
+
+- 06D.1 提交 `2f5131e`：E2E 仅接受显式 `PILOT_E2E=true` 与唯一 `CONTROL_API_TEST_DATABASE_URL`；只允许 PostgreSQL、数据库名必须 `_test` 结尾、显式拒绝 `videoagent_control`，reset 前必须以 `current_database()` 核对实际身份。
+- Environment 安全摘要不输出数据库 URL、用户名或密码；默认 Control API/Web 均固定 loopback，分别为 `127.0.0.1:10601` 与 `127.0.0.1:5175`。
+- 06D.2 提交 `4c05157`：新增 `e2e:reset-seed`，只删除 `control_plane` schema 与 migration metadata，随后复用完整 19 migration chain 并写入固定 PLATFORM/CHANNEL/TENANT、独立用户、Project/Assignment、Terms、Invitation、Registration/Attribution 与 TEST Commercial fixture。
+- 每轮账号密码、Invitation Token 与 verification Token 随机生成，只在调用模块内存返回；CLI 明确 `credentialOutput: false`，不打印凭据。
+- 专用本地 PostgreSQL `videoagent_control_test` 定向 Gate：`2 files / 14 tests PASS / 0 SKIP`；连续两轮安全 fingerprint 均为 `18ca4b0a2c335500639b62a8222ca9f88229ab620ec24726da047051d30d9737`。
+- Postcondition 包含 `migrationCount: 19`、`organizationCount: 5`、`userCount: 8`、`membershipCount: 8`、`liveFactCount: 0`、`activeSessionCount: 0`；未 seed LIVE、paid/提现、KYC、税务、发票或自动打款。
+- Control API typecheck/build、定向 ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`。Joint Gate `pilot-browser-e2e` 仍保持 `planned`/BLOCKED；下一 RED 为 Public Terms 正文与合法格式 digest 不匹配时 Client 必须 fail closed，不展示正文且不回退 Demo/Mock。

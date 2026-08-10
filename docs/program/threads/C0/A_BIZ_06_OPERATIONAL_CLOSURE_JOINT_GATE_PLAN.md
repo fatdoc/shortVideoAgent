@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`
+- 状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`69b8181 docs(business-plane): close commercial frontend audit`
 - 共享同步基线：Control API Bootstrap `856757b`；Pilot Router/Layout `b80e9ef`
@@ -209,6 +209,13 @@ test(operations): add deterministic joint gate runner
 7. Recharge / Commission / Settlement 的 TEST-only 声明、empty/error/retry；
 8. 跨组织探测不泄露资源存在性；
 9. UI 不渲染 Session、Token、digest、Provider payload、Grant、SQL、stack 或完整敏感 DTO。
+
+06D 当前进度（2026-08-10）：
+
+- 06D.1 `2f5131e` 已完成显式 `PILOT_E2E=true`、唯一 `CONTROL_API_TEST_DATABASE_URL`、PostgreSQL `_test`、开发库拒绝、`current_database()` 二次核对和脱敏摘要；
+- 06D.2 `4c05157` 已完成 guarded reset、完整 19 migration、固定 Scope fixture、每轮临时凭据、postcondition verify 与 CLI 零凭据输出；
+- 专用 `videoagent_control_test` 定向验证为 `2 files / 14 tests PASS / 0 SKIP`，连续两轮安全 fingerprint 一致，且 `liveFactCount: 0`、`activeSessionCount: 0`；
+- 当前只推进 06D.3 Public Terms digest mismatch RED、test-only verification 与同源 runtime；`pilot-browser-e2e` 仍为 `planned`/BLOCKED，不进入 06E/06F。
 
 ### 3.5 A-BIZ-06E · A/B Golden Path Joint Gate
 

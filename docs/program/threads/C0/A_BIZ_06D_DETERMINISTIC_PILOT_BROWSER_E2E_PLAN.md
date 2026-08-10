@@ -3,7 +3,7 @@
 - 日期：2026-08-10
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`
+- 状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`
 - 前置提交：`1b3af9c docs(business-plane): close pilot operations ui`
 - 共享同步基线：Pilot Router/Layout `26400fa`
@@ -120,7 +120,7 @@ A-BIZ-06D 只建立可重复、fail-closed 的真实 Pilot 浏览器 E2E 环境�
 
 ## 4. 原子切片与提交边界
 
-### 06D.1 · Environment Contract & Dedicated DB Guard
+### 06D.1 · Environment Contract & Dedicated DB Guard — COMPLETE (`2f5131e`)
 
 交付：
 
@@ -134,7 +134,7 @@ A-BIZ-06D 只建立可重复、fail-closed 的真实 Pilot 浏览器 E2E 环境�
 
 建议提交：`test(control-api): freeze pilot e2e database guard` → `feat(control-api): enforce pilot e2e environment contract`（RED/Green 可按仓库既有 TDD 方式拆分）。
 
-### 06D.2 · Deterministic Reset / Migrate / Seed
+### 06D.2 · Deterministic Reset / Migrate / Seed — COMPLETE (`4c05157`)
 
 交付：
 
@@ -238,7 +238,11 @@ A-BIZ-06D 按 `Environment Guard → Reset/Seed → Browser Runtime → Auth/Rou
 当前状态：
 
 ```text
-A_BIZ_06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED
+A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED
 ```
 
-第一个可执行 RED 是专用数据库身份与脱敏 guard；在该 guard 变 Green 前不得编写 destructive reset，也不得启动 Pilot Playwright 作为 Gate 证据。
+06D.1 已以 `2f5131e` 完成唯一 `_test` PostgreSQL 输入、开发库拒绝、实际 database identity 核对与安全摘要；06D.2 已以 `4c05157` 完成受保护 reset、19 个 migration、固定 Scope fixture、每轮临时凭据和 postcondition verify。
+
+专用 `videoagent_control_test` 定向 Gate 为 `2 files / 14 tests PASS / 0 SKIP`；连续两轮安全 fingerprint 均为 `18ca4b0a2c335500639b62a8222ca9f88229ab620ec24726da047051d30d9737`。CLI 不输出凭据，`liveFactCount: 0`，`activeSessionCount: 0`。
+
+下一个可执行 RED 是 Public Terms：服务端返回格式合法但 `content` 与 `contentDigest` 不匹配时，Client 必须 fail closed，不返回被篡改正文、不回退 Demo/Mock，并映射为安全 invalid-response 状态。`pilot-browser-e2e` 仍保持 `planned`/BLOCKED。
