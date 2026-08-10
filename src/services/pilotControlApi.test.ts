@@ -456,7 +456,7 @@ describe('pilot Control API adapter', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
-  it('creates only a TEST draft Settlement and preserves idempotency replay state', async () => {
+  it('accepts the canonical date-only TEST Settlement period and preserves idempotency replay state', async () => {
     const input = {
       paymentMode: 'TEST' as const,
       beneficiaryChannelId: '30000000-0000-4000-8000-000000000001',
@@ -470,8 +470,8 @@ describe('pilot Control API adapter', () => {
       paymentMode: 'TEST',
       beneficiaryChannelId: input.beneficiaryChannelId,
       currency: 'CNY',
-      periodStart: '2026-08-01T00:00:00.000Z',
-      periodEnd: '2026-09-01T00:00:00.000Z',
+      periodStart: '2026-08-01',
+      periodEnd: '2026-09-01',
       cutoffAt: input.cutoffAt,
       status: 'draft',
       grossAccrualAmountMinor: 0,
