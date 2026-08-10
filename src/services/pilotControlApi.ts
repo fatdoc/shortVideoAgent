@@ -254,6 +254,54 @@ export interface PilotTermsVersionReplayResult {
   replayed: boolean;
 }
 
+export type PilotInvitationType = 'PLATFORM' | 'CHANNEL' | 'TENANT_MEMBER';
+export type PilotInvitationStatus = 'active' | 'revoked' | 'exhausted' | 'expired';
+export type PilotInvitationStatusFilter = PilotInvitationStatus | 'all';
+
+export interface PilotInvitationManagement {
+  invitationId: string;
+  invitationType: PilotInvitationType;
+  targetOrganizationId: string | null;
+  targetRoleCode: 'content_operator' | null;
+  targetEmail: string | null;
+  attributionChannelId: string | null;
+  status: PilotInvitationStatus;
+  validFrom: string;
+  expiresAt: string;
+  maxUses: number;
+  usedCount: number;
+  remainingUses: number;
+  createdAt: string;
+  updatedAt: string;
+  revokedAt: string | null;
+}
+
+export interface PilotCreatePlatformInvitationInput {
+  targetEmail: string;
+  attributionChannelId: string | null;
+  idempotencyKey: string;
+}
+
+export interface PilotCreateChannelInvitationInput {
+  idempotencyKey: string;
+}
+
+export interface PilotCreateTenantInvitationInput {
+  targetEmail: string;
+  idempotencyKey: string;
+}
+
+export interface PilotInvitationCreateResult {
+  invitation: PilotInvitationManagement;
+  token: string | null;
+  replayed: boolean;
+}
+
+export interface PilotInvitationReplayResult {
+  invitation: PilotInvitationManagement;
+  replayed: boolean;
+}
+
 export class PilotControlApiError extends Error {
   readonly code: string;
   readonly status: number | null;
@@ -649,6 +697,37 @@ const TERMS_DRAFT_INPUT_KEYS = new Set([
 ]);
 const TERMS_UPDATE_INPUT_KEYS = new Set([...TERMS_DRAFT_INPUT_KEYS, 'effectiveAt']);
 const SHA256_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
+const INVITATION_TYPES = new Set<PilotInvitationType>(['PLATFORM', 'CHANNEL', 'TENANT_MEMBER']);
+const INVITATION_STATUSES = new Set<PilotInvitationStatus>([
+  'active',
+  'revoked',
+  'exhausted',
+  'expired',
+]);
+const INVITATION_STATUS_FILTERS = new Set<PilotInvitationStatusFilter>([
+  'all',
+  'active',
+  'revoked',
+  'exhausted',
+  'expired',
+]);
+const INVITATION_KEYS = new Set([
+  'invitationId',
+  'invitationType',
+  'targetOrganizationId',
+  'targetRoleCode',
+  'targetEmail',
+  'attributionChannelId',
+  'status',
+  'validFrom',
+  'expiresAt',
+  'maxUses',
+  'usedCount',
+  'remainingUses',
+  'createdAt',
+  'updatedAt',
+  'revokedAt',
+]);
 
 function uuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value);
@@ -1067,6 +1146,84 @@ function parseTermsVersion(value: unknown): PilotTermsVersion {
   };
 }
 
+function parseInvitationManagement(value: unknown): PilotInvitationManagement {
+  if (!isRecord(value) || !exactKeys(value, INVITATION_KEYS)) {
+    throw invalidResponse('Control API 返回了无效的邀请管理数据。');
+  }
+  const invitationType = value.invitationType;
+  const status = value.status;
+  const targetEmail = value.targetEmail;
+  if (
+    !uuid(value.invitationId) ||
+    typeof invitationType !== 'string' ||
+    !INVITATION_TYPES.has(invitationType as PilotInvitationType) ||
+    !nullableUuid(value.targetOrganizationId) ||
+    !(value.targetRoleCode === null || value.targetRoleCode === 'content_operator') ||
+    !(
+      targetEmail === null ||
+      (normalizedEmail(targetEmail) && targetEmail === targetEmail.toLowerCase())
+    ) ||
+    !nullableUuid(value.attributionChannelId) ||
+    typeof status !== 'string' ||
+    !INVITATION_STATUSES.has(status as PilotInvitationStatus) ||
+    !timezoneTimestamp(value.validFrom) ||
+    !timezoneTimestamp(value.expiresAt) ||
+    Date.parse(value.expiresAt) <= Date.parse(value.validFrom) ||
+    !safeInteger(value.maxUses, 1) ||
+    !safeInteger(value.usedCount, 0) ||
+    !safeInteger(value.remainingUses, 0) ||
+    value.remainingUses !== Math.max(0, value.maxUses - value.usedCount) ||
+    !timezoneTimestamp(value.createdAt) ||
+    !timezoneTimestamp(value.updatedAt) ||
+    !nullableTimezoneTimestamp(value.revokedAt) ||
+    (status === 'revoked' ? value.revokedAt === null : value.revokedAt !== null)
+  ) {
+    throw invalidResponse('Control API 返回了无效的邀请管理数据。');
+  }
+
+  const validPlatform =
+    invitationType === 'PLATFORM' &&
+    value.targetOrganizationId === null &&
+    value.targetRoleCode === null &&
+    targetEmail !== null &&
+    value.maxUses === 1;
+  const validChannel =
+    invitationType === 'CHANNEL' &&
+    value.targetOrganizationId === null &&
+    value.targetRoleCode === null &&
+    targetEmail === null &&
+    value.attributionChannelId === null &&
+    value.maxUses === 100;
+  const validTenant =
+    invitationType === 'TENANT_MEMBER' &&
+    uuid(value.targetOrganizationId) &&
+    value.targetRoleCode === 'content_operator' &&
+    targetEmail !== null &&
+    value.attributionChannelId === null &&
+    value.maxUses === 1;
+  if (!(validPlatform || validChannel || validTenant)) {
+    throw invalidResponse('Control API 返回了不一致的邀请类型与目标。');
+  }
+
+  return {
+    invitationId: value.invitationId,
+    invitationType: invitationType as PilotInvitationType,
+    targetOrganizationId: value.targetOrganizationId,
+    targetRoleCode: value.targetRoleCode,
+    targetEmail,
+    attributionChannelId: value.attributionChannelId,
+    status: status as PilotInvitationStatus,
+    validFrom: value.validFrom,
+    expiresAt: value.expiresAt,
+    maxUses: value.maxUses,
+    usedCount: value.usedCount,
+    remainingUses: value.remainingUses,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+    revokedAt: value.revokedAt,
+  };
+}
+
 function parseCurrentOrganizationMember(value: unknown): PilotCurrentOrganizationMember {
   if (!isRecord(value) || !exactKeys(value, MEMBER_PROJECTION_KEYS)) {
     throw invalidResponse('Control API 返回了无效的成员目录数据。');
@@ -1382,6 +1539,235 @@ export async function retirePilotTermsVersion(
   };
 }
 
+function validateInvitationStatus(status: PilotInvitationStatusFilter): void {
+  if (!INVITATION_STATUS_FILTERS.has(status)) {
+    throw new PilotControlApiError(
+      'INVALID_INVITATION_STATUS',
+      '邀请目录 status 无效。',
+      null,
+      null,
+    );
+  }
+}
+
+async function listPilotInvitations(
+  path: string,
+  status: PilotInvitationStatusFilter,
+  limit: number,
+): Promise<PilotInvitationManagement[]> {
+  validateInvitationStatus(status);
+  const bounded = listLimit(limit);
+  const { body } = await commercialRead(
+    `${path}?status=${encodeURIComponent(status)}&limit=${bounded}`,
+  );
+  if (!isRecord(body) || !exactKeys(body, new Set(['invitations']))) {
+    throw invalidResponse('Control API 返回了无效的邀请目录。');
+  }
+  return parseList(
+    body,
+    'invitations',
+    parseInvitationManagement,
+    'Control API 返回了无效的邀请目录。',
+  );
+}
+
+export async function listPilotPlatformInvitations(
+  status: PilotInvitationStatusFilter = 'all',
+  limit = 100,
+): Promise<PilotInvitationManagement[]> {
+  const invitations = await listPilotInvitations('/api/v1/platform/invitations', status, limit);
+  if (!invitations.every((invitation) => invitation.invitationType === 'PLATFORM')) {
+    throw invalidResponse('Control API 返回了非 Platform 的邀请。');
+  }
+  return invitations;
+}
+
+export async function listPilotChannelInvitations(
+  channelId: string,
+  status: PilotInvitationStatusFilter = 'all',
+  limit = 100,
+): Promise<PilotInvitationManagement[]> {
+  const canonicalChannelId = requireUuid(
+    channelId,
+    'INVALID_CHANNEL_ID',
+    'canonical Channel ID 无效。',
+  );
+  const invitations = await listPilotInvitations(
+    `/api/v1/channels/${encodeURIComponent(canonicalChannelId)}/invitations`,
+    status,
+    limit,
+  );
+  if (!invitations.every((invitation) => invitation.invitationType === 'CHANNEL')) {
+    throw invalidResponse('Control API 返回了非 Channel 的邀请。');
+  }
+  return invitations;
+}
+
+export async function listPilotTenantInvitations(
+  tenantId: string,
+  status: PilotInvitationStatusFilter = 'all',
+  limit = 100,
+): Promise<PilotInvitationManagement[]> {
+  const canonicalTenantId = requireUuid(
+    tenantId,
+    'INVALID_TENANT_ID',
+    'canonical Tenant ID 无效。',
+  );
+  const invitations = await listPilotInvitations(
+    `/api/v1/tenants/${encodeURIComponent(canonicalTenantId)}/invitations`,
+    status,
+    limit,
+  );
+  if (
+    !invitations.every(
+      (invitation) =>
+        invitation.invitationType === 'TENANT_MEMBER' &&
+        invitation.targetOrganizationId === canonicalTenantId,
+    )
+  ) {
+    throw invalidResponse('Control API 返回了跨 Tenant 的邀请。');
+  }
+  return invitations;
+}
+
+function validateIdempotencyKey(value: unknown): value is string {
+  return trimmedText(value, 200);
+}
+
+function parseInvitationCreateResult(
+  response: Response,
+  body: unknown,
+  expectedType: PilotInvitationType,
+  expectedTenantId?: string,
+): PilotInvitationCreateResult {
+  const replayed = parseReplayHeader(response, 'Control API 返回了无效的邀请创建幂等状态。');
+  if (!isRecord(body) || !exactKeys(body, new Set(['invitation', 'token']))) {
+    throw invalidResponse('Control API 返回了无效的邀请创建响应。');
+  }
+  const invitation = parseInvitationManagement(body.invitation);
+  if (
+    invitation.invitationType !== expectedType ||
+    (expectedTenantId !== undefined && invitation.targetOrganizationId !== expectedTenantId)
+  ) {
+    throw invalidResponse('Control API 返回了错误 Scope 的邀请。');
+  }
+  const token = body.token;
+  if (replayed ? token !== null : !trimmedText(token, 1024)) {
+    throw invalidResponse('Control API 返回了不一致的邀请 Token replay 状态。');
+  }
+  return { invitation, token: token as string | null, replayed };
+}
+
+export async function createPilotPlatformInvitation(
+  input: PilotCreatePlatformInvitationInput,
+): Promise<PilotInvitationCreateResult> {
+  if (
+    !isRecord(input) ||
+    !exactKeys(input, new Set(['targetEmail', 'attributionChannelId', 'idempotencyKey'])) ||
+    !normalizedEmail(input.targetEmail) ||
+    !nullableUuid(input.attributionChannelId) ||
+    !validateIdempotencyKey(input.idempotencyKey)
+  ) {
+    throw new PilotControlApiError(
+      'INVALID_PLATFORM_INVITATION_INPUT',
+      'Platform 邀请输入无效。',
+      null,
+      null,
+    );
+  }
+  const { response, body } = await request('/api/v1/platform/invitations', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  return parseInvitationCreateResult(response, body, 'PLATFORM');
+}
+
+export async function createPilotChannelInvitation(
+  channelId: string,
+  input: PilotCreateChannelInvitationInput,
+): Promise<PilotInvitationCreateResult> {
+  const canonicalChannelId = requireUuid(
+    channelId,
+    'INVALID_CHANNEL_ID',
+    'canonical Channel ID 无效。',
+  );
+  if (
+    !isRecord(input) ||
+    !exactKeys(input, new Set(['idempotencyKey'])) ||
+    !validateIdempotencyKey(input.idempotencyKey)
+  ) {
+    throw new PilotControlApiError(
+      'INVALID_CHANNEL_INVITATION_INPUT',
+      'Channel 邀请输入无效。',
+      null,
+      null,
+    );
+  }
+  const { response, body } = await request(
+    `/api/v1/channels/${encodeURIComponent(canonicalChannelId)}/invitations`,
+    { method: 'POST', body: JSON.stringify({ idempotencyKey: input.idempotencyKey }) },
+  );
+  return parseInvitationCreateResult(response, body, 'CHANNEL');
+}
+
+export async function createPilotTenantInvitation(
+  tenantId: string,
+  input: PilotCreateTenantInvitationInput,
+): Promise<PilotInvitationCreateResult> {
+  const canonicalTenantId = requireUuid(
+    tenantId,
+    'INVALID_TENANT_ID',
+    'canonical Tenant ID 无效。',
+  );
+  if (
+    !isRecord(input) ||
+    !exactKeys(input, new Set(['targetEmail', 'idempotencyKey'])) ||
+    !normalizedEmail(input.targetEmail) ||
+    !validateIdempotencyKey(input.idempotencyKey)
+  ) {
+    throw new PilotControlApiError(
+      'INVALID_TENANT_INVITATION_INPUT',
+      'Tenant 邀请输入无效。',
+      null,
+      null,
+    );
+  }
+  const { response, body } = await request(
+    `/api/v1/tenants/${encodeURIComponent(canonicalTenantId)}/invitations`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        targetEmail: input.targetEmail,
+        idempotencyKey: input.idempotencyKey,
+      }),
+    },
+  );
+  return parseInvitationCreateResult(response, body, 'TENANT_MEMBER', canonicalTenantId);
+}
+
+export async function revokePilotInvitation(
+  invitationId: string,
+): Promise<PilotInvitationReplayResult> {
+  const canonicalInvitationId = requireUuid(
+    invitationId,
+    'INVALID_INVITATION_ID',
+    'Invitation ID 无效。',
+  );
+  const { response, body } = await request(
+    `/api/v1/invitations/${encodeURIComponent(canonicalInvitationId)}/revoke`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+  const replayed = parseReplayHeader(response, 'Control API 返回了无效的邀请撤销幂等状态。');
+  if (!isRecord(body) || !exactKeys(body, new Set(['invitation']))) {
+    throw invalidResponse('Control API 返回了无效的邀请撤销响应。');
+  }
+  const invitation = parseInvitationManagement(body.invitation);
+  if (invitation.invitationId !== canonicalInvitationId || invitation.status !== 'revoked') {
+    throw invalidResponse('Control API 返回了错误目标或非 revoked 的邀请。');
+  }
+  return { invitation, replayed };
+}
+
 export async function readPilotCurrentChannel(): Promise<PilotCommercialChannelReference> {
   const { body } = await commercialRead('/api/v1/channels/current');
   return parseCommercialChannel(isRecord(body) ? body.channel : null);
@@ -1576,6 +1962,13 @@ export const pilotControlApi = {
   updateTermsDraft: updatePilotTermsDraft,
   publishTermsVersion: publishPilotTermsVersion,
   retireTermsVersion: retirePilotTermsVersion,
+  listPlatformInvitations: listPilotPlatformInvitations,
+  listChannelInvitations: listPilotChannelInvitations,
+  listTenantInvitations: listPilotTenantInvitations,
+  createPlatformInvitation: createPilotPlatformInvitation,
+  createChannelInvitation: createPilotChannelInvitation,
+  createTenantInvitation: createPilotTenantInvitation,
+  revokeInvitation: revokePilotInvitation,
   readCurrentChannel: readPilotCurrentChannel,
   listActiveChannels: listPilotActiveChannels,
   listPlatformPaymentEvents: listPilotPlatformPaymentEvents,

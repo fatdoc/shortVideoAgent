@@ -9,6 +9,9 @@ vi.mock('../config/pilotRuntime', () => ({
 }));
 
 import {
+  createPilotChannelInvitation,
+  createPilotPlatformInvitation,
+  createPilotTenantInvitation,
   createPilotTermsDocument,
   createPilotTermsDraft,
   createPilotTestCommissionSettlement,
@@ -16,6 +19,7 @@ import {
   listPilotTermsDocuments,
   listPilotTermsVersions,
   listPilotActiveChannels,
+  listPilotChannelInvitations,
   listPilotChannelCommissionAccruals,
   listPilotChannelCommissionCalculations,
   listPilotChannelCommissionReversals,
@@ -24,8 +28,10 @@ import {
   listPilotPlatformCommissionCalculations,
   listPilotPlatformCommissionManualReviews,
   listPilotPlatformCommissionReversals,
+  listPilotPlatformInvitations,
   listPilotPlatformPaymentEvents,
   listPilotProjects,
+  listPilotTenantInvitations,
   listPilotTenantRechargeOrders,
   loginToPilot,
   logoutPilotSession,
@@ -33,6 +39,7 @@ import {
   publishPilotTermsVersion,
   readPilotProject,
   retirePilotTermsVersion,
+  revokePilotInvitation,
   suspendPilotCurrentOrganizationMember,
   updatePilotTermsDraft,
 } from './pilotControlApi';
@@ -967,6 +974,293 @@ describe('pilot Control API adapter', () => {
     await expect(
       retirePilotTermsVersion('72000000-0000-4000-8000-000000000022'),
     ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
+  });
+
+  it('lists bounded Invitation directories for explicit Platform, canonical Channel, and Session Tenant scopes', async () => {
+    const platformInvitation = {
+      invitationId: '73000000-0000-4000-8000-000000000001',
+      invitationType: 'PLATFORM',
+      targetOrganizationId: null,
+      targetRoleCode: null,
+      targetEmail: 'platform-user@example.com',
+      attributionChannelId: '73000000-0000-4000-8000-000000000002',
+      status: 'active',
+      validFrom: '2026-08-10T00:00:00.000Z',
+      expiresAt: '2026-08-17T00:00:00.000Z',
+      maxUses: 1,
+      usedCount: 0,
+      remainingUses: 1,
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+      revokedAt: null,
+    };
+    const channelInvitation = {
+      ...platformInvitation,
+      invitationId: '73000000-0000-4000-8000-000000000003',
+      invitationType: 'CHANNEL',
+      targetEmail: null,
+      attributionChannelId: null,
+      maxUses: 100,
+      remainingUses: 100,
+    };
+    const tenantId = '73000000-0000-4000-8000-000000000004';
+    const tenantInvitation = {
+      ...platformInvitation,
+      invitationId: '73000000-0000-4000-8000-000000000005',
+      invitationType: 'TENANT_MEMBER',
+      targetOrganizationId: tenantId,
+      targetRoleCode: 'content_operator',
+      targetEmail: 'worker@example.com',
+      attributionChannelId: null,
+    };
+    const channelId = '73000000-0000-4000-8000-000000000006';
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ invitations: [platformInvitation] }))
+      .mockResolvedValueOnce(jsonResponse({ invitations: [channelInvitation] }))
+      .mockResolvedValueOnce(jsonResponse({ invitations: [tenantInvitation] }));
+
+    await expect(listPilotPlatformInvitations('active', 25)).resolves.toEqual([platformInvitation]);
+    await expect(listPilotChannelInvitations(channelId, 'all', 20)).resolves.toEqual([
+      channelInvitation,
+    ]);
+    await expect(listPilotTenantInvitations(tenantId, 'expired', 15)).resolves.toEqual([
+      tenantInvitation,
+    ]);
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://control.example.com/api/v1/platform/invitations?status=active&limit=25',
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      `https://control.example.com/api/v1/channels/${channelId}/invitations?status=all&limit=20`,
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
+      `https://control.example.com/api/v1/tenants/${tenantId}/invitations?status=expired&limit=15`,
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
+    );
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects guessed Invitation scopes, invalid filters, and sensitive management projections', async () => {
+    await expect(
+      listPilotChannelInvitations('organization-id-is-not-channel-id'),
+    ).rejects.toMatchObject({ code: 'INVALID_CHANNEL_ID' });
+    await expect(listPilotTenantInvitations('not-a-tenant-id')).rejects.toMatchObject({
+      code: 'INVALID_TENANT_ID',
+    });
+    await expect(listPilotPlatformInvitations('unknown' as 'all')).rejects.toMatchObject({
+      code: 'INVALID_INVITATION_STATUS',
+    });
+    await expect(listPilotPlatformInvitations('all', 101)).rejects.toMatchObject({
+      code: 'INVALID_LIST_LIMIT',
+    });
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse({
+        invitations: [
+          {
+            invitationId: '73000000-0000-4000-8000-000000000001',
+            invitationType: 'PLATFORM',
+            targetOrganizationId: null,
+            targetRoleCode: null,
+            targetEmail: 'platform-user@example.com',
+            attributionChannelId: null,
+            status: 'active',
+            validFrom: '2026-08-10T00:00:00.000Z',
+            expiresAt: '2026-08-17T00:00:00.000Z',
+            maxUses: 1,
+            usedCount: 0,
+            remainingUses: 1,
+            createdAt: '2026-08-10T00:00:00.000Z',
+            updatedAt: '2026-08-10T00:00:00.000Z',
+            revokedAt: null,
+            creationRequestDigest: 'must-not-cross-client-boundary',
+          },
+        ],
+      }),
+    );
+    await expect(listPilotPlatformInvitations()).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+    });
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('creates scoped Invitations and keeps a first-response token only in caller memory', async () => {
+    const temporaryToken = ['inv', 'temporary', 'value'].join('_');
+    const platformInvitation = {
+      invitationId: '73000000-0000-4000-8000-000000000011',
+      invitationType: 'PLATFORM',
+      targetOrganizationId: null,
+      targetRoleCode: null,
+      targetEmail: 'new-user@example.com',
+      attributionChannelId: null,
+      status: 'active',
+      validFrom: '2026-08-10T01:00:00.000Z',
+      expiresAt: '2026-08-17T01:00:00.000Z',
+      maxUses: 1,
+      usedCount: 0,
+      remainingUses: 1,
+      createdAt: '2026-08-10T01:00:00.000Z',
+      updatedAt: '2026-08-10T01:00:00.000Z',
+      revokedAt: null,
+    };
+    const channelId = '73000000-0000-4000-8000-000000000012';
+    const channelInvitation = {
+      ...platformInvitation,
+      invitationId: '73000000-0000-4000-8000-000000000013',
+      invitationType: 'CHANNEL',
+      targetEmail: null,
+      maxUses: 100,
+      remainingUses: 100,
+    };
+    const tenantId = '73000000-0000-4000-8000-000000000014';
+    const tenantInvitation = {
+      ...platformInvitation,
+      invitationId: '73000000-0000-4000-8000-000000000015',
+      invitationType: 'TENANT_MEMBER',
+      targetOrganizationId: tenantId,
+      targetRoleCode: 'content_operator',
+      targetEmail: 'worker@example.com',
+    };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ invitation: platformInvitation, token: temporaryToken }), {
+          status: 201,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'false',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ invitation: channelInvitation, token: null }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'true',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ invitation: tenantInvitation, token: temporaryToken }), {
+          status: 201,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'false',
+          },
+        }),
+      );
+
+    await expect(
+      createPilotPlatformInvitation({
+        targetEmail: 'new-user@example.com',
+        attributionChannelId: null,
+        idempotencyKey: 'platform-create-1',
+      }),
+    ).resolves.toEqual({ invitation: platformInvitation, token: temporaryToken, replayed: false });
+    await expect(
+      createPilotChannelInvitation(channelId, { idempotencyKey: 'channel-create-1' }),
+    ).resolves.toEqual({ invitation: channelInvitation, token: null, replayed: true });
+    await expect(
+      createPilotTenantInvitation(tenantId, {
+        targetEmail: 'worker@example.com',
+        idempotencyKey: 'tenant-create-1',
+      }),
+    ).resolves.toEqual({ invitation: tenantInvitation, token: temporaryToken, replayed: false });
+
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({
+      targetEmail: 'new-user@example.com',
+      attributionChannelId: null,
+      idempotencyKey: 'platform-create-1',
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))).toEqual({
+      idempotencyKey: 'channel-create-1',
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[2]?.[1]?.body))).toEqual({
+      targetEmail: 'worker@example.com',
+      idempotencyKey: 'tenant-create-1',
+    });
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('revokes Invitations with strict replay evidence and rejects token replay ambiguity', async () => {
+    const invitationId = '73000000-0000-4000-8000-000000000021';
+    const revokedInvitation = {
+      invitationId,
+      invitationType: 'PLATFORM',
+      targetOrganizationId: null,
+      targetRoleCode: null,
+      targetEmail: 'new-user@example.com',
+      attributionChannelId: null,
+      status: 'revoked',
+      validFrom: '2026-08-10T01:00:00.000Z',
+      expiresAt: '2026-08-17T01:00:00.000Z',
+      maxUses: 1,
+      usedCount: 0,
+      remainingUses: 1,
+      createdAt: '2026-08-10T01:00:00.000Z',
+      updatedAt: '2026-08-10T02:00:00.000Z',
+      revokedAt: '2026-08-10T02:00:00.000Z',
+    };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ invitation: revokedInvitation }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'true',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ invitation: revokedInvitation, token: 'unexpected' }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'true',
+          },
+        }),
+      );
+
+    await expect(revokePilotInvitation(invitationId)).resolves.toEqual({
+      invitation: revokedInvitation,
+      replayed: true,
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({});
+    await expect(
+      createPilotPlatformInvitation({
+        targetEmail: 'new-user@example.com',
+        attributionChannelId: null,
+        idempotencyKey: 'platform-create-1',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('preserves Invitation service errors and Request IDs without fallback or token recovery', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      jsonResponse(
+        {
+          error: {
+            code: 'INVITATION_SCOPE_CONFLICT',
+            message: '邀请范围与当前组织不一致。',
+            requestId: 'invitation-scope-1',
+          },
+        },
+        409,
+      ),
+    );
+    await expect(
+      listPilotChannelInvitations('73000000-0000-4000-8000-000000000006'),
+    ).rejects.toMatchObject({
+      code: 'INVITATION_SCOPE_CONFLICT',
+      status: 409,
+      requestId: 'invitation-scope-1',
+    });
+    expect(window.localStorage.length).toBe(0);
   });
 
   it('preserves commercial 401/403/404/409/422/5xx status and Request ID without fallback data', async () => {
