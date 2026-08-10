@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE`
-- 当前任务：规划 A-BIZ-06C Terms / Invitation / Member Pilot Operations UI；尚未开始 06C 业务实现
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / A-BIZ-06C `PLAN_FROZEN`
+- 当前任务：A-BIZ-06C.1 bounded Terms/Invitation management read 合同与首个 strict Pilot Client RED
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-09
+- 最近更新：2026-08-10
 
 ## 2026-07-30 单前端收口
 
@@ -1107,3 +1107,13 @@
 - Gate：Migration 定向 2 files / 4 tests、Repository/Service 2 files / 14 tests、Route/Service 2 files / 19 tests、App/Route 2 files / 24 tests、Control API 全量 61 files / 414 tests PASS；typecheck、build、ESLint、Prettier、Governance、diff-check PASS。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`。未宣称 A-BIZ-06 总体完成、完整 IAM、LIVE Operations 或 Full Joint Gate 通过。
+
+## 2026-08-10 A-BIZ-06C Pilot Operations UI 计划冻结
+
+- 新增 `A_BIZ_06C_PILOT_OPERATIONS_UI_PLAN.md`，冻结 Terms、Invitation、Member 真实 Pilot 运营页及其前置 bounded read 合同。
+- 审计确认 Invitation GET 当前服务端无 limit；Terms 管理端缺 Document/Version Directory。两项必须先在 06C.1 补齐，前端不得靠截断或本地 state 伪造可恢复管理事实。
+- 冻结 06C.1～06C.6 原子顺序：bounded backend reads、strict Client、Terms page、Invitation pages、Member pages、共享 Router/Layout 激活；每个切片独立 commit。
+- Platform/Channel/Tenant 默认路由保持现状；运营页不要求 Project Context。Channel 使用 canonical current channelId，Tenant 使用 Session tenantId，跨 Scope 404、同 Scope 缺角色 403。
+- Invitation Token 仅首次创建响应内存态最小展示；不持久化、不进 URL/日志/trace。Terms 正文只允许授权管理员录入业务/法务提供内容，工程师不 seed、不代写、不自动发布。
+- 首个 RED：`listPilotCurrentOrganizationMembers()` 真实 Cookie、`no-store`、bounded query、strict Member DTO 与敏感字段拒绝。
+- 当前状态：`A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED`。未宣称 06C、A-BIZ-06、完整 IAM、正式 Terms、Full Joint Gate 或 LIVE Operations 完成。

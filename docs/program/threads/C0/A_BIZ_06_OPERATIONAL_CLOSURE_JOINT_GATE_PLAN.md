@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`06B_COMPLETE / READY_FOR_06C_PLANNING`
+- 状态：`06C_PLAN_FROZEN / READY_FOR_06C_1_RED`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`69b8181 docs(business-plane): close commercial frontend audit`
 - 共享同步基线：Control API Bootstrap `856757b`；Pilot Router/Layout `b80e9ef`
@@ -473,3 +473,28 @@ FULL_GATE_NOT_YET_EXECUTED
 ```
 
 下一步先审计并冻结 06C 的严格 Pilot Client、Terms/Invitation/Member 页面和共享 Router/Layout 切片，不直接把 06B API 完成外推为完整 IAM 或 A-BIZ-06 完成。
+
+## 14. 2026-08-10 · 06C Pilot Operations UI 计划冻结
+
+权威子计划：`A_BIZ_06C_PILOT_OPERATIONS_UI_PLAN.md`。
+
+源码审计确认：
+
+- Member current Organization Directory/Suspend HTTP 已在 06B 就绪；
+- Invitation 管理 GET 当前没有 query/limit，Repository 真实执行无界列表，必须先补服务端 bounded status/limit；
+- Terms 管理端只有 mutation 与 Public Current，没有 Document/Version management read，页面无法在刷新后恢复真实历史；
+- Pilot Client 尚无 Terms/Invitation/Member API，Router/Layout Manifest 也尚无运营入口；
+- Channel Invitation 必须先读取 canonical current channelId，Tenant 只使用 Session tenantId；前端不得猜测 Scope ID。
+
+06C 冻结为：06C.1 bounded backend reads → 06C.2 strict operations client → 06C.3 Terms page → 06C.4 Invitation pages → 06C.5 Member pages → 06C.6 shared Router/Layout activation → docs closure。共享 Router/Layout 只在 06C.6 独立提交并通知 B。
+
+默认路由保持不变：Platform `/platform/commission-audit`，Channel `/channel/commission-audit`，Tenant 保留现有 Project Workbench 规则；06C 运营页不要求 Project Context。首个 RED 为 `listPilotCurrentOrganizationMembers()` 的真实 Cookie、no-store、bounded query、strict DTO 与敏感字段拒绝。
+
+当前状态：
+
+```text
+A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED
+FULL_GATE_NOT_YET_EXECUTED
+```
+
+不得外推为完整 IAM、正式 Terms 内容上线、A-BIZ-06 完成、Full Joint Gate PASS 或 LIVE Operations Ready。

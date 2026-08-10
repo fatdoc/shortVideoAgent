@@ -112,6 +112,7 @@
 | 2026-08-09 | 冻结 A-BIZ-06 运营收口与 A/B 联合 Gate：06A～06F 覆盖确定性 Gate runner、Member 合同、真实 Pilot 运营 UI/E2E、A/B 黄金路径、迁移回滚和文档；full 模式缺专用 PostgreSQL 或 B 基线必须 fail closed                                                          | A_BIZ_06_PLAN_FROZEN                    |
 | 2026-08-09 | A-BIZ-06A 完成 12-phase 确定性 Joint Gate manifest/runner：plan 只报 NOT_RUN，full 缺专用 PostgreSQL、B 基线或 06D/06E/06F 时 fail closed；StoryCanvas v0.2 定向 13/13 PASS                                                                               | A_BIZ_06A_COMPLETE                      |
 | 2026-08-09 | A-BIZ-06B 完成 Migration 019、Member Directory/Deactivation Repository/Service、真实 Cookie HTTP Route 与共享 Bootstrap；Control API 61 files / 414 tests PASS，旧 Session 下一次 resolve 失效                                                            | A_BIZ_06B_COMPLETE                      |
+| 2026-08-10 | 冻结 A-BIZ-06C Pilot Operations UI：先补 Terms Document/Version bounded reads 与 Invitation bounded list，再交付 strict Client、Terms/Invitation/Member 页面和单独 Router/Layout 激活；Token/Scope/Terms 正文 fail closed                                 | A_BIZ_06C_PLAN_FROZEN                   |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -272,3 +273,12 @@
 - Gate：Migration 2/4、Repository/Service 2/14、Route/Service 2/19、App/Route 2/24、Control API 全量 61 files / 414 tests PASS；typecheck、build、ESLint、Prettier、Governance、diff-check PASS。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 保持排除。
 - 状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`；未宣称 A-BIZ-06、Full Joint Gate、完整 IAM 或 LIVE Operations 完成。
+
+## 2026-08-10 · A-BIZ-06C Pilot Operations UI Plan
+
+- 新增 `A_BIZ_06C_PILOT_OPERATIONS_UI_PLAN.md`，冻结 06C.1～06C.6 原子切片、页面路由、默认路由、Scope、Session、错误、敏感信息和测试边界。
+- 审计确认 Invitation management list 当前无服务端上限；Terms management 缺 Document/Version read，必须先补 bounded 后端事实，禁止前端截断或本地 state 伪造恢复能力。
+- Member 使用 06B canonical current Organization API；Channel 使用 canonical current channelId；Tenant 使用 Session tenantId；Pilot 失败不回退 Demo/Mock/localStorage。
+- Invitation Token 只在首次 create 当前内存态最小展示；Terms 正文只由授权管理员录入业务/法务提供内容，工程师不 seed、不代写、不自动发布。
+- Shared Router/Sidebar/Topbar 只在 06C.6 独立提交并通知 B；StoryCanvas 保持排除。
+- 状态：`A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED`；未宣称 06C、A-BIZ-06、完整 IAM、正式 Terms、Full Joint Gate 或 LIVE Operations 完成。

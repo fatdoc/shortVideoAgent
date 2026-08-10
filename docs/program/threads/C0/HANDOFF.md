@@ -750,3 +750,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - StoryCanvas tracked diff 为零，未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
 - 下一步只规划 06C Terms / Invitation / Member Pilot Operations UI，再按严格 Client、页面、共享 Router/Layout 原子切片实施；当前不 push。
 - 状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`。不得外推为完整 IAM、A-BIZ-06 完成、Full Joint Gate PASS 或 LIVE Operations Ready。
+
+## A-BIZ-06C Pilot Operations UI 计划交接（2026-08-10）
+
+- 权威计划：`A_BIZ_06C_PILOT_OPERATIONS_UI_PLAN.md`；状态 `A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED`。
+- Member HTTP 已可直接接入；Invitation GET 当前无服务端 limit，Terms 管理端缺 Document/Version Directory，必须先完成 06C.1 bounded backend reads。
+- 原子顺序：06C.1 bounded Terms/Invitation reads → 06C.2 strict Pilot Client → 06C.3 Terms page → 06C.4 Invitation pages → 06C.5 Member pages → 06C.6 Router/Sidebar/Topbar 激活 → docs closure。
+- UI 路由冻结为 `/platform/terms`、三类 `/.../invitations` 与三类 `/.../members`；Platform/Channel 默认仍是 Commission Audit，Tenant 默认仍是现有 Project Workbench。
+- Terms 正文不得由工程师编写或自动发布；Invitation Token 只在首次创建当前内存态展示，不进浏览器持久化、URL、日志、trace 或列表。
+- Channel 必须读取 canonical current channelId；Tenant 只使用 Session tenantId；Pilot 失败不得回退 Demo/Mock/localStorage。
+- 06C.6 是共享 Router/Layout 提交，完成后必须通知 B 同步；StoryCanvas 与 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
+- 首个 RED：`listPilotCurrentOrganizationMembers()` strict Client 合同；随后继续 Terms/Invitation bounded Repository/Route RED，不在普通步骤间暂停。
+- 不得外推为完整 IAM、正式 Terms 上线、A-BIZ-06 完成、Full Joint Gate PASS 或 LIVE Operations Ready。
