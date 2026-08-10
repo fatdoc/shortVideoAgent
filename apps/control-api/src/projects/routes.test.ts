@@ -1,9 +1,10 @@
+import { Router } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import type { PublicSession } from '../auth/service.js';
 import type { ProjectAccess, ProjectPolicy } from './policy.js';
-import { createContentRouter } from './routes.js';
+import { createContentRouter, type ContentRouterOptions } from './routes.js';
 import type { ContentStore } from './types.js';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
@@ -98,6 +99,38 @@ function app(contentStore: ContentStore, projectPolicy: ProjectPolicy) {
 }
 
 describe('project HTTP context and policy boundary', () => {
+  it('falls through unrelated /api/v1 paths without resolving a Tenant session', async () => {
+    const contentStore = store();
+    const projectPolicy = policy('manager');
+    const resolveSession = vi.fn<ContentRouterOptions['resolveSession']>();
+    const contentRouter = createContentRouter({
+      store: contentStore,
+      policy: projectPolicy,
+      resolveSession,
+      secureCookies: false,
+      sessionTtlSeconds: 28_800,
+    });
+    const paymentRouter = Router();
+    paymentRouter.get('/platform/payment-events', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      contentRouter,
+      paymentRouter,
+    });
+
+    const response = await request(application).get('/api/v1/platform/payment-events');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+    expect(resolveSession).not.toHaveBeenCalled();
+    expect(projectPolicy.listVisibleProjectIds).not.toHaveBeenCalled();
+    expect(contentStore.listProjects).not.toHaveBeenCalled();
+  });
+
   it('rejects a PLATFORM context before invoking Policy or Tenant content store', async () => {
     const contentStore = store();
     const projectPolicy = policy('manager');

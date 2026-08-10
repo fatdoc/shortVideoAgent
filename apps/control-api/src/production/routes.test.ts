@@ -1,10 +1,11 @@
+import { Router } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import type { ProjectPolicy } from '../projects/policy.js';
 import { contractPayloadDigest } from './digest.js';
 import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
-import { createProductionRouter } from './routes.js';
+import { createProductionRouter, type ProductionRouterOptions } from './routes.js';
 import type { ProductionStore, ProjectGrant, ProjectProductionPackage } from './types.js';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
@@ -158,6 +159,45 @@ function store(overrides: Partial<ProductionStore> = {}): ProductionStore {
 }
 
 describe('A05 production HTTP boundary', () => {
+  it('falls through unrelated GET and POST paths without resolving a Tenant session', async () => {
+    const productionStore = store();
+    const resolveSession = vi.fn<ProductionRouterOptions['resolveSession']>();
+    const productionRouter = createProductionRouter({
+      store: productionStore,
+      policy: managerPolicy,
+      resolveSession,
+      secureCookies: false,
+      sessionTtlSeconds: 28_800,
+    });
+    const downstreamRouter = Router();
+    downstreamRouter.get('/platform/payment-events', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    downstreamRouter.post('/platform/commission-settlements', (_request, response) => {
+      response.status(201).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      productionRouter,
+      paymentRouter: downstreamRouter,
+    });
+
+    const readResponse = await request(application).get('/api/v1/platform/payment-events');
+    const writeResponse = await request(application)
+      .post('/api/v1/platform/commission-settlements')
+      .send({ paymentMode: 'TEST' });
+
+    expect(readResponse.status).toBe(200);
+    expect(readResponse.body).toEqual({ mounted: true });
+    expect(writeResponse.status).toBe(201);
+    expect(writeResponse.body).toEqual({ mounted: true });
+    expect(resolveSession).not.toHaveBeenCalled();
+    expect(productionStore.createPackage).not.toHaveBeenCalled();
+    expect(productionStore.issueGrant).not.toHaveBeenCalled();
+  });
+
   it('rejects a PLATFORM context before invoking the Tenant production store', async () => {
     const createPackage = vi.fn<ProductionStore['createPackage']>();
     const app = testApp(store({ createPackage }));
