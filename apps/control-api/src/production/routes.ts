@@ -152,7 +152,12 @@ function setRotatedCookie(
 export function createProductionRouter(options: ProductionRouterOptions): Router {
   const router = Router();
 
-  router.use(async (request, response: ActorResponse, next) => {
+  const productionPaths = [
+    '/projects/:projectId/production-packages',
+    '/projects/:projectId/production-grants',
+  ];
+
+  router.use(productionPaths, async (request, response: ActorResponse, next) => {
     try {
       if (response.locals.actor) {
         next();
@@ -197,7 +202,7 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
     }
   });
 
-  router.use((request, response: ActorResponse, next) => {
+  router.use(productionPaths, (request, response: ActorResponse, next) => {
     if (request.method !== 'POST') {
       next();
       return;

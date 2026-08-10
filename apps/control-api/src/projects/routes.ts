@@ -110,7 +110,7 @@ function setRotatedCookie(response: Response, token: string, options: ContentRou
 export function createContentRouter(options: ContentRouterOptions): Router {
   const router = Router();
 
-  router.use(async (request, response: ActorResponse, next) => {
+  router.use('/projects', async (request, response: ActorResponse, next) => {
     try {
       const token = readCookie(request.header('cookie'), SESSION_COOKIE_NAME);
       if (!token) {
