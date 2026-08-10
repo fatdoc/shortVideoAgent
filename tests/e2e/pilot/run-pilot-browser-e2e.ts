@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { resolve } from 'node:path';
 import { parsePilotE2eEnvironment } from '../../../apps/control-api/src/e2e/environment.js';
 import { resetMigrateSeedPilotE2e } from '../../../apps/control-api/src/e2e/resetSeed.js';
+import { assertPilotBrowserArtifactsSafe } from './pilotArtifactSecurity.js';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../..');
 const controlApiRoot = resolve(repositoryRoot, 'apps/control-api');
@@ -138,6 +139,20 @@ async function main(): Promise<void> {
         else resolveExit(code ?? 1);
       });
     });
+    const databaseUrl = new URL(runtimeEnvironment.databaseUrl);
+    await assertPilotBrowserArtifactsSafe(
+      resolve(repositoryRoot, 'test-results/pilot-browser-e2e'),
+      [
+        ...Object.values(seeded.secrets.accounts).map((account) => account.password),
+        ...Object.values(seeded.secrets.invitationTokens),
+        seeded.secrets.emailVerificationToken,
+        ...Object.values(independentSecrets),
+        runtimeEnvironment.databaseUrl,
+        databaseUrl.password,
+        'Pilot-E2E-Registration-Only-42!',
+        'pilot-e2e-invalid-verification-token-000000000000000000000000',
+      ],
+    );
     if (exitCode !== 0) throw new Error('PILOT_E2E_BROWSER_FAILED');
   } finally {
     await shutdown();
