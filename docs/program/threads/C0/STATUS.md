@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / A-BIZ-06C.1～06C.2 `COMPLETE`
-- 当前任务：A-BIZ-06C.3 Platform Terms Operations Page RED/Green
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / `A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY`
+- 当前任务：A-BIZ-06D Deterministic Pilot Browser E2E Harness 审计与 RED
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1137,3 +1137,15 @@
 - Gate：`src/services/pilotControlApi.test.ts` 30/30 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_06C_2_COMPLETE / STRICT_OPERATIONS_CLIENT_READY / READY_FOR_06C_3_TERMS_PAGE_RED`。下一 RED 为 Platform Terms 页面从真实 Document Directory 恢复 loading/empty/ready/error/retry，且 Pilot 失败不得读取 Demo Store。
+
+## 2026-08-10 A-BIZ-06C Pilot Operations UI 完成
+
+- 06C.3 `226d1a8` 已交付 Platform Terms Operations Page：真实 bounded Document/Version Directory、create Document、create/update DRAFT、publish/retire 确认与 replay/409、安全 401/403/404/422/5xx/Request ID；工程师不 seed、不代写、不自动发布正式 Terms。
+- 06C.4 `649b3f6` 已交付 Platform/Channel/Tenant Invitation Operations Pages：Channel 先读取 canonical current channelId，Tenant 只用 Session tenantId；bounded list/create/revoke/replay、expired/revoked/exhausted 与首次 Token 仅本次内存可见，不持久化、不进 URL/日志/目录。
+- 06C.5 `ec3cb40` 已交付 current Organization Member Operations Pages：按固定 Scope/管理员角色授权，bounded status list、self/last-admin/stale/inactive/replay、安全 suspend expectedVersion 与 401 Session 清理；不实现角色编辑、新增、恢复、删除、批量、密码、MFA、全局 User suspend 或 Support Grant。
+- 06C.6 共享提交 `26400fa` 已激活 `/platform/terms`、三类 Invitation 与三类 Member 路由，并统一复用 Route Manifest/Policy 处理 direct URL、returnTo、Sidebar、Router 和 Topbar；Platform/Channel 默认仍为 Commission Audit，Tenant 默认仍为首个可见 Project Workbench。
+- 06C 运营页均不要求 Project Context；Tenant 进入 Invitation/Member 时 Topbar 不伪造 Project。跨 Scope 返回 404、同 Scope 缺角色返回 403、未认证回登录、未知路径返回 404，Pilot 失败不回退 Demo/Mock。
+- **共享通知给 B**：`26400fa` 修改 `src/domain/pilotOrganizationRoutePolicy.ts`、`src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 及 Router/Policy 测试；B 修改这些共享文件前必须先同步。
+- Gate：Terms 18/18、Invitation 11/11、Member 8/8、Policy/Router 45/45 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS。一次并行执行 Root 全量 Vitest 与 Build 时，4 个既有 Demo suite 因资源竞争出现 14 个 timeout；脱离并行负载后受影响 4 files / 26 tests 全部 PASS，不把该次并发 timeout 伪报为全量 Gate PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`。仍不得宣称正式 Terms 内容上线、完整 IAM、A-BIZ-06 总体完成、Full Joint Gate PASS 或 LIVE Operations Ready。

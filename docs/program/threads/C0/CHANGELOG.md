@@ -300,3 +300,14 @@
 - 真实 Cookie、management `no-store`、安全错误 status/code/Request ID、Demo/Pilot 隔离保持不变；无 Mock/localStorage fallback。
 - Pilot Client 定向 30/30、Root Build、ESLint、Prettier、Governance、diff-check PASS；StoryCanvas 与未跟踪 `byteplus.ts` 未修改。
 - 状态推进到 `A_BIZ_06C_2_COMPLETE / READY_FOR_06C_3_TERMS_PAGE_RED`。
+
+## 2026-08-10 · A-BIZ-06C Pilot Operations UI Closure
+
+- 06C.3～06C.5 分别以 `226d1a8`、`649b3f6`、`ec3cb40` 交付 Terms、Invitation、Member 真实 Pilot 运营页；无 Demo/Mock/localStorage fallback。
+- 06C.6 以共享提交 `26400fa` 激活 Terms、三类 Invitation、三类 Member 路由；Manifest/Policy 同时驱动 direct URL、returnTo、Sidebar、Router authorization 与 Topbar Project selector。
+- Platform/Channel 默认继续 Commission Audit；Tenant 默认继续首个可见 Project Workbench。06C 运营页不要求 Project Context，跨 Scope 404、同 Scope缺角色 403、未认证回登录、未知路径 404。
+- Terms 保持业务/法务正文边界；Invitation Token 仅首次当前内存态可见；Member 只实现 current Organization bounded list 与安全 suspend，不扩大角色/账号管理范围。
+- 共享通知：B 修改 Route Policy、Router、Sidebar、Topbar 前必须先同步 `26400fa`。
+- Gate：页面 37/37、Policy/Router 45/45、Build、ESLint、Prettier、Governance、diff-check PASS；并行全量 Vitest/Build 产生的既有 Demo timeout 已由受影响 4 files / 26 tests 串行 PASS 排除回归，但正式 full Gate 留在 06F。
+- StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改或暂存。
+- 状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`；未宣称 A-BIZ-06、Full Joint Gate、完整 IAM、正式 Terms 或 LIVE Operations 完成。

@@ -782,3 +782,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Gate：Pilot Control API adapter 30/30 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零，`byteplus.ts` 始终排除。
 - 下一步进入 06C.3 Platform Terms Operations Page。首个页面 RED：真实 Document Directory 的 loading → empty/ready/error/retry 状态必须可观察，刷新只从服务端恢复，失败不得读取 Demo Store。
 - 状态：`A_BIZ_06C_2_COMPLETE / READY_FOR_06C_3_TERMS_PAGE_RED`；不 push，不外推为正式 Terms 上线、06C/A-BIZ-06 总体完成、Full Joint Gate PASS 或 LIVE Operations Ready。
+
+## A-BIZ-06C Pilot Operations UI 完成交接（2026-08-10）
+
+- 页面提交：Terms `226d1a8`、Invitation `649b3f6`、Member `ec3cb40`；共享激活提交：`26400fa`。
+- 已激活 `/platform/terms`、`/platform|channel|enterprise/invitations`、`/platform|channel|enterprise/members`。Platform/Channel 默认继续 Commission Audit；Tenant 默认继续服务端首个可见 Project Workbench。
+- Terms、Invitation、Member 页面只读取真实 Pilot Control API，覆盖 loading/empty/error/retry、401 Session 清理、固定安全错误与 Request ID；失败不读取 Demo Store、不回退 Mock/localStorage。
+- Channel Invitation 只使用 `/api/v1/channels/current` 返回的 canonical channelId；Tenant 页面只用 Session tenantId；Member suspend 精确发送 membershipId + expectedVersion。
+- Invitation Token 仅首次 create 当前内存态可见，刷新/离开/再次创建/revoke/error 即清除；replay 的 `token: null` 不恢复旧 Token。Terms 正文仍只由授权管理员录入业务/法务提供内容，工程师不 seed、不代写、不自动发布。
+- 共享 Route Manifest/Policy 统一 direct URL、returnTo、Sidebar visibility、Router authorization 与 Topbar Project selector；运营页不要求 Project Context，Tenant 运营页不伪造 Project；跨 Scope 404、同 Scope 缺角色 403。
+- **B 必须同步 `26400fa` 后再修改共享文件**：`src/domain/pilotOrganizationRoutePolicy.ts`、`src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 及其测试。
+- 验证：页面 37/37、Policy/Router 45/45 PASS；Build、ESLint、Prettier、Governance、diff-check PASS。Root 全量与 Build 并行时的既有 Demo timeout 已通过受影响 4 files / 26 tests 串行复跑排除功能回归；06F 前仍需执行正式 full Joint Gate。
+- StoryCanvas tracked diff 为零，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除；分支未 push。
+- 下一步进入 06D Deterministic Pilot Browser E2E Harness 审计与 RED。状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`；不得外推为 A-BIZ-06、Full Joint Gate、完整 IAM、正式 Terms 或 LIVE Operations 完成。
