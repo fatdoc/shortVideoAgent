@@ -19,7 +19,7 @@ const terms = {
   versionLabel: '2026-08',
   locale: 'zh-CN',
   content: '已批准的测试正文',
-  contentDigest: 'a'.repeat(64),
+  contentDigest: 'e3249e7c005a21c7dc01f4427dd8e48532db4238db0d10b3f88317127e5cf325',
   effectiveAt: '2026-08-08T00:00:00.000Z',
   mustReaccept: true,
 };
@@ -77,6 +77,32 @@ describe('Public Registration API client', () => {
       'https://control.example.com/api/v1/public/terms/current?documentCode=registration-notice&locale=zh-CN',
       expect.objectContaining({ credentials: 'include', method: 'GET' }),
     );
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it('fails closed when the Terms body does not match its valid SHA-256 digest', async () => {
+    const tamperedContent = '被篡改的用户须知正文';
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse({
+        terms: {
+          ...terms,
+          content: tamperedContent,
+        },
+      }),
+    );
+    const api = createPublicRegistrationApi({ runtime, fetchImpl });
+
+    const error = await api.loadCurrentTerms().catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(PublicRegistrationApiError);
+    expect(error).toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+      status: null,
+      requestId: null,
+    });
+    expect((error as Error).message).toBe('Control API 返回了无效的用户须知。');
+    expect((error as Error).message).not.toContain(tamperedContent);
     expect(window.localStorage.length).toBe(0);
     expect(window.sessionStorage.length).toBe(0);
   });
