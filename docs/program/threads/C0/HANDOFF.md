@@ -795,3 +795,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 验证：页面 37/37、Policy/Router 45/45 PASS；Build、ESLint、Prettier、Governance、diff-check PASS。Root 全量与 Build 并行时的既有 Demo timeout 已通过受影响 4 files / 26 tests 串行复跑排除功能回归；06F 前仍需执行正式 full Joint Gate。
 - StoryCanvas tracked diff 为零，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除；分支未 push。
 - 下一步进入 06D Deterministic Pilot Browser E2E Harness 审计与 RED。状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`；不得外推为 A-BIZ-06、Full Joint Gate、完整 IAM、正式 Terms 或 LIVE Operations 完成。
+
+## A-BIZ-06D Deterministic Pilot Browser E2E 计划交接（2026-08-10）
+
+- 权威计划：`A_BIZ_06D_DETERMINISTIC_PILOT_BROWSER_E2E_PLAN.md`；前置提交 `1b3af9c`，共享 Router/Layout 基线 `26400fa`。
+- 现状：Root Playwright 只有 Demo smoke；Pilot browser phase 在 Joint Gate 中仍为 `planned`/BLOCKED。当前 PostgreSQL suites 可由缺少环境变量而 SKIP，06D 不得把 SKIP 计为 PASS。
+- 数据库合同：唯一输入 `CONTROL_API_TEST_DATABASE_URL`，只接受 PostgreSQL `_test`，reset 前再以 `current_database()` 核对身份；不得打印完整 URL 或操作开发主库。
+- Harness 使用父进程生成的临时密码/Secret/Invitation/verification Token，通过 child env 传递；仓库不保存默认登录密码，失败 artifact 不得包含凭据或 Token。
+- 浏览器采用同源 Vite proxy + 真实 Control API Cookie，不增加生产 CORS，不使用 localStorage、Mock Session、Zustand 注入或 `page.addCookies`。
+- Registration 的 test-only verification 双端 adapter 只能在显式 `NODE_ENV=test` + Harness guard 下启用；Public Terms 必须补 SHA-256 digest 重算。
+- 原子顺序：06D.1 DB/environment guard；06D.2 reset/migrate/seed；06D.3 verification/proxy/runner；06D.4 auth/router；06D.5 public lifecycle；06D.6 operations/commercial/security；06D.7 manifest/docs closure。
+- 06D.3 会触碰根 `vite.config.ts`、`package.json` 及可能的 Control API server/config 和前端 runtime/service，必须独立提交并明确通知 B。
+- 首个 RED 是 destructive reset 前的专用数据库身份与脱敏 guard；在 Green 前不得写 reset SQL 或把 Pilot Playwright 当 Gate 证据。
+- 不进入 06E/06F，不修改 StoryCanvas，不 push；状态 `A_BIZ_06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`。

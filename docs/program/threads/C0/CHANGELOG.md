@@ -311,3 +311,13 @@
 - Gate：页面 37/37、Policy/Router 45/45、Build、ESLint、Prettier、Governance、diff-check PASS；并行全量 Vitest/Build 产生的既有 Demo timeout 已由受影响 4 files / 26 tests 串行 PASS 排除回归，但正式 full Gate 留在 06F。
 - StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改或暂存。
 - 状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`；未宣称 A-BIZ-06、Full Joint Gate、完整 IAM、正式 Terms 或 LIVE Operations 完成。
+
+## 2026-08-10 · A-BIZ-06D Deterministic Pilot Browser E2E Plan Frozen
+
+- 新增 `A_BIZ_06D_DETERMINISTIC_PILOT_BROWSER_E2E_PLAN.md`，冻结 06D.1～06D.7 原子顺序与首个数据库 guard RED。
+- 源码审计确认现有 Playwright 仅为 Demo/localStorage smoke，缺真实 Session Cookie、Control API lifecycle、专用 PostgreSQL reset/seed 和 Pilot operations matrix。
+- 冻结显式 `_test` database identity guard、每轮临时 Secret/账号、同源 Vite proxy、单 worker Playwright、失败诊断与安全 cleanup。
+- Registration 只允许显式 test-only verification adapter；Terms digest mismatch 必须通过浏览器 RED 推动真实 SHA-256 重算；均不得外推为正式 Provider/Terms 上线。
+- 06D 最低矩阵覆盖 Auth/Router、Terms/Invitation/Registration、Member、TEST Recharge/Commission/Settlement、跨组织 404 与敏感信息不泄漏。
+- Joint Gate `pilot-browser-e2e` 仍保持 planned/BLOCKED，直到 06D.4～06D.6 真实 PASS；06E/06F 与 B external baseline 未推进。
+- StoryCanvas tracked 文件与 B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除；不 push。

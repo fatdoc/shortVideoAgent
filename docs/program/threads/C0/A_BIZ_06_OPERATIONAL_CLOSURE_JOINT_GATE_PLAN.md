@@ -3,7 +3,7 @@
 - 日期：2026-08-09
 - 负责人：工程师 A（业务平台）
 - 分支：`dev/business-plane`
-- 状态：`06C_PLAN_FROZEN / READY_FOR_06C_1_RED`
+- 状态：`06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`
 - 上游计划：`A_BIZ_LATEST_MAIN_PLAN_2026-08-06.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 前置提交：`69b8181 docs(business-plane): close commercial frontend audit`
 - 共享同步基线：Control API Bootstrap `856757b`；Pilot Router/Layout `b80e9ef`

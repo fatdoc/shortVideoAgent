@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
 - 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06B `COMPLETE` / `A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY`
-- 当前任务：A-BIZ-06D Deterministic Pilot Browser E2E Harness 审计与 RED
+- 当前任务：A-BIZ-06D.1 Environment Contract & Dedicated DB Guard RED
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1149,3 +1149,15 @@
 - Gate：Terms 18/18、Invitation 11/11、Member 8/8、Policy/Router 45/45 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS。一次并行执行 Root 全量 Vitest 与 Build 时，4 个既有 Demo suite 因资源竞争出现 14 个 timeout；脱离并行负载后受影响 4 files / 26 tests 全部 PASS，不把该次并发 timeout 伪报为全量 Gate PASS。
 - StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
 - 当前状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`。仍不得宣称正式 Terms 内容上线、完整 IAM、A-BIZ-06 总体完成、Full Joint Gate PASS 或 LIVE Operations Ready。
+
+## 2026-08-10 A-BIZ-06D Deterministic Pilot Browser E2E 计划冻结
+
+- 新增权威计划 `A_BIZ_06D_DETERMINISTIC_PILOT_BROWSER_E2E_PLAN.md`，状态 `A_BIZ_06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`。
+- 审计确认现有 Playwright 只覆盖 Demo localStorage smoke；没有真实 Control API lifecycle、真实 Session Cookie、专用数据库 reset/seed 或 Pilot operations spec，且 `fullyParallel: true` 不适合共享 PostgreSQL 有状态矩阵。
+- `compose.pilot.yaml` 只有开发库，现有 auth bootstrap 只创建单 Tenant；06D 必须使用显式 `_test` URL、独立用户覆盖 PLATFORM/CHANNEL/TENANT、确定性 reset/migrate/seed/verify 与单 worker Playwright。
+- 冻结同源 Vite proxy，不为 06D 放宽生产 CORS；浏览器只通过真实登录获得 HttpOnly `videoagent_session`，禁止 localStorage/Zustand/`addCookies` 注入。
+- Registration 成功 E2E 需要双端显式 test-only verification adapter；临时 Token 每轮生成、不写仓库、不渲染、不记录，任何非 test 环境继续 fail closed，不能外推为正式邮箱验证。
+- Public Terms 当前只检查 digest 格式，06D 必须先以 digest mismatch 浏览器 RED 推动 SHA-256 重算后再允许展示/接受。
+- 冻结切片：06D.1 Environment Guard → 06D.2 Reset/Seed → 06D.3 Verification/Proxy/Runner → 06D.4 Auth/Router → 06D.5 Public Lifecycle → 06D.6 Operations/TEST Commercial/Security → 06D.7 Joint Gate 激活与文档收口。
+- 首个 RED：数据库 URL 缺失、指向开发库或实际 `current_database()` 身份不一致时，必须在任何 destructive SQL 前失败，且日志不得泄漏完整 URL、用户名或密码。
+- 06E/06F 与 B external baseline 继续保持未完成；StoryCanvas tracked diff 必须为零，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
