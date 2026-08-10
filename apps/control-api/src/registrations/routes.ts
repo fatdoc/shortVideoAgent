@@ -39,6 +39,7 @@ const safeMessages: Record<string, string> = {
   REGISTRATION_CONFLICT: '无法使用当前身份完成注册。',
   REGISTRATION_IDEMPOTENCY_CONFLICT: '幂等键已用于不同的注册请求。',
   TERMS_NOT_AVAILABLE: '当前注册须知暂不可用。',
+  TERMS_VERSION_STALE: '注册须知版本已更新，请重新阅读并确认。',
   EMAIL_VERIFICATION_UNAVAILABLE: '邮箱验证服务暂不可用。',
   EMAIL_VERIFICATION_FAILED: '邮箱验证失败。',
 };

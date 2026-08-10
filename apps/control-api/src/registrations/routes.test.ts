@@ -9,6 +9,7 @@ import {
   RegistrationInvitationUnavailableError,
   RegistrationTermsNotAcceptedError,
   RegistrationTermsNotAvailableError,
+  RegistrationTermsVersionStaleError,
   RegistrationValidationError,
 } from './errors.js';
 import { createRegistrationRouter } from './routes.js';
@@ -135,6 +136,7 @@ describe('Public Registration HTTP API', () => {
     [new RegistrationConflictError(), 409, 'REGISTRATION_CONFLICT'],
     [new RegistrationIdempotencyConflictError(), 409, 'REGISTRATION_IDEMPOTENCY_CONFLICT'],
     [new RegistrationTermsNotAvailableError(), 503, 'TERMS_NOT_AVAILABLE'],
+    [new RegistrationTermsVersionStaleError(), 409, 'TERMS_VERSION_STALE'],
     [new EmailVerificationUnavailableError(), 503, 'EMAIL_VERIFICATION_UNAVAILABLE'],
   ])('maps a stable domain error to %s', async (error, status, code) => {
     const { application } = fixture({

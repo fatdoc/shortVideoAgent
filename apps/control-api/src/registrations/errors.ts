@@ -5,6 +5,7 @@ export type RegistrationErrorCode =
   | 'REGISTRATION_CONFLICT'
   | 'REGISTRATION_IDEMPOTENCY_CONFLICT'
   | 'TERMS_NOT_AVAILABLE'
+  | 'TERMS_VERSION_STALE'
   | 'EMAIL_VERIFICATION_UNAVAILABLE'
   | 'EMAIL_VERIFICATION_FAILED';
 
@@ -59,6 +60,16 @@ export class RegistrationIdempotencyConflictError extends RegistrationDomainErro
 export class RegistrationTermsNotAvailableError extends RegistrationDomainError {
   constructor() {
     super('Current registration Terms are unavailable.', 503, 'TERMS_NOT_AVAILABLE');
+  }
+}
+
+export class RegistrationTermsVersionStaleError extends RegistrationDomainError {
+  constructor() {
+    super(
+      'The accepted registration Terms version is no longer current.',
+      409,
+      'TERMS_VERSION_STALE',
+    );
   }
 }
 

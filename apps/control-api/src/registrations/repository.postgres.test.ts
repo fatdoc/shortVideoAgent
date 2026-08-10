@@ -7,7 +7,7 @@ import {
   RegistrationConflictError,
   RegistrationIdempotencyConflictError,
   RegistrationInvitationUnavailableError,
-  RegistrationTermsNotAvailableError,
+  RegistrationTermsVersionStaleError,
 } from './errors.js';
 import { PostgresRegistrationRepository } from './repository.js';
 import type { RegistrationRecordInput } from './types.js';
@@ -437,7 +437,7 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresRegistrationRepository', () =>
 
     await expect(
       repository.register(record({ termsVersionId: 'b5000000-0000-4000-8000-000000000099' })),
-    ).rejects.toBeInstanceOf(RegistrationTermsNotAvailableError);
+    ).rejects.toBeInstanceOf(RegistrationTermsVersionStaleError);
     expect(await counts(database)).toEqual(baseline);
 
     await expect(
