@@ -383,3 +383,13 @@
 - migration chain 当前为 001～019；真实 rollback 只在 fresh、empty、dedicated DB 上执行并验证最终 fingerprint。
 - 首个 RED 为缺失/非法/非 `_test`/开发主库环境的 pre-destructive 拒绝与凭据不泄漏。
 - 状态：`A_BIZ_06F_PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED / FULL_JOINT_GATE_STILL_BLOCKED`；最终 Gate 继续等待 06E/B baseline。
+
+## 2026-08-10 · A-BIZ-06F.1～06F.5 Migration Gate Activation / Ops Docs Complete
+
+- `0753c26` / `43ba2f8` 新增 fail-closed migration environment/destructive guard；强制 Pilot E2E、唯一 dedicated PostgreSQL `_test` URL、禁止 development DB 与 `DATABASE_URL` fallback。
+- `6d278e9` / `2d09553` 新增 migration 001—019 fresh forward、replay no-op、one-batch rollback、empty verification、deterministic reapply、fingerprint 与 cleanup Gate。
+- `55dd0c7` / `cd38047` 覆盖 13 项 failure/recovery/redaction matrix；identity 未验证不 cleanup，primary failure 不被 cleanup/destroy 覆盖，最终 PASS 只在全链成功时输出。
+- 真实 `videoagent_control_test` PostgreSQL Gate `1/1 PASS / 0 SKIP`；environment `8/8`、failure matrix `13/13`、Control API typecheck/build PASS。
+- `26e0819` / `018190d` 将 Joint Gate `migration-rollback-reapply` phase 激活为 `ready`，保留 dedicated DB precondition并移除旧 06F blocker；Full preflight 继续因 06E Golden Path/B baseline fail closed。
+- Root README、Control API README 与 Pilot E2E README 已补 migration 操作、安全边界、TEST Commercial 口径和逐 phase Final Report Contract。
+- 共享通知：B 修改 Joint Gate manifest/runner 前同步 `018190d`。状态：`A_BIZ_06F_1_TO_5_COMPLETE / MIGRATION_ROLLBACK_PHASE_READY / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。

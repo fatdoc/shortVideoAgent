@@ -15,11 +15,13 @@
 - 三类 Invitation 生命周期、body Token Public Preview、组织范围管理与不可逆 Preview 限流键；
 - 单一 Public Registration API、原子 Registration/Consent/Invitation Usage/Attribution 事务与不可逆注册限流键；默认邮箱验证 Port fail closed，不代表公网注册已开放；
 - TEST-only RechargeOrder 创建/查询与 Payment Event Inbox 接收/查询 API；Provider 内部 Token 独立于浏览器 Session，LIVE 模式保持 fail closed；
+- Platform/Channel TEST Commission Audit 只读 API，以及 Platform `TEST / draft / NON_QUOTE` Settlement Draft 创建 API；
 - 独立的 ProjectGrant 签名密钥与可轮换 `kid`；启动时缺失即拒绝运行，不复用 Session 根密钥；
 - 生产环境秘钥与本地数据库凭据拒绝规则。
 
-这一切片已实现生产包、短时 ProjectGrant HTTP 路由和 TEST Payment Inbox 基础；尚未实现用户上传 OSS 签名、
-Payment Event 后续处理、额度发行或 StoryCanvas 回执入账，不应公开注册或直接对公网开放。
+这一切片已实现生产包、短时 ProjectGrant HTTP 路由、TEST Payment Inbox、Commission Audit 和
+Settlement Draft 基础；尚未实现用户上传 OSS 签名、Payment Event 后续处理、额度发行或 StoryCanvas
+回执入账，不应直接对公网开放。
 
 ## 本地启动
 
@@ -69,6 +71,13 @@ TEST 充值与 Payment Inbox 接口：
 - `GET /api/v1/platform/payment-events?limit=1..100`：仅 Platform Admin 查询安全 Payment Event Inbox 事实；
 - 当前 Inbox 只写入 `received`，不会把订单标记 paid，不写 Credit Ledger、不发行额度、不计算 Commission；LIVE Provider 保持 503 fail closed。
 
+TEST Commission / Settlement 接口：
+
+- `GET /api/v1/platform/commission-audit/{calculations|accruals|reversals|manual-reviews}?limit=1..100`：仅 Platform Admin 读取 bounded TEST 审计事实；
+- `GET /api/v1/channels/:channelId/commission-audit/{calculations|accruals|reversals}?limit=1..100`：仅 canonical Channel Scope 内的 Channel Admin 读取自身 TEST 审计事实；
+- `POST /api/v1/platform/commission-settlements`：仅 Platform Admin 基于 active Channel Directory 创建 TEST Settlement Draft；零候选也可形成安全 draft，不允许手工猜测 Channel ID；
+- Commission 页面不展示或推导真实比例，不提供未规划的 review/approve HTTP；Settlement 永远显著标记 `TEST / draft / NON_QUOTE`，不表示到账、paid、可提现或自动打款。
+
 生产平面内部授权接口：
 
 - `POST /api/v1/internal/project-grants/introspect`：仅供私网 StoryCanvas receiver 调用；
@@ -91,6 +100,23 @@ npm --prefix apps/control-api run typecheck
 npm --prefix apps/control-api run build
 ```
 
+Migration rollback/reapply Gate 必须从仓库根目录运行，且只接受显式 Pilot 模式和唯一专用数据库变量：
+
+```bash
+PILOT_E2E=true \
+CONTROL_API_TEST_DATABASE_URL='<dedicated PostgreSQL database ending in _test>' \
+node scripts/run-control-api-migration-gate.mjs
+```
+
+安全合同：
+
+- 不读取或回退 `DATABASE_URL`；只接受 PostgreSQL，database name 必须以 `_test` 结尾并拒绝开发主库 `videoagent_control`；
+- 建立连接后再次以 `current_database()` 校验 identity，验证成功前不执行 reset、migration 或 cleanup SQL；
+- 只在 fresh、empty、dedicated DB 上执行 migration 001—019、latest replay no-op、one-batch rollback、空状态验证和 deterministic reapply/fingerprint 比对；
+- execute、cleanup、destroy 全部成功才输出 `MIGRATION_ROLLBACK_REAPPLY_PASS`，任一失败均非零退出；
+- Gate 最终清理 `control_plane` schema 与 migration metadata，不创建或删除 PostgreSQL database；
+- 输出只允许稳定 stage code 与脱敏 database/host 分类，不得包含完整 URL、用户名、密码、query、SQL、stack、Token、Secret 或内部 payload。
+
 ## 部署边界
 
 - `SESSION_SECRET` 在 production 必须显式配置且至少 32 字符。
@@ -104,5 +130,6 @@ npm --prefix apps/control-api run build
 - production 不存在默认白名单账号、Tenant 或初始化密码。
 - `DATABASE_SSL=require` 时启用 PostgreSQL TLS 证书校验。
 - 应用不记录 `DATABASE_URL`、Session Token、Grant Token 或上游 API Key。
+- Payment/Commission/Settlement 当前全部为 TEST Pilot；不得配置或宣称 LIVE、真实佣金比例、paid、提现、KYC、税务、发票或自动打款。
 - 额度账本表由数据库 Trigger 禁止 update/delete，只能追加。
 - 正式上云前还需补充 RDS CA 管理、结构化日志、备份演练、限流和依赖漏洞 Gate。

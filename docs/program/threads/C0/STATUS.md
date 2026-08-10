@@ -1239,3 +1239,17 @@
 - 06F.4 修改共享 Joint Gate manifest/runner 时必须独立提交并通知 B；当前计划提交不改变共享运行合同。
 - 06F.6 继续等待 06E 与 B baseline；在全部 required phases 零 SKIP 前不得宣称 `A_BIZ_06_COMPLETE` 或 `JOINT_GATE_PASS`。
 - 当前状态：`A_BIZ_06F_PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED / FULL_JOINT_GATE_STILL_BLOCKED`。StoryCanvas tracked diff 保持为零，B-owned 未跟踪 vendor 文件继续排除。
+
+## 2026-08-10 A-BIZ-06F.1～06F.5 Migration Gate 与 Ops Docs 完成
+
+- 06F.1 提交 `0753c26` / `43ba2f8` 完成 destructive environment guard：强制 `PILOT_E2E=true`，唯一数据库输入为 `CONTROL_API_TEST_DATABASE_URL`，只接受 PostgreSQL `_test`，禁止 `DATABASE_URL` fallback，并显式拒绝开发主库。
+- 06F.2 提交 `6d278e9` / `2d09553` 完成真实 001—019 fresh forward → latest replay no-op → one-batch rollback → empty verification → deterministic reapply → final fingerprint → cleanup；destructive SQL 前再次校验 `current_database()`。
+- 06F.3 提交 `55dd0c7` / `cd38047` 完成 13 项 failure/recovery/redaction matrix：environment、connection、identity、reset、forward、rollback、reapply、verification、cleanup 与 destroy 任一失败均非零退出，primary failure 不被 cleanup failure 覆盖，只有全部成功才输出最终 PASS。
+- 真实专用 `videoagent_control_test` PostgreSQL rollback/reapply Gate `1/1 PASS / 0 SKIP`；environment boundary `8/8 PASS`；failure matrix `13/13 PASS`；Control API typecheck/build PASS。每轮 Gate 后清理 `control_plane` schema 和 migration metadata。
+- 06F.4 RED `26e0819`、共享 Green `018190d` 已将 `migration-rollback-reapply` phase 从 `planned` 激活为 `ready`，保留 dedicated PostgreSQL precondition，移除 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED`；Full runner 已统一注入 `PILOT_E2E=true`。
+- Full preflight 使用合法 dedicated DB 与当前 ancestor attestation 时只剩 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，退出 `2` 且不执行 required commands、不输出 Secret、不宣称 `JOINT_GATE_PASS`。
+- 06F.5 已同步 Root/Control API/Pilot E2E 运行说明与 Final Report Contract：逐 phase 记录 command、owner、precondition、start/end/duration、PASS/FAIL/BLOCKED、test count、zero-SKIP evidence、artifact path 和脱敏结论。
+- 所有 Payment/Commission/Settlement 仍仅为 TEST Pilot；Settlement 仅 `TEST / draft / NON_QUOTE`，不是到账、paid、提现或自动打款。不实现 LIVE、真实比例、KYC、税务、发票、自动打款或未规划 review/approve HTTP。
+- **共享通知给 B**：修改 `scripts/joint-gate-manifest.mjs` / `scripts/run-joint-gate.mjs` 前必须同步 `018190d`；该提交已激活 migration phase，不能恢复旧 06F slice blocker。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push，5173/10588 服务继续运行。
+- 当前状态：`A_BIZ_06F_1_TO_5_COMPLETE / MIGRATION_ROLLBACK_PHASE_READY / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。06F.6 只有 06E Golden Path、同步 B baseline 与全部 required phases 零 SKIP 后才可执行。

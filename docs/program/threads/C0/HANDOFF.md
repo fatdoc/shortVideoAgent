@@ -891,3 +891,18 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - **给 B 的预告**：06F.4 会独立修改 `scripts/joint-gate-manifest.mjs` / `scripts/run-joint-gate.mjs` 并给出同步 commit；本次计划冻结尚未改变共享运行合同。
 - 06F.6 仍被 06E/B baseline 阻断；不得将 migration 准备工作外推为 A-BIZ-06 或 Full Joint Gate 完成。
 - StoryCanvas tracked diff 仍为零，`apps/storycanvas/data/vendor/byteplus.ts` 继续不修改、不暂存、不提交；分支不 push，服务继续运行。
+
+## A-BIZ-06F.1～06F.5 Migration Gate / Ops Docs 交接（2026-08-10）
+
+- 提交链：06F.1 `0753c26` / `43ba2f8`；06F.2 `6d278e9` / `2d09553`；06F.3 `55dd0c7` / `cd38047`；06F.4 RED `26e0819` / shared Green `018190d`。
+- 运行命令：`PILOT_E2E=true CONTROL_API_TEST_DATABASE_URL='<dedicated PostgreSQL _test URL>' node scripts/run-control-api-migration-gate.mjs`。不得设置或依赖 `DATABASE_URL` fallback。
+- Gate 仅允许 disposable、fresh、empty、dedicated PostgreSQL `_test` DB，拒绝 `videoagent_control`；连接后以 `current_database()` 二次校验，未验证 identity 前不执行 reset/migration/cleanup SQL。
+- 执行链固定为 migration 001—019 fresh forward、latest replay no-op、one-batch rollback、空状态验证、deterministic reapply、fingerprint equality 与 cleanup；不创建或删除 PostgreSQL database。
+- 只有 execute、cleanup、destroy 全成功才输出 `MIGRATION_ROLLBACK_REAPPLY_PASS`；所有失败使用稳定 stage code，不泄漏完整 URL、username/password、query、SQL、stack、Token、Secret 或内部 payload。
+- 证据：真实 PostgreSQL `1/1 PASS / 0 SKIP`，environment boundary `8/8 PASS`，failure/recovery matrix `13/13 PASS`，manifest `13/13 PASS`，Control API typecheck/build PASS。
+- `migration-rollback-reapply` phase 已为 `ready`；dedicated DB precondition 保留，旧 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED` 已移除。Full runner 已注入 `PILOT_E2E=true`，无需修改 runner。
+- **B 同步要求**：B 修改 `scripts/joint-gate-manifest.mjs` 或 `scripts/run-joint-gate.mjs` 前必须同步 `018190d`；不得恢复旧 planned 状态或 06F slice blocker。
+- Final Report 必须逐 phase 记录 command、owner、precondition、start/end/duration、PASS/FAIL/BLOCKED、test count、zero-SKIP evidence、artifact/evidence path 与 redaction conclusion。缺 PostgreSQL、浏览器、06E 或同步 B baseline 一律 BLOCKED，不得写成 SKIP PASS。
+- Payment/Commission/Settlement 证据全部为 TEST Pilot；Settlement 仅 `TEST / draft / NON_QUOTE`，不是 paid、到账、提现或自动打款。Provider unavailable 只证明 fail closed，不证明媒体质量或生产 SLA。
+- 06F.6 当前不得执行：`A_BIZ_06F_1_TO_5_COMPLETE / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。禁止提前写入 `A_BIZ_06_COMPLETE` 或 `JOINT_GATE_PASS`。
+- StoryCanvas tracked clean；B-owned `apps/storycanvas/data/vendor/byteplus.ts` 仍未跟踪且不得修改、暂存或提交；不 push，5173/10588 服务继续运行。

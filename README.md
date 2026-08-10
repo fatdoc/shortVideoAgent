@@ -6,7 +6,7 @@
 - `apps/control-api/`：真实 Pilot 控制平面，包含 PostgreSQL、白名单认证、项目/脚本审批、Production Package 和 ProjectGrant。
 - `apps/storycanvas/`：媒体生产平面，包含 v0.2 Package/Grant/Command/Receipt Receiver、任务、资产、时间线和导出运行时。
 
-当前阶段是单客户、白名单、受控真实试点 v0，不是公开商业 SaaS。真实注册、邀请、支付、代理提成、正式用户须知、完整媒体 Provider 执行和自动结算仍按任务节点建设；未完成能力不得用 Mock 冒充上线。
+当前阶段是单客户、白名单、受控真实试点 v0，不是公开商业 SaaS。真实邀请、注册、用户须知以及 TEST 充值、Payment Inbox、佣金审计和 Settlement Draft 已进入受控 Pilot；LIVE 支付、真实佣金比例、paid Settlement、提现、KYC、税务、自动打款与完整媒体 Provider 执行仍未实现，未完成能力不得用 Mock 冒充上线。
 
 ## 项目介绍
 
@@ -24,10 +24,10 @@
 
 ### 三类工作台
 
-| 工作台 | 主要用户 | 核心能力 |
-|---|---|---|
-| 平台管理工作台 | 平台管理员、运营、产品、财务、风控 | 组织与渠道、产品套餐、能力配置、价格、额度和生产回执 |
-| 渠道代理工作台 | 总代理、一级代理、二级代理、渠道销售 | 邀请与分享、归因用户、渠道层级、佣金和客户服务状态 |
+| 工作台         | 主要用户                                             | 核心能力                                                                                           |
+| -------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 平台管理工作台 | 平台管理员、运营、产品、财务、风控                   | 组织与渠道、产品套餐、能力配置、价格、额度和生产回执                                               |
+| 渠道代理工作台 | 总代理、一级代理、二级代理、渠道销售                 | 邀请与分享、归因用户、渠道层级、佣金和客户服务状态                                                 |
 | 统一创作工作台 | 个人创作者、企业老板、市场、内容、门店运营和剪辑人员 | 品牌大脑、Brief、脚本、分镜、StoryCanvas、任务、资产、时间线和导出；按 Membership 权限显示管理功能 |
 
 终端用户只有一套账号、注册 API 和创作工作台。直接注册的用户自动获得一个单人 Tenant 和 `tenant_admin` Membership；完善企业资料或增加成员后，该 Tenant 原地成长为多人企业 Tenant，不迁移账号、不切换产品端。平台邀请、代理邀请/分享和直接注册只是三种获客来源，不是三个注册系统或三个用户端。StoryCanvas 是统一创作工作台内部的媒体生产能力，不是独立用户端。
@@ -67,7 +67,7 @@ StoryCanvas 执行画布编排、生成任务、资产管理和导出
 
 ### 技术与产品边界
 
-白名单认证、项目/脚本审批、Package/Grant 和 v0.2 Receiver 已进入真实服务端与数据库；平台/渠道商业投影、公开注册、支付和提成仍未生产化。真实媒体 Provider smoke、完整 FFmpeg 成片、额度结算、云端监控和法律授权必须按各自 Gate 验收，不能从合同测试推导为已经上线。
+白名单认证、项目/脚本审批、Package/Grant、v0.2 Receiver、公开注册安全边界和 TEST 商业审计已进入真实服务端与数据库。所有 Payment/Commission/Settlement 事实仍只属于 TEST Pilot；Settlement 只允许 `TEST / draft / NON_QUOTE`，不是到账、paid、提现或自动打款。真实媒体 Provider smoke、完整 FFmpeg 成片、额度结算、云端监控和法律授权必须按各自 Gate 验收，不能从合同或 TEST 证据推导为已经上线。
 
 ## 多线程开发入口
 
@@ -130,6 +130,20 @@ npm run build
 npm run test
 npm run validate:governance
 ```
+
+Wave 4 Joint Gate 入口：
+
+```bash
+npm run test:joint-gate:manifest
+npm run test:joint-gate:plan
+PILOT_E2E=true \
+CONTROL_API_TEST_DATABASE_URL='<dedicated PostgreSQL database ending in _test>' \
+node scripts/run-control-api-migration-gate.mjs
+```
+
+Migration rollback/reapply Gate 只允许 fresh、empty、专用 `_test` PostgreSQL，禁止回退到
+`DATABASE_URL`，并在任何 destructive SQL 前校验 `current_database()`。它执行 001—019 fresh
+forward、同批 rollback 和 deterministic reapply，结束后清理 Gate schema。缺少专用 PostgreSQL、真实浏览器、06E Golden Path 或已同步 B baseline 时，Full Joint Gate 必须报告 `BLOCKED`，不得以 SKIP 或 plan 输出冒充 PASS；日志和报告不得记录完整数据库 URL、用户名、密码、Token、Secret、SQL、stack 或内部 payload。
 
 ## 技术栈
 
