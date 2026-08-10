@@ -1,5 +1,11 @@
 import { expect, test, type Page, type Response } from '@playwright/test';
-import { login, PILOT_E2E_CHANNEL_A_ID, PILOT_E2E_TENANT_A_ID } from './fixtures';
+import {
+  login,
+  PILOT_E2E_CHANNEL_A_ID,
+  PILOT_E2E_CHANNEL_B_ID,
+  PILOT_E2E_TENANT_A_ID,
+  PILOT_E2E_TENANT_B_ID,
+} from './fixtures';
 
 const platformAuditPaths = [
   '/api/v1/platform/payment-events',
@@ -165,6 +171,208 @@ test.describe.serial('Pilot Operations and TEST commercial browser matrix', () =
     await page.getByLabel('Member status filter').selectOption('expired');
     await emptyFilter;
     await expect(page.getByTestId('pilot-members-empty')).toBeVisible();
+  });
+
+  test('recovers the real Tenant B RechargeOrder audit to a safe empty directory', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'tenantAdminB');
+    await expect(page.getByRole('button', { name: /安全退出/ })).toBeVisible();
+
+    const requestId = 'pilot-e2e-tenant-recharge-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      `**/api/v1/tenants/${PILOT_E2E_TENANT_B_ID}/recharge-orders?**`,
+      requestId,
+    );
+    await page.goto('/enterprise/recharge-orders');
+    await expect(page.getByTestId('pilot-tenant-recharge-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-tenant-recharge-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname ===
+          `/api/v1/tenants/${PILOT_E2E_TENANT_B_ID}/recharge-orders` && response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试真实 RechargeOrder Audit' }).click();
+    await recovered;
+
+    await expect(page.getByTestId('pilot-tenant-recharge-empty')).toBeVisible();
+    await expect(page.getByText(/不会读取 Demo 数据或虚构充值记录/)).toBeVisible();
+  });
+
+  test('recovers the real Platform commission audit after a safe service error', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await expectPath(page, '/platform/commission-audit');
+
+    const requestId = 'pilot-e2e-platform-audit-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      '**/api/v1/platform/commission-audit/calculations?**',
+      requestId,
+    );
+    await page.goto('/platform/commission-audit');
+    await expect(page.getByTestId('pilot-platform-commission-audit-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-commercial-audit-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === '/api/v1/platform/commission-audit/calculations' &&
+        response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试真实 Control API' }).click();
+    await recovered;
+
+    await expect(page.getByTestId('pilot-platform-commission-audit-ready')).toBeVisible();
+  });
+
+  test('recovers Channel B commission audit to a canonical real empty directory', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'channelAdminB');
+    await expectPath(page, '/channel/commission-audit');
+
+    const requestId = 'pilot-e2e-channel-audit-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      `**/api/v1/channels/${PILOT_E2E_CHANNEL_B_ID}/commission-audit/calculations?**`,
+      requestId,
+    );
+    await page.goto('/channel/commission-audit');
+    await expect(page.getByTestId('pilot-channel-commission-audit-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-commercial-audit-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname ===
+          `/api/v1/channels/${PILOT_E2E_CHANNEL_B_ID}/commission-audit/calculations` &&
+        response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试真实 Control API' }).click();
+    await recovered;
+
+    const empty = page.getByTestId('pilot-channel-commission-audit-empty');
+    await expect(empty).toBeVisible();
+    await expect(empty).toContainText('这是有效的真实空列表');
+  });
+
+  test('recovers the active Channel Directory without inferring a beneficiary', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await expectPath(page, '/platform/commission-audit');
+
+    const requestId = 'pilot-e2e-channel-directory-retry';
+    const failure = await holdServiceErrorUntilRestore(
+      page,
+      '**/api/v1/platform/channels?**',
+      requestId,
+    );
+    await page.goto('/platform/commission-settlements');
+    await expect(page.getByTestId('pilot-settlement-channel-loading')).toBeVisible();
+    failure.release();
+
+    const error = page.getByTestId('pilot-settlement-channel-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    await expect(page.getByTestId('pilot-settlement-draft-form')).toHaveCount(0);
+    await failure.restore();
+    const recovered = page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === activeChannelDirectoryPath &&
+        response.status() === 200,
+    );
+    await page.getByRole('button', { name: '重试真实 Channel Directory' }).click();
+    await recovered;
+
+    await expect(page.getByTestId('pilot-settlement-draft-form')).toBeVisible();
+  });
+
+  test('retries the same TEST settlement facts and idempotency key after an unconfirmed submit', async ({
+    page,
+  }) => {
+    await openLogin(page);
+    await login(page, 'platformAdmin');
+    await expectPath(page, '/platform/commission-audit');
+    await page.goto('/platform/commission-settlements');
+    await expect(page.getByTestId('pilot-settlement-draft-form')).toBeVisible();
+
+    let firstIdempotencyKey: string | null = null;
+    const requestId = 'pilot-e2e-settlement-submit-retry';
+    await page.route(
+      `**${settlementDraftPath}`,
+      async (route) => {
+        const body = route.request().postDataJSON() as { idempotencyKey?: unknown };
+        firstIdempotencyKey = typeof body.idempotencyKey === 'string' ? body.idempotencyKey : null;
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          headers: { 'cache-control': 'no-store', 'x-request-id': requestId },
+          body: JSON.stringify({
+            error: { code: 'INTERNAL_ERROR', message: '服务暂不可用。', requestId },
+          }),
+        });
+      },
+      { times: 1 },
+    );
+
+    await page.getByLabel('Active beneficiary Channel').selectOption(PILOT_E2E_CHANNEL_A_ID);
+    await page.getByLabel('UTC 结算自然月').fill('2026-04');
+    await page.getByLabel('UTC 截止时间').fill('2026-05-01T00:00');
+    await page.getByRole('button', { name: '创建 TEST draft' }).click();
+
+    const error = page.getByTestId('pilot-settlement-submit-service-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText(`请求 ID：${requestId}`);
+    expect(firstIdempotencyKey).toMatch(/^[0-9a-f-]{36}$/);
+
+    const retriedRequest = page.waitForRequest(
+      (request) =>
+        request.method() === 'POST' && new URL(request.url()).pathname === settlementDraftPath,
+    );
+    const retriedResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === settlementDraftPath,
+    );
+    await page.getByRole('button', { name: '重试相同 TEST 事实' }).click();
+
+    const request = await retriedRequest;
+    const retriedBody = request.postDataJSON() as { idempotencyKey?: unknown };
+    expect(retriedBody.idempotencyKey).toBe(firstIdempotencyKey);
+    const response = await retriedResponse;
+    expect(response.status()).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      settlement: {
+        paymentMode: 'TEST',
+        status: 'draft',
+        beneficiaryChannelId: PILOT_E2E_CHANNEL_A_ID,
+        currency: 'CNY',
+        netAmountMinor: 0,
+        itemCount: 0,
+      },
+    });
+    await expect(page.getByTestId('pilot-settlement-current-draft')).toContainText(
+      '非到账、非提现、非 paid、非自动打款',
+    );
   });
 
   test('loads every real Platform TEST commercial audit endpoint for a Platform Admin', async ({
