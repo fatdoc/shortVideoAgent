@@ -1,22 +1,8 @@
 import { expect, test } from '@playwright/test';
-
-const verificationToken = process.env.PILOT_E2E_EMAIL_VERIFICATION_TOKEN;
-if (!verificationToken || verificationToken.length < 32) {
-  throw new Error('PILOT_E2E_EMAIL_VERIFICATION_TOKEN_REQUIRED');
-}
+import { installEmailVerificationBridge } from './fixtures';
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(
-    ({ token }) => {
-      Object.defineProperty(window, '__PILOT_E2E_EMAIL_VERIFICATION__', {
-        configurable: false,
-        enumerable: false,
-        writable: false,
-        value: () => token,
-      });
-    },
-    { token: verificationToken },
-  );
+  await installEmailVerificationBridge(page);
 });
 
 test('serves Pilot UI and Control API through one browser origin', async ({ page }) => {
