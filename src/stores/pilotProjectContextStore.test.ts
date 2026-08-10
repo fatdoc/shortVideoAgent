@@ -13,7 +13,7 @@ const tenantSession: PilotSession = {
   roles: ['content_operator'],
   activeContext: {
     membershipId: 'membership-1',
-    organizationId: 'tenant-1',
+    organizationId: 'tenant-organization-1',
     organizationType: 'TENANT',
     organizationDisplayName: '试点企业',
     membershipVersion: 4,

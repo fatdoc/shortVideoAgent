@@ -411,8 +411,7 @@ function parseSession(value: unknown): PilotSession {
       !requiredString(tenant.id) ||
       !requiredString(tenant.displayName) ||
       !requiredString(tenantId) ||
-      tenant.id !== tenantId ||
-      value.activeContext.organizationId !== tenantId
+      tenant.id !== tenantId
     ) {
       throw invalidResponse('Control API 返回了不一致的 Tenant 会话上下文。');
     }

@@ -50,7 +50,7 @@ const session = {
   roles: ['tenant_admin'],
   activeContext: {
     membershipId: 'membership-1',
-    organizationId: 'tenant-1',
+    organizationId: 'tenant-organization-1',
     organizationType: 'TENANT',
     organizationDisplayName: '试点企业',
     membershipVersion: 3,
@@ -98,6 +98,7 @@ describe('pilot Control API adapter', () => {
       tenant: { id: 'tenant-1' },
       activeContext: {
         membershipId: 'membership-1',
+        organizationId: 'tenant-organization-1',
         organizationType: 'TENANT',
         membershipVersion: 3,
       },
