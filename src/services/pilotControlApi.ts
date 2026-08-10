@@ -197,6 +197,63 @@ export interface PilotMemberSuspendResult {
   replayed: boolean;
 }
 
+export type PilotTermsDocumentStatus = 'active' | 'retired';
+export type PilotTermsDocumentStatusFilter = PilotTermsDocumentStatus | 'all';
+export type PilotTermsVersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
+export type PilotTermsVersionStatusFilter = PilotTermsVersionStatus | 'all';
+
+export interface PilotTermsDocument {
+  termsDocumentId: string;
+  documentCode: string;
+  title: string;
+  status: PilotTermsDocumentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PilotTermsVersion {
+  termsVersionId: string;
+  termsDocumentId: string;
+  versionLabel: string;
+  status: PilotTermsVersionStatus;
+  content: string;
+  contentDigest: string;
+  locale: string;
+  publishedAt: string | null;
+  effectiveAt: string | null;
+  publishedBy: string | null;
+  supersedesTermsVersionId: string | null;
+  mustReaccept: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PilotCreateTermsDocumentInput {
+  documentCode: string;
+  title: string;
+}
+
+export interface PilotCreateTermsDraftInput {
+  versionLabel: string;
+  content: string;
+  locale: string;
+  mustReaccept: boolean;
+  supersedesTermsVersionId: string | null;
+}
+
+export interface PilotUpdateTermsDraftInput extends PilotCreateTermsDraftInput {
+  effectiveAt?: string | null;
+}
+
+export interface PilotPublishTermsVersionInput {
+  effectiveAt: string;
+}
+
+export interface PilotTermsVersionReplayResult {
+  version: PilotTermsVersion;
+  replayed: boolean;
+}
+
 export class PilotControlApiError extends Error {
   readonly code: string;
   readonly status: number | null;
@@ -546,6 +603,52 @@ const MEMBER_PROJECTION_KEYS = new Set([
   'updatedAt',
   'isCurrentActor',
 ]);
+const TERMS_DOCUMENT_STATUSES = new Set<PilotTermsDocumentStatus>(['active', 'retired']);
+const TERMS_DOCUMENT_STATUS_FILTERS = new Set<PilotTermsDocumentStatusFilter>([
+  'all',
+  'active',
+  'retired',
+]);
+const TERMS_VERSION_STATUSES = new Set<PilotTermsVersionStatus>(['DRAFT', 'PUBLISHED', 'RETIRED']);
+const TERMS_VERSION_STATUS_FILTERS = new Set<PilotTermsVersionStatusFilter>([
+  'all',
+  'DRAFT',
+  'PUBLISHED',
+  'RETIRED',
+]);
+const TERMS_DOCUMENT_KEYS = new Set([
+  'termsDocumentId',
+  'documentCode',
+  'title',
+  'status',
+  'createdAt',
+  'updatedAt',
+]);
+const TERMS_VERSION_KEYS = new Set([
+  'termsVersionId',
+  'termsDocumentId',
+  'versionLabel',
+  'status',
+  'content',
+  'contentDigest',
+  'locale',
+  'publishedAt',
+  'effectiveAt',
+  'publishedBy',
+  'supersedesTermsVersionId',
+  'mustReaccept',
+  'createdAt',
+  'updatedAt',
+]);
+const TERMS_DRAFT_INPUT_KEYS = new Set([
+  'versionLabel',
+  'content',
+  'locale',
+  'mustReaccept',
+  'supersedesTermsVersionId',
+]);
+const TERMS_UPDATE_INPUT_KEYS = new Set([...TERMS_DRAFT_INPUT_KEYS, 'effectiveAt']);
+const SHA256_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
 
 function uuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_PATTERN.test(value);
@@ -582,6 +685,25 @@ function safeInteger(value: unknown, minimum?: number): value is number {
 function exactKeys(value: Record<string, unknown>, expected: ReadonlySet<string>): boolean {
   const keys = Object.keys(value);
   return keys.length === expected.size && keys.every((key) => expected.has(key));
+}
+
+function onlyKeys(value: Record<string, unknown>, allowed: ReadonlySet<string>): boolean {
+  return Object.keys(value).every((key) => allowed.has(key));
+}
+
+function trimmedText(value: unknown, maximum: number): value is string {
+  return (
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= maximum &&
+    value === value.trim()
+  );
+}
+
+function parseReplayHeader(response: Response, message: string): boolean {
+  const value = response.headers.get('idempotency-replayed');
+  if (!(value === 'true' || value === 'false')) throw invalidResponse(message);
+  return value === 'true';
 }
 
 function normalizedEmail(value: unknown): value is string {
@@ -876,6 +998,75 @@ function parseRechargeOrder(value: unknown): {
   };
 }
 
+function parseTermsDocument(value: unknown): PilotTermsDocument {
+  if (!isRecord(value) || !exactKeys(value, TERMS_DOCUMENT_KEYS)) {
+    throw invalidResponse('Control API 返回了无效的 Terms 文档。');
+  }
+  const status = value.status;
+  if (
+    !uuid(value.termsDocumentId) ||
+    !trimmedText(value.documentCode, 100) ||
+    !trimmedText(value.title, 300) ||
+    typeof status !== 'string' ||
+    !TERMS_DOCUMENT_STATUSES.has(status as PilotTermsDocumentStatus) ||
+    !timezoneTimestamp(value.createdAt) ||
+    !timezoneTimestamp(value.updatedAt)
+  ) {
+    throw invalidResponse('Control API 返回了无效的 Terms 文档。');
+  }
+  return {
+    termsDocumentId: value.termsDocumentId,
+    documentCode: value.documentCode,
+    title: value.title,
+    status: status as PilotTermsDocumentStatus,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+  };
+}
+
+function parseTermsVersion(value: unknown): PilotTermsVersion {
+  if (!isRecord(value) || !exactKeys(value, TERMS_VERSION_KEYS)) {
+    throw invalidResponse('Control API 返回了无效的 Terms 版本。');
+  }
+  const status = value.status;
+  if (
+    !uuid(value.termsVersionId) ||
+    !uuid(value.termsDocumentId) ||
+    !trimmedText(value.versionLabel, 100) ||
+    typeof status !== 'string' ||
+    !TERMS_VERSION_STATUSES.has(status as PilotTermsVersionStatus) ||
+    !trimmedText(value.content, 1_000_000) ||
+    typeof value.contentDigest !== 'string' ||
+    !SHA256_DIGEST_PATTERN.test(value.contentDigest) ||
+    !trimmedText(value.locale, 35) ||
+    !nullableTimezoneTimestamp(value.publishedAt) ||
+    !nullableTimezoneTimestamp(value.effectiveAt) ||
+    !nullableUuid(value.publishedBy) ||
+    !nullableUuid(value.supersedesTermsVersionId) ||
+    typeof value.mustReaccept !== 'boolean' ||
+    !timezoneTimestamp(value.createdAt) ||
+    !timezoneTimestamp(value.updatedAt)
+  ) {
+    throw invalidResponse('Control API 返回了无效的 Terms 版本。');
+  }
+  return {
+    termsVersionId: value.termsVersionId,
+    termsDocumentId: value.termsDocumentId,
+    versionLabel: value.versionLabel,
+    status: status as PilotTermsVersionStatus,
+    content: value.content,
+    contentDigest: value.contentDigest,
+    locale: value.locale,
+    publishedAt: value.publishedAt,
+    effectiveAt: value.effectiveAt,
+    publishedBy: value.publishedBy,
+    supersedesTermsVersionId: value.supersedesTermsVersionId,
+    mustReaccept: value.mustReaccept,
+    createdAt: value.createdAt,
+    updatedAt: value.updatedAt,
+  };
+}
+
 function parseCurrentOrganizationMember(value: unknown): PilotCurrentOrganizationMember {
   if (!isRecord(value) || !exactKeys(value, MEMBER_PROJECTION_KEYS)) {
     throw invalidResponse('Control API 返回了无效的成员目录数据。');
@@ -962,13 +1153,232 @@ export async function suspendPilotCurrentOrganizationMember(
       body: JSON.stringify({ expectedVersion }),
     },
   );
-  const replayedHeader = response.headers.get('idempotency-replayed');
-  if (!(replayedHeader === 'true' || replayedHeader === 'false')) {
-    throw invalidResponse('Control API 返回了无效的成员停用幂等状态。');
-  }
   return {
     member: parseCurrentOrganizationMember(isRecord(body) ? body.member : null),
-    replayed: replayedHeader === 'true',
+    replayed: parseReplayHeader(response, 'Control API 返回了无效的成员停用幂等状态。'),
+  };
+}
+
+function validateTermsDraftInput(
+  input: PilotCreateTermsDraftInput | PilotUpdateTermsDraftInput,
+  allowEffectiveAt: boolean,
+): void {
+  if (!isRecord(input)) {
+    throw new PilotControlApiError(
+      allowEffectiveAt ? 'INVALID_TERMS_DRAFT_UPDATE_INPUT' : 'INVALID_TERMS_DRAFT_INPUT',
+      'Terms 草稿输入无效。',
+      null,
+      null,
+    );
+  }
+  const record = input;
+  const allowed = allowEffectiveAt ? TERMS_UPDATE_INPUT_KEYS : TERMS_DRAFT_INPUT_KEYS;
+  const effectiveAt = record.effectiveAt;
+  if (
+    !onlyKeys(record, allowed) ||
+    ![...TERMS_DRAFT_INPUT_KEYS].every((key) => Object.hasOwn(record, key)) ||
+    !trimmedText(record.versionLabel, 100) ||
+    !trimmedText(record.content, 1_000_000) ||
+    !trimmedText(record.locale, 35) ||
+    typeof record.mustReaccept !== 'boolean' ||
+    !nullableUuid(record.supersedesTermsVersionId) ||
+    (Object.hasOwn(record, 'effectiveAt') &&
+      !(effectiveAt === null || timezoneTimestamp(effectiveAt)))
+  ) {
+    throw new PilotControlApiError(
+      allowEffectiveAt ? 'INVALID_TERMS_DRAFT_UPDATE_INPUT' : 'INVALID_TERMS_DRAFT_INPUT',
+      'Terms 草稿输入无效。',
+      null,
+      null,
+    );
+  }
+}
+
+export async function listPilotTermsDocuments(
+  status: PilotTermsDocumentStatusFilter = 'all',
+  limit = 100,
+): Promise<PilotTermsDocument[]> {
+  if (!TERMS_DOCUMENT_STATUS_FILTERS.has(status)) {
+    throw new PilotControlApiError(
+      'INVALID_TERMS_DOCUMENT_STATUS',
+      'Terms 文档目录 status 无效。',
+      null,
+      null,
+    );
+  }
+  const bounded = listLimit(limit);
+  const { body } = await commercialRead(
+    `/api/v1/platform/terms/documents?status=${encodeURIComponent(status)}&limit=${bounded}`,
+  );
+  if (!isRecord(body) || !exactKeys(body, new Set(['documents']))) {
+    throw invalidResponse('Control API 返回了无效的 Terms 文档目录。');
+  }
+  return parseList(
+    body,
+    'documents',
+    parseTermsDocument,
+    'Control API 返回了无效的 Terms 文档目录。',
+  );
+}
+
+export async function listPilotTermsVersions(
+  documentId: string,
+  status: PilotTermsVersionStatusFilter = 'all',
+  limit = 100,
+): Promise<PilotTermsVersion[]> {
+  const canonicalDocumentId = requireUuid(
+    documentId,
+    'INVALID_TERMS_DOCUMENT_ID',
+    'Terms Document ID 无效。',
+  );
+  if (!TERMS_VERSION_STATUS_FILTERS.has(status)) {
+    throw new PilotControlApiError(
+      'INVALID_TERMS_VERSION_STATUS',
+      'Terms 版本目录 status 无效。',
+      null,
+      null,
+    );
+  }
+  const bounded = listLimit(limit);
+  const { body } = await commercialRead(
+    `/api/v1/platform/terms/documents/${encodeURIComponent(canonicalDocumentId)}/versions?status=${encodeURIComponent(status)}&limit=${bounded}`,
+  );
+  if (!isRecord(body) || !exactKeys(body, new Set(['versions']))) {
+    throw invalidResponse('Control API 返回了无效的 Terms 版本目录。');
+  }
+  return parseList(
+    body,
+    'versions',
+    parseTermsVersion,
+    'Control API 返回了无效的 Terms 版本目录。',
+  );
+}
+
+export async function createPilotTermsDocument(
+  input: PilotCreateTermsDocumentInput,
+): Promise<PilotTermsDocument> {
+  const record = input as unknown as Record<string, unknown>;
+  if (
+    !isRecord(input) ||
+    !exactKeys(record, new Set(['documentCode', 'title'])) ||
+    !trimmedText(record.documentCode, 100) ||
+    !trimmedText(record.title, 300)
+  ) {
+    throw new PilotControlApiError(
+      'INVALID_TERMS_DOCUMENT_INPUT',
+      'Terms 文档输入无效。',
+      null,
+      null,
+    );
+  }
+  const { body } = await request('/api/v1/platform/terms/documents', {
+    method: 'POST',
+    body: JSON.stringify({ documentCode: input.documentCode, title: input.title }),
+  });
+  const document = parseTermsDocument(body);
+  if (document.status !== 'active') {
+    throw invalidResponse('Control API 返回了无效的新建 Terms 文档状态。');
+  }
+  return document;
+}
+
+export async function createPilotTermsDraft(
+  documentId: string,
+  input: PilotCreateTermsDraftInput,
+): Promise<PilotTermsVersion> {
+  const canonicalDocumentId = requireUuid(
+    documentId,
+    'INVALID_TERMS_DOCUMENT_ID',
+    'Terms Document ID 无效。',
+  );
+  validateTermsDraftInput(input, false);
+  const { body } = await request(
+    `/api/v1/platform/terms/documents/${encodeURIComponent(canonicalDocumentId)}/versions`,
+    { method: 'POST', body: JSON.stringify(input) },
+  );
+  const version = parseTermsVersion(body);
+  if (version.termsDocumentId !== canonicalDocumentId || version.status !== 'DRAFT') {
+    throw invalidResponse('Control API 返回了跨文档或非 DRAFT 的 Terms 版本。');
+  }
+  return version;
+}
+
+export async function updatePilotTermsDraft(
+  versionId: string,
+  input: PilotUpdateTermsDraftInput,
+): Promise<PilotTermsVersion> {
+  const canonicalVersionId = requireUuid(
+    versionId,
+    'INVALID_TERMS_VERSION_ID',
+    'Terms Version ID 无效。',
+  );
+  validateTermsDraftInput(input, true);
+  const { body } = await request(
+    `/api/v1/platform/terms/versions/${encodeURIComponent(canonicalVersionId)}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  );
+  const version = parseTermsVersion(body);
+  if (version.termsVersionId !== canonicalVersionId || version.status !== 'DRAFT') {
+    throw invalidResponse('Control API 返回了错误目标或非 DRAFT 的 Terms 版本。');
+  }
+  return version;
+}
+
+export async function publishPilotTermsVersion(
+  versionId: string,
+  input: PilotPublishTermsVersionInput,
+): Promise<PilotTermsVersionReplayResult> {
+  const canonicalVersionId = requireUuid(
+    versionId,
+    'INVALID_TERMS_VERSION_ID',
+    'Terms Version ID 无效。',
+  );
+  const record = input as unknown as Record<string, unknown>;
+  if (
+    !isRecord(input) ||
+    !exactKeys(record, new Set(['effectiveAt'])) ||
+    !timezoneTimestamp(record.effectiveAt)
+  ) {
+    throw new PilotControlApiError(
+      'INVALID_TERMS_PUBLISH_INPUT',
+      'Terms 发布生效时间无效。',
+      null,
+      null,
+    );
+  }
+  const { response, body } = await request(
+    `/api/v1/platform/terms/versions/${encodeURIComponent(canonicalVersionId)}/publish`,
+    { method: 'POST', body: JSON.stringify({ effectiveAt: input.effectiveAt }) },
+  );
+  const version = parseTermsVersion(body);
+  if (version.termsVersionId !== canonicalVersionId || version.status !== 'PUBLISHED') {
+    throw invalidResponse('Control API 返回了错误目标或非 PUBLISHED 的 Terms 版本。');
+  }
+  return {
+    version,
+    replayed: parseReplayHeader(response, 'Control API 返回了无效的 Terms 发布幂等状态。'),
+  };
+}
+
+export async function retirePilotTermsVersion(
+  versionId: string,
+): Promise<PilotTermsVersionReplayResult> {
+  const canonicalVersionId = requireUuid(
+    versionId,
+    'INVALID_TERMS_VERSION_ID',
+    'Terms Version ID 无效。',
+  );
+  const { response, body } = await request(
+    `/api/v1/platform/terms/versions/${encodeURIComponent(canonicalVersionId)}/retire`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+  const version = parseTermsVersion(body);
+  if (version.termsVersionId !== canonicalVersionId || version.status !== 'RETIRED') {
+    throw invalidResponse('Control API 返回了错误目标或非 RETIRED 的 Terms 版本。');
+  }
+  return {
+    version,
+    replayed: parseReplayHeader(response, 'Control API 返回了无效的 Terms 退役幂等状态。'),
   };
 }
 
@@ -1159,6 +1569,13 @@ export const pilotControlApi = {
   readProject: readPilotProject,
   listCurrentOrganizationMembers: listPilotCurrentOrganizationMembers,
   suspendCurrentOrganizationMember: suspendPilotCurrentOrganizationMember,
+  listTermsDocuments: listPilotTermsDocuments,
+  listTermsVersions: listPilotTermsVersions,
+  createTermsDocument: createPilotTermsDocument,
+  createTermsDraft: createPilotTermsDraft,
+  updateTermsDraft: updatePilotTermsDraft,
+  publishTermsVersion: publishPilotTermsVersion,
+  retireTermsVersion: retirePilotTermsVersion,
   readCurrentChannel: readPilotCurrentChannel,
   listActiveChannels: listPilotActiveChannels,
   listPlatformPaymentEvents: listPilotPlatformPaymentEvents,

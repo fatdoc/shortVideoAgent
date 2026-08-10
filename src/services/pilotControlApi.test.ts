@@ -9,8 +9,12 @@ vi.mock('../config/pilotRuntime', () => ({
 }));
 
 import {
+  createPilotTermsDocument,
+  createPilotTermsDraft,
   createPilotTestCommissionSettlement,
   hydratePilotSession,
+  listPilotTermsDocuments,
+  listPilotTermsVersions,
   listPilotActiveChannels,
   listPilotChannelCommissionAccruals,
   listPilotChannelCommissionCalculations,
@@ -26,8 +30,11 @@ import {
   loginToPilot,
   logoutPilotSession,
   readPilotCurrentChannel,
+  publishPilotTermsVersion,
   readPilotProject,
+  retirePilotTermsVersion,
   suspendPilotCurrentOrganizationMember,
+  updatePilotTermsDraft,
 } from './pilotControlApi';
 
 const session = {
@@ -690,6 +697,275 @@ describe('pilot Control API adapter', () => {
     );
     await expect(
       suspendPilotCurrentOrganizationMember('71000000-0000-4000-8000-000000000002', 2),
+    ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
+  });
+
+  it('lists bounded Terms documents and versions with real Cookie, no-store, and exact DTOs', async () => {
+    const document = {
+      termsDocumentId: '72000000-0000-4000-8000-000000000001',
+      documentCode: 'registration-notice',
+      title: '注册须知',
+      status: 'active',
+      createdAt: '2026-08-09T00:00:00.000Z',
+      updatedAt: '2026-08-10T00:00:00.000Z',
+    };
+    const version = {
+      termsVersionId: '72000000-0000-4000-8000-000000000002',
+      termsDocumentId: document.termsDocumentId,
+      versionLabel: 'v1',
+      status: 'DRAFT',
+      content: '由业务或法务提供的测试正文',
+      contentDigest: 'a'.repeat(64),
+      locale: 'zh-CN',
+      publishedAt: null,
+      effectiveAt: null,
+      publishedBy: null,
+      supersedesTermsVersionId: null,
+      mustReaccept: true,
+      createdAt: '2026-08-09T01:00:00.000Z',
+      updatedAt: '2026-08-10T01:00:00.000Z',
+    };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse({ documents: [document] }))
+      .mockResolvedValueOnce(jsonResponse({ versions: [version] }));
+
+    await expect(listPilotTermsDocuments('active', 25)).resolves.toEqual([document]);
+    await expect(listPilotTermsVersions(document.termsDocumentId, 'DRAFT', 20)).resolves.toEqual([
+      version,
+    ]);
+    expect(fetch).toHaveBeenNthCalledWith(
+      1,
+      'https://control.example.com/api/v1/platform/terms/documents?status=active&limit=25',
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
+    );
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      `https://control.example.com/api/v1/platform/terms/documents/${document.termsDocumentId}/versions?status=DRAFT&limit=20`,
+      expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
+    );
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects invalid Terms bounds, identifiers, statuses, and sensitive or malformed projections', async () => {
+    await expect(listPilotTermsDocuments('all', 0)).rejects.toMatchObject({
+      code: 'INVALID_LIST_LIMIT',
+    });
+    await expect(listPilotTermsDocuments('unknown' as 'all')).rejects.toMatchObject({
+      code: 'INVALID_TERMS_DOCUMENT_STATUS',
+    });
+    await expect(listPilotTermsVersions('not-a-document-id')).rejects.toMatchObject({
+      code: 'INVALID_TERMS_DOCUMENT_ID',
+    });
+    await expect(
+      listPilotTermsVersions('72000000-0000-4000-8000-000000000001', 'ACTIVE' as 'all'),
+    ).rejects.toMatchObject({ code: 'INVALID_TERMS_VERSION_STATUS' });
+
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        jsonResponse({
+          documents: [
+            {
+              termsDocumentId: '72000000-0000-4000-8000-000000000001',
+              documentCode: 'registration-notice',
+              title: '注册须知',
+              status: 'active',
+              createdAt: 'not-a-time',
+              updatedAt: '2026-08-10T00:00:00.000Z',
+              tokenDigest: 'must-not-cross-client-boundary',
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          versions: [
+            {
+              termsVersionId: '72000000-0000-4000-8000-000000000002',
+              termsDocumentId: '72000000-0000-4000-8000-000000000001',
+              versionLabel: 'v1',
+              status: 'DRAFT',
+              content: '正文',
+              contentDigest: 'not-a-digest',
+              locale: 'zh-CN',
+              publishedAt: null,
+              effectiveAt: null,
+              publishedBy: null,
+              supersedesTermsVersionId: null,
+              mustReaccept: true,
+              createdAt: '2026-08-09T01:00:00.000Z',
+              updatedAt: '2026-08-10T01:00:00.000Z',
+              providerSecret: 'must-not-cross-client-boundary',
+            },
+          ],
+        }),
+      );
+
+    await expect(listPilotTermsDocuments()).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+    });
+    await expect(
+      listPilotTermsVersions('72000000-0000-4000-8000-000000000001'),
+    ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('creates and updates Terms drafts using only frozen HTTP fields', async () => {
+    const document = {
+      termsDocumentId: '72000000-0000-4000-8000-000000000011',
+      documentCode: 'privacy-notice',
+      title: '隐私须知',
+      status: 'active',
+      createdAt: '2026-08-10T02:00:00.000Z',
+      updatedAt: '2026-08-10T02:00:00.000Z',
+    };
+    const draft = {
+      termsVersionId: '72000000-0000-4000-8000-000000000012',
+      termsDocumentId: document.termsDocumentId,
+      versionLabel: 'v1-draft',
+      status: 'DRAFT',
+      content: '业务提供的草稿正文',
+      contentDigest: 'b'.repeat(64),
+      locale: 'zh-CN',
+      publishedAt: null,
+      effectiveAt: null,
+      publishedBy: null,
+      supersedesTermsVersionId: null,
+      mustReaccept: false,
+      createdAt: '2026-08-10T02:10:00.000Z',
+      updatedAt: '2026-08-10T02:10:00.000Z',
+    };
+    const updated = { ...draft, effectiveAt: '2026-08-12T00:00:00.000+08:00' };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(jsonResponse(document, 201))
+      .mockResolvedValueOnce(jsonResponse(draft, 201))
+      .mockResolvedValueOnce(jsonResponse(updated));
+
+    await expect(
+      createPilotTermsDocument({ documentCode: 'privacy-notice', title: '隐私须知' }),
+    ).resolves.toEqual(document);
+    await expect(
+      createPilotTermsDraft(document.termsDocumentId, {
+        versionLabel: 'v1-draft',
+        content: '业务提供的草稿正文',
+        locale: 'zh-CN',
+        mustReaccept: false,
+        supersedesTermsVersionId: null,
+      }),
+    ).resolves.toEqual(draft);
+    await expect(
+      updatePilotTermsDraft(draft.termsVersionId, {
+        versionLabel: 'v1-draft',
+        content: '业务提供的草稿正文',
+        locale: 'zh-CN',
+        mustReaccept: false,
+        supersedesTermsVersionId: null,
+        effectiveAt: '2026-08-12T00:00:00.000+08:00',
+      }),
+    ).resolves.toEqual(updated);
+
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({
+      documentCode: 'privacy-notice',
+      title: '隐私须知',
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))).toEqual({
+      versionLabel: 'v1-draft',
+      content: '业务提供的草稿正文',
+      locale: 'zh-CN',
+      mustReaccept: false,
+      supersedesTermsVersionId: null,
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[2]?.[1]?.body))).toEqual({
+      versionLabel: 'v1-draft',
+      content: '业务提供的草稿正文',
+      locale: 'zh-CN',
+      mustReaccept: false,
+      supersedesTermsVersionId: null,
+      effectiveAt: '2026-08-12T00:00:00.000+08:00',
+    });
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('publishes and retires Terms versions with strict replay evidence', async () => {
+    const published = {
+      termsVersionId: '72000000-0000-4000-8000-000000000022',
+      termsDocumentId: '72000000-0000-4000-8000-000000000021',
+      versionLabel: 'v1',
+      status: 'PUBLISHED',
+      content: '业务提供的正式正文',
+      contentDigest: 'c'.repeat(64),
+      locale: 'zh-CN',
+      publishedAt: '2026-08-10T03:00:00.000Z',
+      effectiveAt: '2026-08-12T00:00:00.000+08:00',
+      publishedBy: '72000000-0000-4000-8000-000000000023',
+      supersedesTermsVersionId: null,
+      mustReaccept: true,
+      createdAt: '2026-08-10T02:00:00.000Z',
+      updatedAt: '2026-08-10T03:00:00.000Z',
+    };
+    const retired = { ...published, status: 'RETIRED', updatedAt: '2026-08-10T04:00:00.000Z' };
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(published), {
+          status: 201,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'false',
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(retired), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'idempotency-replayed': 'true',
+          },
+        }),
+      );
+
+    await expect(
+      publishPilotTermsVersion(published.termsVersionId, {
+        effectiveAt: '2026-08-12T00:00:00.000+08:00',
+      }),
+    ).resolves.toEqual({ version: published, replayed: false });
+    await expect(retirePilotTermsVersion(published.termsVersionId)).resolves.toEqual({
+      version: retired,
+      replayed: true,
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0]?.[1]?.body))).toEqual({
+      effectiveAt: '2026-08-12T00:00:00.000+08:00',
+    });
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1]?.[1]?.body))).toEqual({});
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects malformed Terms mutation input, responses, and replay evidence', async () => {
+    await expect(
+      createPilotTermsDocument({ documentCode: ' ', title: '标题' }),
+    ).rejects.toMatchObject({ code: 'INVALID_TERMS_DOCUMENT_INPUT' });
+    await expect(
+      createPilotTermsDraft('not-a-document-id', {
+        versionLabel: 'v1',
+        content: '正文',
+        locale: 'zh-CN',
+        mustReaccept: false,
+        supersedesTermsVersionId: null,
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_TERMS_DOCUMENT_ID' });
+    await expect(
+      publishPilotTermsVersion('72000000-0000-4000-8000-000000000022', {
+        effectiveAt: '2026-08-12',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_TERMS_PUBLISH_INPUT' });
+
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'idempotency-replayed': 'maybe' },
+      }),
+    );
+    await expect(
+      retirePilotTermsVersion('72000000-0000-4000-8000-000000000022'),
     ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
   });
 
