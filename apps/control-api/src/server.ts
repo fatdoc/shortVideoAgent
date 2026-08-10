@@ -19,7 +19,7 @@ import { PostgresInvitationRepository } from './invitations/repository.js';
 import { InvitationService } from './invitations/service.js';
 import { InvitationPreviewRateLimiter } from './invitations/previewRateLimiter.js';
 import { createInvitationRouter } from './invitations/routes.js';
-import { UnavailableEmailVerification } from './registrations/emailVerification.js';
+import { createEmailVerification } from './registrations/emailVerification.js';
 import { RegistrationRateLimiter } from './registrations/rateLimiter.js';
 import { PostgresRegistrationRepository } from './registrations/repository.js';
 import { createRegistrationRouter } from './registrations/routes.js';
@@ -83,7 +83,7 @@ const invitationRouter = createInvitationRouter({
 const registrationRouter = createRegistrationRouter({
   service: new RegistrationService(
     new PostgresRegistrationRepository(database),
-    new UnavailableEmailVerification(),
+    createEmailVerification(),
     config.registrationIdempotencySecret,
   ),
   limiter: new RegistrationRateLimiter(

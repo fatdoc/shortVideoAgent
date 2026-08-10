@@ -6,7 +6,7 @@ describe('registration email verification bootstrap', () => {
   it.each(['development', 'production'])(
     'keeps %s unavailable even when a browser bridge is present',
     async (mode) => {
-      const bridge = vi.fn().mockResolvedValue('temporary-verification-token');
+      const bridge = vi.fn().mockResolvedValue('temporary-verification-token-32-bytes');
       const provider = createRegistrationEmailVerification(
         { MODE: mode, VITE_PILOT_E2E: 'true' },
         bridge,
@@ -35,7 +35,7 @@ describe('registration email verification bootstrap', () => {
   it('uses only the test bridge result and rejects an invalid result without persistence', async () => {
     const bridge = vi
       .fn()
-      .mockResolvedValueOnce('temporary-verification-token')
+      .mockResolvedValueOnce('temporary-verification-token-32-bytes')
       .mockResolvedValue('');
     const provider = createRegistrationEmailVerification(
       { MODE: 'test', VITE_PILOT_E2E: 'true' },
@@ -43,7 +43,7 @@ describe('registration email verification bootstrap', () => {
     );
 
     await expect(provider.createEvidence(' USER@EXAMPLE.TEST ')).resolves.toBe(
-      'temporary-verification-token',
+      'temporary-verification-token-32-bytes',
     );
     expect(bridge).toHaveBeenCalledWith('user@example.test');
     await expect(provider.createEvidence('user@example.test')).rejects.toMatchObject({
