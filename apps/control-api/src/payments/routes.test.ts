@@ -14,6 +14,7 @@ import { createApp } from '../app.js';
 const tenantId = '10000000-0000-4000-8000-000000000001';
 const otherTenantId = '10000000-0000-4000-8000-000000000002';
 const organizationId = tenantId;
+const distinctTenantOrganizationId = '10000000-0000-4000-8000-000000000003';
 const userId = '20000000-0000-4000-8000-000000000001';
 const membershipId = '30000000-0000-4000-8000-000000000001';
 const ruleVersionId = '40000000-0000-4000-8000-000000000001';
@@ -60,6 +61,7 @@ function session(
   organizationType: PublicSession['activeContext']['organizationType'] = 'TENANT',
   roles: PublicSession['activeContext']['roles'] = ['tenant_admin'],
   activeTenantId: string | null = tenantId,
+  activeOrganizationId = activeTenantId ?? organizationId,
 ): PublicSession {
   return {
     user: { id: userId, email: 'admin@example.com', displayName: 'Admin' },
@@ -67,8 +69,7 @@ function session(
     roles,
     activeContext: {
       membershipId,
-      organizationId:
-        organizationType === 'TENANT' ? (activeTenantId ?? organizationId) : organizationId,
+      organizationId: activeOrganizationId,
       organizationType,
       organizationDisplayName: 'Payment Organization',
       membershipVersion: 1,
@@ -160,6 +161,41 @@ describe('Payment HTTP API', () => {
         organizationType: 'TENANT',
         tenantId,
         roles: ['tenant_admin'],
+      }),
+      createBody,
+    );
+  });
+
+  it('uses the canonical Tenant id when the verified organization id is different', async () => {
+    const activeSession = session(
+      'TENANT',
+      ['tenant_admin'],
+      tenantId,
+      distinctTenantOrganizationId,
+    );
+    const { app, service } = application({ activeSession });
+
+    const listed = await request(app)
+      .get(`/api/v1/tenants/${tenantId}/recharge-orders?limit=25`)
+      .set('cookie', cookie());
+    const created = await request(app)
+      .post(`/api/v1/tenants/${tenantId}/recharge-orders`)
+      .set('cookie', cookie())
+      .send(createBody);
+
+    expect(listed.status).toBe(200);
+    expect(created.status).toBe(201);
+    expect(service.listRechargeOrders).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: distinctTenantOrganizationId,
+        tenantId,
+      }),
+      25,
+    );
+    expect(service.createRechargeOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: distinctTenantOrganizationId,
+        tenantId,
       }),
       createBody,
     );
