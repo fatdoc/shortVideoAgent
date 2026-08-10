@@ -176,11 +176,7 @@ export function createPaymentRouter(options: PaymentRouterOptions): Router {
         return;
       }
       const context = activeSession(response).activeContext;
-      if (
-        context.organizationType !== 'TENANT' ||
-        context.tenantId !== parsedTenantId.data ||
-        context.organizationId !== parsedTenantId.data
-      ) {
+      if (context.organizationType !== 'TENANT' || context.tenantId !== parsedTenantId.data) {
         sendError(response, 404, 'RECHARGE_SCOPE_NOT_FOUND', '充值订单范围不存在。');
         return;
       }
@@ -212,11 +208,7 @@ export function createPaymentRouter(options: PaymentRouterOptions): Router {
         return;
       }
       const context = activeSession(response).activeContext;
-      if (
-        context.organizationType !== 'TENANT' ||
-        context.tenantId !== parsedTenantId.data ||
-        context.organizationId !== parsedTenantId.data
-      ) {
+      if (context.organizationType !== 'TENANT' || context.tenantId !== parsedTenantId.data) {
         sendError(response, 404, 'RECHARGE_SCOPE_NOT_FOUND', '充值订单范围不存在。');
         return;
       }
