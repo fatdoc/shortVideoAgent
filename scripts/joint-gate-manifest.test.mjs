@@ -107,6 +107,27 @@ test('Pilot browser phase is ready and delegates to the deterministic lifecycle 
   ]);
 });
 
+test('migration rollback phase is ready and preserves the dedicated PostgreSQL boundary', () => {
+  const phase = jointGatePhases.find(({ id }) => id === 'migration-rollback-reapply');
+  assert.ok(phase);
+  assert.equal(phase.availability, 'ready');
+  assert.deepEqual(phase.commands, [
+    {
+      executable: 'node',
+      args: ['scripts/run-control-api-migration-gate.mjs'],
+      cwd: '.',
+      shell: false,
+    },
+  ]);
+  assert.deepEqual(phase.preconditions, [
+    {
+      type: 'environment',
+      name: 'CONTROL_API_TEST_DATABASE_URL',
+      validator: 'dedicated-postgres-test-url',
+    },
+  ]);
+});
+
 test('B-owned phases require an attested synchronized Git commit baseline', () => {
   for (const phaseId of ['ab-golden-path', 'storycanvas-build-targeted']) {
     const phase = jointGatePhases.find(({ id }) => id === phaseId);
@@ -185,7 +206,10 @@ test('--full remains blocked on unfinished required slices even with external UR
   assert.notEqual(result.status, 0);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /PILOT_BROWSER_E2E_NOT_IMPLEMENTED/);
   assert.match(`${result.stdout}\n${result.stderr}`, /AB_GOLDEN_PATH_NOT_IMPLEMENTED/);
-  assert.match(`${result.stdout}\n${result.stderr}`, /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(
+    `${result.stdout}\n${result.stderr}`,
+    /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/,
+  );
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /do-not-print/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /JOINT_GATE_PASS/);
 });
@@ -201,7 +225,7 @@ test('--full rejects a non-empty baseline value that is not a synchronized Git c
   assert.notEqual(result.status, 0);
   assert.match(output, /JOINT_GATE_B_BASELINE_COMMIT_INVALID/);
   assert.match(output, /AB_GOLDEN_PATH_NOT_IMPLEMENTED/);
-  assert.match(output, /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/);
+  assert.doesNotMatch(output, /MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED/);
   assert.doesNotMatch(output, /RUNNING/);
   assert.doesNotMatch(output, new RegExp(invalidBaseline));
   assert.doesNotMatch(output, /JOINT_GATE_PASS/);
