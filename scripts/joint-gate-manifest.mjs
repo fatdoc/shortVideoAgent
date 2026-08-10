@@ -174,7 +174,7 @@ export const jointGatePhases = [
     id: 'migration-rollback-reapply',
     owner: 'A',
     requiredInFull: true,
-    availability: 'planned',
+    availability: 'ready',
     description:
       'Verify fresh migration, one-batch rollback, and deterministic reapply against the dedicated test database.',
     commands: [command('node', ['scripts/run-control-api-migration-gate.mjs'])],
@@ -183,11 +183,6 @@ export const jointGatePhases = [
         type: 'environment',
         name: 'CONTROL_API_TEST_DATABASE_URL',
         validator: 'dedicated-postgres-test-url',
-      },
-      {
-        type: 'slice',
-        name: 'A-BIZ-06F',
-        code: 'MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED',
       },
     ],
   },
