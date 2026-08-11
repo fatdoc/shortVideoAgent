@@ -110,8 +110,29 @@ function appendBounded(capture: BoundedCapture, chunk: Buffer, limit: number): v
   capture.truncated = true;
 }
 
-function delay<T>(milliseconds: number, value: T): Promise<T> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds, value));
+interface CancelableDelay<T> {
+  promise: Promise<T>;
+  cancel(): void;
+}
+
+function cancelableDelay<T>(milliseconds: number, value: T): CancelableDelay<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const promise = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      timer = undefined;
+      resolve(value);
+    }, milliseconds);
+  });
+
+  return {
+    promise,
+    cancel: () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    },
+  };
 }
 
 class ManagedPilotProcess implements PilotManagedProcess {
@@ -179,11 +200,19 @@ class ManagedPilotProcess implements PilotManagedProcess {
         .then(() => this.#readinessProbe(this))
         .then((ready): ReadinessOutcome => (ready ? { kind: 'ready' } : { kind: 'retry' }))
         .catch((): ReadinessOutcome => ({ kind: 'retry' }));
-      const outcome = await Promise.race<ReadinessOutcome>([
-        probe,
-        this.#terminal,
-        delay(remainingMs, { kind: 'timeout' }),
-      ]);
+      const readinessTimeout = cancelableDelay<ReadinessOutcome>(remainingMs, {
+        kind: 'timeout',
+      });
+      let outcome: ReadinessOutcome;
+      try {
+        outcome = await Promise.race<ReadinessOutcome>([
+          probe,
+          this.#terminal,
+          readinessTimeout.promise,
+        ]);
+      } finally {
+        readinessTimeout.cancel();
+      }
 
       if (outcome.kind === 'ready') return;
       if (outcome.kind === 'error' || outcome.kind === 'exit') {
@@ -193,10 +222,16 @@ class ManagedPilotProcess implements PilotManagedProcess {
 
       const retryRemainingMs = deadline - Date.now();
       if (retryRemainingMs <= 0) throw fixedError('PILOT_E2E_CHILD_NOT_READY');
-      const retryOutcome = await Promise.race<ReadinessOutcome>([
-        this.#terminal,
-        delay(Math.min(this.#readinessIntervalMs, retryRemainingMs), { kind: 'retry' }),
-      ]);
+      const retryDelay = cancelableDelay<ReadinessOutcome>(
+        Math.min(this.#readinessIntervalMs, retryRemainingMs),
+        { kind: 'retry' },
+      );
+      let retryOutcome: ReadinessOutcome;
+      try {
+        retryOutcome = await Promise.race<ReadinessOutcome>([this.#terminal, retryDelay.promise]);
+      } finally {
+        retryDelay.cancel();
+      }
       if (retryOutcome.kind === 'error' || retryOutcome.kind === 'exit') {
         throw this.#terminalError(retryOutcome);
       }
@@ -232,16 +267,34 @@ class ManagedPilotProcess implements PilotManagedProcess {
     try {
       if (!this.#terminalState) {
         this.#signal('SIGTERM');
-        const termOutcome = await Promise.race<TerminalState | 'timeout'>([
-          this.#terminal,
-          delay(this.#stopTimeoutMs, 'timeout'),
-        ]);
+        const termTimeout = cancelableDelay<TerminalState | 'timeout'>(
+          this.#stopTimeoutMs,
+          'timeout',
+        );
+        let termOutcome: TerminalState | 'timeout';
+        try {
+          termOutcome = await Promise.race<TerminalState | 'timeout'>([
+            this.#terminal,
+            termTimeout.promise,
+          ]);
+        } finally {
+          termTimeout.cancel();
+        }
         if (termOutcome === 'timeout' && !this.#terminalState) {
           this.#signal('SIGKILL');
-          const killOutcome = await Promise.race<TerminalState | 'timeout'>([
-            this.#terminal,
-            delay(this.#stopTimeoutMs, 'timeout'),
-          ]);
+          const killTimeout = cancelableDelay<TerminalState | 'timeout'>(
+            this.#stopTimeoutMs,
+            'timeout',
+          );
+          let killOutcome: TerminalState | 'timeout';
+          try {
+            killOutcome = await Promise.race<TerminalState | 'timeout'>([
+              this.#terminal,
+              killTimeout.promise,
+            ]);
+          } finally {
+            killTimeout.cancel();
+          }
           if (killOutcome === 'timeout') throw fixedError('PILOT_E2E_CHILD_STOP_FAILED');
         }
       }
