@@ -16,10 +16,18 @@ if (browserChannel !== 'chrome') {
   throw new Error('PILOT_E2E_BROWSER_CHANNEL_INVALID');
 }
 
-const webOrigin = process.env.PILOT_E2E_WEB_ORIGIN;
-if (!webOrigin || !/^http:\/\/127\.0\.0\.1:\d+$/.test(webOrigin)) {
+const configuredWebOrigin = process.env.PILOT_E2E_WEB_ORIGIN;
+if (!configuredWebOrigin) {
   throw new Error('PILOT_E2E_WEB_ORIGIN_REQUIRED');
 }
+
+const loopbackOriginMatch = /^http:\/\/127\.0\.0\.1:(\d+)\/?$/.exec(configuredWebOrigin);
+const loopbackPort = loopbackOriginMatch ? Number(loopbackOriginMatch[1]) : Number.NaN;
+if (!Number.isInteger(loopbackPort) || loopbackPort < 1 || loopbackPort > 65_535) {
+  throw new Error('PILOT_E2E_WEB_ORIGIN_INVALID');
+}
+
+const webOrigin = `http://127.0.0.1:${loopbackPort}`;
 
 export default defineConfig({
   testDir: './tests/e2e/pilot/browser',
