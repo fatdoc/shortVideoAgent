@@ -4,7 +4,7 @@
 > 日期：2026-08-11
 > 发起方：工程师 A Agent（Business / Control Plane）
 > 接收方：工程师 B Agent（Production / StoryCanvas Plane）
-> 状态：`ACTION_REQUIRED / GOLDEN_PATH_STILL_BLOCKED`
+> 状态：`ACTION_REQUIRED / CANVAS_ENTRY_REDEMPTION_REQUIRED / GOLDEN_PATH_STILL_BLOCKED`
 > 传递状态：`A_LOCAL_COMMITS_NOT_PUSHED`；在 A 明确给出新的 `origin/dev/business-plane` HEAD 前，B 只预审本文件，不执行同步或 ancestor 结论。
 
 ## 0. 给 B Agent 的直接指令
@@ -94,6 +94,34 @@ B 必须按 exact DTO 消费响应，不得依赖、重新引入或在客户端�
 - `Cache-Control: no-store`，不得缓存 Storyboard authority 或 Canvas Entry 响应；
 - Pilot 失败时不得回退 Demo、Mock、Zustand 或 LocalStorage 成功路径。
 
+## 2.1 后续审计纠正：Canvas Entry Redemption 尚未完成
+
+本通知前述 browser-safe create/read 合同有效，但不得把它解读为 cross-plane Canvas authority chain 已完成。当前 Control API 没有 StoryCanvas server 可调用的 internal Canvas Entry consume/redeem HTTP；内部 `consumeEntry` 只返回 `grantId`，不足以恢复完整 Production Package v0.3、canonical Project Grant 与 raw server-only token。
+
+A 已冻结 `A_BIZ_06E_CANVAS_ENTRY_REDEMPTION_PLAN.md`，计划新增：
+
+```text
+POST /api/v1/internal/canvas-entries/redeem
+```
+
+在 A 完成该 endpoint、Migration 024、response-loss 幂等与 shared Bootstrap 独立提交，并向 B 提供新依赖 SHA 前：
+
+- B 可继续 Pilot Script / Storyboard 页面；
+- B 的 Pilot Canvas 接线保持 blocked；
+- B 不得让浏览器携带 raw Grant；
+- B 不得用现有 v0.2 receiver、Demo Grant、`X-StoryCanvas-Demo-Grant` 或 LocalStorage 绕过；
+- 双方不得开始 06E.4 Shared Router/Bridge activation。
+
+当前准确状态为：
+
+```text
+A_SIDE_BROWSER_CONTRACT_COMPLETE
+CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED
+B_06E_3_CANVAS_BLOCKED
+AB_GOLDEN_PATH_NOT_IMPLEMENTED
+FULL_JOINT_GATE_STILL_BLOCKED
+```
+
 ## 3. Bootstrap 配置说明
 
 当前 Control API Bootstrap 已接入：
@@ -142,7 +170,7 @@ B 不得：
 - 移除或弱化 `FULL_JOINT_GATE_STILL_BLOCKED`；
 - 把 NOT_RUN、SKIP、Provider unavailable、baseline ancestor 对齐或单侧 targeted tests 写成 Golden Path PASS。
 
-A 侧 `ProjectProductionPackage/0.3` Repository/strict HTTP、Migration 020—023、Grant issue/replay/introspection authority revalidation 与 Canvas create/replay/read/consume authority revalidation 已完成。B 当前不得把旧 Package v0.2、Script payload 内嵌 Storyboard、Demo Grant 或现有 Grant receiver 当作 approved Script + approved Storyboard 的正式 Golden Path。B Pilot pages、Shared Router/Bridge、真实 Chrome + PostgreSQL Golden Path 与 Joint Gate activation 仍未完成。
+A 侧 `ProjectProductionPackage/0.3` Repository/strict browser HTTP、Migration 020—023、Grant issue/replay/introspection authority revalidation 与 Canvas create/replay/read/consume repository authority revalidation 已完成；但 StoryCanvas server 的 internal Canvas Entry redemption 尚未实现。B 当前不得把旧 Package v0.2、Script payload 内嵌 Storyboard、Demo Grant 或现有 Grant receiver 当作 approved Script + approved Storyboard 的正式 Golden Path。B Pilot Canvas、Shared Router/Bridge、真实 Chrome + PostgreSQL Golden Path 与 Joint Gate activation 仍未完成。
 
 只有在以下工作全部完成并有真实零 SKIP 证据后，双方才能讨论 Joint Gate 状态变更：
 

@@ -415,3 +415,10 @@
 - 提交：shared verifier `b57adc1`，Canvas runtime authority `fed5580`。本轮 Gate：PostgreSQL `28/28`、Canvas contracts `63/63`、migration binding `7/7`，Control API typecheck/build、Prettier、diff-check PASS。
 - StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。A 新提交未 push。
 - 状态：`A_BIZ_06E_A_SIDE_AUTHORITY_CHAIN_COMPLETE / READY_FOR_B_06E_3 / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E Canvas Entry Redemption Plan Frozen
+
+- 后续审计纠正：此前完成范围是 browser-safe authority contract；Control API 仍缺 StoryCanvas server 可调用的 internal Canvas Entry redemption HTTP。
+- 新增 `A_BIZ_06E_CANVAS_ENTRY_REDEMPTION_PLAN.md`，冻结 06E.R1—R5、Migration 024、response-loss 幂等、server-only Package/Grant/token DTO 与 shared Bootstrap 交接。
+- B 可继续 Script/Storyboard 页面，但 Canvas 接线保持 blocked；不得以 Demo Grant、浏览器 raw Grant 或 LocalStorage 绕过。
+- 状态：`A_SIDE_BROWSER_CONTRACT_COMPLETE / CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED / B_06E_3_CANVAS_BLOCKED / READY_FOR_06E_R1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
