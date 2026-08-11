@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import knex, { type Knex } from 'knex';
 import { hashPassword } from '../auth/password.js';
 import { migrationConfig } from '../db/migrationConfig.js';
+import { CONTROL_API_MIGRATION_NAMES } from '../db/migrationContract.js';
 import { digestInvitationToken } from '../invitations/token.js';
 import { PostgresCommissionSettlementRepository } from '../settlements/repository.js';
 import { termsContentDigest } from '../terms/digest.js';
@@ -647,7 +648,7 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
   };
 
   const expected = {
-    migrationCount: 19,
+    migrationCount: CONTROL_API_MIGRATION_NAMES.length,
     organizationCount: 5,
     channelCount: 2,
     tenantCount: 2,
