@@ -23,6 +23,7 @@ export class AbGoldenPathPreflightError extends Error {
   constructor(readonly code: AbGoldenPathPreflightErrorCode) {
     super(code);
     this.name = 'AbGoldenPathPreflightError';
+    this.stack = undefined;
   }
 }
 
