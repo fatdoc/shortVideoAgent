@@ -5,6 +5,7 @@ import {
   verifyProductionPackageAuthority,
 } from '../production/authority.js';
 import { ProductionDomainError } from '../production/errors.js';
+import type { ProjectGrant, ProjectProductionPackageV03 } from '../production/types.js';
 import { canvasEntryError, CanvasEntryDomainError } from './errors.js';
 import {
   assertNonSecretBrowserPayload,
@@ -16,8 +17,8 @@ import {
 import type {
   CanvasEntryPublicDto,
   CanvasEntryStore,
-  ConsumedCanvasEntryAuthorization,
-  ConsumeCanvasEntryRecord,
+  RedeemCanvasEntryRecord,
+  RedeemCanvasEntryResult,
   CreateCanvasEntryRecord,
   CreateCanvasEntryResult,
   ReadCanvasEntryRecord,
@@ -36,6 +37,9 @@ type CanvasEntryRow = {
   issued_at: Date | string;
   expires_at: Date | string;
   consumed_at: Date | string | null;
+  redemption_idempotency_key: string | null;
+  redemption_request_digest: string | null;
+  redeemed_by: string | null;
   created_by: string;
 };
 
@@ -51,8 +55,30 @@ type CreateTransactionOutcome =
   | { kind: 'replayed'; value: CanvasEntryPublicDto }
   | { kind: 'expired' };
 
-type ConsumeTransactionOutcome =
-  { kind: 'consumed'; row: CanvasEntryRow } | { kind: 'expired' } | { kind: 'replayed' };
+type RestoredProductionAuthorization = {
+  productionPackage: ProjectProductionPackageV03;
+  grant: ProjectGrant;
+  tokenType: 'Bearer';
+  accessToken: string;
+};
+
+export interface CanvasEntryProductionAuthorizationRestorer {
+  restoreGrantAuthorization(
+    transaction: Knex.Transaction,
+    input: {
+      tenantId: string;
+      projectId: string;
+      packageId: string;
+      grantId: string;
+      now: Date;
+    },
+  ): Promise<RestoredProductionAuthorization>;
+}
+
+type RedeemTransactionOutcome =
+  | { kind: 'redeemed'; row: CanvasEntryRow; authorization: RestoredProductionAuthorization }
+  | { kind: 'replayed'; row: CanvasEntryRow; authorization: RestoredProductionAuthorization }
+  | { kind: 'expired' };
 
 const createRecordKeys = new Set([
   'tenantId',
@@ -183,6 +209,7 @@ export class PostgresCanvasEntryRepository implements CanvasEntryStore {
     private readonly database: Knex,
     private readonly newId: () => string = () => randomUUID(),
     private readonly authorityVerifier: AuthorityVerifier = verifyProductionPackageAuthority,
+    private readonly authorizationRestorer?: CanvasEntryProductionAuthorizationRestorer,
   ) {}
 
   async createEntry(input: CreateCanvasEntryRecord): Promise<CreateCanvasEntryResult> {
@@ -355,20 +382,29 @@ export class PostgresCanvasEntryRepository implements CanvasEntryStore {
     });
   }
 
-  async consumeEntry(input: ConsumeCanvasEntryRecord): Promise<ConsumedCanvasEntryAuthorization> {
+  async redeemEntry(input: RedeemCanvasEntryRecord): Promise<RedeemCanvasEntryResult> {
     const handle = parseCanvasEntryHandle(input.handle);
     const tenantId = parseCanvasEntryUuid(input.tenantId);
     const projectId = parseCanvasEntryUuid(input.projectId);
     const packageId = parseCanvasEntryUuid(input.packageId);
-    const consumedAt = new Date(input.consumedAt);
-    if (!Number.isFinite(consumedAt.getTime())) {
+    const redeemedAt = new Date(input.redeemedAt);
+    if (
+      !Number.isFinite(redeemedAt.getTime()) ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(input.idempotencyKey) ||
+      !/^sha256:[a-f0-9]{64}$/.test(input.requestDigest) ||
+      !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/.test(input.redeemedBy)
+    ) {
       throw canvasEntryError(
         'CANVAS_ENTRY_SCHEMA_INVALID',
-        'Canvas Entry consume time is invalid.',
+        'Canvas Entry redemption record is invalid.',
       );
     }
+    const authorizationRestorer = this.authorizationRestorer;
+    if (!authorizationRestorer) {
+      throw new Error('Canvas Entry production authorization restorer is not configured.');
+    }
 
-    const outcome = await this.database.transaction<ConsumeTransactionOutcome>(
+    const outcome = await this.database.transaction<RedeemTransactionOutcome>(
       async (transaction) => {
         const row = (await transaction('control_plane.canvas_entries')
           .where({
@@ -385,60 +421,110 @@ export class PostgresCanvasEntryRepository implements CanvasEntryStore {
             'Canvas Entry handle or exact scope was not found.',
           );
         }
-        if (row.state === 'consumed') return { kind: 'replayed' };
-        if (row.state === 'expired' || new Date(row.expires_at).getTime() <= consumedAt.getTime()) {
+
+        if (row.state === 'consumed') {
+          if (
+            row.redemption_idempotency_key !== input.idempotencyKey ||
+            row.redemption_request_digest !== input.requestDigest
+          ) {
+            throw canvasEntryError(
+              'CANVAS_ENTRY_IDEMPOTENCY_CONFLICT',
+              'Canvas Entry was redeemed with different immutable request facts.',
+            );
+          }
+          try {
+            const authorization = await authorizationRestorer.restoreGrantAuthorization(
+              transaction,
+              {
+                tenantId,
+                projectId,
+                packageId,
+                grantId: row.grant_id,
+                now: redeemedAt,
+              },
+            );
+            return { kind: 'replayed', row, authorization };
+          } catch (error) {
+            if (isKnownAuthorityFailure(error)) return { kind: 'expired' };
+            throw error;
+          }
+        }
+
+        if (row.state === 'expired' || new Date(row.expires_at).getTime() <= redeemedAt.getTime()) {
           await expireActiveEntry(transaction, row.canvas_entry_id);
           return { kind: 'expired' };
         }
+
         try {
-          await this.authorityVerifier(transaction, {
-            tenantId: row.tenant_id,
-            projectId: row.project_id,
-            packageId: row.package_id,
-            now: consumedAt,
+          const authorization = await authorizationRestorer.restoreGrantAuthorization(transaction, {
+            tenantId,
+            projectId,
+            packageId,
+            grantId: row.grant_id,
+            now: redeemedAt,
           });
+          if (
+            new Date(authorization.grant.expiresAt).getTime() < new Date(row.expires_at).getTime()
+          ) {
+            await expireActiveEntry(transaction, row.canvas_entry_id);
+            return { kind: 'expired' };
+          }
+          const [consumed] = (await transaction('control_plane.canvas_entries')
+            .where({ canvas_entry_id: row.canvas_entry_id, state: 'active' })
+            .update({
+              state: 'consumed',
+              consumed_at: redeemedAt,
+              redemption_idempotency_key: input.idempotencyKey,
+              redemption_request_digest: input.requestDigest,
+              redeemed_by: input.redeemedBy,
+            })
+            .returning('*')) as CanvasEntryRow[];
+          if (!consumed) {
+            throw canvasEntryError(
+              'CANVAS_ENTRY_IDEMPOTENCY_CONFLICT',
+              'Canvas Entry redemption lost its lifecycle lock.',
+            );
+          }
+          return { kind: 'redeemed', row: consumed, authorization };
         } catch (error) {
           if (!isKnownAuthorityFailure(error)) throw error;
           await expireActiveEntry(transaction, row.canvas_entry_id);
           return { kind: 'expired' };
         }
-        const grant = await findExactActiveGrant(transaction, {
-          tenantId: row.tenant_id,
-          projectId: row.project_id,
-          packageId: row.package_id,
-          grantId: row.grant_id,
-          checkedAt: consumedAt,
-          coversUntil: row.expires_at,
-        });
-        if (!grant) {
-          await expireActiveEntry(transaction, row.canvas_entry_id);
-          return { kind: 'expired' };
-        }
-        const [consumed] = (await transaction('control_plane.canvas_entries')
-          .where({ canvas_entry_id: row.canvas_entry_id, state: 'active' })
-          .update({ state: 'consumed', consumed_at: consumedAt })
-          .returning('*')) as CanvasEntryRow[];
-        if (!consumed) return { kind: 'replayed' };
-        return { kind: 'consumed', row: consumed };
       },
     );
+
     if (outcome.kind === 'expired') throw expiredError();
-    if (outcome.kind === 'replayed') {
-      throw canvasEntryError('CANVAS_ENTRY_REPLAYED', 'Canvas Entry was already consumed.');
-    }
     if (!outcome.row.consumed_at) {
       throw canvasEntryError(
         'CANVAS_ENTRY_SCHEMA_INVALID',
-        'Consumed Canvas Entry did not record consumedAt.',
+        'Redeemed Canvas Entry did not record consumedAt.',
       );
     }
+    const { authorization } = outcome;
+    if (
+      authorization.productionPackage.tenantId !== tenantId ||
+      authorization.productionPackage.projectId !== projectId ||
+      authorization.productionPackage.packageId !== packageId ||
+      authorization.grant.tenantId !== tenantId ||
+      authorization.grant.projectId !== projectId ||
+      authorization.grant.packageId !== packageId ||
+      authorization.grant.grantId !== outcome.row.grant_id
+    ) {
+      throw new Error('Restored Canvas Entry authorization binding mismatch.');
+    }
     return {
-      handle: outcome.row.handle,
-      tenantId: outcome.row.tenant_id,
-      projectId: outcome.row.project_id,
-      packageId: outcome.row.package_id,
-      grantId: outcome.row.grant_id,
-      consumedAt: iso(outcome.row.consumed_at),
+      value: {
+        objectType: 'CanvasEntryRedemption',
+        contractVersion: '0.1',
+        handle,
+        tenantId,
+        projectId,
+        packageId,
+        consumedAt: iso(outcome.row.consumed_at),
+        ...authorization,
+      },
+      replayed: outcome.kind === 'replayed',
     };
   }
 }

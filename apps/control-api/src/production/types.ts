@@ -154,6 +154,23 @@ export type IssuedProjectGrant = {
   accessToken: string;
 };
 
+/** Exact server-side scope used to restore persisted Canvas authorization. */
+export type RestoreGrantAuthorizationInput = {
+  tenantId: string;
+  projectId: string;
+  packageId: string;
+  grantId: string;
+  now: Date;
+};
+
+/**
+ * Server-only authority bundle. Browser-facing routes must never expose the
+ * access token or the full immutable Production Package snapshot.
+ */
+export type RestoredGrantAuthorization = IssuedProjectGrant & {
+  productionPackage: ProjectProductionPackageV03;
+};
+
 export type IdempotencyInput = {
   operation: string;
   key: string;

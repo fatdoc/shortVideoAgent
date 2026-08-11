@@ -1,4 +1,7 @@
+import type { ProjectGrant, ProjectProductionPackageV03 } from '../production/types.js';
+
 export const CANVAS_ENTRY_CONTRACT_VERSION = '0.2' as const;
+export const CANVAS_ENTRY_REDEMPTION_CONTRACT_VERSION = '0.1' as const;
 export const CANVAS_ENTRY_MIN_TTL_SECONDS = 30;
 export const CANVAS_ENTRY_MAX_TTL_SECONDS = 300;
 export const CANVAS_ENTRY_DEFAULT_TTL_SECONDS = 120;
@@ -47,9 +50,11 @@ export type CreateCanvasEntryInput = {
   ttlSeconds: number;
 };
 
-export type ConsumeCanvasEntryInput = {
-  packageId: string;
+/** Exact server-only command accepted by CanvasEntryService.redeemEntry. */
+export type RedeemCanvasEntryInput = CanvasEntryBinding & {
   handle: string;
+  idempotencyKey: string;
+  redeemedBy: string;
 };
 
 export type CreateCanvasEntryRecord = CanvasEntryBinding & {
@@ -68,22 +73,32 @@ export type ReadCanvasEntryRecord = {
   readAt: Date;
 };
 
-export type ConsumeCanvasEntryRecord = CanvasEntryBinding & {
-  handle: string;
-  consumedAt: Date;
+/** Immutable redemption facts handed to the transactional Repository boundary. */
+export type RedeemCanvasEntryRecord = RedeemCanvasEntryInput & {
+  requestDigest: string;
+  redeemedAt: Date;
 };
 
 /**
- * Server-only authorization reference returned after the one-time transition.
- * The grant id is not a bearer credential and this object must not be returned
- * as the browser-facing Canvas Entry DTO.
+ * Full server-only authority restored by redemption. This value is permitted
+ * only on the trusted Control API -> StoryCanvas server connection.
  */
-export type ConsumedCanvasEntryAuthorization = ConsumedCanvasEntry & {
-  grantId: string;
+export type CanvasEntryRedemptionValue = ConsumedCanvasEntry & {
+  objectType: 'CanvasEntryRedemption';
+  contractVersion: typeof CANVAS_ENTRY_REDEMPTION_CONTRACT_VERSION;
+  productionPackage: ProjectProductionPackageV03;
+  grant: ProjectGrant;
+  tokenType: 'Bearer';
+  accessToken: string;
+};
+
+export type RedeemCanvasEntryResult = {
+  value: CanvasEntryRedemptionValue;
+  replayed: boolean;
 };
 
 export interface CanvasEntryStore {
   createEntry(input: CreateCanvasEntryRecord): Promise<CreateCanvasEntryResult>;
   readEntry(input: ReadCanvasEntryRecord): Promise<CanvasEntryPublicDto>;
-  consumeEntry(input: ConsumeCanvasEntryRecord): Promise<ConsumedCanvasEntryAuthorization>;
+  redeemEntry(input: RedeemCanvasEntryRecord): Promise<RedeemCanvasEntryResult>;
 }

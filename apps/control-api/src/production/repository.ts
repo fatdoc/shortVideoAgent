@@ -25,6 +25,8 @@ import type {
   ProjectGrant,
   ProjectProductionPackage,
   ProjectProductionPackageV03,
+  RestoredGrantAuthorization,
+  RestoreGrantAuthorizationInput,
   StoryboardShot,
 } from './types.js';
 
@@ -54,6 +56,17 @@ type GrantRow = {
   revoked_at: Date | string | null;
   issued_at: Date | string;
   expires_at: Date | string;
+};
+
+type PersistedGrantRow = GrantRow & {
+  token_digest: string;
+  contract_version: '0.2';
+  idempotency_key: string;
+  payload_digest: string;
+};
+
+type RestorablePackageRow = {
+  snapshot: ProjectProductionPackage | string;
 };
 
 function jsonValue<T>(value: T | string): T {
@@ -192,6 +205,35 @@ function grantClaims(row: GrantRow): ProjectGrantClaims {
     nbf: issuedSeconds,
     exp: Math.floor(new Date(row.expires_at).getTime() / 1000),
   };
+}
+
+function canonicalGrant(row: PersistedGrantRow): ProjectGrant {
+  const unsigned = {
+    objectType: 'ProjectGrant' as const,
+    contractVersion: '0.2' as const,
+    tenantId: row.tenant_id,
+    projectId: row.project_id,
+    idempotencyKey: row.idempotency_key,
+    occurredAt: new Date(row.issued_at).toISOString(),
+    grantId: row.grant_id,
+    packageId: row.package_id,
+    capabilities: jsonValue(row.capabilities),
+    scopes: jsonValue(row.scopes),
+    tokenDigest: row.token_digest,
+    keyId: row.key_id,
+    issuedAt: new Date(row.issued_at).toISOString(),
+    expiresAt: new Date(row.expires_at).toISOString(),
+  };
+  const payloadDigest = contractPayloadDigest(unsigned);
+  if (row.contract_version !== '0.2' || row.payload_digest !== payloadDigest) {
+    throw new ProductionDomainError(
+      'persisted project grant authority is invalid',
+      401,
+      'GRANT_INVALID',
+      'grant',
+    );
+  }
+  return { ...unsigned, payloadDigest };
 }
 
 export class PostgresProductionStore implements ProductionStore {
@@ -578,6 +620,99 @@ export class PostgresProductionStore implements ProductionStore {
     return claims;
   }
 
+  /**
+   * Restores the exact persisted Package + Grant authorization for a trusted
+   * server caller. This method never creates a Grant and accepts no SessionActor.
+   */
+  async restoreGrantAuthorization(
+    transaction: Knex.Transaction,
+    input: RestoreGrantAuthorizationInput,
+  ): Promise<RestoredGrantAuthorization> {
+    const packageRow = (await transaction('control_plane.production_packages')
+      .select('snapshot')
+      .where({
+        tenant_id: input.tenantId,
+        project_id: input.projectId,
+        package_id: input.packageId,
+      })
+      .forShare()
+      .first()) as RestorablePackageRow | undefined;
+    if (!packageRow) throw new ProductionAuthorityResourceNotFoundError();
+
+    const packageAuthority = await verifyProductionPackageAuthority(transaction, input);
+    const productionPackage = jsonValue(packageRow.snapshot);
+    if (
+      productionPackage.objectType !== 'ProjectProductionPackage' ||
+      productionPackage.contractVersion !== '0.3' ||
+      productionPackage.status !== 'ready' ||
+      productionPackage.tenantId !== input.tenantId ||
+      productionPackage.projectId !== input.projectId ||
+      productionPackage.packageId !== input.packageId ||
+      productionPackage.scriptVersionId !== packageAuthority.scriptVersionId ||
+      productionPackage.storyboardVersionId !== packageAuthority.storyboardVersionId ||
+      productionPackage.approvedScriptDigest !== packageAuthority.approvedScriptDigest ||
+      productionPackage.approvedStoryboardDigest !== packageAuthority.approvedStoryboardDigest ||
+      contractPayloadDigest(productionPackage) !== productionPackage.payloadDigest
+    ) {
+      throw productionAuthorityStaleError('PACKAGE_BINDING_MISMATCH');
+    }
+
+    const row = (await transaction('control_plane.project_grants')
+      .select(
+        'grant_id',
+        'tenant_id',
+        'project_id',
+        'package_id',
+        'token_digest',
+        'capabilities',
+        'scopes',
+        'contract_version',
+        'idempotency_key',
+        'payload_digest',
+        'key_id',
+        'nonce',
+        'status',
+        'revoked_at',
+        'issued_at',
+        'expires_at',
+      )
+      .where({
+        grant_id: input.grantId,
+        tenant_id: input.tenantId,
+        project_id: input.projectId,
+        package_id: input.packageId,
+      })
+      .forShare()
+      .first()) as PersistedGrantRow | undefined;
+    if (!row) throw new ProductionAuthorityResourceNotFoundError();
+    this.assertGrantRowActiveAt(row, input.now);
+    if (row.key_id !== this.tokens.keyId) {
+      throw new ProductionDomainError(
+        'grant signing key is no longer active',
+        401,
+        'GRANT_INVALID',
+        'grant',
+      );
+    }
+
+    const accessToken = this.tokens.issue(grantClaims(row));
+    if (tokenDigest(accessToken) !== row.token_digest) {
+      throw new ProductionDomainError(
+        'persisted project grant token digest mismatch',
+        401,
+        'GRANT_INVALID',
+        'grant',
+      );
+    }
+
+    return {
+      productionPackage,
+      grant: canonicalGrant(row),
+      tokenType: 'Bearer',
+      accessToken,
+    };
+  }
+
   private assertRequestedAuthority(
     authority: CurrentProductionAuthority,
     input: Pick<CreatePackageInput, 'scriptVersionId' | 'storyboardVersionId'>,
@@ -655,10 +790,17 @@ export class PostgresProductionStore implements ProductionStore {
   }
 
   private assertGrantRowActive(row: Pick<GrantRow, 'status' | 'revoked_at' | 'expires_at'>): void {
+    this.assertGrantRowActiveAt(row, this.now());
+  }
+
+  private assertGrantRowActiveAt(
+    row: Pick<GrantRow, 'status' | 'revoked_at' | 'expires_at'>,
+    now: Date,
+  ): void {
     if (row.status !== 'active' || row.revoked_at !== null) {
       throw new ProductionDomainError('grant revoked', 401, 'GRANT_INVALID', 'grant');
     }
-    if (this.now().getTime() >= new Date(row.expires_at).getTime()) {
+    if (now.getTime() >= new Date(row.expires_at).getTime()) {
       throw new ProductionDomainError('grant expired', 410, 'GRANT_EXPIRED', 'grant');
     }
   }

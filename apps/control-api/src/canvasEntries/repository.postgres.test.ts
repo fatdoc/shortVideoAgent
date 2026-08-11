@@ -1,7 +1,8 @@
 import knex, { type Knex } from 'knex';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProductionDomainError } from '../production/errors.js';
 import { PostgresCanvasEntryRepository } from './repository.js';
-import type { CreateCanvasEntryRecord } from './types.js';
+import type { CreateCanvasEntryRecord, RedeemCanvasEntryRecord } from './types.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
@@ -23,6 +24,49 @@ const handleA = `ce_${'A'.repeat(32)}`;
 const handleB = `ce_${'B'.repeat(32)}`;
 const issuedAt = new Date('2026-08-11T03:00:00.000Z');
 const expiresAt = new Date('2026-08-11T03:02:00.000Z');
+const redemptionKey = 'canvas-entry-redeem-1';
+const redemptionDigest = `sha256:${'b'.repeat(64)}`;
+const accessToken = 'header.payload.signature';
+
+function redemptionRecord(
+  overrides: Partial<RedeemCanvasEntryRecord> = {},
+): RedeemCanvasEntryRecord {
+  return {
+    handle: handleA,
+    tenantId,
+    projectId,
+    packageId,
+    idempotencyKey: redemptionKey,
+    redeemedBy: 'storycanvas-production-plane',
+    requestDigest: redemptionDigest,
+    redeemedAt: issuedAt,
+    ...overrides,
+  };
+}
+
+function restoredAuthorization() {
+  return {
+    productionPackage: {
+      objectType: 'ProjectProductionPackage',
+      contractVersion: '0.3',
+      status: 'ready',
+      tenantId,
+      projectId,
+      packageId,
+    },
+    grant: {
+      objectType: 'ProjectGrant',
+      contractVersion: '0.2',
+      tenantId,
+      projectId,
+      packageId,
+      grantId,
+      expiresAt: '2026-08-11T03:10:00.000Z',
+    },
+    tokenType: 'Bearer',
+    accessToken,
+  } as never;
+}
 
 function record(overrides: Partial<CreateCanvasEntryRecord> = {}): CreateCanvasEntryRecord {
   return {
@@ -134,6 +178,9 @@ async function createTestSchema(database: Knex): Promise<void> {
       issued_at timestamptz not null,
       expires_at timestamptz not null,
       consumed_at timestamptz,
+      redemption_idempotency_key text,
+      redemption_request_digest text,
+      redeemed_by text,
       created_by uuid not null,
       unique (tenant_id, project_id, idempotency_key)
     );
@@ -255,6 +302,7 @@ async function revokeStoryboardAuthority(database: Knex): Promise<void> {
 describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => {
   let database: Knex;
   let repository: PostgresCanvasEntryRepository;
+  let restoreGrantAuthorization: ReturnType<typeof vi.fn>;
 
   beforeAll(async () => {
     database = knex({ client: 'pg', connection: databaseUrl });
@@ -263,7 +311,10 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => 
   beforeEach(async () => {
     await createTestSchema(database);
     await seedActiveBinding(database);
-    repository = new PostgresCanvasEntryRepository(database, () => entryId);
+    restoreGrantAuthorization = vi.fn(async () => restoredAuthorization());
+    repository = new PostgresCanvasEntryRepository(database, () => entryId, undefined, {
+      restoreGrantAuthorization,
+    });
   });
 
   afterAll(async () => {
@@ -425,109 +476,6 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => 
     ).resolves.toMatchObject({ count: '0' });
   });
 
-  it('atomically consumes once and returns only server-side binding plus Grant id', async () => {
-    await repository.createEntry(record());
-
-    await expect(
-      repository.consumeEntry({
-        handle: handleA,
-        tenantId,
-        projectId,
-        packageId,
-        consumedAt: issuedAt,
-      }),
-    ).resolves.toEqual({
-      handle: handleA,
-      tenantId,
-      projectId,
-      packageId,
-      grantId,
-      consumedAt: issuedAt.toISOString(),
-    });
-    await expect(
-      repository.consumeEntry({
-        handle: handleA,
-        tenantId,
-        projectId,
-        packageId,
-        consumedAt: issuedAt,
-      }),
-    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_REPLAYED', status: 409 }));
-  });
-
-  it('makes wrong scope indistinguishable from an unknown handle and leaves the Entry active', async () => {
-    await repository.createEntry(record());
-
-    await expect(
-      repository.consumeEntry({
-        handle: handleA,
-        tenantId,
-        projectId: '22222222-2222-4222-9222-222222222222',
-        packageId,
-        consumedAt: issuedAt,
-      }),
-    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_NOT_FOUND', status: 404 }));
-    await expect(
-      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
-    ).resolves.toMatchObject({ state: 'active', consumed_at: null });
-  });
-
-  it('transitions an expired Entry or inactive Grant to expired and returns 410', async () => {
-    await repository.createEntry(record({ expiresAt: new Date('2026-08-11T03:00:30.000Z') }));
-    const boundary = new Date('2026-08-11T03:00:30.000Z');
-
-    await expect(
-      repository.consumeEntry({
-        handle: handleA,
-        tenantId,
-        projectId,
-        packageId,
-        consumedAt: boundary,
-      }),
-    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_EXPIRED', status: 410 }));
-    await expect(
-      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
-    ).resolves.toMatchObject({ state: 'expired', consumed_at: null });
-
-    await database('control_plane.canvas_entries').delete();
-    await database('control_plane.project_grants').where({ grant_id: grantId }).update({
-      status: 'active',
-      revoked_at: null,
-    });
-    await repository.createEntry(
-      record({ handle: handleB, idempotencyKey: 'canvas-entry-create-2' }),
-    );
-    await database('control_plane.project_grants').where({ grant_id: grantId }).update({
-      status: 'revoked',
-      revoked_at: issuedAt,
-    });
-    await expect(
-      repository.consumeEntry({
-        handle: handleB,
-        tenantId,
-        projectId,
-        packageId,
-        consumedAt: issuedAt,
-      }),
-    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_EXPIRED', status: 410 }));
-  });
-
-  it('serializes concurrent consume attempts into one success and one replay', async () => {
-    await repository.createEntry(record());
-    const command = { handle: handleA, tenantId, projectId, packageId, consumedAt: issuedAt };
-    const results = await Promise.allSettled([
-      repository.consumeEntry(command),
-      repository.consumeEntry(command),
-    ]);
-
-    expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
-    const rejected = results.find((result) => result.status === 'rejected');
-    expect(rejected).toMatchObject({
-      status: 'rejected',
-      reason: expect.objectContaining({ code: 'CANVAS_ENTRY_REPLAYED', status: 409 }),
-    });
-  });
-
   it('reads an active Entry as an exact browser-safe DTO without Grant material', async () => {
     await repository.createEntry(record());
 
@@ -552,7 +500,7 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => 
     expect(JSON.stringify(value)).not.toMatch(/grant|token|authorization|cookie|secret|digest/i);
   });
 
-  it('revalidates Storyboard authority on read and consume, persisting expiration only on consume', async () => {
+  it('revalidates Storyboard authority on read without mutating the Entry', async () => {
     await repository.createEntry(record());
     await revokeStoryboardAuthority(database);
 
@@ -569,21 +517,6 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => 
     await expect(
       database('control_plane.canvas_entries').where({ handle: handleA }).first(),
     ).resolves.toMatchObject({ state: 'active', consumed_at: null });
-
-    await expect(
-      repository.consumeEntry({
-        handle: handleA,
-        tenantId,
-        projectId,
-        packageId,
-        consumedAt: new Date('2026-08-11T03:00:20.000Z'),
-      }),
-    ).rejects.toEqual(
-      expect.objectContaining({ code: 'CANVAS_ENTRY_EXPIRED', status: 410, details: {} }),
-    );
-    await expect(
-      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
-    ).resolves.toMatchObject({ state: 'expired', consumed_at: null });
   });
 
   it('makes wrong-scope reads indistinguishable from an unknown handle', async () => {
@@ -617,15 +550,148 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => 
       status: 'active',
       revoked_at: null,
     });
-    await repository.consumeEntry({
-      handle: handleA,
-      tenantId,
-      projectId,
-      packageId,
-      consumedAt: issuedAt,
-    });
+    await repository.redeemEntry(redemptionRecord());
     await expect(
       repository.readEntry({ handle: handleA, tenantId, projectId, readAt: issuedAt }),
     ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_REPLAYED', status: 409 }));
+  });
+
+  it('makes wrong-scope redemption indistinguishable and leaves all redemption facts empty', async () => {
+    await repository.createEntry(record());
+
+    await expect(
+      repository.redeemEntry(
+        redemptionRecord({ projectId: '22222222-2222-4222-9222-222222222222' }),
+      ),
+    ).rejects.toMatchObject({ code: 'CANVAS_ENTRY_NOT_FOUND', status: 404 });
+    await expect(
+      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
+    ).resolves.toMatchObject({
+      state: 'active',
+      consumed_at: null,
+      redemption_idempotency_key: null,
+      redemption_request_digest: null,
+      redeemed_by: null,
+    });
+    expect(restoreGrantAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('expires at the exact Entry boundary before restoring production authority', async () => {
+    const boundary = new Date('2026-08-11T03:00:30.000Z');
+    await repository.createEntry(record({ expiresAt: boundary }));
+
+    await expect(
+      repository.redeemEntry(redemptionRecord({ redeemedAt: boundary })),
+    ).rejects.toMatchObject({ code: 'CANVAS_ENTRY_EXPIRED', status: 410 });
+    await expect(
+      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
+    ).resolves.toMatchObject({
+      state: 'expired',
+      consumed_at: null,
+      redemption_idempotency_key: null,
+      redemption_request_digest: null,
+      redeemed_by: null,
+    });
+    expect(restoreGrantAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('atomically redeems once and safely replays only the exact redemption facts', async () => {
+    await repository.createEntry(record());
+
+    const first = await repository.redeemEntry(redemptionRecord());
+    const replay = await repository.redeemEntry(
+      redemptionRecord({ redeemedAt: new Date('2026-08-11T03:00:10.000Z') }),
+    );
+
+    expect(first).toMatchObject({
+      replayed: false,
+      value: {
+        objectType: 'CanvasEntryRedemption',
+        contractVersion: '0.1',
+        handle: handleA,
+        tenantId,
+        projectId,
+        packageId,
+        consumedAt: issuedAt.toISOString(),
+        accessToken,
+      },
+    });
+    expect(replay).toMatchObject({ replayed: true, value: { consumedAt: issuedAt.toISOString() } });
+    await expect(
+      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
+    ).resolves.toMatchObject({
+      state: 'consumed',
+      consumed_at: issuedAt,
+      redemption_idempotency_key: redemptionKey,
+      redemption_request_digest: redemptionDigest,
+      redeemed_by: 'storycanvas-production-plane',
+    });
+    expect(restoreGrantAuthorization).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects different redemption keys and same-key different digests without restoring authority', async () => {
+    await repository.createEntry(record());
+    await repository.redeemEntry(redemptionRecord());
+    restoreGrantAuthorization.mockClear();
+
+    await expect(
+      repository.redeemEntry(redemptionRecord({ idempotencyKey: 'canvas-entry-redeem-2' })),
+    ).rejects.toMatchObject({ code: 'CANVAS_ENTRY_IDEMPOTENCY_CONFLICT', status: 409 });
+    await expect(
+      repository.redeemEntry(redemptionRecord({ requestDigest: `sha256:${'c'.repeat(64)}` })),
+    ).rejects.toMatchObject({ code: 'CANVAS_ENTRY_IDEMPOTENCY_CONFLICT', status: 409 });
+    expect(restoreGrantAuthorization).not.toHaveBeenCalled();
+  });
+
+  it('serializes concurrent exact redemption into one first response and one safe replay', async () => {
+    await repository.createEntry(record());
+    const results = await Promise.all([
+      repository.redeemEntry(redemptionRecord()),
+      repository.redeemEntry(redemptionRecord()),
+    ]);
+
+    expect(results.map((result) => result.replayed).sort()).toEqual([false, true]);
+    await expect(
+      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
+    ).resolves.toMatchObject({ state: 'consumed', redemption_idempotency_key: redemptionKey });
+  });
+
+  it('persists expired on known stale authority but rolls back on token restoration mismatch', async () => {
+    await repository.createEntry(record());
+    restoreGrantAuthorization.mockRejectedValueOnce(
+      new ProductionDomainError(
+        'stale package authority',
+        409,
+        'PRODUCTION_AUTHORITY_STALE',
+        'authority',
+      ),
+    );
+    await expect(repository.redeemEntry(redemptionRecord())).rejects.toMatchObject({
+      code: 'CANVAS_ENTRY_EXPIRED',
+      status: 410,
+    });
+    await expect(
+      database('control_plane.canvas_entries').where({ handle: handleA }).first(),
+    ).resolves.toMatchObject({ state: 'expired', consumed_at: null });
+
+    await database('control_plane.canvas_entries').delete();
+    await repository.createEntry(
+      record({ handle: handleB, idempotencyKey: 'canvas-entry-create-2' }),
+    );
+    restoreGrantAuthorization.mockRejectedValueOnce(
+      new Error('persisted project grant token digest mismatch'),
+    );
+    await expect(repository.redeemEntry(redemptionRecord({ handle: handleB }))).rejects.toThrow(
+      'token digest mismatch',
+    );
+    await expect(
+      database('control_plane.canvas_entries').where({ handle: handleB }).first(),
+    ).resolves.toMatchObject({
+      state: 'active',
+      consumed_at: null,
+      redemption_idempotency_key: null,
+      redemption_request_digest: null,
+      redeemed_by: null,
+    });
   });
 });

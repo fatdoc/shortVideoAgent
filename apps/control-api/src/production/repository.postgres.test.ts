@@ -7,6 +7,7 @@ import { up as hardenProductionSecurity } from '../db/migrations/005_production_
 import { up as addStoryboardAuthority } from '../db/migrations/020_storyboard_authority.js';
 import { up as addProductionStoryboardAuthority } from '../db/migrations/022_production_storyboard_authority.js';
 import type { SessionActor } from '../projects/types.js';
+import { ProductionAuthorityResourceNotFoundError } from './authority.js';
 import { contractPayloadDigest, tokenDigest } from './digest.js';
 import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
 import { ProjectGrantTokenService } from './grantToken.js';
@@ -615,6 +616,217 @@ describe.runIf(hasDedicatedTestDatabase)('Production Package v0.3 repository/cor
     expect(await database('control_plane.project_grants').count('* as count').first()).toEqual({
       count: '1',
     });
+  });
+
+  it('restores the exact Package v0.3 and canonical active Grant without creating new authority', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Restorable Canvas authorization storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('restore-authority-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    const issued = await store.issueGrant(
+      actor,
+      projectId,
+      grantInput(packageId),
+      grantIdempotency('restore-authority-grant', packageId),
+    );
+    const grantId = issued?.value.grant.grantId as string;
+
+    const restored = await database.transaction((transaction) =>
+      store.restoreGrantAuthorization(transaction, {
+        tenantId,
+        projectId,
+        packageId,
+        grantId,
+        now: fixedNow,
+      }),
+    );
+
+    expect(restored).toEqual({
+      productionPackage: created?.value,
+      grant: issued?.value.grant,
+      tokenType: 'Bearer',
+      accessToken: issued?.value.accessToken,
+    });
+    expect(await database('control_plane.project_grants').count('* as count').first()).toEqual({
+      count: '1',
+    });
+
+    await expect(
+      database.transaction((transaction) =>
+        store.restoreGrantAuthorization(transaction, {
+          tenantId,
+          projectId,
+          packageId,
+          grantId: '24000000-0000-4000-8000-000000000099',
+          now: fixedNow,
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ProductionAuthorityResourceNotFoundError);
+  });
+
+  it('revalidates Package dual authority before restoring a persisted Grant', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Authority revalidation restoration storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('restore-stale-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    const issued = await store.issueGrant(
+      actor,
+      projectId,
+      grantInput(packageId),
+      grantIdempotency('restore-stale-grant', packageId),
+    );
+    await revokeStoryboardAuthority(database);
+
+    await expect(
+      database.transaction((transaction) =>
+        store.restoreGrantAuthorization(transaction, {
+          tenantId,
+          projectId,
+          packageId,
+          grantId: issued?.value.grant.grantId as string,
+          now: fixedNow,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'PRODUCTION_AUTHORITY_STALE' });
+  });
+
+  it('rejects restoration after the exact Grant expires at the caller supplied time', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Expired restoration storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('restore-expired-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    const issued = await store.issueGrant(
+      actor,
+      projectId,
+      grantInput(packageId),
+      grantIdempotency('restore-expired-grant', packageId),
+    );
+
+    await expect(
+      database.transaction((transaction) =>
+        store.restoreGrantAuthorization(transaction, {
+          tenantId,
+          projectId,
+          packageId,
+          grantId: issued?.value.grant.grantId as string,
+          now: new Date(fixedNow.getTime() + 600_000),
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 410, code: 'GRANT_EXPIRED' });
+  });
+
+  it('rejects restoration when the persisted Grant keyId is no longer active', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Retired signing key restoration storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('restore-retired-key-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    const retiredKeyStore = new PostgresProductionStore(
+      database,
+      new ProjectGrantTokenService(signingSecret, 'retired-package-v03-kid', () => fixedNow),
+      () => fixedNow,
+    );
+    const issued = await retiredKeyStore.issueGrant(
+      actor,
+      projectId,
+      grantInput(packageId),
+      grantIdempotency('restore-retired-key-grant', packageId),
+    );
+
+    await expect(
+      database.transaction((transaction) =>
+        store.restoreGrantAuthorization(transaction, {
+          tenantId,
+          projectId,
+          packageId,
+          grantId: issued?.value.grant.grantId as string,
+          now: fixedNow,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 401, code: 'GRANT_INVALID' });
+  });
+
+  it('rejects restoration when deterministic token re-signing does not match tokenDigest', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Token digest mismatch restoration storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('restore-token-digest-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    const foreignSecretStore = new PostgresProductionStore(
+      database,
+      new ProjectGrantTokenService(
+        'foreign-project-grant-secret-at-least-32-characters',
+        'package-v03-test-kid',
+        () => fixedNow,
+      ),
+      () => fixedNow,
+    );
+    const issued = await foreignSecretStore.issueGrant(
+      actor,
+      projectId,
+      grantInput(packageId),
+      grantIdempotency('restore-token-digest-grant', packageId),
+    );
+
+    await expect(
+      database.transaction((transaction) =>
+        store.restoreGrantAuthorization(transaction, {
+          tenantId,
+          projectId,
+          packageId,
+          grantId: issued?.value.grant.grantId as string,
+          now: fixedNow,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 401, code: 'GRANT_INVALID' });
   });
 
   it('rejects Grant issuance when a v0.3 Package is no longer ready', async () => {

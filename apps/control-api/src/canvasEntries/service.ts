@@ -1,23 +1,23 @@
 import { randomBytes } from 'node:crypto';
 import type { SessionActor } from '../projects/types.js';
-import { canvasEntryRequestDigest } from './digest.js';
+import { canvasEntryRedemptionRequestDigest, canvasEntryRequestDigest } from './digest.js';
 import { canvasEntryError } from './errors.js';
 import {
   parseCanvasEntryHandle,
   parseCanvasEntryPublicDto,
   parseCanvasEntryUuid,
-  parseConsumedCanvasEntryAuthorization,
-  parseConsumeCanvasEntryInput,
   parseCreateCanvasEntryInput,
+  parseRedeemCanvasEntryInput,
+  parseRedeemCanvasEntryResult,
 } from './parser.js';
 import { assertCanvasEntryBinding } from './policy.js';
 import type {
   CanvasEntryPublicDto,
   CanvasEntryStore,
-  ConsumeCanvasEntryInput,
-  ConsumedCanvasEntryAuthorization,
   CreateCanvasEntryInput,
   CreateCanvasEntryResult,
+  RedeemCanvasEntryInput,
+  RedeemCanvasEntryResult,
 } from './types.js';
 
 type CanvasEntryServiceOptions = {
@@ -121,23 +121,28 @@ export class CanvasEntryService {
     return value;
   }
 
-  async consumeEntry(
-    actor: SessionActor,
-    projectIdInput: string,
-    inputValue: ConsumeCanvasEntryInput,
-  ): Promise<ConsumedCanvasEntryAuthorization> {
-    const input = parseConsumeCanvasEntryInput(inputValue);
-    const tenantId = parseCanvasEntryUuid(actor.tenantId);
-    const projectId = parseCanvasEntryUuid(projectIdInput);
-    const consumed = await this.store.consumeEntry({
-      handle: input.handle,
-      tenantId,
-      projectId,
-      packageId: input.packageId,
-      consumedAt: currentTime(this.now),
-    });
-    const parsed = parseConsumedCanvasEntryAuthorization(consumed);
-    assertCanvasEntryBinding(parsed, { tenantId, projectId, packageId: input.packageId });
-    return parsed;
+  async redeemEntry(inputValue: RedeemCanvasEntryInput): Promise<RedeemCanvasEntryResult> {
+    const input = parseRedeemCanvasEntryInput(inputValue);
+    const redeemedAt = currentTime(this.now);
+    const result = parseRedeemCanvasEntryResult(
+      await this.store.redeemEntry({
+        ...input,
+        requestDigest: canvasEntryRedemptionRequestDigest(this.digestSecret, input),
+        redeemedAt,
+      }),
+    );
+    const value = result.value;
+    if (
+      value.handle !== input.handle ||
+      value.tenantId !== input.tenantId ||
+      value.projectId !== input.projectId ||
+      value.packageId !== input.packageId
+    ) {
+      throw canvasEntryError(
+        'CANVAS_ENTRY_NOT_FOUND',
+        'Canvas Entry redemption scope binding mismatch.',
+      );
+    }
+    return result;
   }
 }

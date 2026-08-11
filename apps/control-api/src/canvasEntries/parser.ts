@@ -1,21 +1,34 @@
 import { z } from 'zod';
+import { contractPayloadDigest, tokenDigest } from '../production/digest.js';
+import { productionCapabilities, productionScopes } from '../production/types.js';
 import { canvasEntryError } from './errors.js';
 import {
   CANVAS_ENTRY_CONTRACT_VERSION,
   CANVAS_ENTRY_MAX_TTL_SECONDS,
   CANVAS_ENTRY_MIN_TTL_SECONDS,
+  CANVAS_ENTRY_REDEMPTION_CONTRACT_VERSION,
   type CanvasEntryBinding,
   type CanvasEntryPublicDto,
+  type CanvasEntryRedemptionValue,
   type CreateCanvasEntryCommand,
+  type RedeemCanvasEntryInput,
+  type RedeemCanvasEntryResult,
 } from './types.js';
 
 const uuidSchema = z.string().uuid();
+const digestSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/);
+const redeemedBySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/);
 const handleSchema = z.string().regex(/^ce_[A-Za-z0-9_-]{32,64}$/);
 const canonicalTimestampSchema = z.string().refine((value) => {
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
 });
+const nonEmptyStringSchema = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0);
+const accessTokenSchema = z.string().regex(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
 
 const bindingFields = {
   tenantId: uuidSchema,
@@ -105,7 +118,7 @@ const forbiddenString = (value: string): boolean =>
 function schemaInvalid(fieldPaths: string[] = []): never {
   throw canvasEntryError(
     'CANVAS_ENTRY_SCHEMA_INVALID',
-    'Canvas Entry payload violated the strict non-secret contract.',
+    'Canvas Entry payload violated the strict contract.',
     fieldPaths.length > 0 ? { fieldPaths } : {},
   );
 }
@@ -165,6 +178,241 @@ function parseOrThrow<T>(schema: z.ZodType<T>, input: unknown): T {
   return parsed.data;
 }
 
+function addBindingIssue(
+  context: z.core.$RefinementCtx<unknown>,
+  path: PropertyKey[],
+  message: string,
+): void {
+  context.addIssue({ code: 'custom', path, message });
+}
+
+const capabilitySchema = z.enum(productionCapabilities);
+const scopeSchema = z.enum(productionScopes);
+const capabilityArraySchema = z
+  .array(capabilitySchema)
+  .min(1)
+  .max(productionCapabilities.length)
+  .refine((value) => new Set(value).size === value.length, 'Capabilities must be unique.');
+const scopeArraySchema = z
+  .array(scopeSchema)
+  .min(1)
+  .max(productionScopes.length)
+  .refine((value) => new Set(value).size === value.length, 'Scopes must be unique.');
+const nonEmptyStringArraySchema = z.array(nonEmptyStringSchema);
+
+const brandPolicySchema = z
+  .object({
+    facts: z.array(
+      z
+        .object({
+          factId: nonEmptyStringSchema,
+          text: nonEmptyStringSchema,
+          sourceReference: nonEmptyStringSchema,
+          approved: z.literal(true),
+        })
+        .strict(),
+    ),
+    prohibitedTerms: nonEmptyStringArraySchema,
+    requiredDisclosures: nonEmptyStringArraySchema,
+    sourceDigest: digestSchema,
+  })
+  .strict();
+
+const storyboardShotSchema = z
+  .object({
+    shotId: nonEmptyStringSchema,
+    sequence: z.number().int().positive(),
+    description: nonEmptyStringSchema,
+    durationSeconds: z.number().positive(),
+    sourceMode: z.enum(['uploaded', 'generated', 'mixed']),
+  })
+  .strict();
+
+const productionPackageV03Schema = z
+  .object({
+    objectType: z.literal('ProjectProductionPackage'),
+    contractVersion: z.literal('0.3'),
+    status: z.literal('ready'),
+    ...bindingFields,
+    idempotencyKey: idempotencyKeySchema,
+    occurredAt: canonicalTimestampSchema,
+    payloadDigest: digestSchema,
+    packageVersion: z.number().int().positive(),
+    organizationId: uuidSchema,
+    scriptVersionId: uuidSchema,
+    storyboardVersionId: uuidSchema,
+    approvedScriptDigest: digestSchema,
+    approvedStoryboardDigest: digestSchema,
+    briefSnapshot: z
+      .object({
+        briefVersionId: uuidSchema,
+        objective: nonEmptyStringSchema,
+        audience: nonEmptyStringArraySchema.min(1),
+        platforms: nonEmptyStringArraySchema.min(1),
+      })
+      .strict(),
+    brandPolicySnapshot: brandPolicySchema,
+    approvedScript: z
+      .object({
+        scriptVersionId: uuidSchema,
+        payloadDigest: digestSchema,
+        content: nonEmptyStringSchema,
+        approvedAt: canonicalTimestampSchema,
+        approvedBy: uuidSchema,
+      })
+      .strict(),
+    approvedStoryboard: z
+      .object({
+        storyboardVersionId: uuidSchema,
+        scriptVersionId: uuidSchema,
+        scriptPayloadDigest: digestSchema,
+        payloadDigest: digestSchema,
+        approvedAt: canonicalTimestampSchema,
+        approvedBy: uuidSchema,
+      })
+      .strict(),
+    storyboard: z.array(storyboardShotSchema).min(1),
+    target: z
+      .object({
+        aspectRatio: nonEmptyStringSchema,
+        durationSeconds: z.number().positive(),
+        container: z.literal('mp4'),
+        videoCodec: z.literal('h264'),
+      })
+      .strict(),
+    capabilityRequirements: capabilityArraySchema,
+    createdAt: canonicalTimestampSchema,
+    expiresAt: canonicalTimestampSchema,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.payloadDigest !== contractPayloadDigest(value)) {
+      addBindingIssue(context, ['payloadDigest'], 'Production Package payload digest mismatch.');
+    }
+    if (
+      value.approvedScript.scriptVersionId !== value.scriptVersionId ||
+      value.approvedScript.payloadDigest !== value.approvedScriptDigest
+    ) {
+      addBindingIssue(context, ['approvedScript'], 'Approved Script binding mismatch.');
+    }
+    if (
+      value.approvedStoryboard.storyboardVersionId !== value.storyboardVersionId ||
+      value.approvedStoryboard.scriptVersionId !== value.scriptVersionId ||
+      value.approvedStoryboard.scriptPayloadDigest !== value.approvedScriptDigest ||
+      value.approvedStoryboard.payloadDigest !== value.approvedStoryboardDigest
+    ) {
+      addBindingIssue(context, ['approvedStoryboard'], 'Approved Storyboard binding mismatch.');
+    }
+    if (new Date(value.expiresAt).getTime() <= new Date(value.createdAt).getTime()) {
+      addBindingIssue(context, ['expiresAt'], 'Production Package expiry is invalid.');
+    }
+    const shotIds = new Set<string>();
+    value.storyboard.forEach((shot, index) => {
+      if (shot.sequence !== index + 1 || shotIds.has(shot.shotId)) {
+        addBindingIssue(
+          context,
+          ['storyboard', index],
+          'Storyboard sequence or shot binding is invalid.',
+        );
+      }
+      shotIds.add(shot.shotId);
+    });
+  });
+
+const projectGrantSchema = z
+  .object({
+    objectType: z.literal('ProjectGrant'),
+    contractVersion: z.literal('0.2'),
+    ...bindingFields,
+    idempotencyKey: idempotencyKeySchema,
+    occurredAt: canonicalTimestampSchema,
+    payloadDigest: digestSchema,
+    grantId: uuidSchema,
+    capabilities: capabilityArraySchema,
+    scopes: scopeArraySchema,
+    tokenDigest: digestSchema,
+    keyId: redeemedBySchema,
+    issuedAt: canonicalTimestampSchema,
+    expiresAt: canonicalTimestampSchema,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.payloadDigest !== contractPayloadDigest(value)) {
+      addBindingIssue(context, ['payloadDigest'], 'Project Grant payload digest mismatch.');
+    }
+    if (new Date(value.expiresAt).getTime() <= new Date(value.issuedAt).getTime()) {
+      addBindingIssue(context, ['expiresAt'], 'Project Grant expiry is invalid.');
+    }
+  });
+
+const redemptionInputSchema = z
+  .object({
+    handle: handleSchema,
+    ...bindingFields,
+    idempotencyKey: idempotencyKeySchema,
+    redeemedBy: redeemedBySchema,
+  })
+  .strict();
+
+const redemptionResultSchema = z
+  .object({
+    objectType: z.literal('CanvasEntryRedemption'),
+    contractVersion: z.literal(CANVAS_ENTRY_REDEMPTION_CONTRACT_VERSION),
+    handle: handleSchema,
+    ...bindingFields,
+    consumedAt: canonicalTimestampSchema,
+    productionPackage: productionPackageV03Schema,
+    grant: projectGrantSchema,
+    tokenType: z.literal('Bearer'),
+    accessToken: accessTokenSchema,
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const binding = [value.tenantId, value.projectId, value.packageId] as const;
+    const packageBinding = [
+      value.productionPackage.tenantId,
+      value.productionPackage.projectId,
+      value.productionPackage.packageId,
+    ] as const;
+    const grantBinding = [
+      value.grant.tenantId,
+      value.grant.projectId,
+      value.grant.packageId,
+    ] as const;
+    if (binding.some((part, index) => part !== packageBinding[index])) {
+      addBindingIssue(context, ['productionPackage'], 'Production Package scope mismatch.');
+    }
+    if (binding.some((part, index) => part !== grantBinding[index])) {
+      addBindingIssue(context, ['grant'], 'Project Grant scope mismatch.');
+    }
+    if (value.productionPackage.organizationId !== value.tenantId) {
+      addBindingIssue(
+        context,
+        ['productionPackage', 'organizationId'],
+        'Organization binding mismatch.',
+      );
+    }
+    if (
+      value.grant.capabilities.some(
+        (capability) => !value.productionPackage.capabilityRequirements.includes(capability),
+      )
+    ) {
+      addBindingIssue(context, ['grant', 'capabilities'], 'Project Grant capability mismatch.');
+    }
+    if (tokenDigest(value.accessToken) !== value.grant.tokenDigest) {
+      addBindingIssue(context, ['accessToken'], 'Project Grant token digest mismatch.');
+    }
+    const consumedAt = new Date(value.consumedAt).getTime();
+    if (
+      consumedAt < new Date(value.grant.issuedAt).getTime() ||
+      consumedAt >= new Date(value.grant.expiresAt).getTime() ||
+      consumedAt < new Date(value.productionPackage.createdAt).getTime() ||
+      consumedAt >= new Date(value.productionPackage.expiresAt).getTime()
+    ) {
+      addBindingIssue(context, ['consumedAt'], 'Redemption authority time binding mismatch.');
+    }
+  });
+
 export function parseCanvasEntryHandle(input: unknown): string {
   return parseOrThrow(handleSchema, input);
 }
@@ -195,22 +443,6 @@ const createServiceInputSchema = z
   })
   .strict();
 
-const consumeServiceInputSchema = z
-  .object({
-    packageId: uuidSchema,
-    handle: handleSchema,
-  })
-  .strict();
-
-const consumedAuthorizationSchema = z
-  .object({
-    handle: handleSchema,
-    ...bindingFields,
-    grantId: uuidSchema,
-    consumedAt: canonicalTimestampSchema,
-  })
-  .strict();
-
 export function parseCanvasEntryUuid(input: unknown): string {
   return parseOrThrow(uuidSchema, input);
 }
@@ -222,16 +454,22 @@ export function parseCreateCanvasEntryInput(
   return parseOrThrow(createServiceInputSchema, input);
 }
 
-export function parseConsumeCanvasEntryInput(
-  input: unknown,
-): import('./types.js').ConsumeCanvasEntryInput {
+export function parseRedeemCanvasEntryInput(input: unknown): RedeemCanvasEntryInput {
   assertNonSecretBrowserPayload(input);
-  return parseOrThrow(consumeServiceInputSchema, input);
+  return parseOrThrow(redemptionInputSchema, input);
 }
 
-export function parseConsumedCanvasEntryAuthorization(
-  input: unknown,
-): import('./types.js').ConsumedCanvasEntryAuthorization {
-  assertNonSecretBrowserPayload(input);
-  return parseOrThrow(consumedAuthorizationSchema, input);
+const redeemResultSchema = z
+  .object({
+    value: redemptionResultSchema,
+    replayed: z.boolean(),
+  })
+  .strict();
+
+export function parseCanvasEntryRedemptionValue(input: unknown): CanvasEntryRedemptionValue {
+  return parseOrThrow(redemptionResultSchema, input) as CanvasEntryRedemptionValue;
+}
+
+export function parseRedeemCanvasEntryResult(input: unknown): RedeemCanvasEntryResult {
+  return parseOrThrow(redeemResultSchema, input) as RedeemCanvasEntryResult;
 }

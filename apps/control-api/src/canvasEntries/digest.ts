@@ -10,6 +10,10 @@ function canonicalJson(value: unknown): string {
     .join(',')}}`;
 }
 
+function hmacDigest(secret: string, value: unknown): string {
+  return `sha256:${createHmac('sha256', secret).update(canonicalJson(value), 'utf8').digest('hex')}`;
+}
+
 export type CanvasEntryRequestFacts = {
   tenantId: string;
   projectId: string;
@@ -19,15 +23,30 @@ export type CanvasEntryRequestFacts = {
   createdBy: string;
 };
 
+export type CanvasEntryRedemptionRequestFacts = {
+  handle: string;
+  tenantId: string;
+  projectId: string;
+  packageId: string;
+  idempotencyKey: string;
+  redeemedBy: string;
+};
+
 export function canvasEntryRequestDigest(secret: string, facts: CanvasEntryRequestFacts): string {
-  return `sha256:${createHmac('sha256', secret)
-    .update(
-      canonicalJson({
-        operation: 'canvas-entry.create',
-        contractVersion: '0.2',
-        ...facts,
-      }),
-      'utf8',
-    )
-    .digest('hex')}`;
+  return hmacDigest(secret, {
+    operation: 'canvas-entry.create',
+    contractVersion: '0.2',
+    ...facts,
+  });
+}
+
+export function canvasEntryRedemptionRequestDigest(
+  secret: string,
+  facts: CanvasEntryRedemptionRequestFacts,
+): string {
+  return hmacDigest(secret, {
+    operation: 'canvas-entry.redeem',
+    contractVersion: '0.1',
+    ...facts,
+  });
 }
