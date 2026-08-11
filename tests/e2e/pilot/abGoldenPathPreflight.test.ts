@@ -56,8 +56,15 @@ async function expectCode(
     assert.ok(error instanceof AbGoldenPathPreflightError);
     assert.equal(error.message, code);
     assert.equal(error.code, code);
+    assert.equal(error.stack, undefined);
+    const publicError = JSON.stringify({
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
     for (const value of forbiddenValues) {
-      assert.doesNotMatch(error.message, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      assert.doesNotMatch(publicError, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     }
     return true;
   });
