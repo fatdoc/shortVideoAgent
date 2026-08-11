@@ -60,6 +60,46 @@ export const pilotE2eFixtureIds = {
   commissionSettlement: '6d000000-0000-4000-8000-000000000001',
 } as const;
 
+export const PILOT_E2E_FIXTURE_CLOCK = '2026-08-11T00:00:00.000Z' as const;
+
+export const pilotE2eGoldenPathInputs = {
+  tenantId: pilotE2eFixtureIds.tenants.tenantA,
+  projectId: pilotE2eFixtureIds.project,
+  actorUserId: pilotE2eFixtureIds.users.tenantOperatorA,
+  actorMembershipId: pilotE2eFixtureIds.memberships.tenantOperatorA,
+  script: {
+    idempotencyKey: 'pilot-e2e-golden-script-v1',
+    payload: {
+      title: 'Pilot E2E Golden Path Script',
+      language: 'zh-CN',
+      synopsis: 'Deterministic TEST-only input; no LIVE production or payment meaning.',
+    },
+  },
+  storyboard: {
+    draftRevisionId: '6e000000-0000-4000-8000-000000000001',
+    shotId: '6e000000-0000-4000-8000-000000000002',
+    sourceCommandId: '6e000000-0000-4000-8000-000000000003',
+    sourceReceiptId: '6e000000-0000-4000-8000-000000000004',
+    idempotencyKey: 'pilot-e2e-golden-storyboard-v1',
+    generationPolicy: {
+      policyId: 'pilot-e2e-golden-path',
+      policyVersion: '1.0.0',
+    },
+  },
+  productionPackage: {
+    idempotencyKey: 'pilot-e2e-golden-package-v1',
+    capabilityRequirements: ['video.generate'] as const,
+    expiresInSeconds: 600,
+  },
+  canvasEntry: {
+    idempotencyKey: 'pilot-e2e-golden-canvas-entry-v1',
+    ttlSeconds: 120,
+  },
+  redemption: {
+    idempotencyKey: 'pilot-e2e-golden-redemption-v1',
+  },
+} as const;
+
 export const pilotE2eFixtureAccounts = {
   platformAdmin: {
     email: 'pilot-e2e-platform-admin@example.test',

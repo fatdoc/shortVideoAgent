@@ -15,14 +15,16 @@ import {
   type PilotE2eEnvironment,
 } from './environment.js';
 import {
+  PILOT_E2E_FIXTURE_CLOCK,
   createPilotE2eSecrets,
   pilotE2eFixtureAccounts,
   pilotE2eFixtureIds,
+  pilotE2eGoldenPathInputs,
   type PilotE2eAccountKey,
   type PilotE2eSecrets,
 } from './fixtures.js';
 
-const fixtureVersion = 1;
+const fixtureVersion = 2 as const;
 const digest = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
 const termsContent = [
   '# Pilot E2E 服务条款',
@@ -31,7 +33,8 @@ const termsContent = [
 ].join('\n');
 
 export type PilotE2eSeedSummary = {
-  fixtureVersion: 1;
+  fixtureVersion: typeof fixtureVersion;
+  fixtureClock: typeof PILOT_E2E_FIXTURE_CLOCK;
   migrationCount: number;
   organizationCount: number;
   channelCount: number;
@@ -46,6 +49,14 @@ export type PilotE2eSeedSummary = {
   paymentEventCount: number;
   commissionAccrualCount: number;
   commissionSettlementDraftCount: number;
+  scriptVersionCount: number;
+  scriptApprovalCount: number;
+  storyboardVersionCount: number;
+  storyboardApprovalCount: number;
+  productionPackageCount: number;
+  projectGrantCount: number;
+  canvasEntryCount: number;
+  canvasEntryRedemptionCount: number;
   liveFactCount: number;
   activeSessionCount: number;
   seedFingerprint: string;
@@ -117,7 +128,7 @@ async function passwordHashes(
 export async function seedPilotE2eDatabase(
   database: Knex,
   secrets: PilotE2eSecrets,
-  now: Date = new Date(),
+  now: Date = new Date(PILOT_E2E_FIXTURE_CLOCK),
 ): Promise<void> {
   const ids = pilotE2eFixtureIds;
   const hashes = await passwordHashes(secrets);
@@ -562,6 +573,14 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
     paymentEventCount,
     commissionAccrualCount,
     commissionSettlementDraftCount,
+    scriptVersionCount,
+    scriptApprovalCount,
+    storyboardVersionCount,
+    storyboardApprovalCount,
+    productionPackageCount,
+    projectGrantCount,
+    canvasEntryCount,
+    canvasEntryRedemptionCount,
     activeSessionCount,
   ] = await Promise.all([
     tableCount(database, 'public.control_api_migrations'),
@@ -588,6 +607,19 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
         .count('* as count')
         .first(),
     ),
+    tableCount(database, 'control_plane.script_versions'),
+    tableCount(database, 'control_plane.script_approvals'),
+    tableCount(database, 'control_plane.storyboard_versions'),
+    tableCount(database, 'control_plane.storyboard_approvals'),
+    tableCount(database, 'control_plane.production_packages'),
+    tableCount(database, 'control_plane.project_grants'),
+    tableCount(database, 'control_plane.canvas_entries'),
+    countValue(
+      await database('control_plane.canvas_entries')
+        .whereNotNull('redemption_idempotency_key')
+        .count('* as count')
+        .first(),
+    ),
     countValue(
       await database('control_plane.auth_sessions')
         .whereNull('revoked_at')
@@ -607,7 +639,9 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
   const liveFactCount = countValue(liveRows.rows[0]);
   const fingerprintFacts = {
     fixtureVersion,
+    fixtureClock: PILOT_E2E_FIXTURE_CLOCK,
     ids: pilotE2eFixtureIds,
+    goldenPathInputs: pilotE2eGoldenPathInputs,
     migrationCount,
     organizationCount,
     channelCount,
@@ -622,12 +656,21 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
     paymentEventCount,
     commissionAccrualCount,
     commissionSettlementDraftCount,
+    scriptVersionCount,
+    scriptApprovalCount,
+    storyboardVersionCount,
+    storyboardApprovalCount,
+    productionPackageCount,
+    projectGrantCount,
+    canvasEntryCount,
+    canvasEntryRedemptionCount,
     liveFactCount,
     activeSessionCount,
   };
 
   const summary: PilotE2eSeedSummary = {
-    fixtureVersion: 1,
+    fixtureVersion,
+    fixtureClock: PILOT_E2E_FIXTURE_CLOCK,
     migrationCount,
     organizationCount,
     channelCount,
@@ -642,6 +685,14 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
     paymentEventCount,
     commissionAccrualCount,
     commissionSettlementDraftCount,
+    scriptVersionCount,
+    scriptApprovalCount,
+    storyboardVersionCount,
+    storyboardApprovalCount,
+    productionPackageCount,
+    projectGrantCount,
+    canvasEntryCount,
+    canvasEntryRedemptionCount,
     liveFactCount,
     activeSessionCount,
     seedFingerprint: digest(JSON.stringify(fingerprintFacts)),
@@ -662,6 +713,14 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
     paymentEventCount: 1,
     commissionAccrualCount: 1,
     commissionSettlementDraftCount: 1,
+    scriptVersionCount: 0,
+    scriptApprovalCount: 0,
+    storyboardVersionCount: 0,
+    storyboardApprovalCount: 0,
+    productionPackageCount: 0,
+    projectGrantCount: 0,
+    canvasEntryCount: 0,
+    canvasEntryRedemptionCount: 0,
     liveFactCount: 0,
     activeSessionCount: 0,
   };
