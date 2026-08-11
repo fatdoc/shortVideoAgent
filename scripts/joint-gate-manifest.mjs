@@ -13,11 +13,12 @@ export const JOINT_GATE_PHASE_IDS = [
   'migration-rollback-reapply',
 ];
 
-const command = (executable, args, cwd = '.') => ({
+const command = (executable, args, cwd = '.', environment) => ({
   executable,
   args,
   cwd,
   shell: false,
+  ...(environment === undefined ? {} : { environment }),
 });
 
 export const jointGatePhases = [
@@ -95,7 +96,11 @@ export const jointGatePhases = [
     availability: 'external',
     description:
       'Verify canonical Project Context through approved Script, Storyboard draft, Production Package, and Canvas entry.',
-    commands: [command('npm', ['run', 'test:e2e:pilot:ab-golden-path'])],
+    commands: [
+      command('npm', ['run', 'test:e2e:pilot:ab-golden-path'], '.', {
+        PILOT_E2E_AB_GOLDEN_PATH: 'true',
+      }),
+    ],
     preconditions: [
       {
         type: 'environment',
