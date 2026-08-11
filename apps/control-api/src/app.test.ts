@@ -235,6 +235,28 @@ describe('Control API health contract', () => {
     expect(response.body).toEqual({ mounted: true });
   });
 
+  it('mounts the independent internal Canvas Entry redemption router under /api/v1/internal', async () => {
+    const internalCanvasEntryRouter = Router();
+    internalCanvasEntryRouter.post('/canvas-entries/redeem', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const dependencies = {
+      appVersion: 'test-version',
+      nodeEnv: 'test' as const,
+      readinessProbe: async () => undefined,
+      internalCanvasEntryRouter,
+    };
+    const application = createApp(dependencies);
+
+    const response = await request(application)
+      .post('/api/v1/internal/canvas-entries/redeem')
+      .set('x-request-id', 'canvas-redemption-bootstrap-red')
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
   it('fails closed when Storyboard and Canvas Entry routers are not registered', async () => {
     const application = testApp(async () => undefined);
     const [storyboardResponse, canvasEntryResponse] = await Promise.all([
