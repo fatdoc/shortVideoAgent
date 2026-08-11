@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E.0 `COMPLETE / WAITING_FOR_B_BASELINE` / A-BIZ-06F `PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED` / `FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A-BIZ-06F.1 Migration Gate Environment/Destructive Guard RED；06E Golden Path 等待 B-owned Wave 4 clean baseline
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `B_BASELINE_SYNCED / READY_FOR_06E_1_RED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A-BIZ-06E.1 Storyboard authority/bootstrap contract RED；B Wave 4 baseline 已进入 A integration ancestor chain，Golden Path 功能仍未实现
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-10
+- 最近更新：2026-08-11
 
 ## 2026-07-30 单前端收口
 
@@ -1253,3 +1253,13 @@
 - **共享通知给 B**：修改 `scripts/joint-gate-manifest.mjs` / `scripts/run-joint-gate.mjs` 前必须同步 `018190d`；该提交已激活 migration phase，不能恢复旧 06F slice blocker。
 - StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push，5173/10588 服务继续运行。
 - 当前状态：`A_BIZ_06F_1_TO_5_COMPLETE / MIGRATION_ROLLBACK_PHASE_READY / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。06F.6 只有 06E Golden Path、同步 B baseline 与全部 required phases 零 SKIP 后才可执行。
+
+## 2026-08-11 A-BIZ-06E B Wave 4 Baseline 同步验收
+
+- 已将 B 远程提交 `f68ac6a551231243d10978e9a798286672dd95e6` 以 `--ff-only` 同步到 `dev/business-plane`；其直接 parent 为 A baseline `c449508d2ad13e68cb55680cb882cac91de83325`，当前 A `HEAD` 即该 B commit。
+- commit object、remote-tracking ref 与 ancestor attestation 均通过；B response commit 的 tracked diff 仅新增 `docs/collaboration/production-plane/B_TO_A_AGENT_WAVE4_BASELINE_RESPONSE_2026-08-10.md`。
+- `npm run test:joint-gate:manifest` 为 `13/13 PASS`；`test:joint-gate:plan` 只列 `NOT_RUN`；以 dedicated `_test` URL 形状和已同步 B SHA 执行安全 Full preflight 时，仅返回 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，未执行 required commands，未输出 `JOINT_GATE_PASS`。
+- Baseline blocker 已解除，但 Storyboard Draft/Version/Approval authority、approved Script + Storyboard Package eligibility、server-mediated non-secret Canvas Entry、B Pilot pages、共享激活与真实 Chrome/PostgreSQL Golden Path 仍未实现。
+- 下一原子切片为 06E.1 A-owned Storyboard authority/bootstrap contract RED；首个 RED：缺 approved Script digest 或 source Receipt 的 Storyboard Draft provenance envelope 必须 fail closed。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`B_WAVE4_BASELINE_SYNCED / B_BASELINE_ANCESTOR_ATTESTED / READY_FOR_06E_1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

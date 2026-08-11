@@ -115,6 +115,7 @@
 | 2026-08-10 | 冻结 A-BIZ-06C Pilot Operations UI：先补 Terms Document/Version bounded reads 与 Invitation bounded list，再交付 strict Client、Terms/Invitation/Member 页面和单独 Router/Layout 激活；Token/Scope/Terms 正文 fail closed                                 | A_BIZ_06C_PLAN_FROZEN                          |
 | 2026-08-10 | 冻结 A-BIZ-06E A/B Golden Path Joint Gate：先加固 B baseline commit attestation，再冻结 B Storyboard Draft → A authority/approval → Package 与 server-mediated Canvas Entry；缺 Wave 4 clean baseline 时保持阻断                                          | A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE |
 | 2026-08-10 | A-BIZ-06E.0 完成 B baseline attestation：Full Gate 要求完整 commit object 且为当前 HEAD ancestor；missing/invalid/not-ancestor fail closed，manifest 12/12 PASS，06E/06F blockers 保留                                                                    | A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE  |
+| 2026-08-11 | B Wave 4 baseline `f68ac6a` 已 fast-forward 进入 A integration ancestor chain；response commit 仅新增一份 B 文档，manifest 13/13 PASS，Full preflight 仅保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`                                                             | B_BASELINE_SYNCED / READY_FOR_06E_1_RED        |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -393,3 +394,12 @@
 - `26e0819` / `018190d` 将 Joint Gate `migration-rollback-reapply` phase 激活为 `ready`，保留 dedicated DB precondition并移除旧 06F blocker；Full preflight 继续因 06E Golden Path/B baseline fail closed。
 - Root README、Control API README 与 Pilot E2E README 已补 migration 操作、安全边界、TEST Commercial 口径和逐 phase Final Report Contract。
 - 共享通知：B 修改 Joint Gate manifest/runner 前同步 `018190d`。状态：`A_BIZ_06F_1_TO_5_COMPLETE / MIGRATION_ROLLBACK_PHASE_READY / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · B Wave 4 Baseline Synchronized
+
+- `origin/dev/production-plane@f68ac6a551231243d10978e9a798286672dd95e6` 已以 `--ff-only` 进入 A `dev/business-plane`；A baseline `c449508d2ad13e68cb55680cb882cac91de83325` 是其直接 parent。
+- commit object、remote ref、ancestor 与单文件 diff 验证通过；B commit 仅新增 baseline response 文档。
+- Joint Gate manifest `13/13 PASS`，plan 不执行命令；使用 dedicated `_test` URL 形状与 attested B SHA 的 Full preflight 只返回 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，没有 baseline blocker 或 `JOINT_GATE_PASS`。
+- Baseline 同步不等于 Golden Path 完成；06E.1～06E.6 的 Storyboard authority、Package eligibility、non-secret Canvas Entry、B Pilot pages、共享激活、真实浏览器/PostgreSQL Gate 和 phase activation 仍保持未完成。
+- StoryCanvas tracked clean，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+- 状态：`B_WAVE4_BASELINE_SYNCED / B_BASELINE_ANCESTOR_ATTESTED / A_BIZ_06E_1_READY / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

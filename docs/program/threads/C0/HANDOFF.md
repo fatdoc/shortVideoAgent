@@ -906,3 +906,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Payment/Commission/Settlement 证据全部为 TEST Pilot；Settlement 仅 `TEST / draft / NON_QUOTE`，不是 paid、到账、提现或自动打款。Provider unavailable 只证明 fail closed，不证明媒体质量或生产 SLA。
 - 06F.6 当前不得执行：`A_BIZ_06F_1_TO_5_COMPLETE / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。禁止提前写入 `A_BIZ_06_COMPLETE` 或 `JOINT_GATE_PASS`。
 - StoryCanvas tracked clean；B-owned `apps/storycanvas/data/vendor/byteplus.ts` 仍未跟踪且不得修改、暂存或提交；不 push，5173/10588 服务继续运行。
+
+## A-BIZ-06E B Wave 4 Baseline 同步交接（2026-08-11）
+
+- B handoff `f68ac6a551231243d10978e9a798286672dd95e6` 已以 fast-forward 进入 A integration history；其直接 parent/A baseline 为 `c449508d2ad13e68cb55680cb882cac91de83325`，commit object 与 ancestor 均已验证。
+- B 提交只新增 `docs/collaboration/production-plane/B_TO_A_AGENT_WAVE4_BASELINE_RESPONSE_2026-08-10.md`，没有 A-owned、shared 或 StoryCanvas tracked 修改。
+- 本地复验：Joint Gate manifest `13/13 PASS`；plan 全部 `NOT_RUN`；安全 Full preflight 仅以退出码 `2` 报告 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，不再报告 B baseline attestation blocker，不执行数据库、浏览器或其他 required command。
+- 这只解除 Git baseline 前置，不代表 06E Golden Path 完成。Storyboard authority/bootstrap、Production eligibility、server-mediated Canvas Entry、B Pilot pages、共享 Router/Bridge、真实 Chrome/PostgreSQL Gate 与 Joint Gate activation 仍待实现。
+- 06E.1 开始后写集保持：A-owned Storyboard authority 与测试独立提交；共享 Bootstrap/合同独立提交并通知 B；不得修改 StoryCanvas，不得移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。
+- 首个 RED：`rejects a Storyboard Draft provenance envelope that omits the approved Script digest or source Receipt`。
+- B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续保留且排除；当前不宣称 `JOINT_GATE_PASS`。
+- 状态：`B_WAVE4_BASELINE_SYNCED / B_BASELINE_ANCESTOR_ATTESTED / A_BIZ_06E_1_READY / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
