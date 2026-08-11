@@ -20,6 +20,7 @@ export const CONTROL_API_MIGRATION_NAMES = [
   '019_harden_legacy_membership_shadow.ts',
   '020_storyboard_authority.ts',
   '021_canvas_entries.ts',
+  '022_production_storyboard_authority.ts',
 ] as const;
 
 export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
@@ -32,6 +33,7 @@ export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
   'project_assignment_backfill_runs',
   'project_assignments',
   'project_grants',
+  'production_packages',
   'projects',
   'storyboard_approvals',
   'storyboard_versions',
