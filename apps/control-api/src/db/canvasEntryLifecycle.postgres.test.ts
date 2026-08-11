@@ -7,6 +7,10 @@ import {
   down as removeCanvasEntryLifecycle,
   up as addCanvasEntryLifecycle,
 } from './migrations/021_canvas_entries.js';
+import {
+  down as removeCanvasEntryGrantPackageBinding,
+  up as addCanvasEntryGrantPackageBinding,
+} from './migrations/023_canvas_entry_grant_package_binding.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
@@ -18,6 +22,7 @@ const userId = '21000000-0000-4000-8000-000000000003';
 const projectId = '21000000-0000-4000-8000-000000000004';
 const scriptVersionId = '21000000-0000-4000-8000-000000000005';
 const packageId = '21000000-0000-4000-8000-000000000006';
+const otherPackageId = '21000000-0000-4000-8000-000000000014';
 const grantId = '21000000-0000-4000-8000-000000000007';
 const canvasEntryId = '21000000-0000-4000-8000-000000000008';
 const digestA = `sha256:${'a'.repeat(64)}`;
@@ -62,22 +67,40 @@ async function resetFoundation(database: Knex): Promise<void> {
     payload_digest: digestA,
     created_by: userId,
   });
-  await database('control_plane.production_packages').insert({
-    package_id: packageId,
-    tenant_id: tenantId,
-    project_id: projectId,
-    contract_version: '0.2',
-    idempotency_key: 'package-001',
-    package_digest: digestB,
-    snapshot: { approvedScript: { scriptVersionId } },
-    status: 'ready',
-    valid_from: issuedAt,
-    expires_at: '2026-08-11T01:15:00.000Z',
-    package_version: 1,
-    organization_id: tenantId,
-    approved_script_version_id: scriptVersionId,
-    created_by: userId,
-  });
+  await database('control_plane.production_packages').insert([
+    {
+      package_id: packageId,
+      tenant_id: tenantId,
+      project_id: projectId,
+      contract_version: '0.2',
+      idempotency_key: 'package-001',
+      package_digest: digestB,
+      snapshot: { approvedScript: { scriptVersionId } },
+      status: 'ready',
+      valid_from: issuedAt,
+      expires_at: '2026-08-11T01:15:00.000Z',
+      package_version: 1,
+      organization_id: tenantId,
+      approved_script_version_id: scriptVersionId,
+      created_by: userId,
+    },
+    {
+      package_id: otherPackageId,
+      tenant_id: tenantId,
+      project_id: projectId,
+      contract_version: '0.2',
+      idempotency_key: 'package-002',
+      package_digest: digestA,
+      snapshot: { approvedScript: { scriptVersionId } },
+      status: 'ready',
+      valid_from: issuedAt,
+      expires_at: '2026-08-11T01:15:00.000Z',
+      package_version: 2,
+      organization_id: tenantId,
+      approved_script_version_id: scriptVersionId,
+      created_by: userId,
+    },
+  ]);
   await database('control_plane.project_grants').insert({
     grant_id: grantId,
     tenant_id: tenantId,
@@ -124,6 +147,7 @@ describe.runIf(hasDedicatedTestDatabase)('canvas entry lifecycle migration', () 
     database ??= knex({ client: 'pg', connection: databaseUrl });
     await resetFoundation(database);
     await addCanvasEntryLifecycle(database);
+    await addCanvasEntryGrantPackageBinding(database);
   });
 
   afterAll(async () => {
@@ -161,6 +185,63 @@ describe.runIf(hasDedicatedTestDatabase)('canvas entry lifecycle migration', () 
         }),
       ),
     ).rejects.toThrow(/foreign key|constraint/i);
+  });
+
+  it('binds each canvas entry to the exact package carried by its grant', async () => {
+    const grantUniqueConstraint = await database.raw<{
+      rows: Array<{ definition: string }>;
+    }>(
+      `select pg_get_constraintdef(oid) as definition
+       from pg_constraint
+       where conname = 'project_grants_id_package_project_tenant_uq'`,
+    );
+    expect(grantUniqueConstraint.rows[0]?.definition).toBe(
+      'UNIQUE (grant_id, package_id, project_id, tenant_id)',
+    );
+
+    const canvasGrantForeignKey = await database.raw<{
+      rows: Array<{ definition: string }>;
+    }>(
+      `select pg_get_constraintdef(oid) as definition
+       from pg_constraint
+       where conname = 'canvas_entries_grant_package_project_tenant_fk'`,
+    );
+    expect(canvasGrantForeignKey.rows[0]?.definition).toBe(
+      'FOREIGN KEY (grant_id, package_id, project_id, tenant_id) REFERENCES control_plane.project_grants(grant_id, package_id, project_id, tenant_id)',
+    );
+
+    await database('control_plane.canvas_entries').insert(canvasEntryRow());
+    await expect(
+      database('control_plane.canvas_entries').insert(
+        canvasEntryRow({
+          canvas_entry_id: '21000000-0000-4000-8000-000000000015',
+          handle: `ce_${'f'.repeat(32)}`,
+          package_id: otherPackageId,
+          idempotency_key: 'canvas-entry-wrong-grant-package',
+          request_digest: digestB,
+        }),
+      ),
+    ).rejects.toThrow(/foreign key|constraint/i);
+  });
+
+  it('supports empty rollback and reapply of the exact grant/package binding', async () => {
+    await removeCanvasEntryGrantPackageBinding(database);
+
+    const rollbackConstraints = await database('pg_constraint')
+      .select('conname')
+      .whereIn('conname', [
+        'project_grants_id_package_project_tenant_uq',
+        'canvas_entries_grant_package_project_tenant_fk',
+        'canvas_entries_grant_project_tenant_fk',
+      ]);
+    expect(rollbackConstraints.map(({ conname }) => conname).sort()).toEqual([
+      'canvas_entries_grant_project_tenant_fk',
+    ]);
+
+    await addCanvasEntryGrantPackageBinding(database);
+    await expect(
+      database('control_plane.canvas_entries').insert(canvasEntryRow()),
+    ).resolves.toBeDefined();
   });
 
   it('enforces the opaque handle, request digest, project-scoped idempotency, and frozen TTL boundary', async () => {
