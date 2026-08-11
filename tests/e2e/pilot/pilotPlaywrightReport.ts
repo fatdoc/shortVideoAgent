@@ -57,7 +57,7 @@ function isRecord(value: unknown): value is JsonRecord {
 function parseReport(input: unknown): JsonRecord {
   if (input === undefined || input === null) fail(REPORT_REQUIRED);
 
-  let report = input;
+  let report: unknown = input;
   if (typeof input === 'string') {
     if (input.trim().length === 0) fail(REPORT_REQUIRED);
     try {
