@@ -214,6 +214,55 @@ test('uses only local shell-false Git probes and defaults the unfrozen B capabil
   ]);
 });
 
+test('distinguishes a valid non-ancestor from invalid local Git ancestor probes', async () => {
+  const cases: Array<{
+    ancestorOutcome: number | null | Error;
+    expectedCode:
+      'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR' | 'JOINT_GATE_B_BASELINE_COMMIT_INVALID';
+  }> = [
+    { ancestorOutcome: 1, expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR' },
+    { ancestorOutcome: 128, expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' },
+    { ancestorOutcome: null, expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' },
+    {
+      ancestorOutcome: new Error(`fatal: baseline-secret ${BASELINE_COMMIT}`),
+      expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID',
+    },
+  ];
+
+  for (const { ancestorOutcome, expectedCode } of cases) {
+    const outcomes: Array<number | null | Error> = [0, ancestorOutcome];
+    const invocations: string[][] = [];
+    const local = createLocalAbGoldenPathPreflightDependencies({
+      repositoryRoot: '/private/tmp/fake-runner-path',
+      spawnSyncImpl: (_command, args) => {
+        invocations.push(args);
+        const outcome = outcomes.shift();
+        if (outcome instanceof Error) throw outcome;
+        return { status: outcome ?? null };
+      },
+    });
+    const probes = runnerDependencies({
+      commitExists: local.commitExists,
+      isCommitAncestor: local.isCommitAncestor,
+    });
+
+    await expectSafeCode(
+      runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+      expectedCode,
+    );
+
+    assert.deepEqual(invocations, [
+      ['cat-file', '-e', `${BASELINE_COMMIT}^{commit}`],
+      ['merge-base', '--is-ancestor', BASELINE_COMMIT, 'HEAD'],
+    ]);
+    assert.equal(probes.calls.consumer, 0);
+    assert.equal(probes.calls.read, 0);
+    assert.equal(probes.calls.reset, 0);
+    assert.equal(probes.calls.spawn, 0);
+    assert.equal(probes.calls.network, 0);
+  }
+});
+
 test('reuses the frozen spec, report, and artifact oracles without declaring gate completion', async () => {
   const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-ab-runner-evidence-'));
   try {
