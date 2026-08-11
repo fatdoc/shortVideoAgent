@@ -37,9 +37,8 @@ export type StoryboardShot = {
   sourceMode: 'uploaded' | 'generated' | 'mixed';
 };
 
-export type ProjectProductionPackage = {
+type ProjectProductionPackageBase = {
   objectType: 'ProjectProductionPackage';
-  contractVersion: '0.2';
   tenantId: string;
   projectId: string;
   idempotencyKey: string;
@@ -55,13 +54,6 @@ export type ProjectProductionPackage = {
     platforms: string[];
   };
   brandPolicySnapshot: BrandPolicySnapshot;
-  approvedScript: {
-    scriptVersionId: string;
-    content: string;
-    approvedAt: string;
-    approvedBy: string;
-  };
-  storyboard: StoryboardShot[];
   target: {
     aspectRatio: string;
     durationSeconds: number;
@@ -72,6 +64,48 @@ export type ProjectProductionPackage = {
   createdAt: string;
   expiresAt: string;
 };
+
+export type ProjectProductionPackageV02 = ProjectProductionPackageBase & {
+  contractVersion: '0.2';
+  approvedScript: {
+    scriptVersionId: string;
+    content: string;
+    approvedAt: string;
+    approvedBy: string;
+  };
+  storyboard: StoryboardShot[];
+};
+
+/**
+ * Immutable server-side Production Package v0.3 snapshot. HTTP routes must
+ * project this internal authority evidence to the strict browser-safe DTO.
+ */
+export type ProjectProductionPackageV03 = ProjectProductionPackageBase & {
+  contractVersion: '0.3';
+  status: 'ready';
+  scriptVersionId: string;
+  storyboardVersionId: string;
+  approvedScriptDigest: string;
+  approvedStoryboardDigest: string;
+  approvedScript: {
+    scriptVersionId: string;
+    payloadDigest: string;
+    content: string;
+    approvedAt: string;
+    approvedBy: string;
+  };
+  approvedStoryboard: {
+    storyboardVersionId: string;
+    scriptVersionId: string;
+    scriptPayloadDigest: string;
+    payloadDigest: string;
+    approvedAt: string;
+    approvedBy: string;
+  };
+  storyboard: StoryboardShot[];
+};
+
+export type ProjectProductionPackage = ProjectProductionPackageV02 | ProjectProductionPackageV03;
 
 export type ProjectGrant = {
   objectType: 'ProjectGrant';
@@ -93,8 +127,18 @@ export type ProjectGrant = {
 
 export type CreatePackageInput = {
   scriptVersionId: string;
+  storyboardVersionId: string;
   capabilityRequirements: ProductionCapability[];
   expiresInSeconds: number;
+};
+
+/**
+ * Temporary HTTP boundary used until the strict Package v0.3 route slice lands.
+ * Repository callers use CreatePackageInput and fail closed when the Storyboard
+ * authority ID is absent.
+ */
+export type TransitionalCreatePackageInput = Omit<CreatePackageInput, 'storyboardVersionId'> & {
+  storyboardVersionId?: string;
 };
 
 export type IssueGrantInput = {
@@ -123,7 +167,7 @@ export interface ProductionStore {
   createPackage(
     actor: SessionActor,
     projectId: string,
-    input: CreatePackageInput,
+    input: TransitionalCreatePackageInput,
     idempotency: IdempotencyInput,
   ): Promise<IdempotentResult<ProjectProductionPackage> | null>;
   getPackage(
