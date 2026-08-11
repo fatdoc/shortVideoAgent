@@ -253,6 +253,51 @@ test('reuses the frozen spec, report, and artifact oracles without declaring gat
   }
 });
 
+test('rejects sensitive values embedded in an otherwise passing Playwright report', async () => {
+  const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-ab-runner-report-evidence-'));
+  const secret = 'FAKE_REPORT_RAW_GRANT_TOKEN_DO_NOT_USE_20260811';
+  try {
+    await assert.rejects(
+      validateAbGoldenPathEvidence({
+        specSource: `
+          import { test } from '@playwright/test';
+          test('synthetic evidence only', async () => { await Promise.resolve(); });
+        `,
+        playwrightReport: {
+          suites: [
+            {
+              title: 'A/B Golden Path evidence',
+              specs: [
+                {
+                  title: 'synthetic evidence only',
+                  tests: [
+                    {
+                      expectedStatus: 'passed',
+                      annotations: [],
+                      results: [{ status: 'passed', stdout: [{ text: secret }] }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          stats: { expected: 1, skipped: 0, unexpected: 0, flaky: 0 },
+        },
+        artifactRoot,
+        secrets: [secret],
+      }),
+      (error: Error) => {
+        assert.equal(error.message, 'PILOT_E2E_IN_MEMORY_SECRET_LEAK');
+        assert.doesNotMatch(error.message, new RegExp(secret));
+        assert.doesNotMatch(error.message, /stdout|playwright/i);
+        return true;
+      },
+    );
+  } finally {
+    await rm(artifactRoot, { recursive: true, force: true });
+  }
+});
+
 test('normalizes unexpected runner failures to a fixed non-leaking code', async () => {
   const probes = runnerDependencies({
     commitExists: async () => {

@@ -3,7 +3,10 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { assertPilotBrowserArtifactsSafe } from './pilotArtifactSecurity.js';
+import {
+  assertPilotBrowserArtifactsSafe,
+  assertPilotInMemoryEvidenceSafe,
+} from './pilotArtifactSecurity.js';
 
 const FAKE_SENSITIVE_VALUES = [
   ['internal redemption token', 'FAKE_INTERNAL_REDEMPTION_TOKEN_DO_NOT_USE_0001'],
@@ -230,6 +233,72 @@ test('rejects legacy Demo, Mock, and browser Grant chain markers without echoing
       await rm(serviceRoot, { recursive: true, force: true });
     }
   }
+});
+
+test('rejects nested in-memory Golden Path secrets and structured markers without echoing evidence', () => {
+  const secret = 'FAKE_IN_MEMORY_RAW_GRANT_TOKEN_DO_NOT_USE_20260811';
+  for (const [evidence, code] of [
+    [
+      { suites: [{ specs: [{ tests: [{ results: [{ stdout: [{ text: secret }] }] }] }] }] },
+      'PILOT_E2E_IN_MEMORY_SECRET_LEAK',
+    ],
+    [
+      {
+        suites: [
+          { specs: [{ tests: [{ results: [{ stderr: ['grantId=FAKE_GRANT_ID_DO_NOT_USE'] }] }] }] },
+        ],
+      },
+      'PILOT_E2E_IN_MEMORY_SENSITIVE_MARKER_LEAK',
+    ],
+    [
+      { error: { message: 'PostgresError: synthetic database diagnostic' } },
+      'PILOT_E2E_IN_MEMORY_SENSITIVE_MARKER_LEAK',
+    ],
+  ] as const) {
+    assert.throws(
+      () => assertPilotInMemoryEvidenceSafe(evidence, [secret]),
+      (error: Error) => {
+        assert.equal(error.message, code);
+        assert.doesNotMatch(error.message, new RegExp(escapeRegExp(secret)));
+        assert.doesNotMatch(error.message, /stdout|stderr|grantId|PostgresError/);
+        return true;
+      },
+    );
+  }
+});
+
+test('fails closed on cyclic or unreadable in-memory Golden Path evidence', () => {
+  const cyclic: { self?: unknown } = {};
+  cyclic.self = cyclic;
+  const unreadable = Object.defineProperty({}, 'unsafe', {
+    enumerable: true,
+    get() {
+      throw new Error('FAKE_GETTER_SECRET_DO_NOT_USE');
+    },
+  });
+
+  for (const evidence of [cyclic, unreadable]) {
+    assert.throws(
+      () => assertPilotInMemoryEvidenceSafe(evidence, []),
+      (error: Error) => {
+        assert.equal(error.message, 'PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+        assert.doesNotMatch(error.message, /FAKE_GETTER_SECRET|unsafe|self/);
+        return true;
+      },
+    );
+  }
+});
+
+test('accepts bounded secret-free in-memory Golden Path evidence', () => {
+  assert.doesNotThrow(() =>
+    assertPilotInMemoryEvidenceSafe(
+      {
+        suites: [{ title: 'A/B Golden Path', specs: [{ title: 'safe browser workflow' }] }],
+        stats: { expected: 1, skipped: 0, unexpected: 0, flaky: 0 },
+      },
+      ['FAKE_SECRET_NOT_PRESENT_20260811'],
+    ),
+  );
 });
 
 test('accepts synthetic secret-free service output', async () => {
