@@ -1,13 +1,12 @@
-import {
-  spawn,
-  type ChildProcessWithoutNullStreams,
-  type SpawnOptionsWithoutStdio,
-} from 'node:child_process';
+import { spawn, type ChildProcessByStdio, type SpawnOptionsWithoutStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
 
 const DEFAULT_OUTPUT_LIMIT_BYTES = 64 * 1024;
 const DEFAULT_READINESS_INTERVAL_MS = 50;
 const DEFAULT_STOP_TIMEOUT_MS = 5_000;
 const MIN_TIMEOUT_MS = 1;
+
+type PilotChildProcess = ChildProcessByStdio<null, Readable, Readable>;
 
 export interface PilotProcessOutput {
   stdout: string;
@@ -116,7 +115,7 @@ function delay<T>(milliseconds: number, value: T): Promise<T> {
 }
 
 class ManagedPilotProcess implements PilotManagedProcess {
-  readonly #child: ChildProcessWithoutNullStreams;
+  readonly #child: PilotChildProcess;
   readonly #outputLimitBytes: number;
   readonly #readinessIntervalMs: number;
   readonly #readinessTimeoutMs: number;
@@ -132,7 +131,7 @@ class ManagedPilotProcess implements PilotManagedProcess {
   #stopped = false;
 
   constructor(
-    child: ChildProcessWithoutNullStreams,
+    child: PilotChildProcess,
     spec: PilotProcessSpec,
     validated: ReturnType<typeof validateSpec>,
     onStopped: (process: ManagedPilotProcess) => void,
@@ -286,7 +285,7 @@ export class PilotProcessHarness {
       throw fixedError('PILOT_E2E_PROCESS_CONFIG_INVALID');
     }
 
-    let child: ChildProcessWithoutNullStreams;
+    let child: PilotChildProcess;
     try {
       const spawnOptions: SpawnOptionsWithoutStdio = {
         cwd: spec.cwd,
