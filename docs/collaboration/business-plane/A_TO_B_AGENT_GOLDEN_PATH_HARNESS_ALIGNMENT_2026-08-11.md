@@ -2,7 +2,7 @@
 
 - 日期：2026-08-11
 - A 分支：`dev/business-plane`
-- A 本地实现 HEAD：`37aab02`
+- A 本地实现 HEAD：`963c85f`
 - A/B 共同同步 baseline：`a7f8021b80f540c69e4c45718b335ba2c0fca539`
 - 状态：`A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED`
 
@@ -27,6 +27,7 @@ A 已完成 06E.5A fixture lifecycle、06E.5B runner prerequisites、fail-closed
 | static no-skip policy             | `aad90da` | `32d70ac` | 拒绝 `.only/.skip/.fixme`、空 spec、超限 spec；最终事实仍以 JSON report 为准              |
 | Joint Gate runner wiring          | `cad93d9` | `ed7adee` | root script/manifest 委托 fail-closed runner；phase 保持 `external` 与 slice blocker      |
 | fail-closed runner skeleton       | `2b5154c` | `37aab02` | preflight-first；缺 B capability 时 reset/spawn/readiness 前固定阻断                      |
+| strict report/process typing      | —         | `963c85f` | `da47830` + `963c85f` 通过 strict compile，不改变 zero-SKIP 或 process lifecycle 语义     |
 
 A 还已提供并保持：
 

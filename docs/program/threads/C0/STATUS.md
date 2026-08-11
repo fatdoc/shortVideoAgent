@@ -1306,12 +1306,13 @@
 
 ## 2026-08-11 · A-BIZ-06E.5A 与 06E.5B Fail-closed Runner Skeleton 完成
 
-- A 本地实现基线推进至 `37aab02`；A/B 共同同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。该 baseline 只证明 Git 祖先链，不证明 B consumer/page/bootstrap 已完成。
+- A 本地实现基线推进至 `963c85f`；A/B 共同同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。该 baseline 只证明 Git 祖先链，不证明 B consumer/page/bootstrap 已完成。
 - 06E.5A1 已完成：Pilot E2E migration postcondition 从权威 migration contract 派生，完整接受 `001—024`，`migrationCount=24`；提交 `6ca5d78` / `45b3563`。
 - 06E.5A2 已完成：新增 canonical Golden Path 输入并将数据形状升级为 `fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`；Script/Storyboard/Package/Grant/Canvas Entry/Redemption 成功事实均为零，不预埋浏览器成功链；提交 `3881b4c` / `d7f4c75`。
 - 06E.5B 前置组件已完成：artifact security `d50a0ed` / `5d5040d`、fail-closed preflight `3988fcf` / `b91de9f`、JSON zero-SKIP Oracle `0ec63b9` / `7c5a7f3`、bounded process harness `7134192` / `3c4a2ae`、dedicated config `186dd42` / `96dd0be`、static no-skip policy `aad90da` / `32d70ac`。
 - shared baseline validator 已由 `d141faa` / `6e37dc9` 提取；保持 missing/invalid/not-ancestor 安全错误码。这是 shared Joint Gate 改动，B 修改 manifest/runner 前必须同步。
 - fail-closed runner skeleton 已由 `2b5154c` / `37aab02` 完成，Joint Gate wiring 已由 `cad93d9` / `ed7adee` 完成。真实 CLI 已证明 B consumer capability 未证明时，在数据库 reset、任何服务 spawn 与 Chrome 启动前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`；phase 继续为 `external`。
+- 严格 TypeScript hardening 已由 `da47830` / `963c85f` 完成：JSON report 保持 `unknown` 后再经类型守卫收窄；process harness 精确建模 `stdin=null`、`stdout/stderr=Readable`，不改变 `stdio: ignore/pipe/pipe` 或运行语义。
 - B 仍需提供 server-side redemption consumer、browser-safe bootstrap、Pilot Canvas 页面、deterministic start/readiness/capability contract、Session/CSRF/CORS/error mapping、可验证 capability marker/commit/tests、稳定 selectors、临时 data root 与 secret/log marker 字典。
 - 禁止浏览器直调 internal redemption；raw Grant/access token、internal token、grantId、digest 与 `CanvasEntryRedemption/0.1` 不得进入 DOM、URL、Storage、props、console、trace、截图、report 或日志。
 - `ab-golden-path` 继续为 `external`；保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，不宣称 Joint Gate 或 Full Joint Gate PASS。

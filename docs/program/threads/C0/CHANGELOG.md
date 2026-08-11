@@ -453,5 +453,6 @@
 - `d141faa` / `6e37dc9` 将 baseline ancestor validator 提取为 shared Gate precondition；B 修改 Joint Gate runner/manifest 前必须同步该 shared commit。
 - `186dd42` / `96dd0be` 冻结 dedicated Chrome/single-worker/zero-retry config；`aad90da` / `32d70ac` 增加 static no-skip policy。静态 policy 不替代真实 JSON report。
 - runner boundary `2b5154c` / `37aab02` 与 Joint Gate wiring `cad93d9` / `ed7adee` 已完成；真实 CLI 在 B consumer capability 未证明时于 reset/spawn 前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`，phase 保持 `external` 且 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 未移除。
+- strict TypeScript hardening `da47830` / `963c85f` 修复 report `unknown` narrowing 与 ignored stdin 的精确 child-process 类型；联合 strict compile 与行为回归 PASS。
 - B baseline `a7f8021` 已同步，但 server consumer、browser-safe bootstrap、Pilot Canvas page、deterministic readiness/capability 与浏览器 selectors 尚未证明。
 - 保留 `A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；不宣称 Joint Gate PASS。

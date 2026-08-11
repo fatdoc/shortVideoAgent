@@ -960,12 +960,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 
 ## A-BIZ-06E.5A / 06E.5B Fail-closed Runner Skeleton 交接（2026-08-11）
 
-- 当前 A 本地 HEAD 为 `37aab02`；共同同步 baseline 为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。B baseline 已进入祖先链，但 consumer/page/bootstrap/readiness capability 尚未证明。
+- 当前 A 本地 HEAD 为 `963c85f`；共同同步 baseline 为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。B baseline 已进入祖先链，但 consumer/page/bootstrap/readiness capability 尚未证明。
 - 06E.5A1 提交 `6ca5d78` / `45b3563`：migration summary 从权威列表派生，`migrationCount=24`，覆盖 migration `001—024`。
 - 06E.5A2 提交 `3881b4c` / `d7f4c75`：`fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`，冻结 deterministic Golden Path 输入和 zero-success postcondition；成功链必须由真实浏览器创建。
 - runner primitives 已完成：artifact security `d50a0ed` / `5d5040d`、preflight `3988fcf` / `b91de9f`、JSON report `0ec63b9` / `7c5a7f3`、process harness `7134192` / `3c4a2ae`、Chrome config `186dd42` / `96dd0be`、no-skip policy `aad90da` / `32d70ac`。
 - shared baseline validator 提交为 `d141faa` / `6e37dc9`。B 修改 `scripts/run-joint-gate.mjs` 或相关 manifest/precondition 前必须同步该 shared Gate 改动并复验 ancestor contract。
 - fail-closed runner skeleton `2b5154c` / `37aab02` 与 Joint Gate wiring `cad93d9` / `ed7adee` 已完成：组合既有安全 Oracle，并在 B capability 未证明时于 reset/spawn 前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`；即使 synthetic capability=true 也保持 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。
+- strict TypeScript hardening `da47830` / `963c85f` 已完成；不改变 report zero-SKIP 或 process harness 生命周期语义。
 - 当前不得把 `ab-golden-path` 改为 `ready`，不得移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`；真实 Chrome spec、B 页面、Shared Router/Bridge 与联合 evidence 仍未完成。
 - B 下一 handoff 必须提供：server-side redemption consumer；browser-safe bootstrap；Pilot Canvas 页面；deterministic start/readiness/capability URL、method、status 与 DTO；Session Cookie/CSRF/CORS/Origin；401/403/404/409/410/422/500/503 与 Request ID mapping；可验证 capability marker/commit/tests；稳定 selectors；临时 data root；secret/log marker 字典。
 - 浏览器不得直接调用 `POST /api/v1/internal/canvas-entries/redeem`，不得持有 raw Grant/access token、internal token、grantId、digest 或 server-only redemption DTO；Pilot 失败不得回退 Demo/Mock/LocalStorage。

@@ -22,7 +22,7 @@
 - Shared Router/Bridge Green 必须等待 B consumer/page同步验收；浏览器只携带 non-secret handle 与 canonical tenant/project/package reference，Pilot失败不得回退Demo/Mock/LocalStorage。
 - 06E.6真实激活前继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
 
-### 06E.5 当前实现检查点（A 本地 `37aab02`）
+### 06E.5 当前实现检查点（A 本地 `963c85f`）
 
 - Migration lifecycle：`migrationCount=24`，完整覆盖 `001—024`；`fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`，成功 Script/Storyboard/Package/Grant/Entry/Redemption 事实均从零开始。
 - 已完成 artifact security Oracle、fail-closed preflight、Playwright JSON zero-SKIP Oracle、bounded process harness、dedicated Chrome config 与 static no-skip policy。

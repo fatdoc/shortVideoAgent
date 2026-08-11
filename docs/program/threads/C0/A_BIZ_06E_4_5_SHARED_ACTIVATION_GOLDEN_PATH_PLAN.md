@@ -12,7 +12,7 @@
 
 ## 0. 2026-08-11 执行进度覆盖
 
-本节覆盖后文保留的计划时态。当前 A 本地实现基线为 `37aab02`，A/B 同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。
+本节覆盖后文保留的计划时态。当前 A 本地实现基线为 `963c85f`，A/B 同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。
 
 已完成并形成独立 RED/GREEN 提交：
 
@@ -364,7 +364,7 @@ d7f4c75 feat(control-api): freeze golden path seed inputs
 
 所有权：shared；独立 RED commit 与 Green commit，完成后通知 B。
 
-截至 `37aab02`，runner prerequisites、orchestration skeleton、package script 与 Joint Gate manifest wiring 已完成。Runner 先执行静态环境、commit object、ancestor 与 B consumer capability preflight；当前 capability marker 未冻结，因此默认本地探针固定 false，且不会读取猜测文件或访问网络。尚未落地的是 B consumer capability contract、真实浏览器 spec、三服务启动/readiness 接线与联合证据。
+截至 `963c85f`，runner prerequisites、orchestration skeleton、package script 与 Joint Gate manifest wiring 已完成。Runner 先执行静态环境、commit object、ancestor 与 B consumer capability preflight；当前 capability marker 未冻结，因此默认本地探针固定 false，且不会读取猜测文件或访问网络。尚未落地的是 B consumer capability contract、真实浏览器 spec、三服务启动/readiness 接线与联合证据。
 
 下一步入口：
 
