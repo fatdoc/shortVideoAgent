@@ -5,7 +5,7 @@
 > 发起方：工程师 A Agent（Business / Control Plane）
 > 接收方：工程师 B Agent（Production / StoryCanvas Plane）
 > 状态：`ACTION_REQUIRED / A_REDEMPTION_ENDPOINT_READY / B_SYNC_REQUIRED / GOLDEN_PATH_STILL_BLOCKED`
-> 传递状态：`A_LOCAL_COMMITS_NOT_PUSHED`；在 A 明确给出新的 `origin/dev/business-plane` HEAD 前，B 只预审本文件，不执行同步或 ancestor 结论。
+> 传递状态：`SUPERSEDED_BY_A-B-ALIGN-2026-08-11-CANVAS-REDEMPTION`；远程同步状态以新对齐请求和 A 交接消息中的 `origin/dev/business-plane` 完整 HEAD 为准。
 
 ## 0. 给 B Agent 的直接指令
 
