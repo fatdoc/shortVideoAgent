@@ -182,3 +182,56 @@ export function parseCanvasEntryPublicDto(input: unknown): CanvasEntryPublicDto 
   assertNonSecretBrowserPayload(input);
   return parseOrThrow(publicDtoSchema, input);
 }
+
+const createServiceInputSchema = z
+  .object({
+    packageId: uuidSchema,
+    idempotencyKey: idempotencyKeySchema,
+    ttlSeconds: z
+      .number()
+      .int()
+      .min(CANVAS_ENTRY_MIN_TTL_SECONDS)
+      .max(CANVAS_ENTRY_MAX_TTL_SECONDS),
+  })
+  .strict();
+
+const consumeServiceInputSchema = z
+  .object({
+    packageId: uuidSchema,
+    handle: handleSchema,
+  })
+  .strict();
+
+const consumedAuthorizationSchema = z
+  .object({
+    handle: handleSchema,
+    ...bindingFields,
+    grantId: uuidSchema,
+    consumedAt: canonicalTimestampSchema,
+  })
+  .strict();
+
+export function parseCanvasEntryUuid(input: unknown): string {
+  return parseOrThrow(uuidSchema, input);
+}
+
+export function parseCreateCanvasEntryInput(
+  input: unknown,
+): import('./types.js').CreateCanvasEntryInput {
+  assertNonSecretBrowserPayload(input);
+  return parseOrThrow(createServiceInputSchema, input);
+}
+
+export function parseConsumeCanvasEntryInput(
+  input: unknown,
+): import('./types.js').ConsumeCanvasEntryInput {
+  assertNonSecretBrowserPayload(input);
+  return parseOrThrow(consumeServiceInputSchema, input);
+}
+
+export function parseConsumedCanvasEntryAuthorization(
+  input: unknown,
+): import('./types.js').ConsumedCanvasEntryAuthorization {
+  assertNonSecretBrowserPayload(input);
+  return parseOrThrow(consumedAuthorizationSchema, input);
+}

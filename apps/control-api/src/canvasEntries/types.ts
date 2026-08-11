@@ -40,3 +40,42 @@ export type ConsumedCanvasEntry = CanvasEntryBinding & {
   handle: string;
   consumedAt: string;
 };
+
+export type CreateCanvasEntryInput = {
+  packageId: string;
+  idempotencyKey: string;
+  ttlSeconds: number;
+};
+
+export type ConsumeCanvasEntryInput = {
+  packageId: string;
+  handle: string;
+};
+
+export type CreateCanvasEntryRecord = CanvasEntryBinding & {
+  handle: string;
+  idempotencyKey: string;
+  requestDigest: string;
+  issuedAt: Date;
+  expiresAt: Date;
+  createdBy: string;
+};
+
+export type ConsumeCanvasEntryRecord = CanvasEntryBinding & {
+  handle: string;
+  consumedAt: Date;
+};
+
+/**
+ * Server-only authorization reference returned after the one-time transition.
+ * The grant id is not a bearer credential and this object must not be returned
+ * as the browser-facing Canvas Entry DTO.
+ */
+export type ConsumedCanvasEntryAuthorization = ConsumedCanvasEntry & {
+  grantId: string;
+};
+
+export interface CanvasEntryStore {
+  createEntry(input: CreateCanvasEntryRecord): Promise<CreateCanvasEntryResult>;
+  consumeEntry(input: ConsumeCanvasEntryRecord): Promise<ConsumedCanvasEntryAuthorization>;
+}
