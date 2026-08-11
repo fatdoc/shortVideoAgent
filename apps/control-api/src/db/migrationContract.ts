@@ -19,10 +19,12 @@ export const CONTROL_API_MIGRATION_NAMES = [
   '018_fix_commission_settlement_item_validation.ts',
   '019_harden_legacy_membership_shadow.ts',
   '020_storyboard_authority.ts',
+  '021_canvas_entries.ts',
 ] as const;
 
 export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
   'auth_sessions',
+  'canvas_entries',
   'channels',
   'organization_memberships',
   'organization_membership_roles',
