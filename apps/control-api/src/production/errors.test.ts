@@ -182,6 +182,14 @@ describe('Production StandardError safety policy', () => {
     ['GRANT_INVALID', 401, 'Project authorization is invalid.', 'grant'],
     ['GRANT_EXPIRED', 410, 'Project authorization has expired.', 'grant'],
     ['IDEMPOTENCY_CONFLICT', 409, 'Request conflicts with an earlier request.', 'idempotency'],
+    [
+      'RESOURCE_NOT_FOUND',
+      404,
+      'Requested resource does not exist or is not accessible.',
+      'resource',
+    ],
+    ['PRODUCTION_AUTHORITY_STALE', 409, 'Production authority is no longer current.', 'authority'],
+    ['INTERNAL_ERROR', 500, 'Control API encountered an unexpected error.', 'internal'],
   ] as const)('maps %s to its frozen public representation', (code, status, message, category) => {
     expect(
       safeProductionError(new ProductionDomainError('private internal text', 500, code, 'schema')),

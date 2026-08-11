@@ -5,9 +5,13 @@ export type ProductionErrorCode =
   | 'CAPABILITY_SCOPE_DENIED'
   | 'GRANT_INVALID'
   | 'GRANT_EXPIRED'
-  | 'IDEMPOTENCY_CONFLICT';
+  | 'IDEMPOTENCY_CONFLICT'
+  | 'RESOURCE_NOT_FOUND'
+  | 'PRODUCTION_AUTHORITY_STALE'
+  | 'INTERNAL_ERROR';
 
-export type ProductionErrorCategory = 'schema' | 'scope' | 'grant' | 'idempotency';
+export type ProductionErrorCategory =
+  'schema' | 'scope' | 'grant' | 'idempotency' | 'resource' | 'authority' | 'internal';
 
 const safePolicies: Record<
   ProductionErrorCode,
@@ -43,6 +47,21 @@ const safePolicies: Record<
     status: 409,
     message: 'Request conflicts with an earlier request.',
     category: 'idempotency',
+  },
+  RESOURCE_NOT_FOUND: {
+    status: 404,
+    message: 'Requested resource does not exist or is not accessible.',
+    category: 'resource',
+  },
+  PRODUCTION_AUTHORITY_STALE: {
+    status: 409,
+    message: 'Production authority is no longer current.',
+    category: 'authority',
+  },
+  INTERNAL_ERROR: {
+    status: 500,
+    message: 'Control API encountered an unexpected error.',
+    category: 'internal',
   },
 };
 
@@ -173,11 +192,6 @@ export class ProductionDomainError extends Error {
 
 export class ProductionIdempotencyConflictError extends ProductionDomainError {
   constructor() {
-    super(
-      'Idempotency-Key 已用于不同请求。',
-      409,
-      'IDEMPOTENCY_CONFLICT',
-      'idempotency',
-    );
+    super('Idempotency-Key 已用于不同请求。', 409, 'IDEMPOTENCY_CONFLICT', 'idempotency');
   }
 }

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import type { Response } from 'express';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -6,25 +5,53 @@ import { readCookie, SESSION_COOKIE_NAME } from '../auth/session.js';
 import type { PublicSession } from '../auth/service.js';
 import { allowsProjectAction, type ProjectAction, type ProjectPolicy } from '../projects/policy.js';
 import type { SessionActor } from '../projects/types.js';
-import { contractPayloadDigest } from './digest.js';
 import { ProductionDomainError, safeProductionError } from './errors.js';
-import { productionCapabilities, productionScopes, type ProductionStore } from './types.js';
+import {
+  productionCapabilities,
+  productionScopes,
+  type ProductionStore,
+  type ProjectProductionPackage,
+} from './types.js';
 
 const uuidSchema = z.string().uuid();
+const digestSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/);
 const idempotencyKeySchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/);
 const capabilitySchema = z.enum(productionCapabilities);
 const scopeSchema = z.enum(productionScopes);
+const capabilityRequirementsSchema = z
+  .array(capabilitySchema)
+  .min(1)
+  .max(4)
+  .refine((value) => new Set(value).size === value.length, {
+    message: 'capabilityRequirements must be unique',
+  });
 const createPackageSchema = z
   .object({
     scriptVersionId: uuidSchema,
-    capabilityRequirements: z.array(capabilitySchema).min(1).max(4),
-    expiresInSeconds: z.number().int().min(300).max(86_400).default(21_600),
+    storyboardVersionId: uuidSchema,
+    capabilityRequirements: capabilityRequirementsSchema,
+    expiresInSeconds: z.number().int().min(300).max(86_400),
   })
-  .strict()
-  .refine(
-    (value) => new Set(value.capabilityRequirements).size === value.capabilityRequirements.length,
-    'capabilityRequirements must be unique',
-  );
+  .strict();
+const packagePublicSourceSchema = z
+  .object({
+    objectType: z.literal('ProjectProductionPackage'),
+    contractVersion: z.literal('0.3'),
+    tenantId: uuidSchema,
+    projectId: uuidSchema,
+    packageId: uuidSchema,
+    packageVersion: z.number().int().positive(),
+    scriptVersionId: uuidSchema,
+    storyboardVersionId: uuidSchema,
+    capabilityRequirements: capabilityRequirementsSchema,
+    status: z.literal('ready'),
+    payloadDigest: digestSchema,
+    approvedScriptDigest: digestSchema,
+    approvedStoryboardDigest: digestSchema,
+    createdAt: z.string().datetime({ offset: true }),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .passthrough();
 const issueGrantSchema = z
   .object({
     packageId: uuidSchema,
@@ -40,6 +67,21 @@ const issueGrantSchema = z
     'grant capabilities and scopes must be unique',
   );
 
+const productionAuthorityReasonCodes = new Set([
+  'NO_SCRIPT_VERSION',
+  'SCRIPT_NOT_APPROVED',
+  'SCRIPT_APPROVAL_REVOKED',
+  'SCRIPT_BLOCKED',
+  'SCRIPT_FACT_RISK_UNRESOLVED',
+  'NO_STORYBOARD_VERSION',
+  'STORYBOARD_NOT_APPROVED',
+  'STORYBOARD_APPROVAL_REVOKED',
+  'STORYBOARD_BLOCKED',
+  'STORYBOARD_FACT_RISK_UNRESOLVED',
+  'SCRIPT_STORYBOARD_BINDING_MISMATCH',
+  'PRODUCTION_AUTHORITY_STALE',
+]);
+
 type SessionResolution = { token?: string; session: PublicSession };
 
 export type ProductionRouterOptions = {
@@ -52,39 +94,76 @@ export type ProductionRouterOptions = {
 
 type ActorResponse = Response & { locals: { requestId: string; actor?: SessionActor } };
 
-function legacyError(response: Response, status: number, code: string, message: string): void {
-  response.status(status).json({ error: { code, message, requestId: response.locals.requestId } });
+function publicError(response: Response, status: number, code: string, message: string): void {
+  response.status(status).json({
+    error: {
+      code,
+      message,
+      requestId: response.locals.requestId as string,
+    },
+  });
 }
 
-function standardError(
-  response: ActorResponse,
-  caught: ProductionDomainError,
-  projectId: string,
-  idempotencyKey: string,
-): void {
-  const actor = response.locals.actor;
-  if (!actor) throw new Error('authenticated actor is missing');
+function domainError(response: ActorResponse, caught: ProductionDomainError): void {
   const safe = safeProductionError(caught);
-  const unsigned = {
-    objectType: 'StandardError' as const,
-    contractVersion: '0.2' as const,
-    tenantId: actor.tenantId,
-    projectId,
-    idempotencyKey,
-    occurredAt: new Date().toISOString(),
-    errorId: randomUUID(),
-    requestId: response.locals.requestId,
-    error: {
-      code: safe.code,
-      message: safe.message,
-      retryable: safe.retryable,
-      category: safe.category,
-      details: safe.details,
-    },
+  publicError(response, safe.status, safe.code, safe.message);
+}
+
+function resourceNotFound(response: ActorResponse): void {
+  domainError(
+    response,
+    new ProductionDomainError('resource lookup failed', 404, 'RESOURCE_NOT_FOUND', 'resource'),
+  );
+}
+
+function internalError(response: ActorResponse): void {
+  domainError(
+    response,
+    new ProductionDomainError('unexpected production failure', 500, 'INTERNAL_ERROR', 'internal'),
+  );
+}
+
+function packageDomainError(response: ActorResponse, caught: ProductionDomainError): void {
+  const reasonCode = caught.details.reasonCode;
+  const authorityReasonCode = caught.details.authorityReasonCode;
+  if (
+    (typeof reasonCode === 'string' && productionAuthorityReasonCodes.has(reasonCode)) ||
+    (typeof authorityReasonCode === 'string' &&
+      productionAuthorityReasonCodes.has(authorityReasonCode))
+  ) {
+    domainError(
+      response,
+      new ProductionDomainError(
+        'production authority is stale',
+        409,
+        'PRODUCTION_AUTHORITY_STALE',
+        'authority',
+      ),
+    );
+    return;
+  }
+  domainError(response, caught);
+}
+
+function projectPackagePublicDto(value: ProjectProductionPackage) {
+  const parsed = packagePublicSourceSchema.parse(value);
+  return {
+    objectType: parsed.objectType,
+    contractVersion: parsed.contractVersion,
+    tenantId: parsed.tenantId,
+    projectId: parsed.projectId,
+    packageId: parsed.packageId,
+    packageVersion: parsed.packageVersion,
+    scriptVersionId: parsed.scriptVersionId,
+    storyboardVersionId: parsed.storyboardVersionId,
+    capabilityRequirements: parsed.capabilityRequirements,
+    status: parsed.status,
+    payloadDigest: parsed.payloadDigest,
+    approvedScriptDigest: parsed.approvedScriptDigest,
+    approvedStoryboardDigest: parsed.approvedStoryboardDigest,
+    createdAt: parsed.createdAt,
+    expiresAt: parsed.expiresAt,
   };
-  response
-    .status(safe.status)
-    .json({ ...unsigned, payloadDigest: contractPayloadDigest(unsigned) });
 }
 
 function actor(response: ActorResponse): SessionActor {
@@ -97,24 +176,16 @@ async function authorizeProject(
   options: ProductionRouterOptions,
   projectId: string,
   action: ProjectAction,
-  idempotencyKey: string,
 ): Promise<boolean> {
   const access = await options.policy.resolveProjectAccess(actor(response), projectId);
   if (!access) {
-    standardError(
-      response,
-      new ProductionDomainError('project scope denied', 403, 'PROJECT_SCOPE_MISMATCH', 'scope'),
-      projectId,
-      idempotencyKey,
-    );
+    resourceNotFound(response);
     return false;
   }
   if (!allowsProjectAction(access, action)) {
-    standardError(
+    domainError(
       response,
       new ProductionDomainError('project action denied', 403, 'CAPABILITY_SCOPE_DENIED', 'scope'),
-      projectId,
-      idempotencyKey,
     );
     return false;
   }
@@ -124,7 +195,7 @@ async function authorizeProject(
 function idempotency(response: Response, value: string | undefined): string | null {
   const parsed = idempotencyKeySchema.safeParse(value);
   if (!parsed.success) {
-    legacyError(
+    publicError(
       response,
       400,
       'IDEMPOTENCY_KEY_REQUIRED',
@@ -158,6 +229,7 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
   ];
 
   router.use(productionPaths, async (request, response: ActorResponse, next) => {
+    response.setHeader('cache-control', 'no-store');
     try {
       if (response.locals.actor) {
         next();
@@ -165,17 +237,17 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
       }
       const token = readCookie(request.header('cookie'), SESSION_COOKIE_NAME);
       if (!token) {
-        legacyError(response, 401, 'AUTHENTICATION_REQUIRED', '请先登录。');
+        publicError(response, 401, 'AUTHENTICATION_REQUIRED', '请先登录。');
         return;
       }
       const resolved = await options.resolveSession(token);
       if (!resolved) {
-        legacyError(response, 401, 'SESSION_INVALID', '会话已失效，请重新登录。');
+        publicError(response, 401, 'SESSION_INVALID', '会话已失效，请重新登录。');
         return;
       }
       if (resolved.token) setRotatedCookie(response, resolved.token, options);
       if (!resolved.session.tenant) {
-        legacyError(response, 403, 'TENANT_CONTEXT_REQUIRED', '当前组织不能访问生产内容。');
+        publicError(response, 403, 'TENANT_CONTEXT_REQUIRED', '当前组织不能访问生产内容。');
         return;
       }
       const context = resolved.session.activeContext;
@@ -183,7 +255,7 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         context.organizationType !== 'TENANT' ||
         context.tenantId !== resolved.session.tenant.id
       ) {
-        legacyError(response, 401, 'SESSION_INVALID', '会话上下文无效，请重新登录。');
+        publicError(response, 401, 'SESSION_INVALID', '会话上下文无效，请重新登录。');
         return;
       }
       response.locals.actor = {
@@ -197,8 +269,8 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
         roles: context.roles,
       };
       next();
-    } catch (error) {
-      next(error);
+    } catch {
+      internalError(response);
     }
   });
 
@@ -209,7 +281,7 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
     }
     const roles = actor(response).roles;
     if (!roles.includes('tenant_admin') && !roles.includes('content_operator')) {
-      legacyError(response, 403, 'PRODUCTION_WRITE_FORBIDDEN', '当前角色不能签发生产包或授权。');
+      publicError(response, 403, 'PRODUCTION_WRITE_FORBIDDEN', '当前角色不能签发生产包或授权。');
       return;
     }
     next();
@@ -217,22 +289,20 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
 
   router.post(
     '/projects/:projectId/production-packages',
-    async (request, response: ActorResponse, next) => {
+    async (request, response: ActorResponse) => {
       const parsedProject = uuidSchema.safeParse(request.params.projectId);
       const parsed = createPackageSchema.safeParse(request.body);
       const key = idempotency(response, request.header('idempotency-key'));
       if (!parsedProject.success || !parsed.success || !key) {
         if ((!parsedProject.success || !parsed.success) && key) {
-          standardError(
+          domainError(
             response,
             new ProductionDomainError(
-              '生产包请求不符合 Pilot Contract v0.2。',
+              '生产包请求不符合 Pilot Contract v0.3。',
               422,
               'SCHEMA_INVALID',
               'schema',
             ),
-            parsedProject.success ? parsedProject.data : 'invalid-project',
-            key,
           );
         }
         return;
@@ -244,7 +314,6 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
             options,
             parsedProject.data,
             'project.production.write',
-            key,
           ))
         )
           return;
@@ -260,54 +329,41 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           },
         );
         if (!result) {
-          standardError(
-            response,
-            new ProductionDomainError(
-              'project lookup failed',
-              403,
-              'PROJECT_SCOPE_MISMATCH',
-              'scope',
-            ),
-            parsedProject.data,
-            key,
-          );
+          resourceNotFound(response);
           return;
         }
+        const value = projectPackagePublicDto(result.value);
         response.setHeader('idempotency-replayed', String(result.replayed));
-        response.status(result.replayed ? 200 : 201).json(result.value);
+        response.status(result.replayed ? 200 : 201).json(value);
       } catch (error) {
         if (error instanceof ProductionDomainError) {
-          standardError(response, error, parsedProject.data, key);
+          packageDomainError(response, error);
           return;
         }
-        next(error);
+        internalError(response);
       }
     },
   );
 
   router.get(
     '/projects/:projectId/production-packages/:packageId',
-    async (request, response: ActorResponse, next) => {
+    async (request, response: ActorResponse) => {
       const parsedProject = uuidSchema.safeParse(request.params.projectId);
       const parsedPackage = uuidSchema.safeParse(request.params.packageId);
       if (!parsedProject.success || !parsedPackage.success) {
-        standardError(
+        domainError(
           response,
           new ProductionDomainError('invalid path', 422, 'SCHEMA_INVALID', 'schema'),
-          parsedProject.success ? parsedProject.data : 'invalid-project',
-          `read-${response.locals.requestId}`,
         );
         return;
       }
       try {
-        const readKey = `read-${response.locals.requestId}`;
         if (
           !(await authorizeProject(
             response,
             options,
             parsedProject.data,
             'project.production.read',
-            readKey,
           ))
         )
           return;
@@ -317,33 +373,29 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           parsedPackage.data,
         );
         if (!value) {
-          standardError(
-            response,
-            new ProductionDomainError(
-              'package lookup failed',
-              403,
-              'PROJECT_SCOPE_MISMATCH',
-              'scope',
-            ),
-            parsedProject.data,
-            readKey,
-          );
-        } else response.status(200).json(value);
+          resourceNotFound(response);
+          return;
+        }
+        response.status(200).json(projectPackagePublicDto(value));
       } catch (error) {
-        next(error);
+        if (error instanceof ProductionDomainError) {
+          packageDomainError(response, error);
+          return;
+        }
+        internalError(response);
       }
     },
   );
 
   router.post(
     '/projects/:projectId/production-grants',
-    async (request, response: ActorResponse, next) => {
+    async (request, response: ActorResponse) => {
       const parsedProject = uuidSchema.safeParse(request.params.projectId);
       const parsed = issueGrantSchema.safeParse(request.body);
       const key = idempotency(response, request.header('idempotency-key'));
       if (!parsedProject.success || !parsed.success || !key) {
         if ((!parsedProject.success || !parsed.success) && key) {
-          standardError(
+          domainError(
             response,
             new ProductionDomainError(
               '项目授权请求不符合 Pilot Contract v0.2。',
@@ -351,8 +403,6 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
               'SCHEMA_INVALID',
               'schema',
             ),
-            parsedProject.success ? parsedProject.data : 'invalid-project',
-            key,
           );
         }
         return;
@@ -364,7 +414,6 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
             options,
             parsedProject.data,
             'project.production.write',
-            key,
           ))
         )
           return;
@@ -380,28 +429,17 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           },
         );
         if (!result) {
-          standardError(
-            response,
-            new ProductionDomainError(
-              'package lookup failed',
-              403,
-              'PROJECT_SCOPE_MISMATCH',
-              'scope',
-            ),
-            parsedProject.data,
-            key,
-          );
+          resourceNotFound(response);
           return;
         }
-        response.setHeader('cache-control', 'no-store');
         response.setHeader('idempotency-replayed', String(result.replayed));
         response.status(result.replayed ? 200 : 201).json(result.value);
       } catch (error) {
         if (error instanceof ProductionDomainError) {
-          standardError(response, error, parsedProject.data, key);
+          domainError(response, error);
           return;
         }
-        next(error);
+        internalError(response);
       }
     },
   );
