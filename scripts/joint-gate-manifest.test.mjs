@@ -107,6 +107,37 @@ test('Pilot browser phase is ready and delegates to the deterministic lifecycle 
   ]);
 });
 
+test('A/B Golden Path remains external and delegates to the fail-closed runner skeleton', () => {
+  const phase = jointGatePhases.find(({ id }) => id === 'ab-golden-path');
+  assert.ok(phase);
+  assert.equal(phase.availability, 'external');
+  assert.deepEqual(phase.commands, [
+    {
+      executable: 'npm',
+      args: ['run', 'test:e2e:pilot:ab-golden-path'],
+      cwd: '.',
+      shell: false,
+    },
+  ]);
+  assert.deepEqual(phase.preconditions, [
+    {
+      type: 'environment',
+      name: 'CONTROL_API_TEST_DATABASE_URL',
+      validator: 'dedicated-postgres-test-url',
+    },
+    {
+      type: 'environment',
+      name: 'JOINT_GATE_B_BASELINE_COMMIT',
+      validator: 'git-commit-ancestor',
+    },
+    {
+      type: 'slice',
+      name: 'A-BIZ-06E',
+      code: 'AB_GOLDEN_PATH_NOT_IMPLEMENTED',
+    },
+  ]);
+});
+
 test('migration rollback phase is ready and preserves the dedicated PostgreSQL boundary', () => {
   const phase = jointGatePhases.find(({ id }) => id === 'migration-rollback-reapply');
   assert.ok(phase);
@@ -184,6 +215,10 @@ test('package scripts expose manifest, plan, and fail-closed full entry points',
     ).readFile(path.join(repositoryRoot, 'package.json'), 'utf8'),
   );
   assert.equal(
+    packageJson.scripts['test:e2e:pilot:ab-golden-path'],
+    'apps/control-api/node_modules/.bin/tsx tests/e2e/pilot/run-ab-golden-path.ts',
+  );
+  assert.equal(
     packageJson.scripts['test:joint-gate:manifest'],
     'node --test scripts/joint-gate-manifest.test.mjs',
   );
@@ -212,6 +247,8 @@ test('--full remains blocked on unfinished required slices even with external UR
   );
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /do-not-print/);
   assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /JOINT_GATE_PASS/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /RUNNING ab-golden-path/);
+  assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /run-ab-golden-path\.ts/);
 });
 
 test('--full rejects a non-empty baseline value that is not a synchronized Git commit', () => {
