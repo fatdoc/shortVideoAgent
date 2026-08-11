@@ -130,25 +130,6 @@ export type ProductionEligibilityEvaluationInput = {
   storyboardApprovals: readonly ProductionStoryboardApprovalAuthority[];
 };
 
-/**
- * Transitional single-authority store result. Repository and HTTP migration to
- * ProductionEligibilityDecision is intentionally isolated in the next slice.
- */
-export type ProductionEligibility = {
-  projectId: string;
-  eligible: boolean;
-  scriptVersionId: string | null;
-  scriptVersion: number | null;
-  reasonCode:
-    | 'ELIGIBLE'
-    | 'NO_SCRIPT_VERSION'
-    | 'SCRIPT_NOT_APPROVED'
-    | 'APPROVAL_REVOKED'
-    | 'SCRIPT_BLOCKED'
-    | 'FACT_RISK_UNRESOLVED';
-  approval: ApprovalEvent | null;
-};
-
 export type IdempotentResult<T> = { value: T; replayed: boolean };
 
 export type IdempotencyInput = {
@@ -213,5 +194,5 @@ export interface ContentStore {
   getProductionEligibility(
     actor: SessionActor,
     projectId: string,
-  ): Promise<ProductionEligibility | null>;
+  ): Promise<ProductionEligibilityDecision | null>;
 }
