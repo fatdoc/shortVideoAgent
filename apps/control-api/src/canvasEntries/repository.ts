@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
+import {
+  ProductionAuthorityResourceNotFoundError,
+  verifyProductionPackageAuthority,
+} from '../production/authority.js';
+import { ProductionDomainError } from '../production/errors.js';
 import { canvasEntryError, CanvasEntryDomainError } from './errors.js';
 import {
   assertNonSecretBrowserPayload,
@@ -39,11 +44,15 @@ type PublicCanvasEntryRow = Pick<
   'handle' | 'tenant_id' | 'project_id' | 'package_id' | 'state' | 'issued_at' | 'expires_at'
 >;
 
-type ReadOutcomeRow = PublicCanvasEntryRow & { binding_active: boolean };
+type AuthorityVerifier = typeof verifyProductionPackageAuthority;
 
-type ConsumeOutcomeRow = CanvasEntryRow & {
-  outcome: 'consumed' | 'expired' | 'replayed';
-};
+type CreateTransactionOutcome =
+  | { kind: 'created'; value: CanvasEntryPublicDto }
+  | { kind: 'replayed'; value: CanvasEntryPublicDto }
+  | { kind: 'expired' };
+
+type ConsumeTransactionOutcome =
+  { kind: 'consumed'; row: CanvasEntryRow } | { kind: 'expired' } | { kind: 'replayed' };
 
 const createRecordKeys = new Set([
   'tenantId',
@@ -116,85 +125,181 @@ function validateCreateRecord(input: CreateCanvasEntryRecord): void {
   });
 }
 
+function isKnownAuthorityFailure(error: unknown): boolean {
+  return (
+    error instanceof ProductionAuthorityResourceNotFoundError ||
+    error instanceof ProductionDomainError
+  );
+}
+
+function expiredError(): CanvasEntryDomainError {
+  return canvasEntryError(
+    'CANVAS_ENTRY_EXPIRED',
+    'Canvas Entry or its Package/Grant authorization is no longer active.',
+  );
+}
+
+async function expireActiveEntry(
+  transaction: Knex.Transaction,
+  canvasEntryId: string,
+): Promise<void> {
+  await transaction('control_plane.canvas_entries')
+    .where({ canvas_entry_id: canvasEntryId, state: 'active' })
+    .update({ state: 'expired', consumed_at: null });
+}
+
+async function findExactActiveGrant(
+  transaction: Knex.Transaction,
+  input: {
+    tenantId: string;
+    projectId: string;
+    packageId: string;
+    checkedAt: Date;
+    coversUntil: Date | string;
+    grantId?: string;
+  },
+): Promise<{ grant_id: string } | undefined> {
+  const query = transaction('control_plane.project_grants')
+    .select('grant_id')
+    .where({
+      tenant_id: input.tenantId,
+      project_id: input.projectId,
+      package_id: input.packageId,
+      status: 'active',
+      revoked_at: null,
+    })
+    .where('issued_at', '<=', input.checkedAt)
+    .where('expires_at', '>', input.checkedAt)
+    .where('expires_at', '>=', input.coversUntil)
+    .forShare()
+    .limit(2);
+  if (input.grantId) query.andWhere('grant_id', input.grantId);
+  const rows = (await query) as { grant_id: string }[];
+  return rows.length === 1 ? rows[0] : undefined;
+}
+
 export class PostgresCanvasEntryRepository implements CanvasEntryStore {
   constructor(
     private readonly database: Knex,
     private readonly newId: () => string = () => randomUUID(),
+    private readonly authorityVerifier: AuthorityVerifier = verifyProductionPackageAuthority,
   ) {}
 
   async createEntry(input: CreateCanvasEntryRecord): Promise<CreateCanvasEntryResult> {
     validateCreateRecord(input);
     try {
-      return await this.database.transaction(async (transaction) => {
-        await transaction.raw('select pg_advisory_xact_lock(hashtextextended(?, 0))', [
-          `canvas-entry:create:${input.tenantId}:${input.projectId}:${input.idempotencyKey}`,
-        ]);
-        const existing = (await transaction('control_plane.canvas_entries')
-          .where({
-            tenant_id: input.tenantId,
-            project_id: input.projectId,
-            idempotency_key: input.idempotencyKey,
-          })
-          .forUpdate()
-          .first()) as CanvasEntryRow | undefined;
-        if (existing) {
-          if (existing.request_digest !== input.requestDigest) {
+      const outcome = await this.database.transaction<CreateTransactionOutcome>(
+        async (transaction) => {
+          await transaction.raw('select pg_advisory_xact_lock(hashtextextended(?, 0))', [
+            `canvas-entry:create:${input.tenantId}:${input.projectId}:${input.idempotencyKey}`,
+          ]);
+          const existing = (await transaction('control_plane.canvas_entries')
+            .where({
+              tenant_id: input.tenantId,
+              project_id: input.projectId,
+              idempotency_key: input.idempotencyKey,
+            })
+            .forUpdate()
+            .first()) as CanvasEntryRow | undefined;
+          if (existing) {
+            if (existing.request_digest !== input.requestDigest) {
+              throw canvasEntryError(
+                'CANVAS_ENTRY_IDEMPOTENCY_CONFLICT',
+                'Canvas Entry idempotency key conflicts with immutable request facts.',
+              );
+            }
+            if (existing.state === 'consumed') {
+              throw canvasEntryError('CANVAS_ENTRY_REPLAYED', 'Canvas Entry was already consumed.');
+            }
+            if (
+              existing.state === 'expired' ||
+              new Date(existing.expires_at).getTime() <= input.issuedAt.getTime()
+            ) {
+              await expireActiveEntry(transaction, existing.canvas_entry_id);
+              return { kind: 'expired' };
+            }
+            try {
+              await this.authorityVerifier(transaction, {
+                tenantId: existing.tenant_id,
+                projectId: existing.project_id,
+                packageId: existing.package_id,
+                now: input.issuedAt,
+              });
+            } catch (error) {
+              if (!isKnownAuthorityFailure(error)) throw error;
+              await expireActiveEntry(transaction, existing.canvas_entry_id);
+              return { kind: 'expired' };
+            }
+            const grant = await findExactActiveGrant(transaction, {
+              tenantId: existing.tenant_id,
+              projectId: existing.project_id,
+              packageId: existing.package_id,
+              grantId: existing.grant_id,
+              checkedAt: input.issuedAt,
+              coversUntil: existing.expires_at,
+            });
+            if (!grant) {
+              await expireActiveEntry(transaction, existing.canvas_entry_id);
+              return { kind: 'expired' };
+            }
+            return { kind: 'replayed', value: publicEntryFromRow(existing) };
+          }
+
+          try {
+            await this.authorityVerifier(transaction, {
+              tenantId: input.tenantId,
+              projectId: input.projectId,
+              packageId: input.packageId,
+              now: input.issuedAt,
+            });
+          } catch (error) {
+            if (error instanceof ProductionAuthorityResourceNotFoundError) {
+              throw canvasEntryError(
+                'CANVAS_ENTRY_NOT_FOUND',
+                'Canvas Entry package or Grant binding is unavailable.',
+              );
+            }
+            if (error instanceof ProductionDomainError) throw expiredError();
+            throw error;
+          }
+
+          const binding = await findExactActiveGrant(transaction, {
+            tenantId: input.tenantId,
+            projectId: input.projectId,
+            packageId: input.packageId,
+            checkedAt: input.issuedAt,
+            coversUntil: input.expiresAt,
+          });
+          if (!binding) {
             throw canvasEntryError(
-              'CANVAS_ENTRY_IDEMPOTENCY_CONFLICT',
-              'Canvas Entry idempotency key conflicts with immutable request facts.',
+              'CANVAS_ENTRY_NOT_FOUND',
+              'Canvas Entry package or Grant binding is unavailable.',
             );
           }
-          return { value: publicEntryFromRow(existing), replayed: true };
-        }
 
-        const bindings = await transaction('control_plane.production_packages as package')
-          .join('control_plane.project_grants as grant_row', function joinGrant() {
-            this.on('grant_row.package_id', '=', 'package.package_id')
-              .andOn('grant_row.project_id', '=', 'package.project_id')
-              .andOn('grant_row.tenant_id', '=', 'package.tenant_id');
-          })
-          .select('grant_row.grant_id')
-          .where({
-            'package.package_id': input.packageId,
-            'package.project_id': input.projectId,
-            'package.tenant_id': input.tenantId,
-            'grant_row.status': 'active',
-            'grant_row.revoked_at': null,
-          })
-          .where('package.valid_from', '<=', input.issuedAt)
-          .where('package.expires_at', '>=', input.expiresAt)
-          .where('grant_row.issued_at', '<=', input.issuedAt)
-          .where('grant_row.expires_at', '>=', input.expiresAt)
-          .orderBy('grant_row.issued_at', 'desc')
-          .limit(2);
-        const binding = bindings.length === 1 ? bindings[0] : undefined;
-        if (!binding) {
-          throw canvasEntryError(
-            'CANVAS_ENTRY_NOT_FOUND',
-            'Canvas Entry package or Grant binding is unavailable.',
-          );
-        }
-
-        const [created] = (await transaction('control_plane.canvas_entries')
-          .insert({
-            canvas_entry_id: parseCanvasEntryUuid(this.newId()),
-            handle: input.handle,
-            tenant_id: input.tenantId,
-            project_id: input.projectId,
-            package_id: input.packageId,
-            grant_id: parseCanvasEntryUuid(binding.grant_id),
-            idempotency_key: input.idempotencyKey,
-            request_digest: input.requestDigest,
-            state: 'active',
-            issued_at: input.issuedAt,
-            expires_at: input.expiresAt,
-            consumed_at: null,
-            created_by: input.createdBy,
-          })
-          .returning('*')) as CanvasEntryRow[];
-        if (!created) throw new Error('Canvas Entry insert returned no row.');
-        return { value: publicEntryFromRow(created), replayed: false };
-      });
+          const [created] = (await transaction('control_plane.canvas_entries')
+            .insert({
+              canvas_entry_id: parseCanvasEntryUuid(this.newId()),
+              handle: input.handle,
+              tenant_id: input.tenantId,
+              project_id: input.projectId,
+              package_id: input.packageId,
+              grant_id: parseCanvasEntryUuid(binding.grant_id),
+              idempotency_key: input.idempotencyKey,
+              request_digest: input.requestDigest,
+              state: 'active',
+              issued_at: input.issuedAt,
+              expires_at: input.expiresAt,
+              consumed_at: null,
+              created_by: input.createdBy,
+            })
+            .returning('*')) as CanvasEntryRow[];
+          if (!created) throw new Error('Canvas Entry insert returned no row.');
+          return { kind: 'created', value: publicEntryFromRow(created) };
+        },
+      );
+      if (outcome.kind === 'expired') throw expiredError();
+      return { value: outcome.value, replayed: outcome.kind === 'replayed' };
     } catch (error) {
       if (error instanceof CanvasEntryDomainError) throw error;
       throw error;
@@ -210,60 +315,44 @@ export class PostgresCanvasEntryRepository implements CanvasEntryStore {
       throw canvasEntryError('CANVAS_ENTRY_SCHEMA_INVALID', 'Canvas Entry read time is invalid.');
     }
 
-    const result = await this.database.raw<{ rows: ReadOutcomeRow[] }>(
-      `select entry.handle,
-              entry.tenant_id,
-              entry.project_id,
-              entry.package_id,
-              entry.state,
-              entry.issued_at,
-              entry.expires_at,
-              exists (
-                select 1
-                  from control_plane.production_packages package_row
-                  join control_plane.project_grants grant_row
-                    on grant_row.package_id = package_row.package_id
-                   and grant_row.project_id = package_row.project_id
-                   and grant_row.tenant_id = package_row.tenant_id
-                 where package_row.package_id = entry.package_id
-                   and package_row.project_id = entry.project_id
-                   and package_row.tenant_id = entry.tenant_id
-                   and grant_row.grant_id = entry.grant_id
-                   and grant_row.status = 'active'
-                   and grant_row.revoked_at is null
-                   and package_row.valid_from <= ?::timestamptz
-                   and package_row.expires_at > ?::timestamptz
-                   and grant_row.issued_at <= ?::timestamptz
-                   and grant_row.expires_at > ?::timestamptz
-              ) as binding_active
-         from control_plane.canvas_entries entry
-        where entry.handle = ?
-          and entry.tenant_id = ?
-          and entry.project_id = ?
-        limit 1`,
-      [readAt, readAt, readAt, readAt, handle, tenantId, projectId],
-    );
-    const row = result.rows[0];
-    if (!row) {
-      throw canvasEntryError(
-        'CANVAS_ENTRY_NOT_FOUND',
-        'Canvas Entry handle or exact scope was not found.',
-      );
-    }
-    if (row.state === 'consumed') {
-      throw canvasEntryError('CANVAS_ENTRY_REPLAYED', 'Canvas Entry was already consumed.');
-    }
-    if (
-      row.state === 'expired' ||
-      new Date(row.expires_at).getTime() <= readAt.getTime() ||
-      !row.binding_active
-    ) {
-      throw canvasEntryError(
-        'CANVAS_ENTRY_EXPIRED',
-        'Canvas Entry or its Package/Grant authorization is no longer active.',
-      );
-    }
-    return publicEntryFromRow(row);
+    return this.database.transaction(async (transaction) => {
+      const row = (await transaction('control_plane.canvas_entries')
+        .where({ handle, tenant_id: tenantId, project_id: projectId })
+        .first()) as CanvasEntryRow | undefined;
+      if (!row) {
+        throw canvasEntryError(
+          'CANVAS_ENTRY_NOT_FOUND',
+          'Canvas Entry handle or exact scope was not found.',
+        );
+      }
+      if (row.state === 'consumed') {
+        throw canvasEntryError('CANVAS_ENTRY_REPLAYED', 'Canvas Entry was already consumed.');
+      }
+      if (row.state === 'expired' || new Date(row.expires_at).getTime() <= readAt.getTime()) {
+        throw expiredError();
+      }
+      try {
+        await this.authorityVerifier(transaction, {
+          tenantId: row.tenant_id,
+          projectId: row.project_id,
+          packageId: row.package_id,
+          now: readAt,
+        });
+      } catch (error) {
+        if (isKnownAuthorityFailure(error)) throw expiredError();
+        throw error;
+      }
+      const grant = await findExactActiveGrant(transaction, {
+        tenantId: row.tenant_id,
+        projectId: row.project_id,
+        packageId: row.package_id,
+        grantId: row.grant_id,
+        checkedAt: readAt,
+        coversUntil: row.expires_at,
+      });
+      if (!grant) throw expiredError();
+      return publicEntryFromRow(row);
+    });
   }
 
   async consumeEntry(input: ConsumeCanvasEntryRecord): Promise<ConsumedCanvasEntryAuthorization> {
@@ -279,130 +368,77 @@ export class PostgresCanvasEntryRepository implements CanvasEntryStore {
       );
     }
 
-    const result = await this.database.raw<{ rows: ConsumeOutcomeRow[] }>(
-      `with target as materialized (
-         select entry.*,
-                exists (
-                  select 1
-                    from control_plane.production_packages package
-                    join control_plane.project_grants grant_row
-                      on grant_row.package_id = package.package_id
-                     and grant_row.project_id = package.project_id
-                     and grant_row.tenant_id = package.tenant_id
-                   where package.package_id = entry.package_id
-                     and package.project_id = entry.project_id
-                     and package.tenant_id = entry.tenant_id
-                     and grant_row.grant_id = entry.grant_id
-                     and grant_row.status = 'active'
-                     and grant_row.revoked_at is null
-                     and package.valid_from <= ?
-                     and package.expires_at > ?
-                     and grant_row.issued_at <= ?
-                     and grant_row.expires_at > ?
-                ) as binding_active
-           from control_plane.canvas_entries entry
-          where entry.handle = ?
-            and entry.tenant_id = ?
-            and entry.project_id = ?
-            and entry.package_id = ?
-       ), transition as (
-         update control_plane.canvas_entries entry
-            set state = case
-                          when target.expires_at <= ? or not target.binding_active then 'expired'
-                          else 'consumed'
-                        end,
-                consumed_at = case
-                                when target.expires_at <= ? or not target.binding_active then null
-                                else ?::timestamptz
-                              end
-           from target
-          where entry.canvas_entry_id = target.canvas_entry_id
-            and entry.state = 'active'
-        returning entry.*
-       ), resolved as (
-         select transition.canvas_entry_id,
-                transition.handle,
-                transition.tenant_id,
-                transition.project_id,
-                transition.package_id,
-                transition.grant_id,
-                transition.idempotency_key,
-                transition.request_digest,
-                transition.state,
-                transition.issued_at,
-                transition.expires_at,
-                transition.consumed_at,
-                transition.created_by,
-                case when transition.state = 'consumed' then 'consumed' else 'expired' end as outcome
-           from transition
-         union all
-         select target.canvas_entry_id,
-                target.handle,
-                target.tenant_id,
-                target.project_id,
-                target.package_id,
-                target.grant_id,
-                target.idempotency_key,
-                target.request_digest,
-                target.state,
-                target.issued_at,
-                target.expires_at,
-                target.consumed_at,
-                target.created_by,
-                case
-                  when target.state = 'consumed' then 'replayed'
-                  when target.state = 'expired' or target.expires_at <= ? or not target.binding_active
-                    then 'expired'
-                  else 'replayed'
-                end as outcome
-           from target
-          where not exists (select 1 from transition)
-       )
-       select * from resolved limit 1`,
-      [
-        consumedAt,
-        consumedAt,
-        consumedAt,
-        consumedAt,
-        handle,
-        tenantId,
-        projectId,
-        packageId,
-        consumedAt,
-        consumedAt,
-        consumedAt,
-        consumedAt,
-      ],
+    const outcome = await this.database.transaction<ConsumeTransactionOutcome>(
+      async (transaction) => {
+        const row = (await transaction('control_plane.canvas_entries')
+          .where({
+            handle,
+            tenant_id: tenantId,
+            project_id: projectId,
+            package_id: packageId,
+          })
+          .forUpdate()
+          .first()) as CanvasEntryRow | undefined;
+        if (!row) {
+          throw canvasEntryError(
+            'CANVAS_ENTRY_NOT_FOUND',
+            'Canvas Entry handle or exact scope was not found.',
+          );
+        }
+        if (row.state === 'consumed') return { kind: 'replayed' };
+        if (row.state === 'expired' || new Date(row.expires_at).getTime() <= consumedAt.getTime()) {
+          await expireActiveEntry(transaction, row.canvas_entry_id);
+          return { kind: 'expired' };
+        }
+        try {
+          await this.authorityVerifier(transaction, {
+            tenantId: row.tenant_id,
+            projectId: row.project_id,
+            packageId: row.package_id,
+            now: consumedAt,
+          });
+        } catch (error) {
+          if (!isKnownAuthorityFailure(error)) throw error;
+          await expireActiveEntry(transaction, row.canvas_entry_id);
+          return { kind: 'expired' };
+        }
+        const grant = await findExactActiveGrant(transaction, {
+          tenantId: row.tenant_id,
+          projectId: row.project_id,
+          packageId: row.package_id,
+          grantId: row.grant_id,
+          checkedAt: consumedAt,
+          coversUntil: row.expires_at,
+        });
+        if (!grant) {
+          await expireActiveEntry(transaction, row.canvas_entry_id);
+          return { kind: 'expired' };
+        }
+        const [consumed] = (await transaction('control_plane.canvas_entries')
+          .where({ canvas_entry_id: row.canvas_entry_id, state: 'active' })
+          .update({ state: 'consumed', consumed_at: consumedAt })
+          .returning('*')) as CanvasEntryRow[];
+        if (!consumed) return { kind: 'replayed' };
+        return { kind: 'consumed', row: consumed };
+      },
     );
-    const row = result.rows[0];
-    if (!row) {
-      throw canvasEntryError(
-        'CANVAS_ENTRY_NOT_FOUND',
-        'Canvas Entry handle or exact scope was not found.',
-      );
-    }
-    if (row.outcome === 'expired') {
-      throw canvasEntryError(
-        'CANVAS_ENTRY_EXPIRED',
-        'Canvas Entry or its Package/Grant authorization is no longer active.',
-      );
-    }
-    if (row.outcome === 'replayed') {
+    if (outcome.kind === 'expired') throw expiredError();
+    if (outcome.kind === 'replayed') {
       throw canvasEntryError('CANVAS_ENTRY_REPLAYED', 'Canvas Entry was already consumed.');
     }
-    if (!row.consumed_at) {
+    if (!outcome.row.consumed_at) {
       throw canvasEntryError(
         'CANVAS_ENTRY_SCHEMA_INVALID',
         'Consumed Canvas Entry did not record consumedAt.',
       );
     }
     return {
-      handle: row.handle,
-      tenantId: row.tenant_id,
-      projectId: row.project_id,
-      packageId: row.package_id,
-      grantId: row.grant_id,
-      consumedAt: iso(row.consumed_at),
+      handle: outcome.row.handle,
+      tenantId: outcome.row.tenant_id,
+      projectId: outcome.row.project_id,
+      packageId: outcome.row.package_id,
+      grantId: outcome.row.grant_id,
+      consumedAt: iso(outcome.row.consumed_at),
     };
   }
 }
