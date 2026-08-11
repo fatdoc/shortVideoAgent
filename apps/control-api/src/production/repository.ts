@@ -85,8 +85,6 @@ type StoryboardApprovalRow = {
   acted_at: Date | string;
 };
 
-type ApprovalRow = Pick<ScriptApprovalRow, 'status' | 'fact_risk_status' | 'acted_by' | 'acted_at'>;
-
 type CurrentProductionAuthority = {
   decision: ProductionEligibilityDecision;
   script: ScriptRow | null;
@@ -96,6 +94,8 @@ type CurrentProductionAuthority = {
 type PackageRow = {
   package_id: string;
   snapshot: ProjectProductionPackage | string;
+  contract_version: '0.2' | '0.3';
+  status: 'ready' | 'dispatched' | 'accepted' | 'rejected' | 'expired';
   approved_script_version_id: string;
   approved_storyboard_version_id?: string | null;
   approved_script_digest?: string | null;
@@ -120,6 +120,16 @@ type GrantRow = {
 };
 
 class ResourceNotFoundError extends Error {}
+
+function productionAuthorityStale(authorityReasonCode: string): ProductionDomainError {
+  return new ProductionDomainError(
+    'Production authority changed before Grant authorization.',
+    409,
+    'PRODUCTION_AUTHORITY_STALE',
+    'authority',
+    { reasonCode: 'PRODUCTION_AUTHORITY_STALE', authorityReasonCode },
+  );
+}
 
 function iso(value: Date | string): string {
   return new Date(value).toISOString();
@@ -460,26 +470,13 @@ export class PostgresProductionStore implements ProductionStore {
             .forUpdate()
             .first();
           if (!project) throw new ResourceNotFoundError();
-          const packageRow = (await transaction('control_plane.production_packages')
-            .select('package_id', 'snapshot', 'approved_script_version_id', 'expires_at')
-            .where({
-              tenant_id: actor.tenantId,
-              project_id: projectId,
-              package_id: input.packageId,
-            })
-            .first()) as PackageRow | undefined;
-          if (!packageRow) throw new ResourceNotFoundError();
-          const packageValue = jsonValue(packageRow.snapshot);
-          const now = this.now();
-          if (now.getTime() >= new Date(packageRow.expires_at).getTime()) {
-            throw new ProductionDomainError('生产包已过期。', 410, 'GRANT_EXPIRED', 'grant');
-          }
-          await this.assertCurrentlyEligible(
+          const { row: packageRow, value: packageValue } = await this.assertPackageGrantAuthority(
             transaction,
             actor,
             projectId,
-            packageRow.approved_script_version_id,
+            input.packageId,
           );
+          const now = this.now();
           assertGrantRequestAllowed(
             packageValue.capabilityRequirements,
             input.requestedCapabilities,
@@ -550,14 +547,10 @@ export class PostgresProductionStore implements ProductionStore {
           return grant;
         },
         async (transaction, grant) => {
-          await this.assertCurrentlyEligible(
-            transaction,
-            actor,
-            projectId,
-            grant.packageId === input.packageId
-              ? await this.packageScriptVersion(transaction, actor, projectId, grant.packageId)
-              : '',
-          );
+          if (grant.packageId !== input.packageId) {
+            throw productionAuthorityStale('PACKAGE_BINDING_MISMATCH');
+          }
+          await this.assertPackageGrantAuthority(transaction, actor, projectId, grant.packageId);
           await this.assertGrantActive(transaction, actor, projectId, grant.grantId);
         },
       );
@@ -645,12 +638,20 @@ export class PostgresProductionStore implements ProductionStore {
     ) {
       throw new ProductionDomainError('grant binding mismatch', 401, 'GRANT_INVALID', 'grant');
     }
+    await this.database.transaction(async (transaction) => {
+      await this.assertPackageGrantAuthority(
+        transaction,
+        { tenantId: claims.tenantId },
+        claims.projectId,
+        claims.packageId,
+      );
+    });
     return claims;
   }
 
   private async currentProductionAuthority(
     transaction: Knex.Transaction,
-    actor: SessionActor,
+    actor: Pick<SessionActor, 'tenantId'>,
     projectId: string,
   ): Promise<CurrentProductionAuthority> {
     const scripts = (await transaction('control_plane.script_versions')
@@ -811,48 +812,74 @@ export class PostgresProductionStore implements ProductionStore {
     );
   }
 
-  private async assertCurrentlyEligible(
+  private async assertPackageGrantAuthority(
     transaction: Knex.Transaction,
-    actor: SessionActor,
-    projectId: string,
-    scriptVersionId: string,
-  ): Promise<void> {
-    const latestScript = await transaction('control_plane.script_versions')
-      .select('script_version_id')
-      .where({ tenant_id: actor.tenantId, project_id: projectId })
-      .orderBy('version', 'desc')
-      .first<{ script_version_id: string }>();
-    if (!latestScript || latestScript.script_version_id !== scriptVersionId) {
-      throw eligibilityError('SCRIPT_NOT_APPROVED');
-    }
-    const approval = (await transaction('control_plane.script_approvals')
-      .select('status', 'fact_risk_status', 'acted_by', 'acted_at')
-      .where({
-        tenant_id: actor.tenantId,
-        project_id: projectId,
-        script_version_id: scriptVersionId,
-      })
-      .orderBy('approval_sequence', 'desc')
-      .first()) as ApprovalRow | undefined;
-    if (!approval) throw eligibilityError('SCRIPT_NOT_APPROVED');
-    if (approval.fact_risk_status !== 'cleared') throw eligibilityError('FACT_RISK_UNRESOLVED');
-    if (approval.status === 'revoked') throw eligibilityError('APPROVAL_REVOKED');
-    if (approval.status === 'blocked') throw eligibilityError('SCRIPT_BLOCKED');
-    if (approval.status !== 'approved') throw eligibilityError('SCRIPT_NOT_APPROVED');
-  }
-
-  private async packageScriptVersion(
-    transaction: Knex.Transaction,
-    actor: SessionActor,
+    actor: Pick<SessionActor, 'tenantId'>,
     projectId: string,
     packageId: string,
-  ): Promise<string> {
-    const row = await transaction('control_plane.production_packages')
-      .select('approved_script_version_id')
+  ): Promise<{ row: PackageRow; value: ProjectProductionPackageV03 }> {
+    const row = (await transaction('control_plane.production_packages')
+      .select(
+        'package_id',
+        'snapshot',
+        'contract_version',
+        'status',
+        'approved_script_version_id',
+        'approved_storyboard_version_id',
+        'approved_script_digest',
+        'approved_storyboard_digest',
+        'expires_at',
+      )
       .where({ tenant_id: actor.tenantId, project_id: projectId, package_id: packageId })
-      .first<{ approved_script_version_id: string }>();
+      .first()) as PackageRow | undefined;
     if (!row) throw new ResourceNotFoundError();
-    return row.approved_script_version_id;
+    if (this.now().getTime() >= new Date(row.expires_at).getTime()) {
+      throw new ProductionDomainError('生产包已过期。', 410, 'GRANT_EXPIRED', 'grant');
+    }
+
+    const value = jsonValue(row.snapshot);
+    if (
+      row.contract_version !== '0.3' ||
+      row.status !== 'ready' ||
+      value.contractVersion !== '0.3' ||
+      value.status !== 'ready' ||
+      !row.approved_storyboard_version_id ||
+      !row.approved_script_digest ||
+      !row.approved_storyboard_digest
+    ) {
+      throw productionAuthorityStale('PACKAGE_NOT_GRANT_ELIGIBLE');
+    }
+    if (
+      value.packageId !== row.package_id ||
+      value.scriptVersionId !== row.approved_script_version_id ||
+      value.storyboardVersionId !== row.approved_storyboard_version_id ||
+      value.approvedScriptDigest !== row.approved_script_digest ||
+      value.approvedStoryboardDigest !== row.approved_storyboard_digest
+    ) {
+      throw productionAuthorityStale('PACKAGE_BINDING_MISMATCH');
+    }
+
+    const authority = await this.currentProductionAuthority(transaction, actor, projectId);
+    if (
+      !authority.decision.eligible ||
+      !authority.script ||
+      !authority.storyboard ||
+      authority.decision.scriptVersionId !== row.approved_script_version_id ||
+      authority.decision.storyboardVersionId !== row.approved_storyboard_version_id ||
+      canonicalAuthorityDigest(authority.script.payload_digest, 'script.payloadDigest') !==
+        row.approved_script_digest ||
+      canonicalAuthorityDigest(authority.storyboard.payload_digest, 'storyboard.payloadDigest') !==
+        row.approved_storyboard_digest ||
+      canonicalAuthorityDigest(
+        authority.storyboard.script_payload_digest,
+        'storyboard.scriptPayloadDigest',
+      ) !== row.approved_script_digest
+    ) {
+      throw productionAuthorityStale(
+        authority.decision.eligible ? 'PACKAGE_BINDING_MISMATCH' : authority.decision.reasonCode,
+      );
+    }
+    return { row, value };
   }
 
   private async assertGrantActive(

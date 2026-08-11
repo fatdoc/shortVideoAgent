@@ -7,10 +7,12 @@ import { up as hardenProductionSecurity } from '../db/migrations/005_production_
 import { up as addStoryboardAuthority } from '../db/migrations/020_storyboard_authority.js';
 import { up as addProductionStoryboardAuthority } from '../db/migrations/022_production_storyboard_authority.js';
 import type { SessionActor } from '../projects/types.js';
+import { contractPayloadDigest, tokenDigest } from './digest.js';
 import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
 import { ProjectGrantTokenService } from './grantToken.js';
+import { productionIdempotencyDigest } from './idempotency.js';
 import { PostgresProductionStore } from './repository.js';
-import type { CreatePackageInput, IdempotencyInput } from './types.js';
+import type { CreatePackageInput, IdempotencyInput, IssueGrantInput } from './types.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
@@ -66,6 +68,43 @@ function idempotency(key: string): IdempotencyInput {
       expiresInSeconds: 3_600,
     },
   };
+}
+
+function grantInput(packageId: string): IssueGrantInput {
+  return {
+    packageId,
+    requestedCapabilities: ['video.generate'],
+    requestedScopes: ['production.package.read'],
+    ttlSeconds: 600,
+  };
+}
+
+function grantIdempotency(key: string, packageId: string): IdempotencyInput {
+  return {
+    operation: 'production.grant.issue',
+    key,
+    scope: { projectId },
+    payload: grantInput(packageId),
+  };
+}
+
+async function revokeStoryboardAuthority(database: Knex): Promise<void> {
+  await database('control_plane.storyboard_approvals').insert({
+    storyboard_approval_id: revokeApprovalId,
+    tenant_id: tenantId,
+    project_id: projectId,
+    storyboard_version_id: storyboardVersionId,
+    status: 'revoked',
+    fact_risk_status: 'cleared',
+    reason: 'Authority revoked after package creation.',
+    idempotency_key: 'storyboard-revoke-grant',
+    event_digest: `sha256:${'3'.repeat(64)}`,
+    acted_by: userId,
+    acted_at: new Date('2026-08-11T04:01:00.000Z'),
+  });
+  await database('control_plane.storyboard_versions')
+    .where({ storyboard_version_id: storyboardVersionId })
+    .update({ status: 'revoked' });
 }
 
 async function seedFoundation(database: Knex): Promise<void> {
@@ -463,5 +502,270 @@ describe.runIf(hasDedicatedTestDatabase)('Production Package v0.3 repository/cor
     await expect(store.getPackage(actor, projectId, legacyPackageId)).resolves.toEqual(
       legacySnapshot,
     );
+  });
+
+  it('rejects Grant issuance after Storyboard authority becomes stale without inserting a Grant', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Grant authority storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('grant-authority-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    await revokeStoryboardAuthority(database);
+
+    await expect(
+      store.issueGrant(
+        actor,
+        projectId,
+        grantInput(packageId),
+        grantIdempotency('grant-authority-stale', packageId),
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'PRODUCTION_AUTHORITY_STALE',
+    });
+    expect(await database('control_plane.project_grants').count('* as count').first()).toEqual({
+      count: '0',
+    });
+  });
+
+  it('rejects Grant issuance when a newer approved Storyboard replaces the Package binding', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Original Package-bound storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('grant-replaced-authority-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    await seedApprovedStoryboard(database, {
+      id: olderStoryboardVersionId,
+      approvalId: olderStoryboardApprovalId,
+      version: 2,
+      digest: olderStoryboardDigest,
+      description: 'New current storyboard authority.',
+    });
+
+    await expect(
+      store.issueGrant(
+        actor,
+        projectId,
+        grantInput(packageId),
+        grantIdempotency('grant-replaced-authority', packageId),
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: 'PRODUCTION_AUTHORITY_STALE',
+      details: { authorityReasonCode: 'PACKAGE_BINDING_MISMATCH' },
+    });
+    expect(await database('control_plane.project_grants').count('* as count').first()).toEqual({
+      count: '0',
+    });
+  });
+
+  it('revalidates dual authority before replaying or introspecting an issued Grant', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Grant replay authority storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('grant-replay-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    const issued = await store.issueGrant(
+      actor,
+      projectId,
+      grantInput(packageId),
+      grantIdempotency('grant-replay', packageId),
+    );
+    expect(issued?.replayed).toBe(false);
+    await revokeStoryboardAuthority(database);
+
+    await expect(
+      store.issueGrant(
+        actor,
+        projectId,
+        grantInput(packageId),
+        grantIdempotency('grant-replay', packageId),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'PRODUCTION_AUTHORITY_STALE' });
+    await expect(
+      store.verifyActiveGrantToken(issued?.value.accessToken as string),
+    ).rejects.toMatchObject({ status: 409, code: 'PRODUCTION_AUTHORITY_STALE' });
+    expect(await database('control_plane.project_grants').count('* as count').first()).toEqual({
+      count: '1',
+    });
+  });
+
+  it('rejects Grant issuance when a v0.3 Package is no longer ready', async () => {
+    await seedApprovedStoryboard(database, {
+      id: storyboardVersionId,
+      approvalId: storyboardApprovalId,
+      version: 1,
+      digest: storyboardDigest,
+      description: 'Non-ready Grant package storyboard.',
+    });
+    const created = await store.createPackage(
+      actor,
+      projectId,
+      packageInput(),
+      idempotency('non-ready-grant-package'),
+    );
+    const packageId = created?.value.packageId as string;
+    await database('control_plane.production_packages')
+      .where({ package_id: packageId })
+      .update({ status: 'dispatched' });
+
+    await expect(
+      store.issueGrant(
+        actor,
+        projectId,
+        grantInput(packageId),
+        grantIdempotency('non-ready-grant', packageId),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'PRODUCTION_AUTHORITY_STALE' });
+    expect(await database('control_plane.project_grants').count('* as count').first()).toEqual({
+      count: '0',
+    });
+  });
+
+  it('never issues or introspects a Grant bound to a historical v0.2 Package', async () => {
+    const legacyPackageId = '24000000-0000-4000-8000-000000000021';
+    const legacyGrantId = '24000000-0000-4000-8000-000000000022';
+    const legacyNonce = '24000000-0000-4000-8000-000000000023';
+    const legacySnapshot = {
+      objectType: 'ProjectProductionPackage',
+      contractVersion: '0.2',
+      tenantId,
+      projectId,
+      packageId: legacyPackageId,
+      packageVersion: 1,
+      payloadDigest: `sha256:${'4'.repeat(64)}`,
+      capabilityRequirements: ['video.generate'],
+    };
+    await database('control_plane.production_packages').insert({
+      package_id: legacyPackageId,
+      tenant_id: tenantId,
+      project_id: projectId,
+      contract_version: '0.2',
+      idempotency_key: 'legacy-package-grant',
+      package_digest: legacySnapshot.payloadDigest,
+      snapshot: legacySnapshot,
+      status: 'ready',
+      valid_from: new Date('2026-08-11T03:00:00.000Z'),
+      expires_at: new Date('2026-08-11T05:00:00.000Z'),
+      package_version: 1,
+      organization_id: tenantId,
+      approved_script_version_id: scriptVersionId,
+      created_by: userId,
+    });
+
+    await expect(
+      store.issueGrant(
+        actor,
+        projectId,
+        grantInput(legacyPackageId),
+        grantIdempotency('legacy-package-grant-issue', legacyPackageId),
+      ),
+    ).rejects.toMatchObject({ status: 409, code: 'PRODUCTION_AUTHORITY_STALE' });
+
+    const legacyClaims = {
+      iss: 'videoagent-control-plane' as const,
+      aud: 'storycanvas-production-plane' as const,
+      jti: legacyGrantId,
+      tenantId,
+      projectId,
+      packageId: legacyPackageId,
+      capabilities: ['video.generate'] as const,
+      scopes: ['production.package.read'] as const,
+      contractVersion: '0.2' as const,
+      nonce: legacyNonce,
+      iat: Math.floor(fixedNow.getTime() / 1000),
+      nbf: Math.floor(fixedNow.getTime() / 1000),
+      exp: Math.floor(fixedNow.getTime() / 1000) + 600,
+    };
+    const legacyToken = new ProjectGrantTokenService(
+      signingSecret,
+      'package-v03-test-kid',
+      () => fixedNow,
+    ).issue(legacyClaims);
+    const legacyGrantUnsigned = {
+      objectType: 'ProjectGrant' as const,
+      contractVersion: '0.2' as const,
+      tenantId,
+      projectId,
+      idempotencyKey: 'legacy-grant-replay',
+      occurredAt: fixedNow.toISOString(),
+      grantId: legacyGrantId,
+      packageId: legacyPackageId,
+      capabilities: ['video.generate'] as const,
+      scopes: ['production.package.read'] as const,
+      tokenDigest: tokenDigest(legacyToken),
+      keyId: 'package-v03-test-kid',
+      issuedAt: fixedNow.toISOString(),
+      expiresAt: new Date(fixedNow.getTime() + 600_000).toISOString(),
+    };
+    const legacyGrant = {
+      ...legacyGrantUnsigned,
+      payloadDigest: contractPayloadDigest(legacyGrantUnsigned),
+    };
+    await database('control_plane.project_grants').insert({
+      grant_id: legacyGrantId,
+      tenant_id: tenantId,
+      project_id: projectId,
+      package_id: legacyPackageId,
+      token_digest: legacyGrant.tokenDigest,
+      capabilities: JSON.stringify(legacyClaims.capabilities),
+      status: 'active',
+      issued_at: fixedNow,
+      expires_at: new Date(fixedNow.getTime() + 600_000),
+      contract_version: '0.2',
+      idempotency_key: legacyGrant.idempotencyKey,
+      payload_digest: legacyGrant.payloadDigest,
+      scopes: JSON.stringify(legacyClaims.scopes),
+      key_id: 'package-v03-test-kid',
+      nonce: legacyNonce,
+      created_by: userId,
+    });
+    const replayInput = grantIdempotency(legacyGrant.idempotencyKey, legacyPackageId);
+    await database('control_plane.idempotency_records').insert({
+      idempotency_record_id: '24000000-0000-4000-8000-000000000024',
+      tenant_id: tenantId,
+      operation: replayInput.operation,
+      idempotency_key: replayInput.key,
+      request_digest: productionIdempotencyDigest(tenantId, replayInput),
+      response_status: 200,
+      response_body: legacyGrant,
+      expires_at: new Date('2027-08-11T04:00:00.000Z'),
+    });
+
+    await expect(
+      store.issueGrant(actor, projectId, grantInput(legacyPackageId), replayInput),
+    ).rejects.toMatchObject({ status: 409, code: 'PRODUCTION_AUTHORITY_STALE' });
+
+    await expect(store.verifyActiveGrantToken(legacyToken)).rejects.toMatchObject({
+      status: 409,
+      code: 'PRODUCTION_AUTHORITY_STALE',
+    });
   });
 });
