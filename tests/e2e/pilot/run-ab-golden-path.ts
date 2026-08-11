@@ -78,18 +78,36 @@ function fixedError(code: AbGoldenPathRunnerErrorCode): AbGoldenPathRunnerError 
   return new AbGoldenPathRunnerError(code);
 }
 
-function runGitProbe(spawnSyncImpl: SpawnSyncProbe, root: string, args: string[]): boolean {
+function readGitProbeStatus(
+  spawnSyncImpl: SpawnSyncProbe,
+  root: string,
+  args: string[],
+): number | null {
   try {
-    return (
-      spawnSyncImpl('git', args, {
-        cwd: root,
-        shell: false,
-        stdio: 'ignore',
-      }).status === 0
-    );
+    return spawnSyncImpl('git', args, {
+      cwd: root,
+      shell: false,
+      stdio: 'ignore',
+    }).status;
   } catch {
-    return false;
+    throw fixedError('JOINT_GATE_B_BASELINE_COMMIT_INVALID');
   }
+}
+
+function commitExists(spawnSyncImpl: SpawnSyncProbe, root: string, commit: string): boolean {
+  return readGitProbeStatus(spawnSyncImpl, root, ['cat-file', '-e', `${commit}^{commit}`]) === 0;
+}
+
+function isCommitAncestor(spawnSyncImpl: SpawnSyncProbe, root: string, commit: string): boolean {
+  const status = readGitProbeStatus(spawnSyncImpl, root, [
+    'merge-base',
+    '--is-ancestor',
+    commit,
+    'HEAD',
+  ]);
+  if (status === 0) return true;
+  if (status === 1) return false;
+  throw fixedError('JOINT_GATE_B_BASELINE_COMMIT_INVALID');
 }
 
 export function createLocalAbGoldenPathPreflightDependencies({
@@ -100,10 +118,8 @@ export function createLocalAbGoldenPathPreflightDependencies({
   spawnSyncImpl?: SpawnSyncProbe;
 } = {}): AbGoldenPathPreflightDependencies {
   return {
-    commitExists: (commit) =>
-      runGitProbe(spawnSyncImpl, root, ['cat-file', '-e', `${commit}^{commit}`]),
-    isCommitAncestor: (commit) =>
-      runGitProbe(spawnSyncImpl, root, ['merge-base', '--is-ancestor', commit, 'HEAD']),
+    commitExists: (commit) => commitExists(spawnSyncImpl, root, commit),
+    isCommitAncestor: (commit) => isCommitAncestor(spawnSyncImpl, root, commit),
     hasBConsumerCapability: async () => {
       // No B consumer capability marker/manifest contract is frozen yet. Fail closed without
       // reading guessed files, consulting the network, or inferring readiness from source shape.
