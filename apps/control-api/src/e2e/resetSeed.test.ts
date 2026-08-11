@@ -1,7 +1,13 @@
 import knex, { type Knex } from 'knex';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { parsePilotE2eEnvironment } from './environment.js';
-import { createPilotE2eSecrets, pilotE2eFixtureAccounts, pilotE2eFixtureIds } from './fixtures.js';
+import {
+  PILOT_E2E_FIXTURE_CLOCK,
+  createPilotE2eSecrets,
+  pilotE2eFixtureAccounts,
+  pilotE2eFixtureIds,
+  pilotE2eGoldenPathInputs,
+} from './fixtures.js';
 import { resetMigrateSeedPilotE2e, resetPilotE2eStorage, verifyPilotE2eSeed } from './resetSeed.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
@@ -33,6 +39,19 @@ describe('Pilot E2E reset/seed contract', () => {
     expect(first.invitationTokens.valid).not.toBe(second.invitationTokens.valid);
     expect(first.emailVerificationToken).not.toBe(second.emailVerificationToken);
     expect(pilotE2eFixtureIds.organizations.platform).toMatch(/^[0-9a-f-]{36}$/);
+    expect(PILOT_E2E_FIXTURE_CLOCK).toBe('2026-08-11T00:00:00.000Z');
+    expect(pilotE2eGoldenPathInputs).toMatchObject({
+      tenantId: pilotE2eFixtureIds.tenants.tenantA,
+      projectId: pilotE2eFixtureIds.project,
+      actorUserId: pilotE2eFixtureIds.users.tenantOperatorA,
+      script: { idempotencyKey: 'pilot-e2e-golden-script-v1' },
+      storyboard: {
+        draftRevisionId: '6e000000-0000-4000-8000-000000000001',
+        idempotencyKey: 'pilot-e2e-golden-storyboard-v1',
+      },
+      productionPackage: { idempotencyKey: 'pilot-e2e-golden-package-v1' },
+      canvasEntry: { idempotencyKey: 'pilot-e2e-golden-canvas-entry-v1' },
+    });
   });
 
   it('does not execute reset SQL when the connected database identity mismatches', async () => {
@@ -61,7 +80,8 @@ describe.runIf(hasDedicatedTestDatabase)('Pilot E2E deterministic PostgreSQL lif
 
     expect(second.summary).toEqual(first.summary);
     expect(second.summary).toMatchObject({
-      fixtureVersion: 1,
+      fixtureVersion: 2,
+      fixtureClock: PILOT_E2E_FIXTURE_CLOCK,
       migrationCount: 24,
       organizationCount: 5,
       channelCount: 2,
@@ -73,9 +93,18 @@ describe.runIf(hasDedicatedTestDatabase)('Pilot E2E deterministic PostgreSQL lif
       paymentEventCount: 1,
       commissionAccrualCount: 1,
       commissionSettlementDraftCount: 1,
+      scriptVersionCount: 0,
+      scriptApprovalCount: 0,
+      storyboardVersionCount: 0,
+      storyboardApprovalCount: 0,
+      productionPackageCount: 0,
+      projectGrantCount: 0,
+      canvasEntryCount: 0,
+      canvasEntryRedemptionCount: 0,
       liveFactCount: 0,
       activeSessionCount: 0,
     });
+    expect(second.summary.seedFingerprint).toBe(first.summary.seedFingerprint);
     expect(second.summary.seedFingerprint).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(second.summary)).not.toContain(
       second.secrets.accounts.platformAdmin.password,
@@ -99,9 +128,11 @@ describe.runIf(hasDedicatedTestDatabase)('Pilot E2E deterministic PostgreSQL lif
     expect(storedPlatform?.password_hash).not.toBe(second.secrets.accounts.platformAdmin.password);
 
     const storedInvitation = await database('control_plane.invitations')
-      .select('token_digest')
+      .select('token_digest', 'valid_from', 'expires_at')
       .where({ invitation_id: pilotE2eFixtureIds.invitations.valid })
-      .first<{ token_digest: string }>();
+      .first<{ token_digest: string; valid_from: Date; expires_at: Date }>();
     expect(storedInvitation?.token_digest).not.toContain(second.secrets.invitationTokens.valid);
+    expect(storedInvitation?.valid_from.toISOString()).toBe('2026-08-10T00:00:00.000Z');
+    expect(storedInvitation?.expires_at.toISOString()).toBe('2026-08-31T00:00:00.000Z');
   }, 120_000);
 });
