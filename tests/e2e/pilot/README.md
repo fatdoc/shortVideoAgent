@@ -57,6 +57,28 @@ npm run test:e2e:pilot
 
 A-BIZ-06D closure evidence used real Google Chrome `150.0.7871.125`, a dedicated `videoagent_control_test` PostgreSQL database, and a single Playwright worker. The complete matrix passed `39/39` with `0 SKIP`, including the post-run artifact scanner. This activates only the Pilot browser phase; it does not make the A/B golden path, B-owned baseline, or Full Joint Gate pass.
 
+### A/B Golden Path fail-closed runner skeleton
+
+The shared runner entry is now wired, but the Joint Gate phase remains `external` and
+`AB_GOLDEN_PATH_NOT_IMPLEMENTED` remains a required slice blocker:
+
+```bash
+PILOT_E2E=true \
+PILOT_E2E_AB_GOLDEN_PATH=true \
+PILOT_E2E_BROWSER_CHANNEL=chrome \
+CONTROL_API_TEST_DATABASE_URL='<dedicated PostgreSQL database ending in _test>' \
+JOINT_GATE_B_BASELINE_COMMIT='<full synchronized 40-character B commit SHA>' \
+npm run test:e2e:pilot:ab-golden-path
+```
+
+The runner performs static environment validation, local shell-free Git commit/ancestor probes, and then
+requires a frozen B consumer capability marker. No such marker is synchronized yet, so the current real
+CLI must exit non-zero with `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED` before reading a Golden Path spec,
+resetting PostgreSQL, starting Control API/Root/StoryCanvas processes, or launching Chrome. Even a test-only
+synthetic capability cannot produce PASS; it stops at `AB_GOLDEN_PATH_NOT_IMPLEMENTED`. This skeleton
+does not prove the B redemption consumer, browser-safe bootstrap, Pilot Canvas page, real browser flow, or
+Full Joint Gate.
+
 ### Migration rollback/reapply phase evidence
 
 Run only against a disposable, fresh, empty PostgreSQL database dedicated to tests:

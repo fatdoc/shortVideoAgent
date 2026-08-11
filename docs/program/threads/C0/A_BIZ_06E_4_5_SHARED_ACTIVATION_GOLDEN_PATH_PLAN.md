@@ -6,9 +6,27 @@
 - 冻结基线：`a7f8021b80f540c69e4c45718b335ba2c0fca539`
 - A 远程：`origin/dev/business-plane@a7f8021b80f540c69e4c45718b335ba2c0fca539`
 - B 远程：`origin/dev/production-plane@a7f8021b80f540c69e4c45718b335ba2c0fca539`
-- 状态：`A_BIZ_06E_4P_PLAN_FROZEN / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / READY_FOR_06E_5A_RED`
+- 状态：`A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED`
 - 上游计划：`A_BIZ_06E_A_B_GOLDEN_PATH_JOINT_GATE_PLAN.md`、`A_BIZ_06E_CANVAS_ENTRY_REDEMPTION_PLAN.md`
 - B 对齐回执：`docs/collaboration/production-plane/B_TO_A_AGENT_CANVAS_REDEMPTION_ALIGNMENT_RESPONSE_2026-08-11.md`
+
+## 0. 2026-08-11 执行进度覆盖
+
+本节覆盖后文保留的计划时态。当前 A 本地实现基线为 `37aab02`，A/B 同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。
+
+已完成并形成独立 RED/GREEN 提交：
+
+- `06E.5A1`：migration postcondition 从权威 migration 列表派生，完整接受 `001—024`，`migrationCount=24`；提交 `6ca5d78` / `45b3563`。
+- `06E.5A2`：fixture 数据形状升级为 `fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`，冻结 canonical Golden Path 输入与 Package/Grant/Entry/Redemption 等零成功事实；提交 `3881b4c` / `d7f4c75`。
+- artifact security Oracle：扫描浏览器与双服务证据中的 token、grantId、digest、数据库凭据、临时路径、SQL、stack 与 provider/internal logs；提交 `d50a0ed` / `5d5040d`。
+- fail-closed preflight：校验 Pilot flags、真实 Chrome、dedicated `_test` PostgreSQL、完整 B baseline SHA、HEAD ancestor 与 B consumer capability；提交 `3988fcf` / `b91de9f`。
+- Playwright JSON zero-SKIP Oracle：要求非空测试、`failed/unexpected/skipped/fixme/flaky/interrupted=0` 且 `passed=expected`；提交 `0ec63b9` / `7c5a7f3`。
+- bounded process harness：显式 command/args/env、bounded readiness/logs、逆序清理与 `SIGTERM → SIGKILL`；提交 `7134192` / `3c4a2ae`。
+- shared baseline validator：将 ancestor 校验提取为可复用 shared Gate precondition，保持既有安全错误码；提交 `d141faa` / `6e37dc9`。这是 shared Gate 改动，B 必须先同步再修改 Joint Gate runner。
+- dedicated Golden Path Playwright config：真实 Chrome、single worker、zero retry、JSON report 与独立 artifact 目录；提交 `186dd42` / `96dd0be`。
+- static no-skip policy：拒绝 `.only`、`.skip`、`.fixme`、空 spec 与超限 spec；提交 `aad90da` / `32d70ac`。静态策略只是附加 Oracle，最终仍以 JSON report 为机器事实。
+
+fail-closed runner skeleton 与 Joint Gate 接线已完成：runner RED/GREEN 为 `2b5154c` / `37aab02`，manifest/package wiring RED/GREEN 为 `cad93d9` / `ed7adee`。当前真实 CLI 在 B consumer capability 未证明时于数据库 reset 与任何子进程 spawn 前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`；即使测试注入 capability=true，也继续返回 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。Manifest 保持 `ab-golden-path: external`，slice blocker 未移除。
 
 ## 1. 本轮冻结结论
 
@@ -30,7 +48,7 @@ A/B 已完成 Git baseline 对齐，但只完成了合同祖先链同步，不�
 - B-owned browser-facing、browser-safe Canvas bootstrap endpoint/adapter；
 - B-owned Pilot Script、Storyboard 与 Canvas 页面；
 - Shared Pilot Bridge 与 Router 激活；
-- Golden Path fixture、runner、Playwright spec 与零 SKIP 机器验收。
+- Golden Path orchestration runner、真实浏览器 spec 与零 SKIP 联合证据；fixture lifecycle、harness primitives 与静态/JSON Oracle 已完成。
 
 因此本轮只冻结 06E.4P、06E.4A—C、06E.5A—C 与 06E.6，不把未实现的 B consumer/page 或 Shared Green 伪装为完成。必须继续保留：
 
@@ -321,46 +339,34 @@ Green 必须证明：
 
 ### 5.1 A-BIZ-06E.5A · Deterministic PostgreSQL Fixture Lifecycle
 
-所有权：A-owned，可独立于 B consumer 先执行 RED/Green。
+所有权：A-owned；`06E.5A1` 与 `06E.5A2` 已完成。
 
-当前确定性缺口：migration chain 已为 `001—024`，Pilot E2E seed postcondition 仍把 migration 数量冻结为 `19`。`fixtureVersion: 1` 表示当前 seed 数据形状，本次仅修复 migration contract，不因 migration 数量变化而升级。真实 runner 会在启动 Chrome 前因 migrationCount postcondition 失败。
+完成事实：
 
-06E.5A 冻结：
+- migration chain 为 `001—024`，seed summary 从 `CONTROL_API_MIGRATION_NAMES.length` 派生 `migrationCount=24`，不再维护易漂移常量；
+- `06E.5A1` 仅修复 migration contract，未改变当时的数据形状；
+- `06E.5A2` 新增真实 Golden Path 所需的 deterministic 输入，因此按合同升级为 `fixtureVersion=2`；
+- 固定时钟为 `2026-08-11T00:00:00.000Z`；
+- fixture 冻结 canonical Tenant、Project、Actor、Membership、Script、Storyboard、Production Package、Canvas Entry 与 Redemption 输入及幂等键；
+- 不预埋成功链，seed 后 `scriptVersionCount/scriptApprovalCount/storyboardVersionCount/storyboardApprovalCount/productionPackageCount/projectGrantCount/canvasEntryCount/canvasEntryRedemptionCount` 均为 `0`；
+- dedicated `_test` PostgreSQL lifecycle 已验证 `3/3 PASS`，缺合法专用数据库继续 fail closed，不得 SKIP。
 
-- `06E.5A1`：migrationCount 对齐完整 `001—024`，并从权威 migration contract 派生；
-- `06E.5A1` 保持 `fixtureVersion: 1`，因为本原子修复不改变 seed 数据形状；
-- `06E.5A2`：如新增 Golden Path 输入 fixture、确定性时钟或初始 Production/Canvas 计数，再独立升级 fixtureVersion 并固定 fingerprint；
-- deterministic fixture clock；
-- canonical Tenant/Project/User/Membership/Assignment；
-- approved-script、fact-risk、stale storyboard、cross-scope 等输入 fixture；
-- Package/Grant/Canvas Entry/Redemption 成功事实由真实浏览器链创建，不预埋整条成功链；
-- seed 后初始 Package/Grant/Entry/Redemption 计数有明确 postcondition；
-- `activeSessionCount=0`；
-- reset → migrate → seed → verify 连续两轮产生相同非秘密 fingerprint；
-- 缺 dedicated `_test` PostgreSQL 时 fail，不得 SKIP。
-
-#### 首个 RED
-
-在 `apps/control-api/src/e2e/resetSeed.test.ts` 冻结：
-
-```ts
-expect(summary.migrationCount).toBe(24);
-expect(summary.fixtureVersion).toBe(1);
-```
-
-本 RED 只证明完整 migration chain；当前实现的 `migrationCount: 19` 应确定性失败，而 `fixtureVersion: 1` 是本切片的正确预期。Production/Canvas 输入 fixture 与初始计数留给独立 `06E.5A2` RED，不混入本修复。
-
-首个 RED 名称：
+提交：
 
 ```text
-Pilot E2E seed accepts the complete 001—024 migration chain
+6ca5d78 test(control-api): accept complete pilot migration chain
+45b3563 fix(control-api): derive pilot migration postcondition
+3881b4c test(control-api): define golden path seed fixture
+d7f4c75 feat(control-api): freeze golden path seed inputs
 ```
 
 ### 5.2 A-BIZ-06E.5B · Deterministic Golden Path Runner / Harness
 
 所有权：shared；独立 RED commit 与 Green commit，完成后通知 B。
 
-建议入口：
+截至 `37aab02`，runner prerequisites、orchestration skeleton、package script 与 Joint Gate manifest wiring 已完成。Runner 先执行静态环境、commit object、ancestor 与 B consumer capability preflight；当前 capability marker 未冻结，因此默认本地探针固定 false，且不会读取猜测文件或访问网络。尚未落地的是 B consumer capability contract、真实浏览器 spec、三服务启动/readiness 接线与联合证据。
+
+下一步入口：
 
 ```text
 npm run test:e2e:pilot:ab-golden-path
@@ -658,11 +664,13 @@ git status --short
 
 ## 12. 当前执行入口
 
-本计划冻结后，A 可独立开始的第一个实现切片是：
+A 当前可继续的下一原子切片是：
 
 ```text
-A-BIZ-06E.5A RED
-Pilot E2E seed accepts the complete 001—024 migration chain
+A-BIZ-06E.5B fail-closed runner skeleton
+→ 先执行 preflight
+→ B consumer/page/capability 未证明时在 reset/spawn 前返回 AB_GOLDEN_PATH_B_CONSUMER_REQUIRED
+→ 不激活 manifest phase
 ```
 
 Shared Router/Bridge Green 的进入条件仍是：
@@ -676,8 +684,9 @@ B 06E.4A consumer/page implementation commit
 当前状态保持：
 
 ```text
-A_BIZ_06E_4P_PLAN_FROZEN
-READY_FOR_06E_5A_RED
+A_CANVAS_ENTRY_REDEMPTION_READY
+A_BIZ_06E_5A_COMPLETE
+A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE
 B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED
 SHARED_ACTIVATION_GREEN_BLOCKED
 AB_GOLDEN_PATH_NOT_IMPLEMENTED

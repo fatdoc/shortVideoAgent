@@ -118,6 +118,7 @@
 | 2026-08-11 | B Wave 4 baseline `f68ac6a` 已 fast-forward 进入 A integration ancestor chain；response commit 仅新增一份 B 文档，manifest 13/13 PASS，Full preflight 仅保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`                                                             | B_BASELINE_SYNCED / READY_FOR_06E_1_RED             |
 | 2026-08-11 | A 完成 Storyboard/Production/Grant/Canvas 双权威链：Package v0.3 strict HTTP、Grant 与 Canvas runtime authority revalidation、Migration 020—023 和 exact Grant/Package binding 已落地；下一步交由 B 实施 Pilot Script/Storyboard/Canvas pages             | A_SIDE_AUTHORITY_CHAIN_COMPLETE / READY_FOR_B_06E_3 |
 | 2026-08-11 | 冻结 A-BIZ-06E.4P/06E.5：A/B baseline 已共同对齐 `a7f8021`，但 B redemption consumer/page 未实现；细分 06E.4A—C、06E.5A—C 与 06E.6，首个 RED 修复 Pilot seed migration 19→24，真实 Gate要求 Chrome/PostgreSQL与零 SKIP                                    | A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED     |
+| 2026-08-11 | A-BIZ-06E.5A 与 06E.5B fail-closed runner skeleton 完成：fixture、security/preflight/report/process/config/no-skip Oracle、shared baseline validator、runner 与 manifest wiring 已落地；B capability 未证明时 reset/spawn 前阻断                          | A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_BLOCKED   |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -443,3 +444,14 @@
 - 首个 A-owned RED 冻结为 Pilot seed 接受完整 migration `001—024`；当前阻断是 migrationCount 仍为 `19`，本原子修复不改变 seed 数据形状，因此 fixtureVersion 保持 `1`。
 - Golden Path runner/spec冻结为真实Google Chrome、dedicated `_test` PostgreSQL、真实Session Cookie、Control API + Root Frontend + StoryCanvas lifecycle、单worker、零retry和机器验收零SKIP。
 - `ab-golden-path`继续为`external`，保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.5A 与 06E.5B Fail-closed Runner Skeleton 完成
+
+- `6ca5d78` / `45b3563` 完成 migration lifecycle：Pilot seed 从权威 migration 列表派生 `migrationCount=24`，接受完整 `001—024`。
+- `3881b4c` / `d7f4c75` 完成 deterministic fixture：`fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`，冻结 canonical Golden Path 输入与零成功事实，不预埋浏览器成功链。
+- `d50a0ed` / `5d5040d` 完成 artifact security Oracle；`3988fcf` / `b91de9f` 完成 fail-closed preflight；`0ec63b9` / `7c5a7f3` 完成 Playwright JSON zero-SKIP Oracle；`7134192` / `3c4a2ae` 完成 bounded process harness。
+- `d141faa` / `6e37dc9` 将 baseline ancestor validator 提取为 shared Gate precondition；B 修改 Joint Gate runner/manifest 前必须同步该 shared commit。
+- `186dd42` / `96dd0be` 冻结 dedicated Chrome/single-worker/zero-retry config；`aad90da` / `32d70ac` 增加 static no-skip policy。静态 policy 不替代真实 JSON report。
+- runner boundary `2b5154c` / `37aab02` 与 Joint Gate wiring `cad93d9` / `ed7adee` 已完成；真实 CLI 在 B consumer capability 未证明时于 reset/spawn 前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`，phase 保持 `external` 且 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 未移除。
+- B baseline `a7f8021` 已同步，但 server consumer、browser-safe bootstrap、Pilot Canvas page、deterministic readiness/capability 与浏览器 selectors 尚未证明。
+- 保留 `A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；不宣称 Joint Gate PASS。

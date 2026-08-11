@@ -3,7 +3,7 @@
 - 日期：2026-08-11
 - 负责人：工程师 A（业务平台）/ 工程师 B（生产与画布）
 - 分支：`dev/business-plane`
-- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED`
+- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
 - 冻结基线：`a7f8021b80f540c69e4c45718b335ba2c0fca539`
 - 共享同步基线：A/B 远程 HEAD 均为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`；B 已包含 A Canvas Redemption 祖先链
@@ -18,9 +18,18 @@
 - B 回执只完成 baseline 对齐；StoryCanvas redemption consumer、browser-facing bootstrap 与 Pilot Script/Storyboard/Canvas page 尚未实现。
 - 06E.4 已细分为 `06E.4P docs/RED freeze → 06E.4A B consumer/page synchronization → 06E.4B Shared Bridge → 06E.4C Shared Router/regression`。
 - 06E.5 已细分为 `06E.5A deterministic PostgreSQL fixture → 06E.5B deterministic runner/harness → 06E.5C real Chrome + PostgreSQL zero-SKIP evidence`。
-- A 当前可独立执行的首个 RED 是：`Pilot E2E seed accepts the complete 001—024 migration chain`。
+- A 已完成 06E.5A1/5A2、06E.5B runner prerequisites、fail-closed runner skeleton 与 Joint Gate wiring；下一联合切片等待 B consumer/page/bootstrap/readiness capability。
 - Shared Router/Bridge Green 必须等待 B consumer/page同步验收；浏览器只携带 non-secret handle 与 canonical tenant/project/package reference，Pilot失败不得回退Demo/Mock/LocalStorage。
 - 06E.6真实激活前继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+### 06E.5 当前实现检查点（A 本地 `37aab02`）
+
+- Migration lifecycle：`migrationCount=24`，完整覆盖 `001—024`；`fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`，成功 Script/Storyboard/Package/Grant/Entry/Redemption 事实均从零开始。
+- 已完成 artifact security Oracle、fail-closed preflight、Playwright JSON zero-SKIP Oracle、bounded process harness、dedicated Chrome config 与 static no-skip policy。
+- shared baseline validator 已由 `d141faa` / `6e37dc9` 独立提取；B 修改 Joint Gate manifest/runner 前必须同步该 shared Gate 改动。
+- runner skeleton 已由 `2b5154c` / `37aab02` 落地，Joint Gate wiring 已由 `cad93d9` / `ed7adee` 落地。其第一动作是 preflight；B consumer capability 未证明时，在任何 PostgreSQL reset、Control API/Root/StoryCanvas spawn 或 Chrome 启动前固定返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`。即使 synthetic capability=true，也继续以 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 阻断。
+- B 已同步 `a7f8021` baseline，但尚未证明 server-side redemption consumer、browser-safe bootstrap、Pilot Canvas 页面、deterministic start/readiness/capability contract 或浏览器 selectors。
+- `ab-golden-path` 继续为 `external`；静态 policy 与 config 完成不等于真实 spec/evidence 完成。
 
 ## 1. 本节点目标
 
@@ -369,9 +378,14 @@ A-BIZ-06E 按以下顺序推进：
 → 06E.6 Joint Gate Activation
 ```
 
-06E.0 baseline attestation 已完成。由于 B 尚未提供 Wave 4 clean baseline，06E.1 实现、Golden Path Browser Gate 与 phase 激活继续阻断；A 转入 06F A-owned migration/README 并行审计：
+06E.0 baseline attestation、A-side authority/redemption chain、06E.5A fixture lifecycle、06E.5B runner prerequisites、fail-closed runner skeleton 与 manifest wiring 已完成。A/B baseline 已对齐 `a7f8021`，但 B consumer/page/bootstrap/readiness capability 仍未证明；下一步等待 B 的可验证 capability handoff，不执行或宣称真实 Golden Path：
 
 ```text
-A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE
+A_CANVAS_ENTRY_REDEMPTION_READY
+A_BIZ_06E_5A_COMPLETE
+A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE
+B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED
+SHARED_ACTIVATION_GREEN_BLOCKED
+AB_GOLDEN_PATH_NOT_IMPLEMENTED
 FULL_JOINT_GATE_STILL_BLOCKED
 ```

@@ -1303,3 +1303,17 @@
 - Demo/Pilot 继续严格隔离：Pilot 失败不得回退 `DEMO_PROJECT_ID`、Demo Store、`DemoProjectGrant`、`X-StoryCanvas-Demo-Grant`、Mock、Zustand 或 LocalStorage。
 - 06E.6 前继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`；不宣称 `A_BIZ_06E_COMPLETE`、`JOINT_GATE_PASS` 或 `FULL_JOINT_GATE_PASS`。
 - 状态：`A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.5A 与 06E.5B Fail-closed Runner Skeleton 完成
+
+- A 本地实现基线推进至 `37aab02`；A/B 共同同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。该 baseline 只证明 Git 祖先链，不证明 B consumer/page/bootstrap 已完成。
+- 06E.5A1 已完成：Pilot E2E migration postcondition 从权威 migration contract 派生，完整接受 `001—024`，`migrationCount=24`；提交 `6ca5d78` / `45b3563`。
+- 06E.5A2 已完成：新增 canonical Golden Path 输入并将数据形状升级为 `fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`；Script/Storyboard/Package/Grant/Canvas Entry/Redemption 成功事实均为零，不预埋浏览器成功链；提交 `3881b4c` / `d7f4c75`。
+- 06E.5B 前置组件已完成：artifact security `d50a0ed` / `5d5040d`、fail-closed preflight `3988fcf` / `b91de9f`、JSON zero-SKIP Oracle `0ec63b9` / `7c5a7f3`、bounded process harness `7134192` / `3c4a2ae`、dedicated config `186dd42` / `96dd0be`、static no-skip policy `aad90da` / `32d70ac`。
+- shared baseline validator 已由 `d141faa` / `6e37dc9` 提取；保持 missing/invalid/not-ancestor 安全错误码。这是 shared Joint Gate 改动，B 修改 manifest/runner 前必须同步。
+- fail-closed runner skeleton 已由 `2b5154c` / `37aab02` 完成，Joint Gate wiring 已由 `cad93d9` / `ed7adee` 完成。真实 CLI 已证明 B consumer capability 未证明时，在数据库 reset、任何服务 spawn 与 Chrome 启动前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`；phase 继续为 `external`。
+- B 仍需提供 server-side redemption consumer、browser-safe bootstrap、Pilot Canvas 页面、deterministic start/readiness/capability contract、Session/CSRF/CORS/error mapping、可验证 capability marker/commit/tests、稳定 selectors、临时 data root 与 secret/log marker 字典。
+- 禁止浏览器直调 internal redemption；raw Grant/access token、internal token、grantId、digest 与 `CanvasEntryRedemption/0.1` 不得进入 DOM、URL、Storage、props、console、trace、截图、report 或日志。
+- `ab-golden-path` 继续为 `external`；保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，不宣称 Joint Gate 或 Full Joint Gate PASS。
+- StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
