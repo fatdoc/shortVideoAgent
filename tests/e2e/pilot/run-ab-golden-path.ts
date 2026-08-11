@@ -1,0 +1,176 @@
+import { spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { resetMigrateSeedPilotE2e } from '../../../apps/control-api/src/e2e/resetSeed.js';
+import {
+  AbGoldenPathPreflightError,
+  preflightAbGoldenPath,
+  type AbGoldenPathPreflightDependencies,
+} from './abGoldenPathPreflight.js';
+import {
+  assertPilotBrowserArtifactsSafe,
+  type PilotArtifactSecurityEvidence,
+} from './pilotArtifactSecurity.js';
+import {
+  assertPilotPlaywrightReport,
+  type PilotPlaywrightReportSummary,
+} from './pilotPlaywrightReport.js';
+import { PilotProcessHarness } from './pilotProcessHarness.js';
+import { assertPilotSpecPolicy } from './pilotSpecPolicy.js';
+
+const repositoryRoot = resolve(import.meta.dirname, '../../..');
+
+export type AbGoldenPathRunnerErrorCode =
+  | 'PILOT_E2E_MODE_REQUIRED'
+  | 'AB_GOLDEN_PATH_MODE_REQUIRED'
+  | 'PILOT_E2E_BROWSER_CHANNEL_REQUIRED'
+  | 'PILOT_E2E_BROWSER_CHANNEL_INVALID'
+  | 'PILOT_E2E_DATABASE_URL_REQUIRED'
+  | 'PILOT_E2E_DATABASE_URL_INVALID'
+  | 'PILOT_E2E_DATABASE_PROTOCOL_INVALID'
+  | 'PILOT_E2E_DATABASE_NOT_DEDICATED'
+  | 'PILOT_E2E_PORT_INVALID'
+  | 'PILOT_E2E_PORT_CONFLICT'
+  | 'JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED'
+  | 'JOINT_GATE_B_BASELINE_COMMIT_INVALID'
+  | 'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR'
+  | 'AB_GOLDEN_PATH_B_CONSUMER_REQUIRED'
+  | 'AB_GOLDEN_PATH_NOT_IMPLEMENTED'
+  | 'AB_GOLDEN_PATH_RUNNER_FAILED';
+
+export class AbGoldenPathRunnerError extends Error {
+  constructor(readonly code: AbGoldenPathRunnerErrorCode) {
+    super(code);
+    this.name = 'AbGoldenPathRunnerError';
+    this.stack = undefined;
+  }
+}
+
+type SpawnSyncProbe = (
+  command: string,
+  args: string[],
+  options: { cwd: string; shell: false; stdio: 'ignore' },
+) => { status: number | null };
+
+export type AbGoldenPathRunnerDependencies = AbGoldenPathPreflightDependencies & {
+  /** Deferred until the real cross-plane spec and B consumer contract are frozen. */
+  readGoldenPathInput(): Promise<string>;
+  resetMigrateSeed(environment: NodeJS.ProcessEnv): Promise<unknown>;
+  createProcessHarness(): PilotProcessHarness;
+  probeReadiness(): Promise<boolean>;
+};
+
+export interface AbGoldenPathRunnerOptions {
+  dependencies?: AbGoldenPathRunnerDependencies;
+  repositoryRoot?: string;
+}
+
+export interface AbGoldenPathEvidenceInput {
+  specSource: unknown;
+  playwrightReport: unknown;
+  artifactRoot: string;
+  secrets: readonly string[];
+  securityEvidence?: PilotArtifactSecurityEvidence;
+}
+
+function fixedError(code: AbGoldenPathRunnerErrorCode): AbGoldenPathRunnerError {
+  return new AbGoldenPathRunnerError(code);
+}
+
+function runGitProbe(spawnSyncImpl: SpawnSyncProbe, root: string, args: string[]): boolean {
+  try {
+    return (
+      spawnSyncImpl('git', args, {
+        cwd: root,
+        shell: false,
+        stdio: 'ignore',
+      }).status === 0
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function createLocalAbGoldenPathPreflightDependencies({
+  repositoryRoot: root = repositoryRoot,
+  spawnSyncImpl = (command, args, options) => spawnSync(command, args, options),
+}: {
+  repositoryRoot?: string;
+  spawnSyncImpl?: SpawnSyncProbe;
+} = {}): AbGoldenPathPreflightDependencies {
+  return {
+    commitExists: (commit) =>
+      runGitProbe(spawnSyncImpl, root, ['cat-file', '-e', `${commit}^{commit}`]),
+    isCommitAncestor: (commit) =>
+      runGitProbe(spawnSyncImpl, root, ['merge-base', '--is-ancestor', commit, 'HEAD']),
+    hasBConsumerCapability: async () => {
+      // No B consumer capability marker/manifest contract is frozen yet. Fail closed without
+      // reading guessed files, consulting the network, or inferring readiness from source shape.
+      return false;
+    },
+  };
+}
+
+export function createAbGoldenPathRunnerDependencies(
+  root = repositoryRoot,
+): AbGoldenPathRunnerDependencies {
+  return {
+    ...createLocalAbGoldenPathPreflightDependencies({ repositoryRoot: root }),
+    readGoldenPathInput: async () => {
+      throw fixedError('AB_GOLDEN_PATH_NOT_IMPLEMENTED');
+    },
+    resetMigrateSeed: resetMigrateSeedPilotE2e,
+    createProcessHarness: () => new PilotProcessHarness(),
+    probeReadiness: async () => {
+      throw fixedError('AB_GOLDEN_PATH_NOT_IMPLEMENTED');
+    },
+  };
+}
+
+export async function validateAbGoldenPathEvidence(
+  input: AbGoldenPathEvidenceInput,
+): Promise<PilotPlaywrightReportSummary> {
+  assertPilotSpecPolicy(input.specSource);
+  const report = assertPilotPlaywrightReport(input.playwrightReport);
+  await assertPilotBrowserArtifactsSafe(input.artifactRoot, input.secrets, input.securityEvidence);
+  return report;
+}
+
+export async function runAbGoldenPath(
+  environment: NodeJS.ProcessEnv = process.env,
+  options: AbGoldenPathRunnerOptions = {},
+): Promise<never> {
+  const dependencies =
+    options.dependencies ??
+    createAbGoldenPathRunnerDependencies(options.repositoryRoot ?? repositoryRoot);
+
+  try {
+    await preflightAbGoldenPath(environment, dependencies);
+  } catch (error) {
+    if (error instanceof AbGoldenPathPreflightError) {
+      throw fixedError(error.code);
+    }
+    throw fixedError('AB_GOLDEN_PATH_RUNNER_FAILED');
+  }
+
+  // The shared runner intentionally stops here. Until B publishes a frozen local capability
+  // marker plus the real browser-safe consumer/spec contract, no file read, database reset,
+  // child spawn, readiness network probe, report acceptance, or artifact scan may begin.
+  throw fixedError('AB_GOLDEN_PATH_NOT_IMPLEMENTED');
+}
+
+function isMainModule(): boolean {
+  const entry = process.argv[1];
+  return typeof entry === 'string' && pathToFileURL(resolve(entry)).href === import.meta.url;
+}
+
+if (isMainModule()) {
+  try {
+    await runAbGoldenPath();
+  } catch (error) {
+    const code =
+      error instanceof AbGoldenPathRunnerError ? error.code : 'AB_GOLDEN_PATH_RUNNER_FAILED';
+    console.error(JSON.stringify({ event: 'ab_golden_path_failed', code }));
+    process.exitCode = 1;
+  }
+}
