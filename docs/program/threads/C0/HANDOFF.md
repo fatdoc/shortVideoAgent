@@ -917,3 +917,17 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 首个 RED：`rejects a Storyboard Draft provenance envelope that omits the approved Script digest or source Receipt`。
 - B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续保留且排除；当前不宣称 `JOINT_GATE_PASS`。
 - 状态：`B_WAVE4_BASELINE_SYNCED / B_BASELINE_ANCESTOR_ATTESTED / A_BIZ_06E_1_READY / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## A-BIZ-06E A-side Dual-Authority Canvas Chain 交接（2026-08-11）
+
+- A 已完成 Storyboard Version/Approval authority、strict Pilot content/production client、Production Package v0.3、Project Grant authority revalidation 与 Canvas Entry runtime authority revalidation。
+- Migration 020—023 分别覆盖 Storyboard authority、Canvas Entry lifecycle、Production Package Storyboard authority binding，以及 Canvas Entry exact Grant/Package binding。
+- Package create/read、Grant issue/replay/introspection 和 Canvas create/replay/read/consume 已统一依赖当前 approved Script + approved Storyboard authority；旧 Package v0.2、过期 Package、revoked/superseded authority 和 cross-scope resource 均 fail closed。
+- Canvas Entry 仍是 server-mediated、短时、non-secret browser contract。Browser DTO exact 9 keys；raw Grant、token、grantId、digest、authority reason、Package snapshot 与数据库事实不得进入浏览器。
+- Canvas authority stale 时 read 返回安全 410；replay/consume 在事务内持久化 Entry `expired`，事务提交后再返回 410，避免抛错导致状态更新回滚；consumed Entry 仍返回 409 replayed。
+- 共享 verifier 位于 `apps/control-api/src/production/authority.ts`，提交 `b57adc1`；Canvas runtime revalidation 提交 `fed5580`。B 不得在 StoryCanvas 复制 authority SQL，也不得把 verifier、digest 或 reason code 移到浏览器。
+- B 下一步进入 06E.3：Pilot Script 页面使用 canonical Project 与 strict Client；Storyboard 页面保存/审批 A authority；Canvas 页面只使用 non-secret Canvas Entry，不接受 Demo Grant fallback。
+- 本轮证据：PostgreSQL authority/repository `28/28 PASS`，Canvas contracts `63/63 PASS`，migration binding `7/7 PASS`，Control API typecheck/build、Prettier、diff-check PASS。
+- 06E.4 Shared Router/Bridge、06E.5 Real Chrome + PostgreSQL Golden Path、06E.6 phase activation 均未完成；继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED`。
+- StoryCanvas tracked diff 保持为零；未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除；A 本地提交未 push。
+- 状态：`A_BIZ_06E_A_SIDE_AUTHORITY_CHAIN_COMPLETE / READY_FOR_B_06E_3 / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

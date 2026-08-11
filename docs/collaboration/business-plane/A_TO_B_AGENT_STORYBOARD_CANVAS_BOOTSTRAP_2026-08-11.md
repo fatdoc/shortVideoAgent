@@ -11,17 +11,24 @@
 
 B 在继续实现 Wave 4 Pilot Script / Storyboard / Canvas 页面或修改任何共享接线前，必须先同步并验证以下 A 提交已进入 B 的工作基线：
 
-| Commit    | 完整 SHA                                   | 合同                                                                  |
-| --------- | ------------------------------------------ | --------------------------------------------------------------------- |
-| `6ccb8aa` | `6ccb8aa1a184b36af599e73d11b2c71bdd81693c` | `fix(pilot): redact storyboard authority digests`                     |
-| `abb05b7` | `abb05b71d69d0b968380efc39a08648e0f0d1306` | `feat(control-api): expose storyboard authority routes`               |
-| `42a9267` | `42a926748b8f826fb58f398c06e70255f1ab65bd` | `feat(control-api): expose canvas entry routes`                       |
-| `a65de52` | `a65de52dc881b968b70328e25a770112b60147ed` | `fix(pilot): require storyboard approval version`                     |
-| `27a842a` | `27a842a201ba913591b1a82b50aa31d99ce83752` | `feat(control-api): bootstrap storyboard and canvas routes`           |
-| `f0751e0` | `f0751e0689c86d2460c1f52e4159220046f851ab` | `test(control-api): freeze dual-authority production eligibility`     |
-| `06ca779` | `06ca7792cd0c104b3cc691e629e6cde9df8579cb` | `feat(control-api): bind production packages to storyboard authority` |
+| Commit    | 完整 SHA                                   | 合同                                                                   |
+| --------- | ------------------------------------------ | ---------------------------------------------------------------------- |
+| `6ccb8aa` | `6ccb8aa1a184b36af599e73d11b2c71bdd81693c` | `fix(pilot): redact storyboard authority digests`                      |
+| `abb05b7` | `abb05b71d69d0b968380efc39a08648e0f0d1306` | `feat(control-api): expose storyboard authority routes`                |
+| `42a9267` | `42a926748b8f826fb58f398c06e70255f1ab65bd` | `feat(control-api): expose canvas entry routes`                        |
+| `a65de52` | `a65de52dc881b968b70328e25a770112b60147ed` | `fix(pilot): require storyboard approval version`                      |
+| `27a842a` | `27a842a201ba913591b1a82b50aa31d99ce83752` | `feat(control-api): bootstrap storyboard and canvas routes`            |
+| `f0751e0` | `f0751e0689c86d2460c1f52e4159220046f851ab` | `test(control-api): freeze dual-authority production eligibility`      |
+| `06ca779` | `06ca7792cd0c104b3cc691e629e6cde9df8579cb` | `feat(control-api): bind production packages to storyboard authority`  |
+| `cb006dd` | `cb006dddca9809f8641b63c0f46522b5f2532010` | `feat(control-api): require dual authority for production eligibility` |
+| `5cc6c0e` | `5cc6c0ea2beac25a3b179e52473a93c7c7323659` | `feat(control-api): create dual-authority production packages`         |
+| `96b89ac` | `96b89ac3dcb82b7462add1ed233d82d21c986963` | `feat(control-api): bind canvas entries to grant packages`             |
+| `e3cb51f` | `e3cb51fa65787d50996d64c63bf8100da5f59c74` | `feat(control-api): expose strict production package routes`           |
+| `98e9298` | `98e92988e9b2972364f43f5871e62cd52ffe42e9` | `feat(control-api): revalidate dual authority for project grants`      |
+| `b57adc1` | `b57adc1623f93335ab61c10ed781fc724c1720f1` | `refactor(control-api): share production authority verifier`           |
+| `fed5580` | `fed5580251f0a258d4cd46b6ab762705ad5e1dbe` | `feat(control-api): revalidate canvas entry authority`                 |
 
-B 必须验证上述 commit object 可解析、当前 B 开发 HEAD 包含这些提交，并在回复中记录同步后的完整 HEAD。不得复制实现、改写 A-owned 文件或以 B 侧临时 Mock 替代这些合同。
+B 必须验证上述 commit object 可解析、当前 B 开发 HEAD 包含这些提交，并在回复中记录同步后的完整 HEAD。`27a842a` 修改共享 Bootstrap；`b57adc1` 新增 Production/Grant/Canvas 共用的 server-only authority verifier；Migration latest 已推进到 023。不得复制实现、改写 A-owned 文件或以 B 侧临时 Mock 替代这些合同。
 
 ## 1. 新增并已 Bootstrap 的 HTTP 合同
 
@@ -135,7 +142,7 @@ B 不得：
 - 移除或弱化 `FULL_JOINT_GATE_STILL_BLOCKED`；
 - 把 NOT_RUN、SKIP、Provider unavailable、baseline ancestor 对齐或单侧 targeted tests 写成 Golden Path PASS。
 
-`ProjectProductionPackage/0.3` 双权威 eligibility 合同与 Migration 022 已由 A 冻结并提交；Package Repository、strict HTTP、Grant/Canvas authority 重验及联合验证仍在推进中，尚未完成。B 当前不得把旧 Package v0.2、Script payload 内嵌 Storyboard 或现有 Grant receiver 当作 approved Script + approved Storyboard 的正式 Golden Path。
+A 侧 `ProjectProductionPackage/0.3` Repository/strict HTTP、Migration 020—023、Grant issue/replay/introspection authority revalidation 与 Canvas create/replay/read/consume authority revalidation 已完成。B 当前不得把旧 Package v0.2、Script payload 内嵌 Storyboard、Demo Grant 或现有 Grant receiver 当作 approved Script + approved Storyboard 的正式 Golden Path。B Pilot pages、Shared Router/Bridge、真实 Chrome + PostgreSQL Golden Path 与 Joint Gate activation 仍未完成。
 
 只有在以下工作全部完成并有真实零 SKIP 证据后，双方才能讨论 Joint Gate 状态变更：
 
@@ -150,13 +157,13 @@ B 不得：
 B 同步后请回复：
 
 1. B 分支与同步后完整 40 位 HEAD；
-2. 上述七个 A commit 的 object/ancestor 验证结果；
-3. B 准备消费的 Storyboard Version、Approval 与 Canvas Entry 路由清单；
-4. `expectedVersion` 已进入 Storyboard approval 调用的确认；
-5. browser DTO digest-redacted 与 raw Grant 不进入浏览器的确认；
-6. B-owned、shared、A-owned changed paths；
-7. targeted tests、build、governance、diff-check 的实际 PASS/FAIL/BLOCKED 与 zero-SKIP 证据；
-8. Package v0.3 Repository/HTTP 仍等待 A 后续实现提交的确认；
+2. 上述全部 A commit 与最终 A integration commit 的 object/ancestor 验证结果；
+3. B 准备消费的 Storyboard Version/Approval、Production Package v0.3 与 Canvas Entry 路由清单；
+4. `expectedVersion` 已进入 Storyboard approval 调用，且只消费 Package v0.3 的确认；
+5. Canvas Entry browser DTO exact 9 keys、Storyboard DTO digest-redacted、raw Grant/digest/authority reason 不进入浏览器的确认；
+6. Pilot 失败不回退 Demo、Mock、Zustand、LocalStorage 或 `X-StoryCanvas-Demo-Grant` 的确认；
+7. B-owned、shared、A-owned changed paths；
+8. targeted tests、build、governance、diff-check 的实际 PASS/FAIL/BLOCKED 与 zero-SKIP 证据；
 9. 明确保持 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED`。
 
 在 A 确认 B 已同步这些提交并完成 ancestor 验证前，不要开始修改共享 Bootstrap 或宣称 Storyboard/Canvas Golden Path 已连通。

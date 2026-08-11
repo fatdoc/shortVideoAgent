@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `B_BASELINE_SYNCED / READY_FOR_06E_1_RED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A-BIZ-06E.1 Storyboard authority/bootstrap contract RED；B Wave 4 baseline 已进入 A integration ancestor chain，Golden Path 功能仍未实现
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_SIDE_AUTHORITY_CHAIN_COMPLETE / READY_FOR_B_06E_3` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：等待 B 同步 A 的 Storyboard/Production/Grant/Canvas authority 提交并实施 A-BIZ-06E.3 B-owned Pilot Script、Storyboard 与 Canvas 页面；06E.4～06E.6 继续保持 fail closed
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1263,3 +1263,17 @@
 - 下一原子切片为 06E.1 A-owned Storyboard authority/bootstrap contract RED；首个 RED：缺 approved Script digest 或 source Receipt 的 Storyboard Draft provenance envelope 必须 fail closed。
 - StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - 当前状态：`B_WAVE4_BASELINE_SYNCED / B_BASELINE_ANCESTOR_ATTESTED / READY_FOR_06E_1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 A-BIZ-06E A-side Dual-Authority Canvas Chain 完成
+
+- Storyboard authority、browser-safe strict Client、Production Package v0.3、Project Grant 与 Canvas Entry 的 A 侧双权威链已完成；数据库 migration chain 已扩展至 020—023。
+- Production Package 只允许绑定当前 approved Script 与当前 approved Storyboard；create/read 使用 strict v0.3 HTTP、真实 Session Cookie、`Cache-Control: no-store`、Request ID 与安全 401/403/404/409/422/500 envelope。
+- Grant issue、idempotent replay 与 introspection 每次重新验证 Package v0.3、有效期及当前 Script/Storyboard 双权威；历史 v0.2 Package 和 stale authority 均不得签发或恢复 Grant。
+- Canvas Entry 使用 Grant/Package/Project/Tenant 四列复合约束绑定 exact Grant；create/replay/read/consume 均复用 server-only Production Authority verifier，不复制 Script、Storyboard 或 Approval SQL。
+- Storyboard authority 被 revoke、supersede 或变为 stale 后，Canvas read fail closed；replay/consume 将 Entry 持久化为 `expired` 后返回安全 `410 CANVAS_ENTRY_EXPIRED`。已 consumed Entry 继续保持 `409 CANVAS_ENTRY_REPLAYED`。
+- Browser Canvas DTO 继续严格限定为 9 个字段，不暴露 raw Grant、access token、grantId、token digest、Script/Storyboard digest、authority reason、Package snapshot 或内部持久化事实。
+- Authority verifier 共享提交为 `b57adc1`；Canvas runtime revalidation 提交为 `fed5580`。B 修改 Production、Grant、Canvas authority 或共享 Bootstrap 前必须先同步对应 A commits。
+- 本轮主线程复验：Production/Canvas PostgreSQL `28/28 PASS`，Canvas 非 PostgreSQL `63/63 PASS`，Canvas lifecycle/migration chain `7/7 PASS`；Control API typecheck/build、Prettier 与 diff-check PASS。
+- A 已完成 06E.1 authority/bootstrap 与 06E.2 strict Client 所需的 A-owned 合同；下一阶段为 B-owned 06E.3 Pilot Script/Storyboard/Canvas pages。06E.4 Shared Router/Bridge、06E.5 Real Browser Golden Path 和 06E.6 Joint Gate Activation 尚未开始。
+- StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。A 新提交尚未 push。
+- 当前状态：`A_BIZ_06E_A_SIDE_AUTHORITY_CHAIN_COMPLETE / READY_FOR_B_06E_3 / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
