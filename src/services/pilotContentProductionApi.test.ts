@@ -86,8 +86,6 @@ const storyboardVersionResponse = {
   scriptVersionId,
   version: 1,
   status: 'approved',
-  scriptPayloadDigest: digest,
-  storyboardPayloadDigest: digest,
   shots: [
     {
       shotId: '10000000-0000-4000-8000-000000000009',
@@ -298,11 +296,20 @@ describe('pilotContentProductionApi', () => {
         jsonResponse({
           storyboardVersions: [{ ...storyboardVersionResponse, serverStack: 'private' }],
         }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          storyboardVersions: [{ ...storyboardVersionResponse, storyboardPayloadDigest: digest }],
+        }),
       );
     const api = createPilotContentProductionApi({ runtime, fetchImpl });
 
     await expect(api.listStoryboardVersions(projectId)).resolves.toEqual([storyboardVersion]);
     await expect(api.readProductionEligibility(projectId)).resolves.toEqual(eligibility);
+    await expect(api.listStoryboardVersions(projectId)).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+      status: 200,
+    });
     await expect(api.listStoryboardVersions(projectId)).rejects.toMatchObject({
       code: 'INVALID_API_RESPONSE',
       status: 200,

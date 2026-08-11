@@ -676,8 +676,6 @@ function parseStoryboardVersion(value: unknown): PilotStoryboardVersion {
     'scriptVersionId',
     'version',
     'status',
-    'scriptPayloadDigest',
-    'storyboardPayloadDigest',
     'shots',
     'draftProvenance',
     'createdBy',
@@ -692,8 +690,6 @@ function parseStoryboardVersion(value: unknown): PilotStoryboardVersion {
     !positiveInteger(value.version) ||
     typeof value.status !== 'string' ||
     !CONTENT_STATUSES.has(value.status as PilotContentStatus) ||
-    !digest(value.scriptPayloadDigest) ||
-    !digest(value.storyboardPayloadDigest) ||
     !uuid(value.createdBy) ||
     !timestamp(value.createdAt)
   ) {
