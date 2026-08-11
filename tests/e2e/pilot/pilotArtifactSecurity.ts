@@ -5,6 +5,15 @@ const FORBIDDEN_ARTIFACT_EXTENSIONS = new Set(['.har', '.webm', '.zip']);
 
 const FORBIDDEN_TEXT_MARKERS = [
   /\bx-production-plane-internal-token\s*[:=]/i,
+  /\bx-storycanvas-demo-grant\b/i,
+  /storycanvas:mvp-token/i,
+  /storycanvas:d1-grant/i,
+  /\bdemoprojectgrant\b/i,
+  /\bdemo_project_id\b/i,
+  /\bmock-contract\b/i,
+  /\bmock-handle:/i,
+  /\bgrant-demo-local-/i,
+  /\bpackage-demo-local-/i,
   /["']?(?:internal[_-]?redemption[_-]?token|production[_-]?plane[_-]?internal[_-]?token)["']?\s*[:=]/i,
   /\bauthorization\s*[:=]\s*bearer\b/i,
   /["']?(?:raw[_ -]?grant[_ -]?token|grant[_ -]?access[_ -]?token|project[_ -]?grant[_ -]?token|access[_ -]?token)["']?\s*[:=]/i,
