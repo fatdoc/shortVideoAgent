@@ -2,6 +2,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { jointGatePhases, validateDedicatedPostgresTestUrl } from './joint-gate-manifest.mjs';
+import { validateSynchronizedGitCommit } from './joint-gate-preconditions.mjs';
 
 const repositoryRoot = process.cwd();
 const mode = process.argv[2];
@@ -57,7 +58,9 @@ function collectFullGateBlockers() {
       if (precondition.type !== 'environment') continue;
       if (precondition.validator === 'dedicated-postgres-test-url') continue;
       if (precondition.validator === 'git-commit-ancestor') {
-        const result = validateSynchronizedGitCommit(process.env[precondition.name]);
+        const result = validateSynchronizedGitCommit(process.env[precondition.name], {
+          repositoryRoot,
+        });
         if (!result.ok) {
           blockers.push({ phaseId: phase.id, code: result.code });
         }
@@ -66,35 +69,6 @@ function collectFullGateBlockers() {
   }
 
   return uniqueBlockers(blockers);
-}
-
-function validateSynchronizedGitCommit(value) {
-  if (!value) {
-    return { ok: false, code: 'JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED' };
-  }
-  if (!/^[0-9a-f]{40}$/i.test(value)) {
-    return { ok: false, code: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' };
-  }
-
-  const object = spawnSync('git', ['cat-file', '-e', `${value}^{commit}`], {
-    cwd: repositoryRoot,
-    shell: false,
-    stdio: 'ignore',
-  });
-  if (object.status !== 0) {
-    return { ok: false, code: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' };
-  }
-
-  const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', value, 'HEAD'], {
-    cwd: repositoryRoot,
-    shell: false,
-    stdio: 'ignore',
-  });
-  if (ancestor.status === 0) return { ok: true };
-  if (ancestor.status === 1) {
-    return { ok: false, code: 'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR' };
-  }
-  return { ok: false, code: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' };
 }
 
 function uniqueBlockers(blockers) {
