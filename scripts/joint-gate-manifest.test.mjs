@@ -70,6 +70,10 @@ test('manifest contains every frozen full Joint Gate phase exactly once', () => 
       assert.match(command.executable, /\S/);
       assert.ok(Array.isArray(command.args));
       assert.equal(command.shell, false);
+      if (command.environment !== undefined) {
+        assert.equal(typeof command.environment, 'object');
+        assert.notEqual(command.environment, null);
+      }
     }
   }
 });
@@ -117,6 +121,9 @@ test('A/B Golden Path remains external and delegates to the fail-closed runner s
       args: ['run', 'test:e2e:pilot:ab-golden-path'],
       cwd: '.',
       shell: false,
+      environment: {
+        PILOT_E2E_AB_GOLDEN_PATH: 'true',
+      },
     },
   ]);
   assert.deepEqual(phase.preconditions, [
