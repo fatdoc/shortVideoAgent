@@ -422,3 +422,13 @@
 - 新增 `A_BIZ_06E_CANVAS_ENTRY_REDEMPTION_PLAN.md`，冻结 06E.R1—R5、Migration 024、response-loss 幂等、server-only Package/Grant/token DTO 与 shared Bootstrap 交接。
 - B 可继续 Script/Storyboard 页面，但 Canvas 接线保持 blocked；不得以 Demo Grant、浏览器 raw Grant 或 LocalStorage 绕过。
 - 状态：`A_SIDE_BROWSER_CONTRACT_COMPLETE / CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED / B_06E_3_CANVAS_BLOCKED / READY_FOR_06E_R1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.R Canvas Entry Internal Redemption Ready
+
+- `9f8c0d4` 将 migration chain 推进到 024，持久化 immutable redemption idempotency key、request digest 与 redeemedBy facts。
+- `349b752` 实现 exact transactional redemption、Production Package/Grant authority restoration 与 token digest 校验，并移除会伪造 evidence 的 legacy 应用层 `consumeEntry`。
+- `2034a12` 新增 strict server-only `POST /api/v1/internal/canvas-entries/redeem`，覆盖 internal token、Idempotency-Key、Request ID、no-store、safe errors 与敏感信息 Oracle。
+- `32848fd` 独立挂载 shared App/Server Bootstrap，既有 `4f57912` RED 转 Green；B 必须同步该 shared commit 后再实现 StoryCanvas server client。
+- 定向证据：Canvas contracts `37/37`、Canvas/Production PostgreSQL `32/32`、Bootstrap/Internal route `29/29`，Control API typecheck/build、Prettier、diff-check PASS。
+- StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。Golden Path 与 Full Joint Gate 继续 blocked。
+- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

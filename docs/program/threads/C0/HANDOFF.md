@@ -929,3 +929,16 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 06E.4 Shared Router/Bridge、06E.5 Real Chrome + PostgreSQL Golden Path、06E.6 phase activation 均未完成；继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED`。
 - 工作区仅保留 B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts`；StoryCanvas tracked diff/cached diff 均为零。
 - 状态：`A_SIDE_BROWSER_CONTRACT_COMPLETE / CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED / B_06E_3_CANVAS_BLOCKED / READY_FOR_06E_R1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## A-BIZ-06E.R Canvas Entry Internal Redemption 交接（2026-08-11）
+
+- 实施提交：Migration 024 `9f8c0d4`、A-owned Repository/Service/Production restoration `349b752`、Internal HTTP `2034a12`、shared App/Server Bootstrap `32848fd`；前置 RED 为 `4f57912`。
+- endpoint：`POST /api/v1/internal/canvas-entries/redeem`。Header 必须为 server-only `X-Production-Plane-Internal-Token` 与稳定 `Idempotency-Key`；body exact keys 为 `handle/tenantId/projectId/packageId`。
+- success DTO 为 `CanvasEntryRedemption/0.1`，含 Package v0.3、Grant v0.2、server-only raw token 与 `replayed`；只允许 Control API → StoryCanvas server 传输，禁止进入浏览器或 artifact。
+- exact replay 返回 200 + `Idempotency-Replayed: true`；different-key / different-digest 返回 409；其余安全语义为 401/404/410/422/500/503，所有响应含 Request ID 与 no-store。
+- Production restoration 不伪造 SessionActor、不创建新 Grant；确定性重签 token 并对持久化 digest fail closed。legacy 应用层 `consumeEntry` 已移除，避免伪造 Migration 024 redemption facts。
+- 验证证据：non-HTTP Canvas `37/37`、Canvas/Production PostgreSQL `32/32`、Bootstrap/Internal route `29/29`，Control API typecheck/build、Prettier、diff-check PASS。
+- **B 同步要求**：`32848fd` 修改 shared `apps/control-api/src/app.ts` 与 `apps/control-api/src/server.ts`。B 必须同步其完整祖先链并完成 object/ancestor 验证后，才能提交 B-owned StoryCanvas server redemption client；不得复制 A-owned实现或修改 `apps/control-api/src/canvasEntries/**`。
+- B 接入必须保持 server-only secret、稳定幂等、strict Package v0.3/Grant v0.2 parser、Demo/Pilot 隔离与无 fallback。Shared Router/Bridge 激活仍等待 B 消费端提交与双方对齐。
+- StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未跟踪且不得修改、暂存或提交。当前不 push。
+- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

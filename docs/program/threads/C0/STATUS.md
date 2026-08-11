@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_SIDE_BROWSER_CONTRACT_COMPLETE / CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED / B_06E_3_CANVAS_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：执行 A-BIZ-06E.R Canvas Entry internal redemption；在 A-owned redemption 与 shared Bootstrap 完成并交接 B 前，不激活 06E.4 Router/Bridge
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / B_06E_3_CANVAS_READY_FOR_IMPLEMENTATION` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：完成 A-BIZ-06E.R5 交接；等待 B 同步 `32848fd` 并实现 server-side redemption client，之后再协调 06E.4 Shared Router/Bridge
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1279,3 +1279,15 @@
 - 在 redemption Green 与 B 同步前，B 可继续 Script/Storyboard 页面工作，但 Canvas 接线保持 blocked；06E.4 Shared Router/Bridge、06E.5 Real Browser Golden Path 和 06E.6 Joint Gate Activation 不得开始。
 - StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。A 新提交尚未 push。
 - 当前状态：`A_SIDE_BROWSER_CONTRACT_COMPLETE / CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED / B_06E_3_CANVAS_BLOCKED / READY_FOR_06E_R1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.R Canvas Entry Internal Redemption Ready
+
+- 06E.R1—R4 已完成：Bootstrap RED `4f57912`、Migration 024 `9f8c0d4`、A-owned redemption core `349b752`、Internal HTTP `2034a12`、shared Bootstrap `32848fd`。
+- 正式 endpoint 为 `POST /api/v1/internal/canvas-entries/redeem`；只允许 StoryCanvas server 使用 server-only internal token 与稳定 `Idempotency-Key`，body 为 exact handle/tenant/project/package。
+- Repository 使用 exact row lock 与 immutable redemption facts；同 key + 同 digest 安全 replay，不同 key 或 digest 稳定 409；恢复当前 Package v0.3、canonical Grant 与确定性重签 token，不创建新 Grant。
+- legacy 应用层 `consumeEntry` 已移除，避免对 Migration 024 写入伪造 redemption evidence；纯内存 lifecycle state machine 保留。
+- Internal HTTP 固定 Request ID、`Cache-Control: no-store`、`Idempotency-Replayed` 与安全 `401/404/409/410/422/500/503`；错误不泄漏 token、grantId、digest、snapshot、SQL 或 stack。
+- 验证：Canvas parser/service/digest `37/37 PASS`，Canvas/Production PostgreSQL `32/32 PASS`，Bootstrap/Internal route `29/29 PASS`，Control API typecheck/build、Prettier、diff-check PASS。
+- `32848fd` 是 shared Bootstrap，B 必须同步其完整祖先链后才可实现 server-side redemption client；Pilot 失败不得回退 v0.2 receiver、Demo Grant、Mock 或 LocalStorage。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。A 新提交未 push。
+- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / B_06E_3_CANVAS_READY_FOR_IMPLEMENTATION / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
