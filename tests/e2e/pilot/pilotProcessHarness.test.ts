@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
 import {
   PilotProcessHarness,
   type PilotManagedProcess,
@@ -10,6 +13,7 @@ import {
 } from './pilotProcessHarness.js';
 
 const TEST_TIMEOUT_MS = 5_000;
+const execFileAsync = promisify(execFile);
 
 function nodeProcess(source: string, overrides: Partial<PilotProcessSpec> = {}): PilotProcessSpec {
   return {
@@ -219,6 +223,56 @@ test('stop is idempotent and sends SIGTERM only once', { timeout: TEST_TIMEOUT_M
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test(
+  'cancels successful readiness and stop timers instead of holding the parent process open',
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const root = await mkdtemp(join(tmpdir(), 'pilot-process-timer-cancellation-'));
+    const fixturePath = join(root, 'timer-cancellation.mts');
+    const harnessModuleUrl = pathToFileURL(
+      join(process.cwd(), 'tests/e2e/pilot/pilotProcessHarness.ts'),
+    ).href;
+    const childSource =
+      "process.on('SIGTERM',()=>process.exit(0)); process.stdout.write('ready'); setInterval(()=>{},1000);";
+
+    try {
+      await writeFile(
+        fixturePath,
+        `import { PilotProcessHarness } from ${JSON.stringify(harnessModuleUrl)};
+const harness = new PilotProcessHarness();
+const child = await harness.start({
+  command: process.execPath,
+  args: ['-e', ${JSON.stringify(childSource)}],
+  cwd: process.cwd(),
+  env: {},
+  readinessProbe: (managed) => managed.output().stdout === 'ready',
+  readinessTimeoutMs: 3_000,
+  readinessIntervalMs: 10,
+  stopTimeoutMs: 3_000,
+});
+await child.stop();
+process.stdout.write('DONE');
+`,
+        'utf8',
+      );
+
+      const startedAt = Date.now();
+      const { stdout, stderr } = await execFileAsync(
+        join(process.cwd(), 'apps/control-api/node_modules/.bin/tsx'),
+        [fixturePath],
+        { cwd: process.cwd(), env: { ...process.env }, timeout: 4_000 },
+      );
+      const elapsedMs = Date.now() - startedAt;
+
+      assert.equal(stdout, 'DONE');
+      assert.equal(stderr, '');
+      assert.ok(elapsedMs < 1_500, `expected canceled timers, got ${elapsedMs}ms`);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
 
 test(
   'escalates from SIGTERM to SIGKILL after a bounded stop timeout',
