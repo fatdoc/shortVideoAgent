@@ -253,7 +253,7 @@ describe('pilotContentProductionApi', () => {
       api.createStoryboardApproval(
         projectId,
         storyboardVersionId,
-        { status: 'approved', factRiskStatus: 'cleared' },
+        { expectedVersion: 1, status: 'approved', factRiskStatus: 'cleared' },
         'storyboard-approve-1',
       ),
     ).resolves.toEqual({ value: approvalResponse, replayed: false });
@@ -281,7 +281,11 @@ describe('pilotContentProductionApi', () => {
       `https://control.example.com/api/v1/projects/${projectId}/storyboard-versions/${storyboardVersionId}/approvals`,
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ status: 'approved', factRiskStatus: 'cleared' }),
+        body: JSON.stringify({
+          expectedVersion: 1,
+          status: 'approved',
+          factRiskStatus: 'cleared',
+        }),
         headers: expect.objectContaining({ 'Idempotency-Key': 'storyboard-approve-1' }),
       }),
     );

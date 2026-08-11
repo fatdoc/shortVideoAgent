@@ -186,6 +186,10 @@ export interface PilotCreateApprovalInput {
   reason?: string;
 }
 
+export interface PilotCreateStoryboardApprovalInput extends PilotCreateApprovalInput {
+  expectedVersion: number;
+}
+
 export interface PilotCreateStoryboardVersionInput {
   draftRevision: PilotStoryboardDraftRevision;
 }
@@ -233,7 +237,7 @@ export interface PilotContentProductionApi {
   createStoryboardApproval(
     projectId: string,
     storyboardVersionId: string,
-    input: PilotCreateApprovalInput,
+    input: PilotCreateStoryboardApprovalInput,
     idempotencyKey: string,
     options?: PilotRequestOptions,
   ): Promise<PilotMutationResult<PilotStoryboardApproval>>;
@@ -954,19 +958,36 @@ function parseList<T>(value: unknown, key: string, parser: (item: unknown) => T)
   return value[key].map(parser);
 }
 
-function validateApprovalInput(input: PilotCreateApprovalInput): void {
-  const keys =
-    input.reason === undefined
-      ? ['status', 'factRiskStatus']
-      : ['status', 'factRiskStatus', 'reason'];
-  if (
-    !isRecord(input) ||
-    !hasOnlyKeys(input, keys) ||
+function approvalFieldsInvalid(input: PilotCreateApprovalInput): boolean {
+  return (
     !APPROVAL_STATUSES.has(input.status) ||
     !FACT_RISK_STATUSES.has(input.factRiskStatus) ||
     !(input.reason === undefined || requiredString(input.reason, 2_000)) ||
     (input.status === 'approved' && input.factRiskStatus !== 'cleared') ||
     (input.status !== 'approved' && input.reason === undefined)
+  );
+}
+
+function validateApprovalInput(input: PilotCreateApprovalInput): void {
+  const keys =
+    input.reason === undefined
+      ? ['status', 'factRiskStatus']
+      : ['status', 'factRiskStatus', 'reason'];
+  if (!isRecord(input) || !hasOnlyKeys(input, keys) || approvalFieldsInvalid(input)) {
+    throw invalidClientInput();
+  }
+}
+
+function validateStoryboardApprovalInput(input: PilotCreateStoryboardApprovalInput): void {
+  const keys =
+    input.reason === undefined
+      ? ['expectedVersion', 'status', 'factRiskStatus']
+      : ['expectedVersion', 'status', 'factRiskStatus', 'reason'];
+  if (
+    !isRecord(input) ||
+    !hasOnlyKeys(input, keys) ||
+    !positiveInteger(input.expectedVersion) ||
+    approvalFieldsInvalid(input)
   ) {
     throw invalidClientInput();
   }
@@ -1088,7 +1109,7 @@ export function createPilotContentProductionApi(
     async createStoryboardApproval(projectId, storyboardVersionId, input, idempotencyKey, options) {
       assertProjectId(projectId);
       if (!uuid(storyboardVersionId)) throw invalidClientInput();
-      validateApprovalInput(input);
+      validateStoryboardApprovalInput(input);
       const response = await transport.request({
         method: 'POST',
         path: `/api/v1/projects/${projectId}/storyboard-versions/${storyboardVersionId}/approvals`,
