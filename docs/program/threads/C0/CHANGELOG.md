@@ -117,6 +117,7 @@
 | 2026-08-10 | A-BIZ-06E.0 完成 B baseline attestation：Full Gate 要求完整 commit object 且为当前 HEAD ancestor；missing/invalid/not-ancestor fail closed，manifest 12/12 PASS，06E/06F blockers 保留                                                                    | A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE       |
 | 2026-08-11 | B Wave 4 baseline `f68ac6a` 已 fast-forward 进入 A integration ancestor chain；response commit 仅新增一份 B 文档，manifest 13/13 PASS，Full preflight 仅保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`                                                             | B_BASELINE_SYNCED / READY_FOR_06E_1_RED             |
 | 2026-08-11 | A 完成 Storyboard/Production/Grant/Canvas 双权威链：Package v0.3 strict HTTP、Grant 与 Canvas runtime authority revalidation、Migration 020—023 和 exact Grant/Package binding 已落地；下一步交由 B 实施 Pilot Script/Storyboard/Canvas pages             | A_SIDE_AUTHORITY_CHAIN_COMPLETE / READY_FOR_B_06E_3 |
+| 2026-08-11 | 冻结 A-BIZ-06E.4P/06E.5：A/B baseline 已共同对齐 `a7f8021`，但 B redemption consumer/page 未实现；细分 06E.4A—C、06E.5A—C 与 06E.6，首个 RED 修复 Pilot seed migration 19→24，真实 Gate要求 Chrome/PostgreSQL与零 SKIP                                    | A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED     |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -432,3 +433,13 @@
 - 定向证据：Canvas contracts `37/37`、Canvas/Production PostgreSQL `32/32`、Bootstrap/Internal route `29/29`，Control API typecheck/build、Prettier、diff-check PASS。
 - StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。Golden Path 与 Full Joint Gate 继续 blocked。
 - 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.4P / 06E.5 Shared Activation and Golden Path Plan Frozen
+
+- A/B remote HEAD 均为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`；baseline blocker 已解除，但 B 仅完成同步回执，redemption consumer、browser-facing bootstrap和Pilot pages仍未实现。
+- 新增 `A_BIZ_06E_4_5_SHARED_ACTIVATION_GOLDEN_PATH_PLAN.md`，冻结 06E.4P、06E.4A—C、06E.5A—C、06E.6、A/B/shared写集和原子提交顺序。
+- Shared activation Green硬等待 B consumer/page handoff；A 不猜 B endpoint/session合同，不修改StoryCanvas或Demo Bridge。
+- 浏览器只携带 non-secret Canvas Entry handle与canonical Scope；internal token、raw Grant/access token、grantId、digest和server-only redemption DTO禁止进入浏览器与artifact。
+- 首个 A-owned RED 冻结为 Pilot seed 接受完整 migration `001—024`；当前阻断是 migrationCount 仍为 `19`，本原子修复不改变 seed 数据形状，因此 fixtureVersion 保持 `1`。
+- Golden Path runner/spec冻结为真实Google Chrome、dedicated `_test` PostgreSQL、真实Session Cookie、Control API + Root Frontend + StoryCanvas lifecycle、单worker、零retry和机器验收零SKIP。
+- `ab-golden-path`继续为`external`，保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

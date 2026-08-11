@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / B_06E_3_CANVAS_READY_FOR_IMPLEMENTATION` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：完成 A-BIZ-06E.R5 交接；等待 B 同步 `32848fd` 并实现 server-side redemption client，之后再协调 06E.4 Shared Router/Bridge
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：从 `a7f8021` 冻结基线进入 A-BIZ-06E.5A migration 024 fixture RED；并行等待 B 实现 06E.4A redemption consumer、browser-safe bootstrap 与 Pilot pages，验收后再执行 shared Bridge/Router Green
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1291,3 +1291,15 @@
 - `32848fd` 是 shared Bootstrap，B 必须同步其完整祖先链后才可实现 server-side redemption client；Pilot 失败不得回退 v0.2 receiver、Demo Grant、Mock 或 LocalStorage。
 - StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。A 新提交未 push。
 - 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / B_06E_3_CANVAS_READY_FOR_IMPLEMENTATION / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.4P / 06E.5 Shared Activation 与 Golden Path 计划冻结
+
+- A/B 远程 HEAD 已共同对齐到 `a7f8021b80f540c69e4c45718b335ba2c0fca539`；baseline blocker 已解除，但 B 回执明确仅完成同步，不包含 StoryCanvas redemption consumer、browser-facing bootstrap 或 Pilot Script/Storyboard/Canvas page。
+- 新增 `A_BIZ_06E_4_5_SHARED_ACTIVATION_GOLDEN_PATH_PLAN.md`，冻结 06E.4P、06E.4A—C、06E.5A—C 与 06E.6 的依赖、所有权、写集、RED、提交顺序和停止条件。
+- 06E.4A 冻结为 B-owned consumer/page synchronization；06E.4B 为 shared Pilot Bridge；06E.4C 为 shared Router activation/regression。B consumer/page 未同步验收前，Shared Green 保持 blocked。
+- 浏览器只允许携带 non-secret Canvas Entry handle 与 canonical tenant/project/package reference；internal token、raw Grant/access token、grantId、digest 和 `CanvasEntryRedemption/0.1` server-only DTO 不得进入浏览器表面。
+- 06E.5A1 可由 A 立即推进：修复 Pilot E2E seed 仍冻结 `migrationCount: 19` 的确定性缺口，并保持未改变数据形状的 `fixtureVersion: 1`。首个 RED 为 `Pilot E2E seed accepts the complete 001—024 migration chain`。
+- 06E.5B/5C 冻结真实 Control API + Root Frontend + StoryCanvas lifecycle、真实 Google Chrome、专用 `_test` PostgreSQL、单 worker、零 retry、JSON report 和 `0 SKIP` 机器验收；任一服务/环境不可用必须 FAIL/BLOCKED，不得 SKIP。
+- Demo/Pilot 继续严格隔离：Pilot 失败不得回退 `DEMO_PROJECT_ID`、Demo Store、`DemoProjectGrant`、`X-StoryCanvas-Demo-Grant`、Mock、Zustand 或 LocalStorage。
+- 06E.6 前继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`；不宣称 `A_BIZ_06E_COMPLETE`、`JOINT_GATE_PASS` 或 `FULL_JOINT_GATE_PASS`。
+- 状态：`A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

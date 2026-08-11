@@ -1,12 +1,26 @@
 # A-BIZ-06E · A/B Golden Path Joint Gate 计划
 
-- 日期：2026-08-10
+- 日期：2026-08-11
 - 负责人：工程师 A（业务平台）/ 工程师 B（生产与画布）
 - 分支：`dev/business-plane`
-- 状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE`
+- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED`
 - 上游计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`、`A_B_CO_CREATION_SPLIT_2026-08-06.md`
-- 前置提交：`54555cc docs(business-plane): close deterministic pilot browser gate`
-- 共享同步基线：Pilot Browser Joint Gate `c154b1e`；B Baseline Attestation `94fabe1`
+- 冻结基线：`a7f8021b80f540c69e4c45718b335ba2c0fca539`
+- 共享同步基线：A/B 远程 HEAD 均为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`；B 已包含 A Canvas Redemption 祖先链
+- 细化计划：`A_BIZ_06E_4_5_SHARED_ACTIVATION_GOLDEN_PATH_PLAN.md`
+
+## 2026-08-11 覆盖性状态更新
+
+本节覆盖本文后续仍保留的早期源码审计、`WAITING_FOR_B_BASELINE` 与 06E.4—06E.6 粗粒度描述；历史段落仅保留决策演进背景，当前执行以细化计划为准。
+
+- A/B 远程已共同对齐到 `a7f8021b80f540c69e4c45718b335ba2c0fca539`，baseline blocker 已解除。
+- A 已完成 Storyboard authority、Production Package v0.3、Grant v0.2、CanvasEntry/0.2、strict browser client、Migration 020—024 与 server-only internal redemption。
+- B 回执只完成 baseline 对齐；StoryCanvas redemption consumer、browser-facing bootstrap 与 Pilot Script/Storyboard/Canvas page 尚未实现。
+- 06E.4 已细分为 `06E.4P docs/RED freeze → 06E.4A B consumer/page synchronization → 06E.4B Shared Bridge → 06E.4C Shared Router/regression`。
+- 06E.5 已细分为 `06E.5A deterministic PostgreSQL fixture → 06E.5B deterministic runner/harness → 06E.5C real Chrome + PostgreSQL zero-SKIP evidence`。
+- A 当前可独立执行的首个 RED 是：`Pilot E2E seed accepts the complete 001—024 migration chain`。
+- Shared Router/Bridge Green 必须等待 B consumer/page同步验收；浏览器只携带 non-secret handle 与 canonical tenant/project/package reference，Pilot失败不得回退Demo/Mock/LocalStorage。
+- 06E.6真实激活前继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
 
 ## 1. 本节点目标
 

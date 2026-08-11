@@ -942,3 +942,18 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - B 接入必须保持 server-only secret、稳定幂等、strict Package v0.3/Grant v0.2 parser、Demo/Pilot 隔离与无 fallback。Shared Router/Bridge 激活仍等待 B 消费端提交与双方对齐。
 - StoryCanvas tracked diff 为零；`apps/storycanvas/data/vendor/byteplus.ts` 继续未跟踪且不得修改、暂存或提交。当前不 push。
 - 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## A-BIZ-06E.4P / 06E.5 Shared Activation 与 Golden Path 计划交接（2026-08-11）
+
+- 冻结基线：A/B 远程 HEAD 均为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。B baseline 已对齐，但回执明确不包含 StoryCanvas server redemption consumer、browser-facing bootstrap 或 Pilot Script/Storyboard/Canvas page。
+- 权威细化计划：`docs/program/threads/C0/A_BIZ_06E_4_5_SHARED_ACTIVATION_GOLDEN_PATH_PLAN.md`。
+- 06E.4 顺序：`06E.4P docs/RED freeze → 06E.4A B consumer/page synchronization → 06E.4B Shared Pilot Bridge → 06E.4C Shared Router activation/regression/handoff`。
+- B 下一 handoff 必须给出 consumer/page commit SHA、exact browser-facing port/endpoint、browser-safe DTO、Package bootstrap/selection、Request ID/error mapping、targeted/build evidence 与 StoryCanvas tracked clean证明。
+- A 在等待 B期间先执行 06E.5A1：把 Pilot E2E migration postcondition 对齐 `001—024`，本原子修复保持 `fixtureVersion: 1`；deterministic clock、Golden Path 输入 fixture与初始 Production/Canvas计数另拆 06E.5A2，成功 Package/Grant/Entry/Redemption仍由真实浏览器链创建。
+- Shared Bridge/Router Green进入条件：B 06E.4A已同步并完成 commit object、ancestor、write-set与security attestation；A 不猜测 B HTTP path、Cookie、CSRF、server session或response envelope。
+- 浏览器只传 non-secret handle + canonical tenant/project/package；raw Grant/access token、internal token、grantId、digest和 server-only redemption DTO 不进入 DOM、URL、React props、Storage、console、trace、截图、report或日志。
+- Demo与Pilot严格隔离；Pilot失败不得回退 Demo Store、`DEMO_PROJECT_ID`、`DemoProjectGrant`、`X-StoryCanvas-Demo-Grant`、Mock、Zustand或LocalStorage。
+- 06E.5B/5C必须使用真实 Google Chrome、dedicated `_test` PostgreSQL、真实 Session Cookie、Control API、Root Frontend和StoryCanvas server，机器验收 `failed=0 / skipped=0 / flaky=0 / interrupted=0`。
+- Shared Router、Bridge、manifest、runner与合同变更均独立 commit并通知B同步；A不得修改StoryCanvas或触碰 `apps/storycanvas/data/vendor/byteplus.ts`。
+- 首个 RED：`Pilot E2E seed accepts the complete 001—024 migration chain`；当前阻断仅是 `migrationCount: 19`，本切片正确的 `fixtureVersion` 仍为 `1`。
+- 当前状态：`READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
