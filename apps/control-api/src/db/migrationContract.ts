@@ -18,6 +18,7 @@ export const CONTROL_API_MIGRATION_NAMES = [
   '017_full_test_payment_reversal.ts',
   '018_fix_commission_settlement_item_validation.ts',
   '019_harden_legacy_membership_shadow.ts',
+  '020_storyboard_authority.ts',
 ] as const;
 
 export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
@@ -30,6 +31,8 @@ export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
   'project_assignments',
   'project_grants',
   'projects',
+  'storyboard_approvals',
+  'storyboard_versions',
   'tenants',
   'terms_documents',
   'terms_versions',
