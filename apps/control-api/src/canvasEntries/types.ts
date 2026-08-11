@@ -61,6 +61,13 @@ export type CreateCanvasEntryRecord = CanvasEntryBinding & {
   createdBy: string;
 };
 
+export type ReadCanvasEntryRecord = {
+  tenantId: string;
+  projectId: string;
+  handle: string;
+  readAt: Date;
+};
+
 export type ConsumeCanvasEntryRecord = CanvasEntryBinding & {
   handle: string;
   consumedAt: Date;
@@ -77,5 +84,6 @@ export type ConsumedCanvasEntryAuthorization = ConsumedCanvasEntry & {
 
 export interface CanvasEntryStore {
   createEntry(input: CreateCanvasEntryRecord): Promise<CreateCanvasEntryResult>;
+  readEntry(input: ReadCanvasEntryRecord): Promise<CanvasEntryPublicDto>;
   consumeEntry(input: ConsumeCanvasEntryRecord): Promise<ConsumedCanvasEntryAuthorization>;
 }

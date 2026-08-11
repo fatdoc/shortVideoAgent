@@ -15,6 +15,7 @@ import type {
   ConsumeCanvasEntryRecord,
   CreateCanvasEntryRecord,
   CreateCanvasEntryResult,
+  ReadCanvasEntryRecord,
 } from './types.js';
 
 type CanvasEntryRow = {
@@ -32,6 +33,13 @@ type CanvasEntryRow = {
   consumed_at: Date | string | null;
   created_by: string;
 };
+
+type PublicCanvasEntryRow = Pick<
+  CanvasEntryRow,
+  'handle' | 'tenant_id' | 'project_id' | 'package_id' | 'state' | 'issued_at' | 'expires_at'
+>;
+
+type ReadOutcomeRow = PublicCanvasEntryRow & { binding_active: boolean };
 
 type ConsumeOutcomeRow = CanvasEntryRow & {
   outcome: 'consumed' | 'expired' | 'replayed';
@@ -57,7 +65,7 @@ function iso(value: Date | string): string {
   return parsed.toISOString();
 }
 
-function publicEntryFromRow(row: CanvasEntryRow): CanvasEntryPublicDto {
+function publicEntryFromRow(row: PublicCanvasEntryRow): CanvasEntryPublicDto {
   return parseCanvasEntryPublicDto({
     objectType: 'CanvasEntry',
     contractVersion: '0.2',
@@ -98,19 +106,13 @@ function validateCreateRecord(input: CreateCanvasEntryRecord): void {
     );
   }
   publicEntryFromRow({
-    canvas_entry_id: '00000000-0000-4000-8000-000000000000',
     handle: input.handle,
     tenant_id: input.tenantId,
     project_id: input.projectId,
     package_id: input.packageId,
-    grant_id: '00000000-0000-4000-8000-000000000001',
-    idempotency_key: input.idempotencyKey,
-    request_digest: input.requestDigest,
     state: 'active',
     issued_at: input.issuedAt,
     expires_at: input.expiresAt,
-    consumed_at: null,
-    created_by: input.createdBy,
   });
 }
 
@@ -197,6 +199,71 @@ export class PostgresCanvasEntryRepository implements CanvasEntryStore {
       if (error instanceof CanvasEntryDomainError) throw error;
       throw error;
     }
+  }
+
+  async readEntry(input: ReadCanvasEntryRecord): Promise<CanvasEntryPublicDto> {
+    const handle = parseCanvasEntryHandle(input.handle);
+    const tenantId = parseCanvasEntryUuid(input.tenantId);
+    const projectId = parseCanvasEntryUuid(input.projectId);
+    const readAt = new Date(input.readAt);
+    if (!Number.isFinite(readAt.getTime())) {
+      throw canvasEntryError('CANVAS_ENTRY_SCHEMA_INVALID', 'Canvas Entry read time is invalid.');
+    }
+
+    const result = await this.database.raw<{ rows: ReadOutcomeRow[] }>(
+      `select entry.handle,
+              entry.tenant_id,
+              entry.project_id,
+              entry.package_id,
+              entry.state,
+              entry.issued_at,
+              entry.expires_at,
+              exists (
+                select 1
+                  from control_plane.production_packages package_row
+                  join control_plane.project_grants grant_row
+                    on grant_row.package_id = package_row.package_id
+                   and grant_row.project_id = package_row.project_id
+                   and grant_row.tenant_id = package_row.tenant_id
+                 where package_row.package_id = entry.package_id
+                   and package_row.project_id = entry.project_id
+                   and package_row.tenant_id = entry.tenant_id
+                   and grant_row.grant_id = entry.grant_id
+                   and grant_row.status = 'active'
+                   and grant_row.revoked_at is null
+                   and package_row.valid_from <= ?::timestamptz
+                   and package_row.expires_at > ?::timestamptz
+                   and grant_row.issued_at <= ?::timestamptz
+                   and grant_row.expires_at > ?::timestamptz
+              ) as binding_active
+         from control_plane.canvas_entries entry
+        where entry.handle = ?
+          and entry.tenant_id = ?
+          and entry.project_id = ?
+        limit 1`,
+      [readAt, readAt, readAt, readAt, handle, tenantId, projectId],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw canvasEntryError(
+        'CANVAS_ENTRY_NOT_FOUND',
+        'Canvas Entry handle or exact scope was not found.',
+      );
+    }
+    if (row.state === 'consumed') {
+      throw canvasEntryError('CANVAS_ENTRY_REPLAYED', 'Canvas Entry was already consumed.');
+    }
+    if (
+      row.state === 'expired' ||
+      new Date(row.expires_at).getTime() <= readAt.getTime() ||
+      !row.binding_active
+    ) {
+      throw canvasEntryError(
+        'CANVAS_ENTRY_EXPIRED',
+        'Canvas Entry or its Package/Grant authorization is no longer active.',
+      );
+    }
+    return publicEntryFromRow(row);
   }
 
   async consumeEntry(input: ConsumeCanvasEntryRecord): Promise<ConsumedCanvasEntryAuthorization> {

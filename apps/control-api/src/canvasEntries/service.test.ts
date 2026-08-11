@@ -37,6 +37,7 @@ const publicEntry = {
 function stores(overrides: Partial<CanvasEntryStore> = {}): CanvasEntryStore {
   return {
     createEntry: vi.fn<CanvasEntryStore['createEntry']>(),
+    readEntry: vi.fn<CanvasEntryStore['readEntry']>(),
     consumeEntry: vi.fn<CanvasEntryStore['consumeEntry']>(),
     ...overrides,
   };
@@ -184,5 +185,33 @@ describe('CanvasEntryService', () => {
     ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_SCHEMA_INVALID' }));
     expect(createEntry).not.toHaveBeenCalled();
     expect(consumeEntry).not.toHaveBeenCalled();
+  });
+
+  it('reads only the active browser-safe Entry within the exact tenant/project scope', async () => {
+    const readEntry = vi.fn<CanvasEntryStore['readEntry']>(async () => publicEntry);
+    const entryService = service(stores({ readEntry }));
+
+    await expect(entryService.readEntry(actor, projectId, handle)).resolves.toEqual(publicEntry);
+    expect(readEntry).toHaveBeenCalledWith({
+      tenantId,
+      projectId,
+      handle,
+      readAt: new Date('2026-08-11T03:00:00.000Z'),
+    });
+    expect(JSON.stringify(await entryService.readEntry(actor, projectId, handle))).not.toMatch(
+      /grant|token|authorization|cookie|secret|digest/i,
+    );
+  });
+
+  it('rejects a Store read projection outside the exact browser-safe scope', async () => {
+    const readEntry = vi.fn<CanvasEntryStore['readEntry']>(async () => ({
+      ...publicEntry,
+      projectId: '88888888-8888-4888-8888-888888888888',
+    }));
+    const entryService = service(stores({ readEntry }));
+
+    await expect(entryService.readEntry(actor, projectId, handle)).rejects.toEqual(
+      expect.objectContaining({ code: 'CANVAS_ENTRY_NOT_FOUND', status: 404 }),
+    );
   });
 });

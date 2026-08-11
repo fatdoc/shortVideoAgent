@@ -12,6 +12,7 @@ import {
 } from './parser.js';
 import { assertCanvasEntryBinding } from './policy.js';
 import type {
+  CanvasEntryPublicDto,
   CanvasEntryStore,
   ConsumeCanvasEntryInput,
   ConsumedCanvasEntryAuthorization,
@@ -93,6 +94,31 @@ export class CanvasEntryService {
     const value = parseCanvasEntryPublicDto(result.value);
     assertCanvasEntryBinding(value, { tenantId, projectId, packageId: input.packageId });
     return { value, replayed: result.replayed };
+  }
+
+  async readEntry(
+    actor: SessionActor,
+    projectIdInput: string,
+    handleInput: string,
+  ): Promise<CanvasEntryPublicDto> {
+    const tenantId = parseCanvasEntryUuid(actor.tenantId);
+    const projectId = parseCanvasEntryUuid(projectIdInput);
+    const handle = parseCanvasEntryHandle(handleInput);
+    const value = parseCanvasEntryPublicDto(
+      await this.store.readEntry({
+        tenantId,
+        projectId,
+        handle,
+        readAt: currentTime(this.now),
+      }),
+    );
+    if (value.tenantId !== tenantId || value.projectId !== projectId || value.handle !== handle) {
+      throw canvasEntryError(
+        'CANVAS_ENTRY_NOT_FOUND',
+        'Canvas Entry tenant/project/handle binding mismatch.',
+      );
+    }
+    return value;
   }
 
   async consumeEntry(

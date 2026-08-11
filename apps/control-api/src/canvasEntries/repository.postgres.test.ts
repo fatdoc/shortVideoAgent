@@ -337,4 +337,71 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasEntryRepository', () => 
       reason: expect.objectContaining({ code: 'CANVAS_ENTRY_REPLAYED', status: 409 }),
     });
   });
+
+  it('reads an active Entry as an exact browser-safe DTO without Grant material', async () => {
+    await repository.createEntry(record());
+
+    const value = await repository.readEntry({
+      handle: handleA,
+      tenantId,
+      projectId,
+      readAt: issuedAt,
+    });
+
+    expect(value).toEqual({
+      objectType: 'CanvasEntry',
+      contractVersion: '0.2',
+      handle: handleA,
+      tenantId,
+      projectId,
+      packageId,
+      state: 'active',
+      issuedAt: issuedAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    });
+    expect(JSON.stringify(value)).not.toMatch(/grant|token|authorization|cookie|secret|digest/i);
+  });
+
+  it('makes wrong-scope reads indistinguishable from an unknown handle', async () => {
+    await repository.createEntry(record());
+
+    await expect(
+      repository.readEntry({
+        handle: handleA,
+        tenantId,
+        projectId: '22222222-2222-4222-9222-222222222222',
+        readAt: issuedAt,
+      }),
+    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_NOT_FOUND', status: 404 }));
+  });
+
+  it('fails closed when reading an expired, consumed, or authorization-inactive Entry', async () => {
+    await repository.createEntry(record());
+    await expect(
+      repository.readEntry({ handle: handleA, tenantId, projectId, readAt: expiresAt }),
+    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_EXPIRED', status: 410 }));
+
+    await database('control_plane.project_grants').where({ grant_id: grantId }).update({
+      status: 'revoked',
+      revoked_at: issuedAt,
+    });
+    await expect(
+      repository.readEntry({ handle: handleA, tenantId, projectId, readAt: issuedAt }),
+    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_EXPIRED', status: 410 }));
+
+    await database('control_plane.project_grants').where({ grant_id: grantId }).update({
+      status: 'active',
+      revoked_at: null,
+    });
+    await repository.consumeEntry({
+      handle: handleA,
+      tenantId,
+      projectId,
+      packageId,
+      consumedAt: issuedAt,
+    });
+    await expect(
+      repository.readEntry({ handle: handleA, tenantId, projectId, readAt: issuedAt }),
+    ).rejects.toEqual(expect.objectContaining({ code: 'CANVAS_ENTRY_REPLAYED', status: 409 }));
+  });
 });
