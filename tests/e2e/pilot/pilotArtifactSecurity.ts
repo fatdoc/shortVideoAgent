@@ -3,6 +3,9 @@ import { extname, join } from 'node:path';
 
 const FORBIDDEN_ARTIFACT_EXTENSIONS = new Set(['.har', '.webm', '.zip']);
 
+const MAX_IN_MEMORY_EVIDENCE_NODES = 50_000;
+const MAX_IN_MEMORY_EVIDENCE_BYTES = 8 * 1024 * 1024;
+
 const FORBIDDEN_TEXT_MARKERS = [
   /\bx-production-plane-internal-token\s*[:=]/i,
   /\bx-storycanvas-demo-grant\b/i,
@@ -81,6 +84,88 @@ function containsNeedle(content: Buffer, needles: readonly Buffer[]): boolean {
 function containsForbiddenMarker(content: Buffer | string): boolean {
   const text = typeof content === 'string' ? content : content.toString('utf8');
   return FORBIDDEN_TEXT_MARKERS.some((marker) => marker.test(text));
+}
+
+function failInMemoryScan(code: string): never {
+  throw new Error(code);
+}
+
+function assertInMemoryChunkSafe(
+  content: Buffer | string,
+  needles: readonly Buffer[],
+  budget: { nodes: number; bytes: number },
+): void {
+  budget.nodes += 1;
+  const buffer = typeof content === 'string' ? Buffer.from(content) : content;
+  budget.bytes += buffer.byteLength;
+  if (budget.nodes > MAX_IN_MEMORY_EVIDENCE_NODES || budget.bytes > MAX_IN_MEMORY_EVIDENCE_BYTES) {
+    failInMemoryScan('PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+  }
+  if (containsNeedle(buffer, needles)) {
+    failInMemoryScan('PILOT_E2E_IN_MEMORY_SECRET_LEAK');
+  }
+  if (containsForbiddenMarker(buffer)) {
+    failInMemoryScan('PILOT_E2E_IN_MEMORY_SENSITIVE_MARKER_LEAK');
+  }
+}
+
+export function assertPilotInMemoryEvidenceSafe(
+  input: unknown,
+  secrets: readonly string[],
+  evidence: PilotArtifactSecurityEvidence = {},
+): void {
+  const needles = sensitiveNeedles(secrets, evidence);
+  const seen = new WeakSet<object>();
+  const pending: unknown[] = [input];
+  const budget = { nodes: 0, bytes: 0 };
+
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (value === null || value === undefined) continue;
+
+    if (typeof value === 'string') {
+      assertInMemoryChunkSafe(value, needles, budget);
+      continue;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      budget.nodes += 1;
+      if (budget.nodes > MAX_IN_MEMORY_EVIDENCE_NODES) {
+        failInMemoryScan('PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+      }
+      continue;
+    }
+    if (typeof value !== 'object' || typeof value === 'function') {
+      failInMemoryScan('PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+    }
+
+    if (seen.has(value)) failInMemoryScan('PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+    seen.add(value);
+
+    if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+      assertInMemoryChunkSafe(Buffer.from(value), needles, budget);
+      continue;
+    }
+    if (value instanceof Date) {
+      assertInMemoryChunkSafe(value.toISOString(), needles, budget);
+      continue;
+    }
+
+    let entries: [string, unknown][];
+    try {
+      entries = Object.entries(value);
+    } catch {
+      failInMemoryScan('PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+    }
+
+    budget.nodes += 1;
+    if (budget.nodes > MAX_IN_MEMORY_EVIDENCE_NODES) {
+      failInMemoryScan('PILOT_E2E_IN_MEMORY_SCAN_FAILED');
+    }
+    for (const [key, child] of entries) {
+      assertInMemoryChunkSafe(`${key}:`, needles, budget);
+      pending.push(child);
+    }
+  }
 }
 
 function serviceOutput(evidence: PilotArtifactSecurityEvidence): string[] {

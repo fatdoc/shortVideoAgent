@@ -9,6 +9,7 @@ import {
 } from './abGoldenPathPreflight.js';
 import {
   assertPilotBrowserArtifactsSafe,
+  assertPilotInMemoryEvidenceSafe,
   type PilotArtifactSecurityEvidence,
 } from './pilotArtifactSecurity.js';
 import {
@@ -131,6 +132,8 @@ export async function validateAbGoldenPathEvidence(
   input: AbGoldenPathEvidenceInput,
 ): Promise<PilotPlaywrightReportSummary> {
   assertPilotSpecPolicy(input.specSource);
+  assertPilotInMemoryEvidenceSafe(input.specSource, input.secrets, input.securityEvidence);
+  assertPilotInMemoryEvidenceSafe(input.playwrightReport, input.secrets, input.securityEvidence);
   const report = assertPilotPlaywrightReport(input.playwrightReport);
   await assertPilotBrowserArtifactsSafe(input.artifactRoot, input.secrets, input.securityEvidence);
   return report;
