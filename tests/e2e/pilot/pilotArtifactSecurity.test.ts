@@ -28,6 +28,18 @@ const FAKE_SENSITIVE_EVIDENCE = {
   sensitiveValues: FAKE_SENSITIVE_VALUES.map(([label, value]) => ({ label, value })),
 };
 
+const LEGACY_DEMO_BROWSER_GRANT_MARKERS = [
+  'X-StoryCanvas-Demo-Grant',
+  'storycanvas:mvp-token',
+  'storycanvas:d1-grant',
+  'DemoProjectGrant',
+  'DEMO_PROJECT_ID',
+  'MOCK-CONTRACT',
+  'mock-handle:',
+  'grant-demo-local-',
+  'package-demo-local-',
+] as const;
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -177,6 +189,45 @@ test('rejects structured security markers in artifacts and service output', asyn
       }
     } finally {
       await rm(artifactRoot, { recursive: true, force: true });
+    }
+  }
+});
+
+test('rejects legacy Demo, Mock, and browser Grant chain markers without echoing input', async () => {
+  for (const marker of LEGACY_DEMO_BROWSER_GRANT_MARKERS) {
+    const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-artifact-legacy-marker-'));
+    try {
+      await writeFile(
+        join(artifactRoot, 'diagnostic.txt'),
+        `synthetic prefix ${marker} synthetic suffix`,
+      );
+      await assert.rejects(assertPilotBrowserArtifactsSafe(artifactRoot, []), (error: Error) => {
+        assert.equal(error.message, 'PILOT_E2E_SENSITIVE_MARKER_LEAK');
+        assert.doesNotMatch(error.message, new RegExp(escapeRegExp(marker), 'i'));
+        assert.doesNotMatch(error.message, /diagnostic\.txt/);
+        return true;
+      });
+    } finally {
+      await rm(artifactRoot, { recursive: true, force: true });
+    }
+
+    const serviceRoot = await mkdtemp(join(tmpdir(), 'pilot-output-legacy-marker-'));
+    try {
+      await assert.rejects(
+        assertPilotBrowserArtifactsSafe(serviceRoot, [], {
+          serviceOutput: {
+            storyCanvas: { stdout: `synthetic prefix ${marker} synthetic suffix` },
+          },
+        }),
+        (error: Error) => {
+          assert.equal(error.message, 'PILOT_E2E_SENSITIVE_MARKER_LEAK');
+          assert.doesNotMatch(error.message, new RegExp(escapeRegExp(marker), 'i'));
+          assert.doesNotMatch(error.message, /storycanvas|stdout/i);
+          return true;
+        },
+      );
+    } finally {
+      await rm(serviceRoot, { recursive: true, force: true });
     }
   }
 });
