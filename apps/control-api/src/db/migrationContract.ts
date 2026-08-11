@@ -22,6 +22,7 @@ export const CONTROL_API_MIGRATION_NAMES = [
   '021_canvas_entries.ts',
   '022_production_storyboard_authority.ts',
   '023_canvas_entry_grant_package_binding.ts',
+  '024_canvas_entry_redemption.ts',
 ] as const;
 
 export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [

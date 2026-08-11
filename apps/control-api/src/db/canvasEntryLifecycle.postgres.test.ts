@@ -11,6 +11,10 @@ import {
   down as removeCanvasEntryGrantPackageBinding,
   up as addCanvasEntryGrantPackageBinding,
 } from './migrations/023_canvas_entry_grant_package_binding.js';
+import {
+  down as removeCanvasEntryRedemption,
+  up as addCanvasEntryRedemption,
+} from './migrations/024_canvas_entry_redemption.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
@@ -148,6 +152,7 @@ describe.runIf(hasDedicatedTestDatabase)('canvas entry lifecycle migration', () 
     await resetFoundation(database);
     await addCanvasEntryLifecycle(database);
     await addCanvasEntryGrantPackageBinding(database);
+    await addCanvasEntryRedemption(database);
   });
 
   afterAll(async () => {
@@ -307,7 +312,13 @@ describe.runIf(hasDedicatedTestDatabase)('canvas entry lifecycle migration', () 
 
     await database('control_plane.canvas_entries')
       .where({ canvas_entry_id: canvasEntryId })
-      .update({ state: 'consumed', consumed_at: '2026-08-11T01:00:30.000Z' });
+      .update({
+        state: 'consumed',
+        consumed_at: '2026-08-11T01:00:30.000Z',
+        redemption_idempotency_key: 'canvas-redeem-001',
+        redemption_request_digest: digestB,
+        redeemed_by: 'storycanvas-production-plane',
+      });
 
     await expect(
       database('control_plane.canvas_entries')
@@ -322,6 +333,58 @@ describe.runIf(hasDedicatedTestDatabase)('canvas entry lifecycle migration', () 
     await expect(
       database('control_plane.canvas_entries').where({ canvas_entry_id: canvasEntryId }).delete(),
     ).rejects.toThrow(/immutable/i);
+  });
+
+  it('requires complete immutable redemption facts for consumed entries', async () => {
+    await database('control_plane.canvas_entries').insert(canvasEntryRow());
+
+    await expect(
+      database('control_plane.canvas_entries')
+        .where({ canvas_entry_id: canvasEntryId })
+        .update({ state: 'consumed', consumed_at: '2026-08-11T01:00:30.000Z' }),
+    ).rejects.toThrow(/redemption|lifecycle|constraint/i);
+
+    await database('control_plane.canvas_entries')
+      .where({ canvas_entry_id: canvasEntryId })
+      .update({
+        state: 'consumed',
+        consumed_at: '2026-08-11T01:00:30.000Z',
+        redemption_idempotency_key: 'canvas-redeem-001',
+        redemption_request_digest: digestB,
+        redeemed_by: 'storycanvas-production-plane',
+      });
+
+    await expect(
+      database('control_plane.canvas_entries')
+        .where({ canvas_entry_id: canvasEntryId })
+        .update({ redemption_idempotency_key: 'canvas-redeem-002' }),
+    ).rejects.toThrow(/lifecycle|immutable/i);
+  });
+
+  it('supports empty redemption rollback/reapply and blocks rollback after entry evidence exists', async () => {
+    await removeCanvasEntryRedemption(database);
+    const columnsAfterRollback = await database('information_schema.columns')
+      .select('column_name')
+      .where({ table_schema: 'control_plane', table_name: 'canvas_entries' });
+    expect(columnsAfterRollback.map(({ column_name }) => column_name)).not.toContain(
+      'redemption_idempotency_key',
+    );
+
+    await addCanvasEntryRedemption(database);
+    await database('control_plane.canvas_entries').insert(canvasEntryRow());
+    await expect(removeCanvasEntryRedemption(database)).rejects.toThrow(/rollback blocked/i);
+  });
+
+  it('fails closed instead of fabricating redemption facts for legacy consumed evidence', async () => {
+    await removeCanvasEntryRedemption(database);
+    await database('control_plane.canvas_entries').insert(canvasEntryRow());
+    await database('control_plane.canvas_entries')
+      .where({ canvas_entry_id: canvasEntryId })
+      .update({ state: 'consumed', consumed_at: '2026-08-11T01:00:30.000Z' });
+
+    await expect(addCanvasEntryRedemption(database)).rejects.toThrow(
+      /migration blocked: consumed lifecycle evidence exists/i,
+    );
   });
 
   it('allows empty rollback and blocks rollback after lifecycle evidence exists', async () => {
