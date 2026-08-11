@@ -15,6 +15,7 @@ import { ProjectGrantTokenService } from './production/grantToken.js';
 import { PostgresProductionStore } from './production/repository.js';
 import { createProductionRouter } from './production/routes.js';
 import { createInternalProjectGrantRouter } from './production/internalRoutes.js';
+import { createInternalCanvasEntryRouter } from './canvasEntries/internalRoutes.js';
 import { PostgresCanvasEntryRepository } from './canvasEntries/repository.js';
 import { createCanvasEntryRouter } from './canvasEntries/routes.js';
 import { CanvasEntryService } from './canvasEntries/service.js';
@@ -167,11 +168,16 @@ const productionRouter = createProductionRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const canvasEntryService = new CanvasEntryService(
+  new PostgresCanvasEntryRepository(database, undefined, undefined, productionStore),
+  config.rechargePaymentDigestSecret,
+);
+const internalCanvasEntryRouter = createInternalCanvasEntryRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: canvasEntryService,
+});
 const canvasEntryRouter = createCanvasEntryRouter({
-  service: new CanvasEntryService(
-    new PostgresCanvasEntryRepository(database),
-    config.rechargePaymentDigestSecret,
-  ),
+  service: canvasEntryService,
   policy: projectPolicy,
   resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',
@@ -186,6 +192,7 @@ const app = createApp({
   invitationRouter,
   registrationRouter,
   internalProductionRouter,
+  internalCanvasEntryRouter,
   contentRouter,
   storyboardRouter,
   productionRouter,
