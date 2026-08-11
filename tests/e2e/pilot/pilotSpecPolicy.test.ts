@@ -106,6 +106,66 @@ test('ignores policy words in comments and string literals', () => {
   );
 });
 
+test('rejects forbidden browser dependencies and internal calls, including string arguments', () => {
+  const forbiddenSources = [
+    `test('internal redemption', async ({ request }) => {
+      await request.post('/api/v1/internal/canvas-entries/redeem');
+    });`,
+    `test('internal token', async ({ page }) => {
+      await page.setExtraHTTPHeaders({ 'x-production-plane-internal-token': 'forbidden' });
+    });`,
+    `test('demo header', async ({ page }) => {
+      await page.setExtraHTTPHeaders({ 'X-StoryCanvas-Demo-Grant': 'forbidden' });
+    });`,
+    `test('demo grant type', async () => {
+      const typeName = 'DemoProjectGrant';
+      await Promise.resolve(typeName);
+    });`,
+    `test('demo project', async () => {
+      await Promise.resolve(DEMO_PROJECT_ID);
+    });`,
+    `test('local storage', async ({ page }) => {
+      await page.evaluate(() => localStorage.getItem('pilot'));
+    });`,
+    `test('session storage', async ({ page }) => {
+      await page.evaluate(() => sessionStorage.getItem('pilot'));
+    });`,
+    `test('mock contract', async () => {
+      await Promise.resolve("MOCK-CONTRACT");
+    });`,
+  ];
+
+  for (const source of forbiddenSources) {
+    assertSafePolicyError(source, 'PILOT_E2E_SPEC_FORBIDDEN_MARKER');
+  }
+});
+
+test('ignores forbidden browser markers when they appear only in comments', () => {
+  assert.doesNotThrow(() =>
+    assertPilotSpecPolicy(`
+      import { test } from '@playwright/test';
+      // /api/v1/internal/canvas-entries/redeem x-production-plane-internal-token
+      /* X-StoryCanvas-Demo-Grant DemoProjectGrant DEMO_PROJECT_ID
+         localStorage sessionStorage MOCK-CONTRACT */
+      test('uses only the Pilot browser contract', async () => {
+        const safeTemplate = \`value \${/* localStorage */ 1}\`;
+        await Promise.resolve(safeTemplate);
+      });
+    `),
+  );
+});
+
+test('forbidden marker errors never echo source text or a caller path', () => {
+  const callerPath = '/private/tmp/fake-golden-path-spec.ts';
+  const source = `// ${callerPath}
+test('forbidden', async () => {
+    await fetch('/api/v1/internal/canvas-entries/redeem');
+  });`;
+
+  assertSafePolicyError(source, 'PILOT_E2E_SPEC_FORBIDDEN_MARKER', 'canvas-entries');
+  assertSafePolicyError(source, 'PILOT_E2E_SPEC_FORBIDDEN_MARKER', 'fake-golden-path-spec');
+});
+
 test('never echoes source text or a caller path in validation errors', () => {
   const secret = 'FAKE_SPEC_SECRET_DO_NOT_USE_20260811';
   const callerPath = '/private/tmp/fake-golden-path-spec.ts';
