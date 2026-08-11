@@ -53,10 +53,18 @@ function loadConfig(
   return result as ReturnType<typeof spawnSync> & { stdout: string; stderr: string };
 }
 
-function assertRejected(overrides: NodeJS.ProcessEnv, expectedCode: string): void {
+function assertRejected(
+  overrides: NodeJS.ProcessEnv,
+  expectedCode: string,
+  forbiddenOutput: readonly string[] = [],
+): void {
   const result = loadConfig(overrides);
+  const output = `${result.stdout}\n${result.stderr}`;
   assert.notEqual(result.status, 0);
-  assert.match(`${result.stdout}\n${result.stderr}`, new RegExp(expectedCode));
+  assert.match(output, new RegExp(expectedCode));
+  for (const forbidden of forbiddenOutput) {
+    assert.doesNotMatch(output, new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
 }
 
 test('fails closed unless Pilot, Golden Path, and real Chrome are explicitly enabled', () => {
@@ -76,7 +84,39 @@ test('fails closed unless Pilot, Golden Path, and real Chrome are explicitly ena
 
 test('requires a loopback-only Pilot web origin', () => {
   assertRejected({ PILOT_E2E_WEB_ORIGIN: undefined }, 'PILOT_E2E_WEB_ORIGIN_REQUIRED');
-  assertRejected({ PILOT_E2E_WEB_ORIGIN: 'https://example.com' }, 'PILOT_E2E_WEB_ORIGIN_REQUIRED');
+
+  const invalidOrigins = [
+    'http://127.0.0.1:0',
+    'http://127.0.0.1:65536',
+    'http://127.0.0.1:99999',
+    'http://127.0.0.1:not-a-port',
+    'http://pilot:secret@127.0.0.1:4174',
+    'http://127.0.0.1:4174/canvas',
+    'http://127.0.0.1:4174/?mode=pilot',
+    'http://127.0.0.1:4174/#canvas',
+    'http://localhost:4174',
+    'http://127.0.0.2:4174',
+    'https://127.0.0.1:4174',
+  ] as const;
+
+  for (const origin of invalidOrigins) {
+    assertRejected({ PILOT_E2E_WEB_ORIGIN: origin }, 'PILOT_E2E_WEB_ORIGIN_INVALID', [origin]);
+  }
+});
+
+test('accepts the full explicit loopback port range and normalizes the root path', () => {
+  const cases = [
+    ['http://127.0.0.1:1', 'http://127.0.0.1:1'],
+    ['http://127.0.0.1:4174/', 'http://127.0.0.1:4174'],
+    ['http://127.0.0.1:65535', 'http://127.0.0.1:65535'],
+  ] as const;
+
+  for (const [origin, expectedBaseUrl] of cases) {
+    const result = loadConfig({ PILOT_E2E_WEB_ORIGIN: origin });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const config = JSON.parse(result.stdout) as { use: { baseURL: string } };
+    assert.equal(config.use.baseURL, expectedBaseUrl);
+  }
 });
 
 test('freezes a dedicated, serial, zero-retry Golden Path Playwright contract', () => {
