@@ -8,10 +8,16 @@ import { createAuthRouter } from './auth/routes.js';
 import { PostgresProjectPolicy } from './projects/policy.js';
 import { PostgresContentStore } from './projects/repository.js';
 import { createContentRouter } from './projects/routes.js';
+import { PostgresStoryboardAuthorityStore } from './storyboards/repository.js';
+import { createStoryboardRouter } from './storyboards/routes.js';
+import { StoryboardAuthorityService } from './storyboards/service.js';
 import { ProjectGrantTokenService } from './production/grantToken.js';
 import { PostgresProductionStore } from './production/repository.js';
 import { createProductionRouter } from './production/routes.js';
 import { createInternalProjectGrantRouter } from './production/internalRoutes.js';
+import { PostgresCanvasEntryRepository } from './canvasEntries/repository.js';
+import { createCanvasEntryRouter } from './canvasEntries/routes.js';
+import { CanvasEntryService } from './canvasEntries/service.js';
 import { PostgresTermsRepository } from './terms/repository.js';
 import { TermsService } from './terms/service.js';
 import { createTermsRouter } from './terms/routes.js';
@@ -138,6 +144,13 @@ const contentRouter = createContentRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const storyboardRouter = createStoryboardRouter({
+  service: new StoryboardAuthorityService(new PostgresStoryboardAuthorityStore(database)),
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const projectGrantTokens = new ProjectGrantTokenService(
   config.projectGrantSigningSecret,
   config.projectGrantActiveKid,
@@ -154,6 +167,16 @@ const productionRouter = createProductionRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const canvasEntryRouter = createCanvasEntryRouter({
+  service: new CanvasEntryService(
+    new PostgresCanvasEntryRepository(database),
+    config.rechargePaymentDigestSecret,
+  ),
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const app = createApp({
   appVersion: config.appVersion,
   nodeEnv: config.nodeEnv,
@@ -164,7 +187,9 @@ const app = createApp({
   registrationRouter,
   internalProductionRouter,
   contentRouter,
+  storyboardRouter,
   productionRouter,
+  canvasEntryRouter,
   paymentRouter,
   commercialChannelRouter,
   commissionAuditRouter,

@@ -196,4 +196,65 @@ describe('Control API health contract', () => {
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ mounted: true });
   });
+
+  it('mounts the independent Storyboard Authority router under /api/v1', async () => {
+    const storyboardRouter = Router();
+    storyboardRouter.get('/projects/:projectId/storyboard-versions', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      storyboardRouter,
+    });
+
+    const response = await request(application).get(
+      '/api/v1/projects/00000000-0000-4000-8000-000000000001/storyboard-versions',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent Canvas Entry router under /api/v1', async () => {
+    const canvasEntryRouter = Router();
+    canvasEntryRouter.get('/projects/:projectId/canvas-entries/:handle', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      canvasEntryRouter,
+    });
+
+    const response = await request(application).get(
+      '/api/v1/projects/00000000-0000-4000-8000-000000000001/canvas-entries/ce_test',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('fails closed when Storyboard and Canvas Entry routers are not registered', async () => {
+    const application = testApp(async () => undefined);
+    const [storyboardResponse, canvasEntryResponse] = await Promise.all([
+      request(application)
+        .get('/api/v1/projects/00000000-0000-4000-8000-000000000001/storyboard-versions')
+        .set('x-request-id', 'storyboard-not-registered'),
+      request(application)
+        .get('/api/v1/projects/00000000-0000-4000-8000-000000000001/canvas-entries/ce_missing')
+        .set('x-request-id', 'canvas-not-registered'),
+    ]);
+
+    expect(storyboardResponse.status).toBe(404);
+    expect(storyboardResponse.body.error).toMatchObject({
+      code: 'ROUTE_NOT_FOUND',
+      requestId: 'storyboard-not-registered',
+    });
+    expect(canvasEntryResponse.status).toBe(404);
+    expect(canvasEntryResponse.body.error).toMatchObject({
+      code: 'ROUTE_NOT_FOUND',
+      requestId: 'canvas-not-registered',
+    });
+  });
 });
