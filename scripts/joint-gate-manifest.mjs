@@ -95,8 +95,13 @@ export const jointGatePhases = [
     availability: 'external',
     description:
       'Verify canonical Project Context through approved Script, Storyboard draft, Production Package, and Canvas entry.',
-    commands: [command('npx', ['playwright', 'test', 'tests/e2e/pilot/ab-golden-path.spec.ts'])],
+    commands: [command('npm', ['run', 'test:e2e:pilot:ab-golden-path'])],
     preconditions: [
+      {
+        type: 'environment',
+        name: 'CONTROL_API_TEST_DATABASE_URL',
+        validator: 'dedicated-postgres-test-url',
+      },
       {
         type: 'environment',
         name: 'JOINT_GATE_B_BASELINE_COMMIT',
