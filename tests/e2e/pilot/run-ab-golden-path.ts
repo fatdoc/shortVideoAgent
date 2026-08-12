@@ -54,6 +54,7 @@ type SpawnSyncProbe = (
 ) => { status: number | null };
 
 export type AbGoldenPathRunnerDependencies = AbGoldenPathPreflightDependencies & {
+  attestStoryCanvasTrackedBaseline(commit: string): void | Promise<void>;
   /** Deferred until the real cross-plane spec and B consumer contract are frozen. */
   readGoldenPathInput(): Promise<string>;
   resetMigrateSeed(environment: NodeJS.ProcessEnv): Promise<unknown>;
@@ -110,16 +111,49 @@ function isCommitAncestor(spawnSyncImpl: SpawnSyncProbe, root: string, commit: s
   throw fixedError('JOINT_GATE_B_BASELINE_COMMIT_INVALID');
 }
 
+function assertTrackedDiffClean(spawnSyncImpl: SpawnSyncProbe, root: string, args: string[]): void {
+  const status = readGitProbeStatus(spawnSyncImpl, root, args);
+  if (status === 0) return;
+  if (status === 1) throw fixedError('JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED');
+  throw fixedError('JOINT_GATE_B_BASELINE_COMMIT_INVALID');
+}
+
+function attestStoryCanvasTrackedBaseline(
+  spawnSyncImpl: SpawnSyncProbe,
+  root: string,
+  commit: string,
+): void {
+  assertTrackedDiffClean(spawnSyncImpl, root, ['diff', '--quiet', '--', 'apps/storycanvas']);
+  assertTrackedDiffClean(spawnSyncImpl, root, [
+    'diff',
+    '--cached',
+    '--quiet',
+    '--',
+    'apps/storycanvas',
+  ]);
+  assertTrackedDiffClean(spawnSyncImpl, root, [
+    'diff',
+    '--quiet',
+    commit,
+    'HEAD',
+    '--',
+    'apps/storycanvas',
+  ]);
+}
+
 export function createLocalAbGoldenPathPreflightDependencies({
   repositoryRoot: root = repositoryRoot,
   spawnSyncImpl = (command, args, options) => spawnSync(command, args, options),
 }: {
   repositoryRoot?: string;
   spawnSyncImpl?: SpawnSyncProbe;
-} = {}): AbGoldenPathPreflightDependencies {
+} = {}): AbGoldenPathPreflightDependencies &
+  Pick<AbGoldenPathRunnerDependencies, 'attestStoryCanvasTrackedBaseline'> {
   return {
     commitExists: (commit) => commitExists(spawnSyncImpl, root, commit),
     isCommitAncestor: (commit) => isCommitAncestor(spawnSyncImpl, root, commit),
+    attestStoryCanvasTrackedBaseline: (commit: string) =>
+      attestStoryCanvasTrackedBaseline(spawnSyncImpl, root, commit),
     hasBConsumerCapability: async () => {
       // No B consumer capability marker/manifest contract is frozen yet. Fail closed without
       // reading guessed files, consulting the network, or inferring readiness from source shape.
@@ -163,13 +197,45 @@ export async function runAbGoldenPath(
     options.dependencies ??
     createAbGoldenPathRunnerDependencies(options.repositoryRoot ?? repositoryRoot);
 
+  let baselineCommit: string;
   try {
-    await preflightAbGoldenPath(environment, dependencies);
+    const preflight = await preflightAbGoldenPath(environment, {
+      commitExists: dependencies.commitExists,
+      isCommitAncestor: dependencies.isCommitAncestor,
+      // The real consumer probe is intentionally deferred until the tracked baseline
+      // attestation passes. This preserves the frozen preflight contract while ensuring
+      // no consumer/file/database/process/network work starts against a dirty B baseline.
+      hasBConsumerCapability: async () => true,
+    });
+    baselineCommit = preflight.baselineCommit;
   } catch (error) {
     if (error instanceof AbGoldenPathPreflightError) {
       throw fixedError(error.code);
     }
     throw fixedError('AB_GOLDEN_PATH_RUNNER_FAILED');
+  }
+
+  try {
+    await dependencies.attestStoryCanvasTrackedBaseline(baselineCommit);
+  } catch (error) {
+    if (
+      error instanceof AbGoldenPathRunnerError &&
+      (error.code === 'JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED' ||
+        error.code === 'JOINT_GATE_B_BASELINE_COMMIT_INVALID')
+    ) {
+      throw fixedError(error.code);
+    }
+    throw fixedError('JOINT_GATE_B_BASELINE_COMMIT_INVALID');
+  }
+
+  let hasConsumerCapability: boolean;
+  try {
+    hasConsumerCapability = await dependencies.hasBConsumerCapability(baselineCommit);
+  } catch {
+    throw fixedError('AB_GOLDEN_PATH_B_CONSUMER_REQUIRED');
+  }
+  if (!hasConsumerCapability) {
+    throw fixedError('AB_GOLDEN_PATH_B_CONSUMER_REQUIRED');
   }
 
   // The shared runner intentionally stops here. Until B publishes a frozen local capability
