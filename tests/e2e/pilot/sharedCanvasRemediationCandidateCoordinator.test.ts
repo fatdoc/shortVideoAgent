@@ -287,3 +287,140 @@ test('normalizes synchronous callback throws and thenables to fixed stage codes'
     assert.deepEqual(state.events, expectedEvents);
   }
 });
+
+test('rejects non-exact dependency containers before callbacks or accessors can run', async () => {
+  const cases: Array<{
+    create(state: FixtureState, getterReads: { count: number }): unknown;
+  }> = [
+    {
+      create: (state) => ({
+        ...validDependencies(state),
+        jointGatePass: true,
+      }),
+    },
+    {
+      create: (state) => {
+        const dependencies = validDependencies(state) as Record<PropertyKey, unknown>;
+        dependencies[Symbol('gate')] = true;
+        return dependencies;
+      },
+    },
+    {
+      create: (state) => Object.create(validDependencies(state)) as unknown,
+    },
+    {
+      create: (state, getterReads) => {
+        const dependencies = validDependencies(state);
+        Object.defineProperty(dependencies, 'attestGit', {
+          configurable: true,
+          enumerable: true,
+          get() {
+            getterReads.count += 1;
+            return async () => ({ verifiedCommitCount: 8, verifiedWriteSetCount: 5 });
+          },
+        });
+        return dependencies;
+      },
+    },
+    {
+      create: (state) =>
+        new Proxy(validDependencies(state), {
+          ownKeys() {
+            throw new Error(`${SECRET} ${DATA_ROOT}`);
+          },
+        }),
+    },
+  ];
+
+  for (const { create } of cases) {
+    const state: FixtureState = { events: [] };
+    const getterReads = { count: 0 };
+    await expectSafeCode(
+      () =>
+        coordinateSharedCanvasRemediationCandidateAcceptance(
+          create(state, getterReads) as SharedCanvasRemediationCandidateCoordinatorDependencies,
+        ),
+      'SHARED_CANVAS_CANDIDATE_GIT_ATTESTATION_FAILED',
+    );
+    assert.deepEqual(state.events, []);
+    assert.equal(getterReads.count, 0);
+  }
+});
+
+test('calls a rejecting stage exactly once and never starts a later stage', async () => {
+  const stageCases: Array<{
+    key: keyof SharedCanvasRemediationCandidateCoordinatorDependencies;
+    code: string;
+    failureEvent: string;
+    expectedEvents: string[];
+  }> = [
+    {
+      key: 'attestGit',
+      code: 'SHARED_CANVAS_CANDIDATE_GIT_ATTESTATION_FAILED',
+      failureEvent: 'git-failed',
+      expectedEvents: ['git-failed'],
+    },
+    {
+      key: 'validateHttpLog',
+      code: 'SHARED_CANVAS_CANDIDATE_HTTP_LOG_FAILED',
+      failureEvent: 'http-log-failed',
+      expectedEvents: ['git', 'http-log-failed'],
+    },
+    {
+      key: 'validateRuntimeHarness',
+      code: 'SHARED_CANVAS_CANDIDATE_RUNTIME_FAILED',
+      failureEvent: 'runtime-failed',
+      expectedEvents: ['git', 'http-log', 'runtime-failed'],
+    },
+    {
+      key: 'validateLifecycle',
+      code: 'SHARED_CANVAS_CANDIDATE_LIFECYCLE_FAILED',
+      failureEvent: 'lifecycle-failed',
+      expectedEvents: ['git', 'http-log', 'runtime', 'lifecycle-failed'],
+    },
+  ];
+
+  for (const { key, code, failureEvent, expectedEvents } of stageCases) {
+    const state: FixtureState = { events: [] };
+    const dependencies = validDependencies(state);
+    dependencies[key] = (() => {
+      state.events.push(failureEvent);
+      return Promise.reject(new Error(`${SECRET} ${DATA_ROOT}`));
+    }) as never;
+
+    await expectSafeCode(
+      () => coordinateSharedCanvasRemediationCandidateAcceptance(dependencies),
+      code,
+    );
+    assert.deepEqual(state.events, expectedEvents);
+  }
+});
+
+test('assimilates rejecting thenables and normalizes hostile then accessors', async () => {
+  const hostileThenables = [
+    {
+      then(_resolve: (value: unknown) => void, reject: (reason: unknown) => void) {
+        reject(new Error(`${SECRET} ${DATA_ROOT}`));
+      },
+    },
+    Object.defineProperty({}, 'then', {
+      get() {
+        throw new Error(`${SECRET} ${DATA_ROOT}`);
+      },
+    }),
+  ];
+
+  for (const thenable of hostileThenables) {
+    const state: FixtureState = { events: [] };
+    await expectSafeCode(
+      () =>
+        coordinateSharedCanvasRemediationCandidateAcceptance(
+          validDependencies(state, {
+            validateHttpLog: (() => thenable) as never,
+          }),
+        ),
+      'SHARED_CANVAS_CANDIDATE_HTTP_LOG_FAILED',
+    );
+    assert.deepEqual(state.events, ['git']);
+  }
+});
