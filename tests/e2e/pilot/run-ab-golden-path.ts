@@ -16,6 +16,10 @@ import {
   assertPilotPlaywrightReport,
   type PilotPlaywrightReportSummary,
 } from './pilotPlaywrightReport.js';
+import {
+  assertAbGoldenPathEvidenceContract,
+  type AbGoldenPathCanvasSelectorRoles,
+} from './abGoldenPathEvidenceContract.js';
 import { PilotProcessHarness } from './pilotProcessHarness.js';
 import { assertPilotSpecPolicy } from './pilotSpecPolicy.js';
 
@@ -73,6 +77,7 @@ export interface AbGoldenPathEvidenceInput {
   artifactRoot: string;
   secrets: readonly string[];
   securityEvidence?: PilotArtifactSecurityEvidence;
+  canvasSelectors: AbGoldenPathCanvasSelectorRoles;
 }
 
 function fixedError(code: AbGoldenPathRunnerErrorCode): AbGoldenPathRunnerError {
@@ -185,6 +190,7 @@ export async function validateAbGoldenPathEvidence(
   assertPilotInMemoryEvidenceSafe(input.specSource, input.secrets, input.securityEvidence);
   assertPilotInMemoryEvidenceSafe(input.playwrightReport, input.secrets, input.securityEvidence);
   const report = assertPilotPlaywrightReport(input.playwrightReport);
+  assertAbGoldenPathEvidenceContract(input.playwrightReport, input.canvasSelectors);
   await assertPilotBrowserArtifactsSafe(input.artifactRoot, input.secrets, input.securityEvidence);
   return report;
 }
