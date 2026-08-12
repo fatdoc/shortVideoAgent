@@ -1,6 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  PilotCanvasBootstrapError,
   PilotCanvasBoundaryPage,
   PilotScriptBoundaryPage,
   PilotStoryboardBoundaryPage,
@@ -34,7 +35,7 @@ describe('B-owned Pilot production boundaries', () => {
       status: 'ready' as const,
       projectId: entry.projectId,
       packageId: entry.packageId,
-      canvasSessionId: 'canvas-session-1',
+      canvasSessionId: `pcs_${'A'.repeat(32)}`,
       expiresAt: '2026-08-12T01:30:00.000Z',
       requestId: 'request-ui-1',
     }));
@@ -44,5 +45,25 @@ describe('B-owned Pilot production boundaries', () => {
     expect(openEntry).toHaveBeenCalledWith(entry);
     expect(document.body.textContent).not.toContain(entry.handle);
     expect(document.body.textContent).not.toContain(entry.packageId);
+  });
+
+  it('shows only a safe Request ID and allows bounded user-driven retry', async () => {
+    const openEntry = vi.fn()
+      .mockRejectedValueOnce(new PilotCanvasBootstrapError(503, 'PILOT_CANVAS_DEPENDENCY_UNAVAILABLE', true, 'request-safe-1'))
+      .mockResolvedValueOnce({
+        schemaVersion: 'pilot-canvas-bootstrap.v1' as const,
+        status: 'ready' as const,
+        projectId: entry.projectId,
+        packageId: entry.packageId,
+        canvasSessionId: `pcs_${'B'.repeat(32)}`,
+        expiresAt: '2026-08-12T01:30:00.000Z',
+        requestId: 'request-safe-2',
+      });
+    render(<PilotCanvasBoundaryPage projectId={entry.projectId} entry={entry} consumer={{ openEntry }} />);
+    expect(await screen.findByTestId('pilot-storycanvas-boundary-error')).toHaveAttribute('data-error-status', '503');
+    expect(screen.getByTestId('pilot-storycanvas-request-id')).toHaveTextContent('request-safe-1');
+    fireEvent.click(screen.getByTestId('pilot-storycanvas-retry'));
+    expect(await screen.findByTestId('pilot-storycanvas-boundary-ready')).toBeInTheDocument();
+    expect(openEntry).toHaveBeenCalledTimes(2);
   });
 });

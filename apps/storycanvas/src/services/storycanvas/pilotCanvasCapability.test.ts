@@ -8,6 +8,9 @@ import {
   PilotCanvasRedemptionError,
   createPilotCanvasBootstrapRouter,
   getPilotCanvasRuntimeCapability,
+  parseCanvasEntryRedemptionV01,
+  parseProjectGrantV02,
+  parseProjectProductionPackageV03,
   type PilotCanvasEntryReference,
 } from "./pilotCanvasCapability";
 
@@ -127,6 +130,15 @@ function redemption(overrides: Record<string, unknown> = {}) {
 
 const entry: PilotCanvasEntryReference = { handle, tenantId, projectId, packageId };
 
+test("strictly parses the frozen redemption, Package v0.3 and Grant v0.2 contracts", () => {
+  const value = redemption();
+  assert.equal(parseCanvasEntryRedemptionV01(value).contractVersion, "0.1");
+  assert.equal(parseProjectProductionPackageV03(value.productionPackage).contractVersion, "0.3");
+  assert.equal(parseProjectGrantV02(value.grant).contractVersion, "0.2");
+  assert.throws(() => parseProjectProductionPackageV03({ ...value.productionPackage, extra: true }));
+  assert.throws(() => parseProjectGrantV02({ ...value.grant, expiresAt: value.grant.issuedAt }));
+});
+
 test("redeems server-side with a stable key and exact response-loss replay", async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   let attempt = 0;
@@ -178,6 +190,25 @@ test("fails closed for strict response, scope, changed-handle binding and unsafe
       return true;
     });
   }
+
+  let calls = 0;
+  const client = new PilotCanvasRedemptionClient({
+    controlApiBaseUrl: "https://control.example.test",
+    internalToken,
+    fetchImpl: async () => {
+      calls += 1;
+      return new Response(JSON.stringify(redemption()), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    },
+  });
+  await client.redeem(entry);
+  await assert.rejects(
+    () => client.redeem({ ...entry, projectId: "99999999-9999-4999-8999-999999999999" }),
+    (error: unknown) => error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_CONFLICT",
+  );
+  assert.equal(calls, 1);
 });
 
 test("browser bootstrap enforces Session, Origin and CSRF and returns only a safe projection", async () => {
@@ -186,8 +217,10 @@ test("browser bootstrap enforces Session, Origin and CSRF and returns only a saf
   application.use("/api/production/pilot/canvas/bootstrap", createPilotCanvasBootstrapRouter({
     allowedOrigin: "https://pilot.example.test",
     verifySession: async (cookie) => cookie === "videoagent_session=session-value"
-      ? { tenantId, organizationType: "TENANT" as const }
-      : null,
+      ? { tenantId, organizationType: "TENANT" as const, roles: ["content_operator" as const] }
+      : cookie === "videoagent_session=no-production-role"
+        ? { tenantId, organizationType: "TENANT" as const, roles: ["pilot_support" as const] }
+        : null,
     redeem: async () => ({ authorityId: "server-authority-1", expiresAt: "2026-08-12T01:30:00.000Z", requestId: "request-bootstrap" }),
   }));
   const server = http.createServer(application);
@@ -198,6 +231,12 @@ test("browser bootstrap enforces Session, Origin and CSRF and returns only a saf
   try {
     const forbidden = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(entry) });
     assert.equal(forbidden.status, 403);
+    const roleForbidden = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://pilot.example.test", cookie: "videoagent_session=no-production-role", "x-storycanvas-csrf": "pilot-canvas-bootstrap-v1" },
+      body: JSON.stringify(entry),
+    });
+    assert.equal(roleForbidden.status, 403);
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -224,8 +263,8 @@ test("reports a dedicated deterministic capability without exposing configuratio
   const capability = await getPilotCanvasRuntimeCapability({
     env: {
       STORYCANVAS_PILOT_CANVAS_ENABLED: "true",
-      STORYCANVAS_CONTROL_API_BASE_URL: "https://control.example.test",
-      STORYCANVAS_PRODUCTION_PLANE_INTERNAL_TOKEN: internalToken,
+      CONTROL_API_BASE_URL: "https://control.example.test",
+      PRODUCTION_PLANE_INTERNAL_TOKEN: internalToken,
       STORYCANVAS_PILOT_ALLOWED_ORIGIN: "https://pilot.example.test",
       STORYCANVAS_DATA_ROOT: "/tmp/storycanvas-pilot-test",
     },
