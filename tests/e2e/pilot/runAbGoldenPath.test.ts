@@ -35,13 +35,14 @@ function environment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 function runnerDependencies(overrides: Partial<AbGoldenPathRunnerDependencies> = {}): {
   dependencies: AbGoldenPathRunnerDependencies;
   calls: Record<
-    'exists' | 'ancestor' | 'consumer' | 'read' | 'reset' | 'spawn' | 'network',
+    'exists' | 'ancestor' | 'attest' | 'consumer' | 'read' | 'reset' | 'spawn' | 'network',
     number
   >;
 } {
   const calls = {
     exists: 0,
     ancestor: 0,
+    attest: 0,
     consumer: 0,
     read: 0,
     reset: 0,
@@ -57,6 +58,9 @@ function runnerDependencies(overrides: Partial<AbGoldenPathRunnerDependencies> =
       isCommitAncestor: async () => {
         calls.ancestor += 1;
         return true;
+      },
+      attestStoryCanvasTrackedBaseline: async () => {
+        calls.attest += 1;
       },
       hasBConsumerCapability: async () => {
         calls.consumer += 1;
@@ -110,6 +114,7 @@ test('rejects static environment failures before Git, file, database, process, o
   assert.deepEqual(probes.calls, {
     exists: 0,
     ancestor: 0,
+    attest: 0,
     consumer: 0,
     read: 0,
     reset: 0,
@@ -127,6 +132,7 @@ test('requires commit object and ancestor evidence before the B consumer probe',
   assert.deepEqual(missing.calls, {
     exists: 0,
     ancestor: 0,
+    attest: 0,
     consumer: 0,
     read: 0,
     reset: 0,
@@ -140,6 +146,7 @@ test('requires commit object and ancestor evidence before the B consumer probe',
     'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR',
   );
   assert.equal(nonAncestor.calls.exists, 1);
+  assert.equal(nonAncestor.calls.attest, 0);
   assert.equal(nonAncestor.calls.consumer, 0);
   assert.equal(nonAncestor.calls.read, 0);
   assert.equal(nonAncestor.calls.reset, 0);
@@ -158,6 +165,7 @@ test('fails closed on the current missing B consumer capability with zero deferr
   assert.deepEqual(probes.calls, {
     exists: 1,
     ancestor: 1,
+    attest: 1,
     consumer: 1,
     read: 0,
     reset: 0,
@@ -176,6 +184,7 @@ test('remains NOT_IMPLEMENTED after a synthetic complete preflight and starts no
 
   assert.equal(probes.calls.exists, 1);
   assert.equal(probes.calls.ancestor, 1);
+  assert.equal(probes.calls.attest, 1);
   assert.equal(probes.calls.read, 0);
   assert.equal(probes.calls.reset, 0);
   assert.equal(probes.calls.spawn, 0);
@@ -199,6 +208,7 @@ test('uses only local shell-false Git probes and defaults the unfrozen B capabil
 
   assert.equal(await dependencies.commitExists(BASELINE_COMMIT), true);
   assert.equal(await dependencies.isCommitAncestor(BASELINE_COMMIT), true);
+  await dependencies.attestStoryCanvasTrackedBaseline(BASELINE_COMMIT);
   assert.equal(await dependencies.hasBConsumerCapability(BASELINE_COMMIT), false);
   assert.deepEqual(invocations, [
     {
@@ -211,7 +221,126 @@ test('uses only local shell-false Git probes and defaults the unfrozen B capabil
       args: ['merge-base', '--is-ancestor', BASELINE_COMMIT, 'HEAD'],
       options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
     },
+    {
+      command: 'git',
+      args: ['diff', '--quiet', '--', 'apps/storycanvas'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+    {
+      command: 'git',
+      args: ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+    {
+      command: 'git',
+      args: ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
   ]);
+});
+
+test('rejects each expected StoryCanvas tracked difference before consumer or deferred work', async () => {
+  const diffCommands = [
+    ['diff', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+  ];
+
+  for (const dirtyIndex of diffCommands.keys()) {
+    const outcomes: Array<number | null> = [0, 0, 0];
+    outcomes[dirtyIndex] = 1;
+    const invocations: string[][] = [];
+    const local = createLocalAbGoldenPathPreflightDependencies({
+      repositoryRoot: '/private/tmp/fake-runner-path',
+      spawnSyncImpl: (_command, args) => {
+        invocations.push(args);
+        return { status: outcomes.shift() ?? null };
+      },
+    });
+    const probes = runnerDependencies({
+      attestStoryCanvasTrackedBaseline: local.attestStoryCanvasTrackedBaseline,
+    });
+
+    await expectSafeCode(
+      runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+      'JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED',
+    );
+
+    assert.deepEqual(invocations, diffCommands.slice(0, dirtyIndex + 1));
+    assert.equal(probes.calls.consumer, 0);
+    assert.equal(probes.calls.read, 0);
+    assert.equal(probes.calls.reset, 0);
+    assert.equal(probes.calls.spawn, 0);
+    assert.equal(probes.calls.network, 0);
+  }
+});
+
+test('fails closed when a StoryCanvas tracked Git diff probe is invalid', async () => {
+  const diffCommands = [
+    ['diff', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+  ];
+  const invalidOutcomes: Array<number | null | Error> = [
+    128,
+    null,
+    new Error(`fatal: baseline-secret ${BASELINE_COMMIT}`),
+  ];
+
+  for (const invalidIndex of diffCommands.keys()) {
+    for (const invalidOutcome of invalidOutcomes) {
+      const outcomes: Array<number | null | Error> = Array.from({ length: invalidIndex }, () => 0);
+      outcomes.push(invalidOutcome);
+      const invocations: string[][] = [];
+      const local = createLocalAbGoldenPathPreflightDependencies({
+        repositoryRoot: '/private/tmp/fake-runner-path',
+        spawnSyncImpl: (_command, args) => {
+          invocations.push(args);
+          const outcome = outcomes.shift();
+          if (outcome instanceof Error) throw outcome;
+          return { status: outcome ?? null };
+        },
+      });
+      const probes = runnerDependencies({
+        attestStoryCanvasTrackedBaseline: local.attestStoryCanvasTrackedBaseline,
+      });
+
+      await expectSafeCode(
+        runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+        'JOINT_GATE_B_BASELINE_COMMIT_INVALID',
+      );
+
+      assert.deepEqual(invocations, diffCommands.slice(0, invalidIndex + 1));
+      assert.equal(probes.calls.consumer, 0);
+      assert.equal(probes.calls.read, 0);
+      assert.equal(probes.calls.reset, 0);
+      assert.equal(probes.calls.spawn, 0);
+      assert.equal(probes.calls.network, 0);
+    }
+  }
+});
+
+test('uses Git diff rather than status so untracked StoryCanvas files remain outside attestation', async () => {
+  const invocations: string[][] = [];
+  const dependencies = createLocalAbGoldenPathPreflightDependencies({
+    repositoryRoot: '/private/tmp/fake-runner-path',
+    spawnSyncImpl: (_command, args) => {
+      invocations.push(args);
+      return { status: 0 };
+    },
+  });
+
+  await dependencies.attestStoryCanvasTrackedBaseline(BASELINE_COMMIT);
+
+  assert.deepEqual(invocations, [
+    ['diff', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+  ]);
+  assert.equal(
+    invocations.some(([command]) => command === 'status'),
+    false,
+  );
 });
 
 test('distinguishes a valid non-ancestor from invalid local Git ancestor probes', async () => {
@@ -256,6 +385,7 @@ test('distinguishes a valid non-ancestor from invalid local Git ancestor probes'
       ['merge-base', '--is-ancestor', BASELINE_COMMIT, 'HEAD'],
     ]);
     assert.equal(probes.calls.consumer, 0);
+    assert.equal(probes.calls.attest, 0);
     assert.equal(probes.calls.read, 0);
     assert.equal(probes.calls.reset, 0);
     assert.equal(probes.calls.spawn, 0);
