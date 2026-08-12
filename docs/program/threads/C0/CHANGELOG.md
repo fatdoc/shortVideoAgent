@@ -456,3 +456,16 @@
 - strict TypeScript hardening `da47830` / `963c85f` 修复 report `unknown` narrowing 与 ignored stdin 的精确 child-process 类型；联合 strict compile 与行为回归 PASS。
 - B baseline `a7f8021` 已同步，但 server consumer、browser-safe bootstrap、Pilot Canvas page、deterministic readiness/capability 与浏览器 selectors 尚未证明。
 - 保留 `A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；不宣称 Joint Gate PASS。
+
+## 2026-08-12 · Golden Path safety hardening
+
+- `dceb03a` / `26ba12e`：拒绝 legacy Demo/Mock Golden Path evidence。
+- `cc9b47f` / `e2b669e`：拒绝 Golden Path spec 的 internal、Demo、Storage 与 Mock 依赖。
+- `c8b0fb5` / `256f2ff`：扫描原始 in-memory spec/report evidence，循环、getter 与预算异常 fail closed。
+- `a31abac` / `c8c02e7`：为 `ab-golden-path` 注入 command-scoped mode，阻止 sibling phase 环境污染；shared commit 需通知 B。
+- `b1ba2c2` / `d56bb0a`：取消 readiness/stop 的失效 timeout timer。
+- `d35fbd0` / `c2a86d2`：只接受 `http://127.0.0.1:<1—65535>` Golden Path origin，并安全规范化根路径。
+- `7f7297f` / `3493cde`：区分 merge-base non-ancestor 与 invalid/null/throw Git probe。
+- `71657c5` / `53ef8f4`、`4bbefb1`：隐藏 preflight stack 并显式化安全失败分支。
+- `c51685b` / `582150f`：在 B consumer 前验证 StoryCanvas unstaged/staged/baseline→HEAD tracked clean，同时继续排除 untracked `byteplus.ts`。
+- 验证：Golden Path safety `65/65`、Joint Gate `14/14 + 6/6`、Root Build、changed-file ESLint、Governance、diff-check PASS；Golden Path 与 Full Joint Gate blocker 保留。

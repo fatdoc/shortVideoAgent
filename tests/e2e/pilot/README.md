@@ -71,13 +71,18 @@ JOINT_GATE_B_BASELINE_COMMIT='<full synchronized 40-character B commit SHA>' \
 npm run test:e2e:pilot:ab-golden-path
 ```
 
-The runner performs static environment validation, local shell-free Git commit/ancestor probes, and then
-requires a frozen B consumer capability marker. No such marker is synchronized yet, so the current real
-CLI must exit non-zero with `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED` before reading a Golden Path spec,
-resetting PostgreSQL, starting Control API/Root/StoryCanvas processes, or launching Chrome. Even a test-only
-synthetic capability cannot produce PASS; it stops at `AB_GOLDEN_PATH_NOT_IMPLEMENTED`. This skeleton
-does not prove the B redemption consumer, browser-safe bootstrap, Pilot Canvas page, real browser flow, or
-Full Joint Gate.
+The Joint Gate runner removes any caller-supplied `PILOT_E2E_AB_GOLDEN_PATH` value from its shared base
+environment and restores `PILOT_E2E_AB_GOLDEN_PATH=true` only for the `ab-golden-path` command, so sibling
+phases cannot inherit Golden Path mode. The Golden Path runner performs static environment validation,
+local shell-free Git commit/ancestor probes, and then requires all three StoryCanvas tracked attestations to
+be clean: unstaged, staged, and baseline-commit-to-`HEAD`. These checks use `git diff`, not `git status`, so
+untracked B-owned runtime files remain outside A's attestation. Only after those checks pass may the runner
+probe a frozen B consumer capability marker. No such marker is synchronized yet, so the current real CLI
+must exit non-zero with `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED` before reading a Golden Path spec, resetting
+PostgreSQL, starting Control API/Root/StoryCanvas processes, probing readiness, or launching Chrome. Even a
+test-only synthetic capability cannot produce PASS; it stops at `AB_GOLDEN_PATH_NOT_IMPLEMENTED`. This
+skeleton does not prove the B redemption consumer, browser-safe bootstrap, Pilot Canvas page, real browser
+flow, or Full Joint Gate.
 
 ### Migration rollback/reapply phase evidence
 

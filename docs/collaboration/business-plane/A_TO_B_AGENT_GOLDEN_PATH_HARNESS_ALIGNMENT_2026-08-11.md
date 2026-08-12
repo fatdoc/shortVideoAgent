@@ -111,6 +111,20 @@ B 在修改 Joint Gate manifest、runner 或 baseline precondition 前必须：
 - SQL/PostgreSQL/stack diagnostic marker；
 - StoryCanvas stdout/stderr 中的其他秘密或内部实现 marker。
 
+### 4.6 B capability acceptance checklist
+
+A 只根据 B 回执中可复核的实现、测试与运行合同验收 consumer capability，不根据文档声明、旧页面形状或通用服务可启动性进行推断。验收必须同时满足：
+
+- `implementation commit` 必须包含 B-owned consumer 能力的实现或测试变更；仅修改文档的 commit 不得满足 capability；
+- server consumer、browser bootstrap、Pilot Canvas page、稳定 selectors 与 targeted tests 的回执路径必须逐项存在，并且能够在所声明的 implementation commit 中验证；
+- 既有 `GET /api/production/v0.1/readiness` 只代表既有媒体运行依赖检查，不等同于 redemption consumer readiness；
+- 通用 `npm start` 或服务当前可监听不等同于 deterministic Golden Path start contract；
+- 旧 Demo Canvas 页面、Demo Grant 链路或 Mock capability 不等同于 Pilot Canvas consumer 已实现；
+- capability 验收完成前，Golden Path runner 不得读取 browser spec 或 report，不得 reset/migrate/seed PostgreSQL，不得 spawn Control API、Root Frontend 或 StoryCanvas，不得执行 readiness 网络探测，也不得启动 Chrome；
+- Joint Gate 必须继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，不得把 `ab-golden-path` 标记为 `ready`。
+
+本 checklist 不预设或发明 B 的 endpoint、DTO、marker、端口或 manifest 格式；这些 exact contracts 必须由 B 的实现提交与独立回执共同冻结，再由 A 验证。
+
 ## 5. Runner skeleton 的当前边界
 
 A 下一切片只接线已完成的 preflight、fixture lifecycle、bounded process harness、dedicated Playwright config、JSON report 与 artifact scan。
@@ -165,6 +179,55 @@ AB_GOLDEN_PATH_NOT_IMPLEMENTED
 
 ```text
 A_CANVAS_ENTRY_REDEMPTION_READY
+B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED
+SHARED_ACTIVATION_GREEN_BLOCKED
+AB_GOLDEN_PATH_NOT_IMPLEMENTED
+FULL_JOINT_GATE_STILL_BLOCKED
+```
+
+## 8. 2026-08-12 A Safety Hardening Delta（请 B 同步）
+
+A 在 runner skeleton 之后新增以下独立提交：
+
+| 能力                                     | RED       | GREEN / Fix |
+| ---------------------------------------- | --------- | ----------- |
+| legacy Demo/Mock evidence rejection      | `dceb03a` | `26ba12e`   |
+| forbidden spec dependency rejection      | `cc9b47f` | `e2b669e`   |
+| in-memory spec/report evidence scan      | `c8b0fb5` | `256f2ff`   |
+| command-scoped Golden Path environment   | `a31abac` | `c8c02e7`   |
+| cancelable process timers                | `b1ba2c2` | `d56bb0a`   |
+| strict loopback origin/port              | `d35fbd0` | `c2a86d2`   |
+| Git ancestor probe classification        | `7f7297f` | `3493cde`   |
+| preflight stack suppression              | `71657c5` | `53ef8f4`   |
+| StoryCanvas tracked baseline attestation | `c51685b` | `582150f`   |
+| explicit preflight failure control flow  | —         | `4bbefb1`   |
+
+### 8.1 Shared 同步要求
+
+`c8c02e7` 修改 shared Joint Gate runner/manifest。B 在继续修改对应文件前必须同步该提交完整祖先链。它只为 `ab-golden-path` 命令注入 `PILOT_E2E_AB_GOLDEN_PATH=true`，并主动删除 base environment 中调用方传入的同名变量；其他 phase 不得继承该模式。
+
+### 8.2 新 baseline acceptance order
+
+A runner 现在按以下顺序验收，任何失败都早于 B consumer、spec/report、数据库、子进程、网络和 Chrome：
+
+```text
+commit object
+→ HEAD ancestor
+→ apps/storycanvas unstaged tracked diff clean
+→ apps/storycanvas staged tracked diff clean
+→ baseline→HEAD apps/storycanvas tracked diff clean
+→ B consumer capability
+```
+
+`git diff status=1` 返回 `JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED`；`128/null/throw` 返回 `JOINT_GATE_B_BASELINE_COMMIT_INVALID`。检查不调用 `git status`，因此 B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除，A 不修改、不删除、不暂存、不提交该文件。
+
+### 8.3 当前验证与 blocker
+
+A 本地验证：Golden Path safety `65/65 PASS / 0 SKIP`，Joint Gate manifest/CLI `14/14 PASS`，shared precondition/env `6/6 PASS`，Root Build、changed-file ESLint、Governance 与 diff-check PASS。
+
+B 下一回执除原第 7 节内容外，还必须证明 implementation commit 已包含 consumer/bootstrap/page/readiness/capability，而不是 docs-only。当前继续保持：
+
+```text
 B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED
 SHARED_ACTIVATION_GREEN_BLOCKED
 AB_GOLDEN_PATH_NOT_IMPLEMENTED

@@ -389,3 +389,15 @@ SHARED_ACTIVATION_GREEN_BLOCKED
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
 FULL_JOINT_GATE_STILL_BLOCKED
 ```
+
+## 10. 2026-08-12 Baseline 与 Runner Safety 补强
+
+06E.0/06E.5B 的既有合同已补强但未扩张业务范围：
+
+- `c8c02e7` 将 Golden Path mode 限定在 `ab-golden-path` 单命令，避免 shared runner 的 sibling phase 环境污染；
+- `3493cde` 对齐 shared baseline validator 的 Git status 语义：只有 merge-base `1` 是 non-ancestor，`128/null/throw` 都是 invalid；
+- `582150f` 在 B consumer 前验证 `apps/storycanvas` 的 unstaged tracked、staged tracked 与 baseline→HEAD tracked clean；untracked vendor 文件保持排除；
+- safety Oracle 继续拒绝 Demo/Mock/internal browser dependency、raw in-memory secret 与不安全 artifact；
+- `ab-golden-path` 仍为 `external`，`AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED` 未移除。
+
+该补强不代表 B consumer、browser-safe bootstrap、Pilot Canvas page、deterministic readiness/capability 或真实 Chrome/PostgreSQL Golden Path 已完成。

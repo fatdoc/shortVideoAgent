@@ -972,3 +972,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 浏览器不得直接调用 `POST /api/v1/internal/canvas-entries/redeem`，不得持有 raw Grant/access token、internal token、grantId、digest 或 server-only redemption DTO；Pilot 失败不得回退 Demo/Mock/LocalStorage。
 - StoryCanvas tracked clean 边界继续有效；`apps/storycanvas/data/vendor/byteplus.ts` 不修改、不删除、不暂存、不提交。
 - 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · Golden Path Safety Oracle Handoff
+
+- A 已完成 19 个安全加固提交：legacy Demo/Mock evidence、forbidden spec dependency、in-memory evidence、per-command Joint Gate environment、cancelable process timers、strict loopback port、Git probe status、preflight stack suppression 与 StoryCanvas tracked baseline attestation；最新实现 HEAD 为 `4bbefb1`。
+- shared 变更 `c8c02e7` 只给 `ab-golden-path` 注入 `PILOT_E2E_AB_GOLDEN_PATH=true`，并从 shared base environment 清除调用方同名变量；B 修改 `scripts/joint-gate-manifest.mjs` 或 `scripts/run-joint-gate.mjs` 前必须先同步该提交及祖先链。
+- Runner 的 B consumer probe 现在晚于 StoryCanvas 三项 tracked attestation：unstaged、staged、baseline→HEAD。未跟踪文件不被扫描，因此 `apps/storycanvas/data/vendor/byteplus.ts` 继续由 B 保留且不得进入 A 提交。
+- 证据：Golden Path safety `65/65 PASS / 0 SKIP`；Joint Gate manifest/CLI `14/14 PASS`；shared precondition/env `6/6 PASS`；Root Build、changed-file ESLint、Governance 与 diff-check PASS。全仓 ESLint 的既有 720 项基线债务不属于本切片；本轮变更文件定向 ESLint 已清零。
+- 远程同步检查在 2026-08-12 两次因权限审批超时未执行，当前仅能确认本地缓存的 A/B remote 都停留在 `a7f8021`；网络与审批恢复后必须先 fetch、审计 ancestor/write set，再普通 push，禁止 force。
+- B 的 consumer/bootstrap/page/readiness/capability 实现仍未出现；不得进入 Shared Router/Bridge Green，不得读取真实 spec/report、reset DB、spawn 服务或启动 Chrome，不得移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。

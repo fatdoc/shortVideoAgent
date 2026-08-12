@@ -692,3 +692,24 @@ SHARED_ACTIVATION_GREEN_BLOCKED
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
 FULL_JOINT_GATE_STILL_BLOCKED
 ```
+
+## 13. 2026-08-12 Safety Oracle 执行覆盖
+
+本节覆盖第 12 节中“下一原子切片”的旧时态。06E.5B runner skeleton 之后，A 已完成不依赖 B implementation 的安全加固：legacy evidence、spec dependency、in-memory report、timer cancellation、strict loopback origin、Git probe classification、stack suppression 与 StoryCanvas tracked baseline attestation。
+
+Shared Joint Gate `c8c02e7` 已冻结 command-scoped `PILOT_E2E_AB_GOLDEN_PATH=true`；base environment 删除调用方同名变量，其他 phase 不被污染。B 修改 shared runner/manifest 前必须同步该提交。
+
+Runner 顺序冻结为：
+
+```text
+static environment
+→ commit object
+→ HEAD ancestor
+→ StoryCanvas unstaged tracked clean
+→ StoryCanvas staged tracked clean
+→ baseline→HEAD StoryCanvas tracked clean
+→ B consumer capability
+→ AB_GOLDEN_PATH_NOT_IMPLEMENTED
+```
+
+未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 不参与 `git diff` attestation。B capability 未证明前，数据库 reset、服务 spawn、readiness 网络调用、spec/report 读取与 Chrome 启动仍为零。06E.4A—C、06E.5C 与 06E.6 的进入条件没有改变。

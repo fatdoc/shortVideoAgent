@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：从 `a7f8021` 冻结基线进入 A-BIZ-06E.5A migration 024 fixture RED；并行等待 B 实现 06E.4A redemption consumer、browser-safe bootstrap 与 Pilot pages，验收后再执行 shared Bridge/Router Green
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：加固不依赖 B 的 Golden Path 安全 Oracle；等待 B 提供已提交且可验证的 redemption consumer、browser-safe bootstrap、Pilot Canvas page、selectors 与 deterministic readiness/capability 合同，验收后再执行 shared Bridge/Router Green 与真实 Chrome/PostgreSQL Gate
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-11
+- 最近更新：2026-08-12
 
 ## 2026-07-30 单前端收口
 
@@ -1318,3 +1318,15 @@
 - `ab-golden-path` 继续为 `external`；保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，不宣称 Joint Gate 或 Full Joint Gate PASS。
 - StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
 - 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-BIZ-06E.5B Golden Path Safety Oracle 加固
+
+- 旧 Demo/Mock 证据防线由 `dceb03a` / `26ba12e` 完成，浏览器 artifact、Control API 与 StoryCanvas 输出会拒绝 Demo Grant、Demo Project、Mock contract 与 legacy local handle/package marker。
+- spec 依赖防线由 `cc9b47f` / `e2b669e` 完成，Golden Path spec 禁止 internal redemption、internal token header、Demo Grant、Demo Project、Web Storage 与 Mock contract；注释中的同名文字不误报。
+- in-memory evidence 防线由 `c8b0fb5` / `256f2ff` 完成，原始 Playwright report 与 spec source 在解析/落盘前接受有界、循环安全、getter fail-closed 的 secret/marker 扫描。
+- shared Joint Gate command environment 由 `a31abac` / `c8c02e7` 完成：仅 `ab-golden-path` 命令获得 `PILOT_E2E_AB_GOLDEN_PATH=true`，base environment 会删除外部同名变量，sibling phase 不受污染；phase 仍为 `external`。B 修改 shared runner/manifest 前必须同步 `c8c02e7`。
+- process timer、loopback origin、Git probe、stack 与 tracked baseline 加固分别由 `b1ba2c2` / `d56bb0a`、`d35fbd0` / `c2a86d2`、`7f7297f` / `3493cde`、`71657c5` / `53ef8f4`、`c51685b` / `582150f` 完成；`4bbefb1` 使 preflight failure branch 的 lint 控制流显式化。
+- Runner 现在先验证 static environment、commit object、HEAD ancestor，再验证 StoryCanvas unstaged tracked、staged tracked 与 baseline→HEAD tracked diff；只有三项 clean 后才探测 B consumer。Git diff `status=1` 返回 `JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED`，`128/null/throw` 返回 `JOINT_GATE_B_BASELINE_COMMIT_INVALID`。未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 不进入 attestation。
+- 验证：Golden Path safety regression `65/65 PASS / 0 SKIP`；Joint Gate manifest/CLI `14/14 PASS`，shared precondition/env `6/6 PASS`；Root Build、changed-file ESLint、Governance、Prettier/diff-check PASS。Root 全仓 ESLint 仍被既有 generated dist、StoryCanvas 与旧 Control API lint debt 阻断，不作为本切片新增回归。
+- 服务继续监听 `127.0.0.1:5173` 与 `:10588`；StoryCanvas tracked diff 为零，B-owned 未跟踪 vendor 文件未修改、未暂存、未提交。
+- 状态保持：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
