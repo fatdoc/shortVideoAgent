@@ -476,3 +476,11 @@
 - `4b24466 test(bridge): freeze pilot canvas isolation boundary`：冻结未来 Shared Bridge 的 AST source policy，禁止 Demo Bridge、Mock adapter、Demo Grant header、Web Storage 与 secret-bearing adapter 参数；policy 自测 `2 passed`，implementation-required RED `1 failed`。
 - 两个切片均为 shared RED-only 独立提交；没有 Router/Bridge Green，没有猜测 B endpoint/DTO/capability，也没有修改 StoryCanvas tracked 文件。B 继续开发相关 shared 区域前必须同步两个提交。
 - Green 保持等待 B consumer/bootstrap/page/selectors/start/readiness/capability 与 Package selection 合同；`AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED` 不变。
+
+## 2026-08-12 · B Shared Canvas Capability 安全验收阻塞
+
+- A 验收 B `6fd901f` 的 commit object、直线祖先链、RED/GREEN/docs exact write set 与所有权边界均 PASS；独立复现 capability `5/5`、Pilot 页面 `4/4`、StoryCanvas v0.2 `13/13`、Media/TTS/Storage `17/17`、双 build、Governance 与 diff-check。
+- 通过 server-only redemption、strict parser/binding、stable replay、Session/CSRF/Origin、browser-safe DTO、Package selection、selectors、Request ID 与 Demo 隔离；但不接受当前 capability 激活。
+- A 实际复现 malformed JSON 原始 body 回显与 body/stack 日志泄漏；同时发现 legacy `tokenKey` false-ready、authority registry 无主动 purge/容量/shutdown clear、bounded shutdown 不完整与 Pilot data-root 绝对路径日志。
+- 新增 A→B remediation 指令，要求独立安全 RED/GREEN/docs 修复；Shared transport/proxy、Bridge 与 Router Green 继续后置，不实现完整 Canvas editor，不移除 Golden Path/Joint Gate blocker。
+- 状态：`B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

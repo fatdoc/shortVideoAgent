@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：加固不依赖 B 的 Golden Path 安全 Oracle；等待 B 提供已提交且可验证的 redemption consumer、browser-safe bootstrap、Pilot Canvas page、selectors 与 deterministic readiness/capability 合同，验收后再执行 shared Bridge/Router Green 与真实 Chrome/PostgreSQL Gate
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：等待 B 修复 Pilot parser/error、legacy tokenKey false-ready、authority lifecycle、bounded shutdown 与 Pilot 日志泄漏；A 复验通过后再实现 shared transport、Bridge/Router Green 与真实 Chrome/PostgreSQL Gate
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1341,3 +1341,15 @@
 - 远程 fetch 于 2026-08-12 因 GitHub `443` 连接超时未完成；当前本地缓存的 A/B remote 仍为 docs-only `a7f8021b80f540c69e4c45718b335ba2c0fca539`，不能作为 B capability 已实现的证据。
 - StoryCanvas tracked staged/unstaged diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - 当前状态保持：`A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · B Shared Canvas Capability 安全验收与整改阻塞
+
+- A 已验收 B HEAD `6fd901f56c1bd8aa37d04740e02e7c14e93f304b`：commit object、`c015823 → 7afd692 → ec48e76 → 6fd901f` 祖先链、RED/GREEN/docs 原子写集与 `byteplus.ts` 排除均 PASS。
+- A 已独立复现 B capability `5/5`、Pilot 页面 `4/4`、StoryCanvas v0.2 `13/13`、Media/TTS/Storage `17/17`、Root/StoryCanvas build、Governance 与 diff-check；本轮阻塞不是证据缺失。
+- 已通过：server-only redemption、strict Entry/Package/Grant/Redemption parser、exact Scope binding、stable replay、路由内 Session/CSRF/Origin、browser-safe DTO、Package selection、stable selectors、Request ID 与 Demo/Mock/Storage 隔离。
+- A 实际复现 malformed JSON 绕过 Pilot 安全 envelope：全局 parser/error handler 会把原始请求 body 回显到 400 响应并把 body/stack 写入日志；Pilot 还继承 100MB body limit。B 必须先补 malformed 与 oversized body 的响应/日志 RED。
+- 其他阻塞：Pilot bypass 晚于 legacy `tokenKey` 查询导致 capability false-ready；authority registry 保存 raw token/Grant/Package 但无主动 purge、容量边界或 shutdown clear；5000ms shutdown 未完整关闭 Socket.IO/WebSocket 或保证安全失败；Pilot 启动日志输出 data-root 绝对路径。
+- 新增 `A_TO_B_AGENT_SHARED_CANVAS_CAPABILITY_REMEDIATION_2026-08-12.md`，要求 B 使用独立 RED/GREEN/docs commits 修复安全 lifecycle，不混入 Shared Router/Bridge Green，也不扩大为完整 Canvas editor。
+- Root SaaS 尚无 `/api/production/pilot/canvas/*` 到 StoryCanvas 的 transport/proxy；该 shared runtime 缺口在 B 安全整改通过后另以独立 shared commit 冻结和实现。
+- 服务继续运行；A 主工作区 StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

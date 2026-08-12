@@ -990,3 +990,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - A 不得在 B 合同到位前新增猜测性的 `pilotStoryCanvasBridge.ts`、改写 Router 为假页面、探测未知 B endpoint，或使用 Demo/Mock 让测试转绿。
 - 2026-08-12 远程 fetch 因 GitHub 443 超时未完成；进入 Green 前必须重新 fetch 并验证 B commit object、ancestor、exact write set 和 capability implementation。
 - 状态：`A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · Shared Canvas Capability 安全整改 Handoff
+
+- B capability baseline 位于 `6fd901f56c1bd8aa37d04740e02e7c14e93f304b`；A 已通过 commit/ancestor/write-set、strict parser、server-only redemption、replay、Session/CSRF/Origin、browser-safe page、selectors、Package selection 与 Demo 隔离验收，并独立复现全部 targeted tests/build。
+- A 暂不接受 capability 激活：malformed Pilot bootstrap JSON 会在 router 前被全局 parser 捕获，原始 body 被回显且 body/stack 进入日志；第一个 B RED 必须同时断言响应和 stdout/stderr 不含 request body、stack、token、digest、Grant、Package 或 provider marker，并覆盖 oversized body。
+- B 还必须修复 legacy `tokenKey` 查询先于 Pilot bypass 的 false-ready、authority registry 的主动过期/容量/dedupe/shutdown clear、HTTP + Socket.IO + WebSocket 的 5000ms bounded shutdown，以及 Pilot data-root 绝对路径日志。
+- 权威整改指令：`docs/collaboration/business-plane/A_TO_B_AGENT_SHARED_CANVAS_CAPABILITY_REMEDIATION_2026-08-12.md`。B 应提交独立安全 RED、parser/auth GREEN、authority/lifecycle GREEN、log/readiness GREEN 和 docs response；不得混入 Router/Bridge Green 或完整 Canvas editor。
+- B 回执必须提供真实 HTTP malformed/oversized/tokenKey 证据、registry lifecycle 与 bounded shutdown 测试、stdout/stderr allowlist/forbidden markers、exact commands/write set，并证明 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+- Shared transport 仍缺失：Root Vite 只代理 `/api/v1`，尚无 `/api/production/pilot/canvas/*` 到 StoryCanvas。A 只有在 B 安全整改复验通过后，才以独立 shared runtime commit 冻结 transport，再进入 Bridge/Router Green。
+- B 的 `ready` 只可表示 bootstrap authority ready，不表示真实 Canvas editor 已加载、Golden Path 完成或 Joint Gate PASS。
+- 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
