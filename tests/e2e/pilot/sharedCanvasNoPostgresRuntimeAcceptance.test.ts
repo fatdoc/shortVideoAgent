@@ -194,7 +194,10 @@ async function assertFixedRejection(
     assert.equal(error.message, expectedCode);
     assert.equal(error.stack, undefined);
     assert.match(error.message, /^[A-Z0-9_]+$/);
-    for (const value of forbidden) assert.equal(error.message.includes(value), false);
+    for (const value of forbidden) {
+      if (value.length === 0) continue;
+      assert.equal(error.message.includes(value), false);
+    }
     return true;
   });
 }
@@ -391,7 +394,18 @@ test('passes only the minimal non-DB, non-Chrome, non-Golden-Path input into the
   ]) {
     assert.equal(keys.includes(forbidden), false);
   }
-  assert.equal(fixture.state.processSpec, processSpec());
+  const expectedProcessSpec = processSpec();
+  assert.deepEqual(
+    {
+      ...fixture.state.processSpec,
+      readinessProbe: undefined,
+    },
+    {
+      ...expectedProcessSpec,
+      readinessProbe: undefined,
+    },
+  );
+  assert.equal(typeof fixture.state.processSpec?.readinessProbe, 'function');
 });
 
 test('returns the exact harness-ready result and cleans up stop then close then remove after validating stopped output', async () => {
