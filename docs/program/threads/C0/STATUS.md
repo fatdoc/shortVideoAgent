@@ -1364,3 +1364,13 @@
 - `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED` 必须保留；`bootstrap authority ready`、Oracle PASS 或静态 attestation 均不能替代真实 Chrome + dedicated PostgreSQL 联合证据。
 - Root SaaS 与 StoryCanvas 服务继续监听 `127.0.0.1:5173`、`:10588`。A 主工作区未修改 StoryCanvas tracked 文件；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - 当前状态：`A_SHARED_TRANSPORT_RED_FROZEN / A_GOLDEN_PATH_SEMANTIC_ORACLE_READY / A_REMEDIATION_HTTP_LOG_ORACLE_READY / A_REMEDIATION_GIT_ATTESTATION_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-3 no-PostgreSQL Runtime Acceptance Harness Ready
+
+- `8d555ac` 冻结 no-PostgreSQL Shared Canvas runtime acceptance 合同；`45781a9` 修正空字符串泄漏检查与函数引用相等两个 RED 测试断言；`3b9150f` 完成 DI-only acceptance orchestration。
+- Harness 只接收绝对 repository root、合法 StoryCanvas 端口、exact HTTP allowed origin，并生成安全 internal token、仓库外临时 data root 与 `127.0.0.1:0` synthetic Control API；不接收或启动 PostgreSQL、Chrome、Playwright、Golden Path runner。
+- 生命周期固定为 process stop → stopped-output security Oracle → synthetic Control API close → temporary root remove；cleanup 全尝试且 cleanup failure 优先映射为固定非泄漏错误。
+- 返回结果仅为 `A_REM_VAL_3_RUNTIME_HARNESS_READY`，明确不含 Gate PASS、Golden Path complete、real editor loaded 或 B capability accepted 字段。
+- 五组 A-side Oracle 定向回归 `58/58 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。该结果仅证明验收 Harness 可用，尚未运行 B remediation candidate，也未启动 PostgreSQL 或真实 Chrome。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交；Root SaaS 与 StoryCanvas 服务继续运行。
+- 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

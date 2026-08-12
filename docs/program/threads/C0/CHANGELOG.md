@@ -493,3 +493,10 @@
 - remediation Git attestation 已由 `84a98d1` / `0edc58f` 按 RED/GREEN 原子提交完成，覆盖完整 SHA、七个原子角色唯一性、祖先链、required A baseline、exact write set、禁止路径与 bounded shell-free Git probe；定向 `14/14 PASS`，不记录 Gate PASS。
 - B remediation 与 Shared activation Green 继续 blocked；保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
 - Root SaaS `127.0.0.1:5173` 与 StoryCanvas `:10588` 保持运行；StoryCanvas tracked 文件未修改，B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+
+## 2026-08-12 · A-REM-VAL-3 no-PostgreSQL Runtime Acceptance
+
+- `8d555ac` 冻结 13 项 runtime acceptance RED；`45781a9` 修正 RED 自身的空字符串泄漏断言与函数引用比较；`3b9150f` 实现 DI-only no-PostgreSQL Harness。
+- 固定安全配置、loopback synthetic origin、仓库外 data root、端口冲突、process lifecycle、stopped-output Oracle、cleanup 优先级与非泄漏错误语义。
+- Harness 不启动 PostgreSQL/Chrome/Playwright/Golden Path，成功仅为 `A_REM_VAL_3_RUNTIME_HARNESS_READY`；不产生任何 Gate 完成语义。
+- 五组 A-side Oracle `58/58 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS；StoryCanvas tracked 文件与 B-owned untracked `byteplus.ts` 均未触碰。

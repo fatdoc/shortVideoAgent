@@ -1012,3 +1012,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 必须继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED`；当前所有 Oracle 只构成安全验收基础设施，不构成真实 Chrome + dedicated PostgreSQL Golden Path 证据。
 - 服务保持运行：Root SaaS `127.0.0.1:5173`，StoryCanvas `:10588`。本轮未修改 StoryCanvas tracked 文件；`apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned untracked，未修改、未删除、未暂存、未提交。
 - Handoff 状态：`A_SHARED_TRANSPORT_RED_FROZEN / A_GOLDEN_PATH_SEMANTIC_ORACLE_READY / A_REMEDIATION_HTTP_LOG_ORACLE_READY / A_REMEDIATION_GIT_ATTESTATION_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-3 no-PostgreSQL Runtime Acceptance Handoff
+
+- 提交链：`8d555ac test(e2e): freeze no-postgres canvas runtime acceptance` → `45781a9 test(e2e): correct runtime acceptance assertions` → `3b9150f feat(e2e): add no-postgres canvas runtime acceptance`。
+- 新 Harness 是 A-side acceptance infrastructure：使用依赖注入编排 synthetic loopback Control API 与 managed StoryCanvas process spec，验证输入、端口隔离、安全日志和确定性 cleanup；不导入数据库、浏览器或 Golden Path 执行依赖。
+- 安全失败只返回固定 `SHARED_CANVAS_RUNTIME_*` code，Error stack 被清除；结果只允许 `A_REM_VAL_3_RUNTIME_HARNESS_READY`，不得解释为 B remediation PASS、Shared activation Green、real editor loaded、Golden Path complete 或 Joint Gate PASS。
+- 回归：五组 Oracle `58/58 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS。
+- B candidate 到达后仍须先通过 Git attestation、HTTP/log Oracle、registry lifecycle、bounded shutdown 与日志安全验收，之后才允许以独立 shared commit 进入 transport/Bridge/Router Green。
+- 保持 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED`；StoryCanvas tracked clean，B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
