@@ -35,7 +35,8 @@ describe('app smoke', () => {
       await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
     ).toBeInTheDocument();
     expect(screen.getByText('门店素材 → 获客视频')).toBeInTheDocument();
-    expect(screen.queryByText(/海底捞|短视频营销 Agent/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/海底捞|短视频营销 Agent|源核|VideoAgent/)).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.auth-process-board img')).toHaveLength(6);
     expect(window.location.pathname).toBe('/login');
   });
 
@@ -142,6 +143,11 @@ describe('app smoke', () => {
 
     await screen.findByTestId('store-workbench-page');
     expect(screen.getByText('门店获客工作台')).toBeInTheDocument();
+    expect(screen.getByLabelText('源核 AI 社群 VideoAgent 门店获客工作台')).toBeInTheDocument();
+    expect(document.querySelector('.store-ai-mark img')).toHaveAttribute(
+      'src',
+      '/brand/yuanhe-assistant-v1.png',
+    );
 
     await user.click(screen.getByRole('link', { name: /门店资产/ }));
     await waitFor(() => {

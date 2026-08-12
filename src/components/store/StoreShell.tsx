@@ -12,12 +12,11 @@ import {
   IconLogout,
   IconMovie,
   IconPackage,
-  IconRobot,
   IconSend,
   IconSettings,
   IconTarget,
 } from '@tabler/icons-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { pilotRuntime } from '../../config/pilotRuntime';
 import { DEMO_PROJECT_ID } from '../../domain/constants';
@@ -82,6 +81,13 @@ export function StoreShell() {
       ? pilotSession?.user.displayName ?? '门店运营'
       : demoIdentity?.displayName ?? '门店运营';
 
+  useEffect(() => {
+    document.title = '门店获客工作台';
+    return () => {
+      document.title = '账号登录';
+    };
+  }, []);
+
   const logout = () => {
     if (pilotRuntime.mode === 'pilot') {
       void pilotLogout().finally(() => navigate('/login', { replace: true }));
@@ -97,9 +103,13 @@ export function StoreShell() {
       {...(pilotRuntime.mode === 'pilot' ? { 'data-testid': 'pilot-app-shell' } : {})}
     >
       <header className="store-topbar">
-        <div className="store-wordmark" aria-label="源核 AI 助手">
-          <span className="store-ai-mark"><IconRobot size={18} /></span>
-          <span>源核 AI 助手</span>
+        <div className="store-wordmark" aria-label="源核 AI 社群 VideoAgent 门店获客工作台">
+          <span className="store-ai-mark" aria-hidden="true">
+            <img src="/brand/yuanhe-assistant-v1.png" alt="" />
+          </span>
+          <span className="store-community-name">源核 AI 社群</span>
+          <b aria-hidden="true">·</b>
+          <span className="store-product-name">VideoAgent</span>
           <i />
           <strong>门店获客工作台</strong>
         </div>

@@ -262,6 +262,26 @@ export function RegistrationPage({
               注册来源与账号权限由服务端验证。注册成功后不会自动登录，也不会在浏览器保存验证凭据或会话 Token。
             </Typography.Paragraph>
 
+            <div className="store-registration-visual" aria-label="门店资料生成探店视频流程示意">
+              <div className="store-registration-shot store-registration-shot--wide">
+                <img src="/media/shot-01-storefront.png" alt="门店外观素材示意" />
+                <span>门店资料</span>
+              </div>
+              <i aria-hidden="true">→</i>
+              <div className="store-registration-stack" aria-hidden="true">
+                <img src="/media/shot-02-interior.png" alt="" />
+                <img src="/media/shot-03-pourover.png" alt="" />
+                <img src="/media/shot-04-tasting.png" alt="" />
+                <span>素材归集</span>
+              </div>
+              <i aria-hidden="true">→</i>
+              <div className="store-registration-shot store-registration-shot--video">
+                <img src="/media/reference-barista.png" alt="探店视频画面示意" />
+                <b aria-hidden="true">▶</b>
+                <span>探店成片</span>
+              </div>
+            </div>
+
             <div className="d2-registration-context-card">
               <strong>注册来源</strong>
               {invitationState === 'loading' ? (

@@ -17,7 +17,39 @@ function AuthVisual() {
     <section className="store-auth-visual" aria-label="门店素材生成获客视频流程示意">
       <div><span className="store-eyebrow">门店素材 → 获客视频</span><h1>让门店资料变成<br />可执行的探店内容</h1><p>从门店建档到发布归因，每一步都保留来源、状态与人工确认。</p></div>
       <ol>{workflow.map((item,index)=><li key={item}><span>{index+1}</span><strong>{item}</strong><i /></li>)}</ol>
-      <div className="auth-neutral-scene"><div className="scene-store"><i/><i/><i/></div><div className="scene-assets"><span/><span/><span/><span/></div><div className="scene-video"><b>9:16</b><span/></div><div className="scene-leads"><i/><i/><i/></div></div>
+      <div className="auth-process-board" aria-hidden="true">
+        <article className="auth-process-store">
+          <header><span>01</span><strong>门店建档</strong></header>
+          <img src="/media/shot-01-storefront.png" alt="" />
+          <footer><i /><span>基础资料已归集</span></footer>
+        </article>
+        <span className="auth-process-arrow">→</span>
+        <article className="auth-process-assets">
+          <header><span>02</span><strong>素材资产</strong></header>
+          <div>
+            <img src="/media/shot-02-interior.png" alt="" />
+            <img src="/media/shot-03-pourover.png" alt="" />
+            <img src="/media/shot-04-tasting.png" alt="" />
+            <img src="/media/shot-05-window.png" alt="" />
+          </div>
+        </article>
+        <span className="auth-process-arrow">→</span>
+        <article className="auth-process-video">
+          <header><span>03</span><strong>探店成片</strong></header>
+          <div className="auth-video-frame">
+            <img src="/media/reference-barista.png" alt="" />
+            <b>▶</b>
+            <small>9:16</small>
+          </div>
+          <footer><i /><span>00:18 / 00:36</span></footer>
+        </article>
+        <span className="auth-process-arrow">→</span>
+        <article className="auth-process-results">
+          <header><span>04</span><strong>投放与线索</strong></header>
+          <div className="auth-result-bars"><i /><i /><i /></div>
+          <dl><div><dt>内容触达</dt><dd>待配置</dd></div><div><dt>到店线索</dt><dd>暂无数据</dd></div></dl>
+        </article>
+      </div>
     </section>
   );
 }
