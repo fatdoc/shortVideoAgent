@@ -67,12 +67,12 @@ function parseEnvironment(environment: NodeJS.ProcessEnv): AbGoldenPathPreflight
         case 'PILOT_E2E_DATABASE_NOT_DEDICATED':
         case 'PILOT_E2E_PORT_INVALID':
         case 'PILOT_E2E_PORT_CONFLICT':
-          fail(error.code);
+          return fail(error.code);
         default:
-          fail('PILOT_E2E_DATABASE_URL_INVALID');
+          return fail('PILOT_E2E_DATABASE_URL_INVALID');
       }
     }
-    fail('PILOT_E2E_DATABASE_URL_INVALID');
+    return fail('PILOT_E2E_DATABASE_URL_INVALID');
   }
 
   const baselineCommit = environment.JOINT_GATE_B_BASELINE_COMMIT;
