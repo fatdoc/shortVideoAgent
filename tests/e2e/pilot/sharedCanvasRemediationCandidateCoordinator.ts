@@ -165,26 +165,51 @@ function assertLifecycleResult(value: unknown): void {
 export async function coordinateSharedCanvasRemediationCandidateAcceptance(
   dependencies: SharedCanvasRemediationCandidateCoordinatorDependencies,
 ): Promise<SharedCanvasRemediationCandidateCoordinatorResult> {
+  const dependencyValues = readExactDataValues(dependencies, [
+    'attestGit',
+    'validateHttpLog',
+    'validateRuntimeHarness',
+    'validateLifecycle',
+  ]);
+  if (
+    dependencyValues === null ||
+    typeof dependencyValues.attestGit !== 'function' ||
+    typeof dependencyValues.validateHttpLog !== 'function' ||
+    typeof dependencyValues.validateRuntimeHarness !== 'function' ||
+    typeof dependencyValues.validateLifecycle !== 'function'
+  ) {
+    fail('SHARED_CANVAS_CANDIDATE_GIT_ATTESTATION_FAILED');
+  }
+
+  const attestGit =
+    dependencyValues.attestGit as SharedCanvasRemediationCandidateCoordinatorDependencies['attestGit'];
+  const validateHttpLog =
+    dependencyValues.validateHttpLog as SharedCanvasRemediationCandidateCoordinatorDependencies['validateHttpLog'];
+  const validateRuntimeHarness =
+    dependencyValues.validateRuntimeHarness as SharedCanvasRemediationCandidateCoordinatorDependencies['validateRuntimeHarness'];
+  const validateLifecycle =
+    dependencyValues.validateLifecycle as SharedCanvasRemediationCandidateCoordinatorDependencies['validateLifecycle'];
+
   const gitResult = await runStage(
-    () => dependencies.attestGit(),
+    () => attestGit(),
     'SHARED_CANVAS_CANDIDATE_GIT_ATTESTATION_FAILED',
   );
   assertGitResult(gitResult);
 
   const httpLogResult = await runStage(
-    () => dependencies.validateHttpLog(),
+    () => validateHttpLog(),
     'SHARED_CANVAS_CANDIDATE_HTTP_LOG_FAILED',
   );
   assertHttpLogResult(httpLogResult);
 
   const runtimeResult = await runStage(
-    () => dependencies.validateRuntimeHarness(),
+    () => validateRuntimeHarness(),
     'SHARED_CANVAS_CANDIDATE_RUNTIME_FAILED',
   );
   assertRuntimeResult(runtimeResult);
 
   const lifecycleResult = await runStage(
-    () => dependencies.validateLifecycle(),
+    () => validateLifecycle(),
     'SHARED_CANVAS_CANDIDATE_LIFECYCLE_FAILED',
   );
   assertLifecycleResult(lifecycleResult);
