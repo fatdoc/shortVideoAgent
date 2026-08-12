@@ -1001,3 +1001,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - Shared transport 仍缺失：Root Vite 只代理 `/api/v1`，尚无 `/api/production/pilot/canvas/*` 到 StoryCanvas。A 只有在 B 安全整改复验通过后，才以独立 shared runtime commit 冻结 transport，再进入 Bridge/Router Green。
 - B 的 `ready` 只可表示 bootstrap authority ready，不表示真实 Canvas editor 已加载、Golden Path 完成或 Joint Gate PASS。
 - 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-side Shared Canvas 验收基础设施 Handoff
+
+- A 本地 `03df6cb` 仅冻结 Root Pilot Canvas transport RED：只有显式 Golden Path E2E 模式才允许增加 loopback StoryCanvas proxy，非法端口必须 fail closed。该测试当前预期 `2 failed / 3 passed`；这是待实现边界，不是 Shared transport Green，B 不得据此假设 Root proxy 已可用。
+- Golden Path semantic evidence Oracle 已完成并接入 runner：`canvas-bootstrap-authority-ready` 与 `real-canvas-editor-loaded` 是两个独立、顺序固定的证据步骤；B 的 bootstrap-ready selector 不能复用为 real-editor selector，也不能被解释为 Golden Path complete 或 Joint Gate PASS。
+- A 已完成 remediation HTTP/log security Oracle（`bcc6fd3` / `241bcc7`）：未来 B candidate 必须返回固定 malformed/oversized 安全 envelope，保持 header/body Request ID 一致、`cache-control: no-store`，并证明 response/stdout/stderr 不含 raw body、Cookie、CSRF、token、Grant、digest、data-root、stack 或 parser 内部错误标记。
+- remediation Git attestation 已由 `84a98d1` / `0edc58f` 按 RED/GREEN 原子提交完成：要求 baseline、RED、parser、lifecycle、log、docs、candidate 原子角色使用不同完整 SHA 并形成直线祖先链；required A baseline 必须是 candidate ancestor；RED/GREEN/docs exact write set 必须排除 StoryCanvas vendor、Control API、Shared Router/Bridge/proxy 和 Golden Path spec。定向 `14/14 PASS`，但不得报告 Gate PASS。
+- B remediation 仍须完成 malformed/oversized、legacy `tokenKey` false-ready、authority registry purge/capacity/shutdown clear、bounded shutdown 与 data-root 日志整改。A 复验通过前，Shared transport、Bridge 与 Router Green 继续 blocked。
+- 必须继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED`；当前所有 Oracle 只构成安全验收基础设施，不构成真实 Chrome + dedicated PostgreSQL Golden Path 证据。
+- 服务保持运行：Root SaaS `127.0.0.1:5173`，StoryCanvas `:10588`。本轮未修改 StoryCanvas tracked 文件；`apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned untracked，未修改、未删除、未暂存、未提交。
+- Handoff 状态：`A_SHARED_TRANSPORT_RED_FROZEN / A_GOLDEN_PATH_SEMANTIC_ORACLE_READY / A_REMEDIATION_HTTP_LOG_ORACLE_READY / A_REMEDIATION_GIT_ATTESTATION_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

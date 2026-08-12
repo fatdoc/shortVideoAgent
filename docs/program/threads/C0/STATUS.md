@@ -3,7 +3,7 @@
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
 - 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：等待 B 修复 Pilot parser/error、legacy tokenKey false-ready、authority lifecycle、bounded shutdown 与 Pilot 日志泄漏；A 复验通过后再实现 shared transport、Bridge/Router Green 与真实 Chrome/PostgreSQL Gate
+- 当前任务：A 已完成 Shared transport RED、Golden Path semantic evidence Oracle 与 remediation HTTP/log security Oracle，已完成 remediation Git attestation 主线程验收；同时等待 B 修复 Pilot parser/error、legacy tokenKey false-ready、authority lifecycle、bounded shutdown 与 Pilot 日志泄漏，复验通过前不进入 Shared activation Green
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1353,3 +1353,14 @@
 - Root SaaS 尚无 `/api/production/pilot/canvas/*` 到 StoryCanvas 的 transport/proxy；该 shared runtime 缺口在 B 安全整改通过后另以独立 shared commit 冻结和实现。
 - 服务继续运行；A 主工作区 StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-side Shared Canvas 验收基础设施推进
+
+- Shared transport 边界已由本地提交 `03df6cb test(proxy): freeze pilot canvas transport boundary` 冻结；该切片是 **RED-only**，当前定向结果预期仍为 `2 failed / 3 passed`，不代表 transport Green、Shared activation Green 或任何运行能力已激活。
+- Golden Path semantic evidence Oracle 已完成：canonical evidence 明确拆分 `canvas-bootstrap-authority-ready` 与 `real-canvas-editor-loaded`；`bootstrap authority ready != real editor loaded`，仅出现 bootstrap selector 必须以 `PILOT_E2E_REAL_EDITOR_EVIDENCE_REQUIRED` fail closed，且不得据此宣称 Golden Path complete 或 Joint Gate PASS。
+- remediation HTTP/log security Oracle 已由 `bcc6fd3` / `241bcc7` 完成，冻结 malformed JSON、oversized body、安全 envelope、Request ID、`no-store`、敏感信息禁止项及 Pilot runtime stdout/stderr allowlist；Oracle 自身定向 `13/13 PASS`，只表示验收器可用，不表示 B remediation 已通过。
+- remediation Git attestation 已由 `84a98d1` / `0edc58f` 按 RED/GREEN 原子提交完成，覆盖完整 commit object、七个原子角色 SHA 唯一性与祖先顺序、required A baseline、exact write set、禁止路径、绝对 repository root 与 bounded shell-free Git probes；定向 `14/14 PASS`，但不得写成 remediation Gate PASS。
+- B remediation 与 Shared activation Green 继续阻塞；在 B candidate 通过 HTTP/log、Git/ancestor/write-set、registry lifecycle、bounded shutdown 与日志安全复验前，不实现 Shared transport/Bridge/Router Green。
+- `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED` 必须保留；`bootstrap authority ready`、Oracle PASS 或静态 attestation 均不能替代真实 Chrome + dedicated PostgreSQL 联合证据。
+- Root SaaS 与 StoryCanvas 服务继续监听 `127.0.0.1:5173`、`:10588`。A 主工作区未修改 StoryCanvas tracked 文件；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`A_SHARED_TRANSPORT_RED_FROZEN / A_GOLDEN_PATH_SEMANTIC_ORACLE_READY / A_REMEDIATION_HTTP_LOG_ORACLE_READY / A_REMEDIATION_GIT_ATTESTATION_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

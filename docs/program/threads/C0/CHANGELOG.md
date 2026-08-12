@@ -484,3 +484,12 @@
 - A 实际复现 malformed JSON 原始 body 回显与 body/stack 日志泄漏；同时发现 legacy `tokenKey` false-ready、authority registry 无主动 purge/容量/shutdown clear、bounded shutdown 不完整与 Pilot data-root 绝对路径日志。
 - 新增 A→B remediation 指令，要求独立安全 RED/GREEN/docs 修复；Shared transport/proxy、Bridge 与 Router Green 继续后置，不实现完整 Canvas editor，不移除 Golden Path/Joint Gate blocker。
 - 状态：`B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-side Shared Canvas 验收基础设施推进
+
+- `03df6cb` 冻结 Shared transport RED；定向结果预期仍为 `2 failed / 3 passed`，仅表示边界已冻结，不是 transport Green 或 Shared activation Green。
+- Golden Path semantic evidence Oracle 已完成，固定 `bootstrap authority ready != real editor loaded`；bootstrap-only、selector alias、缺失/重复/乱序/未知步骤均 fail closed，不产生 Golden Path complete 或 Joint Gate PASS 语义。
+- `bcc6fd3` / `241bcc7` 完成 remediation HTTP/log security Oracle，覆盖 malformed/oversized 安全 envelope、Request ID、`no-store`、敏感信息禁止项与 runtime stdout/stderr allowlist；Oracle `13/13 PASS` 不等于 B remediation PASS。
+- remediation Git attestation 已由 `84a98d1` / `0edc58f` 按 RED/GREEN 原子提交完成，覆盖完整 SHA、七个原子角色唯一性、祖先链、required A baseline、exact write set、禁止路径与 bounded shell-free Git probe；定向 `14/14 PASS`，不记录 Gate PASS。
+- B remediation 与 Shared activation Green 继续 blocked；保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+- Root SaaS `127.0.0.1:5173` 与 StoryCanvas `:10588` 保持运行；StoryCanvas tracked 文件未修改，B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
