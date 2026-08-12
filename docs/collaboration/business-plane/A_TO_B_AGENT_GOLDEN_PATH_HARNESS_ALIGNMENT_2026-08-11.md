@@ -233,3 +233,32 @@ SHARED_ACTIVATION_GREEN_BLOCKED
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
 FULL_JOINT_GATE_STILL_BLOCKED
 ```
+
+## 9. 2026-08-12 Shared Router / Bridge RED（请 B 同步）
+
+A 在等待 B consumer/page capability 期间，只冻结了两个不猜测 B HTTP 合同的 shared RED：
+
+1. `7c7ff8a test(router): freeze pilot canvas fail-closed boundary`
+   - 真实 TENANT Session + canonical Project direct URL 不得继续渲染 `pilot-route-handoff`；
+   - 不得渲染 Demo `IntegratedStoryCanvasPage`；
+   - B Pilot boundary 缺失时必须显示专用 `pilot-storycanvas-boundary-blocked` 状态，并明确不回退 Demo；
+   - 当前定向证据为预期 `1 failed / 28 skipped`。
+2. `4b24466 test(bridge): freeze pilot canvas isolation boundary`
+   - 未来 Shared Bridge 不得依赖旧 `storyCanvasBridge`、`controlPlaneMockAdapter`、Demo Grant header 或 Web Storage；
+   - injected B port 不得接收 raw Grant、access token、grantId 或 digest；
+   - policy 自测 `2 passed`，当前因 `pilotStoryCanvasBridge.ts` 尚未实现而预期 `1 failed`，固定 marker 为 `PILOT_STORYCANVAS_BRIDGE_IMPLEMENTATION_REQUIRED`。
+
+B 在修改相关 shared 测试或提交 Pilot Canvas boundary 后必须同步以上两个提交。A 不会在 B exact browser-facing port/DTO、Package selection、selectors、start/readiness/capability 与错误映射冻结前实现 Green，也不会用 Demo/Mock 让 RED 转绿。
+
+2026-08-12 A 尝试 fetch 远程 A/B 分支时，GitHub `443` 连接超时；因此当前只能确认本地缓存 remote 仍为 docs-only `a7f8021b80f540c69e4c45718b335ba2c0fca539`。B capability 验收前必须重新 fetch 并验证 implementation commit，而不是根据 docs marker 推断。
+
+当前继续保持：
+
+```text
+A_BIZ_06E_4P_ROUTER_RED_FROZEN
+A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN
+B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED
+SHARED_ACTIVATION_GREEN_BLOCKED
+AB_GOLDEN_PATH_NOT_IMPLEMENTED
+FULL_JOINT_GATE_STILL_BLOCKED
+```

@@ -1330,3 +1330,14 @@
 - 验证：Golden Path safety regression `65/65 PASS / 0 SKIP`；Joint Gate manifest/CLI `14/14 PASS`，shared precondition/env `6/6 PASS`；Root Build、changed-file ESLint、Governance、Prettier/diff-check PASS。Root 全仓 ESLint 仍被既有 generated dist、StoryCanvas 与旧 Control API lint debt 阻断，不作为本切片新增回归。
 - 服务继续监听 `127.0.0.1:5173` 与 `:10588`；StoryCanvas tracked diff 为零，B-owned 未跟踪 vendor 文件未修改、未暂存、未提交。
 - 状态保持：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 A-BIZ-06E.4P Shared Router / Bridge RED 冻结
+
+- Shared Router fail-closed RED 已由 `7c7ff8a` 冻结：真实 TENANT Session 访问 `/production/canvas/project-alpha` 时，不得继续渲染 generic `pilot-route-handoff`，不得渲染 Demo `IntegratedStoryCanvasPage`；B Pilot boundary 未安装时必须显示专用 `pilot-storycanvas-boundary-blocked` 安全状态，并明确不回退 Demo。
+- Shared Bridge isolation RED 已由 `4b24466` 冻结：未来 `src/services/pilotStoryCanvasBridge.ts` 不得导入或引用旧 `storyCanvasBridge`、`controlPlaneMockAdapter`，不得构造 `X-StoryCanvas-Demo-Grant`，不得访问 LocalStorage/SessionStorage，也不得向 injected port 传递 raw Grant、access token、grantId 或 digest。
+- 两个提交均为 shared RED-only 测试，不包含 Router/Bridge Green，不猜测 B endpoint、DTO、readiness、capability marker 或 Package selection；B 修改相关 shared 测试或进入 06E.4B/4C 前必须同步这两个提交。
+- 定向 RED 证据：Router `1 failed / 28 skipped`，失败点为当前仍存在 generic handoff 且缺少专用 blocked state；Bridge `2 passed / 1 failed`，两个 source-policy 自测通过，失败点为 `PILOT_STORYCANVAS_BRIDGE_IMPLEMENTATION_REQUIRED`。
+- Green 继续等待 B implementation commit 提供 server consumer、browser-safe bootstrap、Pilot Canvas boundary/export、stable selectors、deterministic start/readiness/capability、Package bootstrap/selection 与安全错误映射。不得为使 RED 转绿而创建猜测性 adapter 或 Demo fallback。
+- 远程 fetch 于 2026-08-12 因 GitHub `443` 连接超时未完成；当前本地缓存的 A/B remote 仍为 docs-only `a7f8021b80f540c69e4c45718b335ba2c0fca539`，不能作为 B capability 已实现的证据。
+- StoryCanvas tracked staged/unstaged diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态保持：`A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

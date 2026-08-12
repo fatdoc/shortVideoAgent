@@ -981,3 +981,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 证据：Golden Path safety `65/65 PASS / 0 SKIP`；Joint Gate manifest/CLI `14/14 PASS`；shared precondition/env `6/6 PASS`；Root Build、changed-file ESLint、Governance 与 diff-check PASS。全仓 ESLint 的既有 720 项基线债务不属于本切片；本轮变更文件定向 ESLint 已清零。
 - 远程同步检查在 2026-08-12 两次因权限审批超时未执行，当前仅能确认本地缓存的 A/B remote 都停留在 `a7f8021`；网络与审批恢复后必须先 fetch、审计 ancestor/write set，再普通 push，禁止 force。
 - B 的 consumer/bootstrap/page/readiness/capability 实现仍未出现；不得进入 Shared Router/Bridge Green，不得读取真实 spec/report、reset DB、spawn 服务或启动 Chrome，不得移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。
+
+## 2026-08-12 · Shared Router / Bridge RED handoff
+
+- `7c7ff8a` 新增 Shared Router fail-closed RED：真实 TENANT Canvas direct URL 不得继续使用 `pilot-route-handoff`，不得进入 Demo `IntegratedStoryCanvasPage`；B boundary 缺失时要求专用 `pilot-storycanvas-boundary-blocked` 状态。当前定向结果为预期 `1 failed / 28 skipped`。
+- `4b24466` 新增 Shared Bridge isolation RED：TypeScript AST policy 禁止旧 Demo Bridge、Mock adapter、Demo Grant header、Web Storage 与 raw Grant/token/grantId/digest adapter 参数；policy 自测 `2 passed`，未来 Bridge 文件尚不存在，因此预期 `1 failed` 并返回 `PILOT_STORYCANVAS_BRIDGE_IMPLEMENTATION_REQUIRED`。
+- 这两个提交只冻结 shared 边界，不实现 Green。B 在修改相关 shared 测试或提供 Pilot boundary 后必须同步 `7c7ff8a` 与 `4b24466`，并回传 exact implementation commit、browser-safe port/DTO、Package selection、selectors、start/readiness/capability 与安全错误合同。
+- A 不得在 B 合同到位前新增猜测性的 `pilotStoryCanvasBridge.ts`、改写 Router 为假页面、探测未知 B endpoint，或使用 Demo/Mock 让测试转绿。
+- 2026-08-12 远程 fetch 因 GitHub 443 超时未完成；进入 Green 前必须重新 fetch 并验证 B commit object、ancestor、exact write set 和 capability implementation。
+- 状态：`A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

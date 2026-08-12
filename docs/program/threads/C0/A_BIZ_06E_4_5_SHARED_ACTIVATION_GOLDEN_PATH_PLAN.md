@@ -713,3 +713,21 @@ static environment
 ```
 
 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 不参与 `git diff` attestation。B capability 未证明前，数据库 reset、服务 spawn、readiness 网络调用、spec/report 读取与 Chrome 启动仍为零。06E.4A—C、06E.5C 与 06E.6 的进入条件没有改变。
+
+## 14. 2026-08-12 Shared Activation RED 执行覆盖
+
+第 9 节 RED 2 与 RED 3 已按“只冻结、不做 Green”完成：
+
+- Router RED `7c7ff8a`：真实 TENANT + canonical Project 访问 `/production/canvas/:projectId` 时，要求移除 generic `pilot-route-handoff`，拒绝 Demo `IntegratedStoryCanvasPage`，并在 B Pilot boundary 未安装时显示专用 `pilot-storycanvas-boundary-blocked` 安全状态。当前实现的预期 RED 为 `1 failed / 28 skipped`。
+- Bridge isolation RED `4b24466`：未来 `pilotStoryCanvasBridge.ts` 的 AST source policy 禁止旧 Demo Bridge、Mock adapter、`X-StoryCanvas-Demo-Grant`、LocalStorage/SessionStorage 以及 raw Grant、access token、grantId、digest 参数；policy 自测 `2 passed`，implementation-required 断言预期 `1 failed`。
+
+这两个 RED 不授权提前实施 06E.4B/4C Green。进入 Green 仍必须满足：
+
+```text
+B 06E.4A implementation commit
+→ A fetch + commit object + ancestor + exact write-set attestation
+→ browser-safe port/DTO + Package bootstrap/selection + selectors frozen
+→ deterministic start/readiness/capability + safe error mapping frozen
+```
+
+在进入条件满足前，不得新增猜测性 adapter、伪造 B boundary、读取 Demo Store 或通过 Mock fallback 让 RED 转绿。两个测试提交属于 shared 边界，B 修改对应 shared 区域前必须同步 `7c7ff8a` 与 `4b24466`。

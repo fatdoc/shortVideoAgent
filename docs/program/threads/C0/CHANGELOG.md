@@ -469,3 +469,10 @@
 - `71657c5` / `53ef8f4`、`4bbefb1`：隐藏 preflight stack 并显式化安全失败分支。
 - `c51685b` / `582150f`：在 B consumer 前验证 StoryCanvas unstaged/staged/baseline→HEAD tracked clean，同时继续排除 untracked `byteplus.ts`。
 - 验证：Golden Path safety `65/65`、Joint Gate `14/14 + 6/6`、Root Build、changed-file ESLint、Governance、diff-check PASS；Golden Path 与 Full Joint Gate blocker 保留。
+
+## 2026-08-12 · Shared Pilot Canvas Router / Bridge RED 冻结
+
+- `7c7ff8a test(router): freeze pilot canvas fail-closed boundary`：冻结真实 TENANT Canvas direct URL 的专用 fail-closed state，拒绝 generic handoff 与 Demo `IntegratedStoryCanvasPage` fallback；定向测试预期 `1 failed / 28 skipped`。
+- `4b24466 test(bridge): freeze pilot canvas isolation boundary`：冻结未来 Shared Bridge 的 AST source policy，禁止 Demo Bridge、Mock adapter、Demo Grant header、Web Storage 与 secret-bearing adapter 参数；policy 自测 `2 passed`，implementation-required RED `1 failed`。
+- 两个切片均为 shared RED-only 独立提交；没有 Router/Bridge Green，没有猜测 B endpoint/DTO/capability，也没有修改 StoryCanvas tracked 文件。B 继续开发相关 shared 区域前必须同步两个提交。
+- Green 保持等待 B consumer/bootstrap/page/selectors/start/readiness/capability 与 Package selection 合同；`AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED` 不变。
