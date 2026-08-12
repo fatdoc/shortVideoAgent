@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app/App';
 import './design/global.css';
+import './design/store-simple-v3.css';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../app/App';
@@ -34,7 +34,8 @@ describe('app smoke', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
+    expect(screen.getByText('门店素材 → 获客视频')).toBeInTheDocument();
+    expect(screen.queryByText(/海底捞|短视频营销 Agent/)).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
   });
 
@@ -125,128 +126,94 @@ describe('app smoke', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
     });
-    expect(await screen.findByTestId('brand-readonly')).toHaveTextContent('品牌资料只读');
-    expect(screen.queryByTestId('brand-edit')).not.toBeInTheDocument();
-
-    expect(screen.queryByRole('menuitem', { name: /企业工作台/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /已购能力/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /新建 \/ Brief/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /脚本编辑/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /分镜生产单/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /任务 \/ 交付/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /生产概览/ })).toBeInTheDocument();
+    expect(await screen.findByTestId('store-profile-page')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /门店总览/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /商品套餐/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /获客任务/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /AI 探店脚本/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /探店分镜/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /剪辑成片/ })).toBeInTheDocument();
   });
 
-  it('keeps enterprise administration and production routes in one workbench', async () => {
+  it('keeps the store acquisition chain in one workbench', async () => {
     const user = userEvent.setup();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '工作台' });
-    expect(screen.getByRole('combobox', { name: '切换工作台' })).toBeDisabled();
-    expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
+    await screen.findByTestId('store-workbench-page');
+    expect(screen.getByText('门店获客工作台')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /生产概览/ }));
+    await user.click(screen.getByRole('link', { name: /门店资产/ }));
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/production/overview');
+      expect(window.location.pathname).toBe('/production/assets/demo-local-001');
     });
-    expect(
-      await screen.findByRole('heading', { level: 2, name: '媒体生产工作台' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('store-assets-page')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
+    await user.click(screen.getByRole('link', { name: /门店档案/ }));
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
     });
-    expect(
-      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('store-profile-page')).toBeInTheDocument();
   }, 10_000);
 
   it('renders dashboard through router with unified demo data', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
-    expect(screen.getByText('短视频 Agent')).toBeInTheDocument();
-    expect((await screen.findAllByText('demo-local-001')).length).toBeGreaterThan(0);
-    expect(screen.getByText('品牌事实')).toBeInTheDocument();
+    expect(await screen.findByTestId('store-workbench-page')).toBeInTheDocument();
+    expect(screen.getByText('生产队列')).toBeInTheDocument();
+    expect(screen.getByText('暂无真实线索归因数据')).toBeInTheDocument();
   });
 
-  it('navigates across six primary routes from sidebar', async () => {
+  it('navigates across the primary store acquisition routes', async () => {
     const user = userEvent.setup();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '工作台' });
+    await screen.findByTestId('store-workbench-page');
 
-    await user.click(screen.getByRole('menuitem', { name: /新建 \/ Brief/ }));
-    expect(
-      await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /获客任务/ }));
+    expect(await screen.findByTestId('store-campaign-page')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
-    expect(
-      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /门店档案/ }));
+    expect(await screen.findByTestId('store-profile-page')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
-    expect(
-      await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' }),
-    ).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /AI 探店脚本/ }));
+    expect(await screen.findByTestId('script-editor-page')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
+    await user.click(screen.getByRole('link', { name: /探店分镜/ }));
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/storyboard');
     });
 
-    await user.click(screen.getByRole('menuitem', { name: /任务.*交付/ }));
+    await user.click(screen.getByRole('link', { name: /剪辑成片/ }));
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/rough-cut');
     });
 
-    await user.click(screen.getByRole('menuitem', { name: /企业工作台/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /门店总览/ }));
+    expect(await screen.findByTestId('store-workbench-page')).toBeInTheDocument();
   }, 15_000);
 
-  it('keeps Brief data consistent across Brand and Script pages', async () => {
+  it('keeps campaign, script and publishing states honest across the chain', async () => {
     const user = userEvent.setup();
-    const nextCta = '领取团购券并到店核销';
     window.history.pushState({}, '', '/projects/new');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '新建项目 / Brief' });
-    const cta = screen.getByTestId('brief-cta');
-    await user.clear(cta);
-    await user.type(cta, nextCta);
-    await user.click(screen.getByTestId('brief-save'));
-
-    await waitFor(() => {
-      const state = useProjectStore.getState();
-      expect(state.lastAction).toBe('setBrief');
-      expect(state.workspace.brief.cta).toBe(nextCta);
-    });
-
-    await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
-    await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' });
-    expect(await screen.findByText(nextCta)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
-    await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' });
-    expect(
-      screen.getByText((_, element) => element?.textContent === `CTA：${nextCta}`),
-    ).toBeInTheDocument();
+    await screen.findByTestId('store-campaign-page');
+    expect(screen.getByText('真实投放未接通')).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /AI 探店脚本/ }));
+    expect(await screen.findByText('事实引用（5）')).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: /发布投放/ }));
+    expect(await screen.findByText('待配置 / 待发布')).toBeInTheDocument();
   }, 15_000);
 
   it('shows shell chrome and demo project chip', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
-    await screen.findByRole('heading', { level: 3, name: '工作台' });
-    expect(screen.getByRole('button', { name: /重置 Demo/ })).toBeInTheDocument();
-    expect(screen.getAllByText(/海底捞/).length).toBeGreaterThan(0);
-    // sidebar footer id
-    const sider = document.querySelector('.ant-layout-sider');
-    expect(sider).toBeTruthy();
-    expect(within(sider as HTMLElement).getByText('DEMO_READY')).toBeInTheDocument();
+    await screen.findByTestId('store-workbench-page');
+    expect(screen.getByText('门店获客工作台')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: '门店获客流程' })).toBeInTheDocument();
+    expect(screen.getByText(/未接通真实投放与线索 Provider/)).toBeInTheDocument();
   });
 });

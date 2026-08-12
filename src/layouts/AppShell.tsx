@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Layout } from 'antd';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { layout } from '../design/tokens';
@@ -12,6 +12,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import { pilotRuntime } from '../config/pilotRuntime';
 import '../design/d1-experience.css';
+import { isStoreExperiencePath, StoreShell } from '../components/store/StoreShell';
 
 const { Content } = Layout;
 
@@ -74,5 +75,7 @@ function PilotAppShell() {
 }
 
 export function AppShell() {
+  const location = useLocation();
+  if (isStoreExperiencePath(location.pathname)) return <StoreShell />;
   return pilotRuntime.mode === 'pilot' ? <PilotAppShell /> : <DemoAppShell />;
 }

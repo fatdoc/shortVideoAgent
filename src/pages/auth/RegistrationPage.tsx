@@ -55,8 +55,8 @@ interface PageError {
 }
 
 const invitationLabels: Record<PublicInvitationPreview['invitationType'], string> = {
-  PLATFORM: '平台邀请注册',
-  CHANNEL: '渠道邀请注册',
+  PLATFORM: '邀请注册',
+  CHANNEL: '邀请注册',
   TENANT_MEMBER: '企业成员邀请',
 };
 
@@ -65,8 +65,8 @@ const registrationPathLabels: Record<
   string
 > = {
   DIRECT: '直接注册',
-  PLATFORM_INVITATION: '平台邀请注册',
-  CHANNEL_INVITATION: '渠道邀请注册',
+  PLATFORM_INVITATION: '邀请注册',
+  CHANNEL_INVITATION: '邀请注册',
   TENANT_MEMBER_INVITATION: '企业成员邀请注册',
 };
 
@@ -251,26 +251,15 @@ export function RegistrationPage({
     termsState !== 'ready' || invitationState !== 'ready' || Boolean(invitationError) || submitting;
 
   return (
-    <main className="d2-auth-page" data-testid="registration-page">
-      <section className="d2-auth-shell d2-auth-shell--registration">
-        <header className="d2-auth-productbar">
-          <div className="d2-auth-product">
-            <span className="d2-auth-product-mark">VA</span>
-            <span>
-              <strong>短视频营销 Agent</strong>
-              <small>受控注册入口</small>
-            </span>
-          </div>
-          <Tag color="processing">Pilot 注册准备态</Tag>
-        </header>
-
+    <main className="store-auth-page store-register-page" data-testid="registration-page">
+      <section className="store-register-shell">
         <div className="d2-registration-content">
           <section className="d2-registration-context">
             <SafetyCertificateOutlined />
-            <Typography.Title level={2}>创建受控试点账号</Typography.Title>
+            <span className="store-eyebrow">账号与安全</span>
+            <Typography.Title level={2}>创建账号</Typography.Title>
             <Typography.Paragraph>
-              注册来源、组织归属和角色由服务端验证。注册成功后不会自动登录，也不会在浏览器保存验证凭据或会话
-              Token。
+              注册来源与账号权限由服务端验证。注册成功后不会自动登录，也不会在浏览器保存验证凭据或会话 Token。
             </Typography.Paragraph>
 
             <div className="d2-registration-context-card">

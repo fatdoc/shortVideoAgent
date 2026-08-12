@@ -9,6 +9,7 @@ import {
   requireCanonicalRoute,
 } from '../../services/canonicalRouteGuard';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
+import { StoreAssetsPage } from '../store/StoreExperiencePages';
 
 interface ProductionWorkbenchPageProps {
   view?: ProductionView;
@@ -17,6 +18,7 @@ interface ProductionWorkbenchPageProps {
 export function ProductionWorkbenchPage({
   view = 'all',
 }: ProductionWorkbenchPageProps) {
+  if (view === 'assets') return <StoreAssetsPage />;
   const navigate = useNavigate();
   const location = useLocation();
   const { projectId } = useParams<{ projectId?: string }>();

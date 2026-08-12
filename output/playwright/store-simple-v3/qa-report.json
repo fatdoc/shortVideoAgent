@@ -1,0 +1,110 @@
+[
+  {
+    "name": "00-login",
+    "pathname": "/login",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "让门店资料变成可执行的探店内容",
+    "errors": []
+  },
+  {
+    "name": "02-workbench",
+    "pathname": "/dashboard",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "今天从待确认内容开始",
+    "errors": []
+  },
+  {
+    "name": "05-assets",
+    "pathname": "/production/assets/demo-local-001",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "素材与使用权",
+    "errors": []
+  },
+  {
+    "name": "06-campaign",
+    "pathname": "/projects/new",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "新建到店探店任务",
+    "errors": []
+  },
+  {
+    "name": "07-script",
+    "pathname": "/projects/demo-local-001/script",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "温暖治愈的精品咖啡体验",
+    "errors": []
+  },
+  {
+    "name": "08-storyboard",
+    "pathname": "/projects/demo-local-001/storyboard",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "拍摄清单与镜头状态",
+    "errors": []
+  },
+  {
+    "name": "09-editing",
+    "pathname": "/projects/demo-local-001/rough-cut",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "9:16 探店粗剪",
+    "errors": []
+  },
+  {
+    "name": "10-publish",
+    "pathname": "/projects/demo-local-001/delivery",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 1,
+    "brokenImages": 0,
+    "heading": "多平台适配与发布配置",
+    "errors": []
+  },
+  {
+    "name": "11-leads",
+    "pathname": "/projects/demo-local-001/usage",
+    "markerFound": true,
+    "bodyWidth": 1440,
+    "viewportWidth": 1440,
+    "horizontalOverflow": false,
+    "primary": 0,
+    "brokenImages": 0,
+    "heading": "投放归因与到店转化",
+    "errors": []
+  }
+]

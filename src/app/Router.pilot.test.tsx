@@ -245,11 +245,12 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       expect(window.location.pathname).toBe('/projects/project-alpha/brand');
     });
     expect(screen.getByTestId('pilot-app-shell')).toBeInTheDocument();
-    expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
-    expect(screen.getByRole('menuitem', { name: /品牌大脑/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /生产概览/ })).toBeInTheDocument();
+    expect(screen.getByText('门店获客工作台')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /门店档案/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /门店资产/ })).toBeInTheDocument();
     expect(screen.getByTestId('pilot-route-handoff')).toHaveTextContent('project-alpha');
     expect(screen.getByTestId('pilot-route-handoff')).toHaveTextContent('尚未接入真实 Pilot 数据');
+    expect(screen.getByText(/未接通真实投放与线索 Provider/)).toBeInTheDocument();
     expect(screen.queryByTestId('pilot-session-page')).not.toBeInTheDocument();
     expect(screen.queryByText(/海底捞/)).not.toBeInTheDocument();
   });
