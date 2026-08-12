@@ -133,6 +133,58 @@ test('rejects missing, extra, prototype-bearing, cyclic, or getter-based evidenc
   }
 });
 
+test('normalizes input getters and reflection traps to the fixed non-leaking evidence code', async () => {
+  const getterInput = Object.create(null) as Record<string, unknown>;
+  Object.defineProperty(getterInput, 'evidence', {
+    enumerable: true,
+    get: () => {
+      throw new Error(`${INTERNAL_TOKEN} ${DATA_ROOT}`);
+    },
+  });
+
+  const reflectionTrap = new Proxy(
+    {},
+    {
+      getPrototypeOf: () => {
+        throw new Error(`${AUTHORITY_SECRET} ${DATA_ROOT}`);
+      },
+    },
+  );
+
+  for (const input of [getterInput, reflectionTrap]) {
+    await expectSafeCode(
+      () =>
+        assertSafeSharedCanvasRemediationLifecycleEvidence(
+          input as unknown as { evidence: unknown },
+        ),
+      'SHARED_CANVAS_LIFECYCLE_EVIDENCE_INVALID',
+    );
+  }
+});
+
+test('rejects sparse or property-bearing registry event arrays before accepting lifecycle evidence', async () => {
+  const sparse = validEvidence();
+  sparse.registry.events = new Array(
+    8,
+  ) as SharedCanvasRemediationLifecycleEvidence['registry']['events'];
+
+  const propertyBearing = validEvidence();
+  Object.defineProperty(propertyBearing.registry.events, 'jointGatePass', {
+    enumerable: true,
+    value: true,
+  });
+
+  const oversized = validEvidence();
+  oversized.registry.events.length = 1_000_000_000;
+
+  for (const evidence of [sparse, propertyBearing, oversized]) {
+    await expectSafeCode(
+      () => assertSafeSharedCanvasRemediationLifecycleEvidence({ evidence }),
+      'SHARED_CANVAS_LIFECYCLE_EVIDENCE_INVALID',
+    );
+  }
+});
+
 test('requires the exact capacity-two registry lifecycle sequence', async () => {
   const mutations: Array<(evidence: SharedCanvasRemediationLifecycleEvidence) => void> = [
     (evidence) => {
