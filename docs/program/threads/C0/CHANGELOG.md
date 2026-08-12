@@ -500,3 +500,10 @@
 - 固定安全配置、loopback synthetic origin、仓库外 data root、端口冲突、process lifecycle、stopped-output Oracle、cleanup 优先级与非泄漏错误语义。
 - Harness 不启动 PostgreSQL/Chrome/Playwright/Golden Path，成功仅为 `A_REM_VAL_3_RUNTIME_HARNESS_READY`；不产生任何 Gate 完成语义。
 - 五组 A-side Oracle `58/58 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS；StoryCanvas tracked 文件与 B-owned untracked `byteplus.ts` 均未触碰。
+
+## 2026-08-12 · A-REM-VAL-4 Registry Lifecycle / Bounded Shutdown Oracle
+
+- `077ec9a` 冻结 lifecycle/shutdown RED，`1c79c13` 增加 getter/Proxy、稀疏/超长数组与 exact evidence 安全 RED，`6111821` 实现纯 evidence Oracle。
+- 固定 registry capacity、dedupe、expiry purge、capacity eviction、shutdown clear，以及 SIGTERM/SIGINT 5000ms 内 HTTP/Socket.IO/WebSocket/timer/exit 状态合同。
+- Evidence 解析对非 plain object、accessor、reflection trap、cycle、预算异常、额外 Gate 字段与敏感内容 fail closed；成功仅为 `A_REM_VAL_4_LIFECYCLE_ORACLE_READY`。
+- 六组 A-side acceptance `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS；未修改 StoryCanvas tracked 文件或 B-owned untracked `byteplus.ts`。
