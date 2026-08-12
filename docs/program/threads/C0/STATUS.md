@@ -1377,8 +1377,8 @@
 
 ## 2026-08-12 · A-REM-VAL-4 Registry Lifecycle / Bounded Shutdown Oracle Ready
 
-- `077ec9a` 冻结 registry lifecycle 与 bounded shutdown 基础 RED；`1c79c13` 追加 input getter/Proxy、稀疏/超长数组和错误 Gate 字段的结构安全 RED；`6111821` 完成纯证据 Oracle。
-- Oracle 固定 capacity-two 权威生命周期：issue → dedupe → issue → expiry observed → expiry purge → issue → capacity eviction → shutdown clear，最终 active count 必须为零且 raw authority 不可读。
+- `077ec9a` 冻结 registry lifecycle 与 bounded shutdown 基础 RED；`1c79c13` 追加 input getter/Proxy、稀疏/超长数组和错误 Gate 字段的结构安全 RED；`6111821` 完成纯证据 Oracle；`8dfbe8a` / `d3d4330` 以 RED/GREEN 消除对 B 生产容量为 2 的无依据假设。
+- Oracle 要求 B 明确报告安全整数容量（至少 2），并以 capacity-filled → deterministic capacity eviction 证明该边界真实生效；A 不猜测或冻结 B 的生产容量常量。完整生命周期为 issue → dedupe → issue → expiry observed → expiry purge → capacity fill → capacity eviction → shutdown clear，最终 active count 必须为零且 raw authority 不可读。
 - Shutdown 只接受 `SIGTERM`/`SIGINT`，要求 0～5000ms 内 HTTP、Socket.IO、WebSocket 全部关闭、registry clear、pending timer 为零且 exit code 为零；任何 false-success 或不完整关闭均 fail closed。
 - 原始 evidence 使用 exact plain-object/data-property 结构、节点/深度/字符串预算和固定数组键；getter、Proxy trap、cycle、prototype object、稀疏/超长数组、额外 Gate 字段与敏感值均映射为固定非泄漏错误。
 - 六组 A-side acceptance 回归 `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。Oracle ready 不等于 B remediation accepted，不启动 B candidate、PostgreSQL、Chrome 或 Shared Green。

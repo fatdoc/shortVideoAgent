@@ -1024,9 +1024,9 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 
 ## 2026-08-12 · A-REM-VAL-4 Registry Lifecycle / Bounded Shutdown Handoff
 
-- 提交链：`077ec9a test(e2e): freeze canvas lifecycle evidence oracle` → `1c79c13 test(e2e): harden lifecycle evidence structure` → `6111821 feat(e2e): validate canvas lifecycle evidence`。
+- 提交链：`077ec9a test(e2e): freeze canvas lifecycle evidence oracle` → `1c79c13 test(e2e): harden lifecycle evidence structure` → `6111821 feat(e2e): validate canvas lifecycle evidence` → `8dfbe8a test(e2e): avoid guessing canvas registry capacity` → `d3d4330 fix(e2e): parameterize canvas registry capacity`。
 - 新 Oracle 只消费 B 后续回执/运行采集形成的非秘密 lifecycle evidence，不启动 StoryCanvas、数据库、Chrome、Playwright 或 Golden Path；当前没有执行或接受 B remediation candidate。
-- Registry 必须证明 capacity-two、dedupe、expiry observation/purge、capacity eviction、shutdown clear 与 authority shutdown 后不可读；shutdown 必须在 5000ms 内关闭 HTTP、Socket.IO、WebSocket 并清除 timer，且不得以 exit code 0 掩盖任何未关闭表面。
+- Registry 必须报告明确的安全整数容量（至少 2），证明 dedupe、expiry observation/purge、capacity fill、deterministic eviction、shutdown clear 与 authority shutdown 后不可读；A 不冻结 B 的生产容量常量。shutdown 必须在 5000ms 内关闭 HTTP、Socket.IO、WebSocket 并清除 timer，且不得以 exit code 0 掩盖任何未关闭表面。
 - Evidence parser 对 getter、Proxy trap、cycle、prototype-bearing object、稀疏/超长数组、额外属性、敏感值与预算异常 fail closed；结果仅为 `A_REM_VAL_4_LIFECYCLE_ORACLE_READY`，不包含 remediation/Gate 完成字段。
 - 六组 A-side acceptance 回归 `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS。
 - B candidate 到达后，验收顺序仍为 Git attestation → HTTP/log Oracle → no-PostgreSQL runtime Harness → lifecycle/shutdown Oracle → B targeted/build；全部通过后也只允许报告 `B_REMEDIATION_ACCEPTED`，再另行规划 Shared Green。
