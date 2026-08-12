@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { AB_GOLDEN_PATH_EVIDENCE_STEPS } from './abGoldenPathEvidenceContract.js';
 import {
   AbGoldenPathRunnerError,
   createLocalAbGoldenPathPreflightDependencies,
@@ -20,6 +21,20 @@ const FORBIDDEN = [
   'FAKE_RUNNER_SECRET_DO_NOT_USE',
   '/private/tmp/fake-runner-path',
 ];
+
+const CANVAS_SELECTORS = {
+  bootstrapAuthorityReady: 'pilot-storycanvas-boundary-ready',
+  realEditorLoaded: 'pilot-storycanvas-editor-loaded',
+};
+
+function semanticEvidenceResult(
+  stepTitles = AB_GOLDEN_PATH_EVIDENCE_STEPS,
+): Record<string, unknown> {
+  return {
+    status: 'passed',
+    steps: stepTitles.map((title) => ({ title })),
+  };
+}
 
 function environment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
@@ -412,7 +427,7 @@ test('reuses the frozen spec, report, and artifact oracles without declaring gat
                   {
                     expectedStatus: 'passed',
                     annotations: [],
-                    results: [{ status: 'passed' }],
+                    results: [semanticEvidenceResult()],
                   },
                 ],
               },
@@ -423,10 +438,56 @@ test('reuses the frozen spec, report, and artifact oracles without declaring gat
       },
       artifactRoot,
       secrets: [],
+      canvasSelectors: CANVAS_SELECTORS,
     });
 
     assert.deepEqual(result, { total: 1, expected: 1, passed: 1 });
     assert.equal('gateComplete' in result, false);
+  } finally {
+    await rm(artifactRoot, { recursive: true, force: true });
+  }
+});
+
+test('rejects bootstrap authority as complete Golden Path evidence before artifact acceptance', async () => {
+  const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-ab-runner-bootstrap-only-'));
+  try {
+    await assert.rejects(
+      validateAbGoldenPathEvidence({
+        specSource: `
+          import { test } from '@playwright/test';
+          test('synthetic evidence only', async () => { await Promise.resolve(); });
+        `,
+        playwrightReport: {
+          suites: [
+            {
+              title: 'A/B Golden Path evidence',
+              specs: [
+                {
+                  title: 'synthetic evidence only',
+                  tests: [
+                    {
+                      expectedStatus: 'passed',
+                      annotations: [],
+                      results: [semanticEvidenceResult(AB_GOLDEN_PATH_EVIDENCE_STEPS.slice(0, 7))],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          stats: { expected: 1, skipped: 0, unexpected: 0, flaky: 0 },
+        },
+        artifactRoot,
+        secrets: [],
+        canvasSelectors: CANVAS_SELECTORS,
+      }),
+      (error: Error) => {
+        assert.equal(error.message, 'PILOT_E2E_REAL_EDITOR_EVIDENCE_REQUIRED');
+        assert.equal(error.stack, undefined);
+        assert.doesNotMatch(error.message, /bootstrap|selector|canvas/i);
+        return true;
+      },
+    );
   } finally {
     await rm(artifactRoot, { recursive: true, force: true });
   }
@@ -464,6 +525,7 @@ test('rejects sensitive values embedded in an otherwise passing Playwright repor
         },
         artifactRoot,
         secrets: [secret],
+        canvasSelectors: CANVAS_SELECTORS,
       }),
       (error: Error) => {
         assert.equal(error.message, 'PILOT_E2E_IN_MEMORY_SECRET_LEAK');
