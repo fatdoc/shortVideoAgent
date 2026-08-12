@@ -12,16 +12,18 @@ const DATA_ROOT = '/private/tmp/pilot-canvas-lifecycle-secret-root';
 const AUTHORITY_SECRET = 'RAW_AUTHORITY_DO_NOT_ECHO_20260812';
 const LEAK_SENTINELS = [INTERNAL_TOKEN, DATA_ROOT, AUTHORITY_SECRET] as const;
 
-const REGISTRY_EVENTS = [
-  { kind: 'authority-issued', activeCount: 1 },
-  { kind: 'authority-deduplicated', activeCount: 1 },
-  { kind: 'authority-issued', activeCount: 2 },
-  { kind: 'expired-observed', activeCount: 2 },
-  { kind: 'expired-purged', activeCount: 1 },
-  { kind: 'authority-issued', activeCount: 2 },
-  { kind: 'capacity-evicted', activeCount: 2 },
-  { kind: 'shutdown-cleared', activeCount: 0 },
-] as const;
+function registryEvents(capacity: number) {
+  return [
+    { kind: 'authority-issued', activeCount: 1 },
+    { kind: 'authority-deduplicated', activeCount: 1 },
+    { kind: 'authority-issued', activeCount: 2 },
+    { kind: 'expired-observed', activeCount: 2 },
+    { kind: 'expired-purged', activeCount: 1 },
+    { kind: 'capacity-filled', activeCount: capacity },
+    { kind: 'capacity-evicted', activeCount: capacity },
+    { kind: 'shutdown-cleared', activeCount: 0 },
+  ] as const;
+}
 
 function validEvidence(
   overrides: Partial<SharedCanvasRemediationLifecycleEvidence> = {},
@@ -29,7 +31,7 @@ function validEvidence(
   return {
     registry: {
       capacity: 2,
-      events: REGISTRY_EVENTS.map((event) => ({ ...event })),
+      events: registryEvents(2).map((event) => ({ ...event })),
     },
     shutdown: {
       signal: 'SIGTERM',
@@ -185,13 +187,20 @@ test('rejects sparse or property-bearing registry event arrays before accepting 
   }
 });
 
-test('requires the exact capacity-two registry lifecycle sequence', async () => {
+test('accepts any explicit safe capacity while proving fill and deterministic eviction at that bound', () => {
+  for (const capacity of [2, 3, 64, 1_024, Number.MAX_SAFE_INTEGER]) {
+    const evidence = validEvidence();
+    evidence.registry.capacity = capacity;
+    evidence.registry.events = registryEvents(capacity).map((event) => ({ ...event }));
+    const result = assertSafeSharedCanvasRemediationLifecycleEvidence({ evidence });
+    assert.equal(result.registryEventCount, 8);
+  }
+});
+
+test('requires the exact registry lifecycle sequence without guessing B production capacity', async () => {
   const mutations: Array<(evidence: SharedCanvasRemediationLifecycleEvidence) => void> = [
     (evidence) => {
-      evidence.registry.capacity = 1;
-    },
-    (evidence) => {
-      evidence.registry.capacity = 3;
+      evidence.registry.capacity = 0;
     },
     (evidence) => {
       evidence.registry.events.pop();
@@ -203,7 +212,10 @@ test('requires the exact capacity-two registry lifecycle sequence', async () => 
       evidence.registry.events[1] = { kind: 'authority-issued', activeCount: 1 };
     },
     (evidence) => {
-      evidence.registry.events[6] = { kind: 'expired-purged', activeCount: 2 };
+      evidence.registry.events[5] = { kind: 'capacity-filled', activeCount: 1 };
+    },
+    (evidence) => {
+      evidence.registry.events[6] = { kind: 'capacity-evicted', activeCount: 1 };
     },
   ];
 
