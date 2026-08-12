@@ -3,6 +3,7 @@ export type SharedCanvasRegistryLifecycleEventKind =
   | 'authority-deduplicated'
   | 'expired-observed'
   | 'expired-purged'
+  | 'capacity-filled'
   | 'capacity-evicted'
   | 'shutdown-cleared';
 
@@ -64,16 +65,20 @@ export class SharedCanvasRemediationLifecycleOracleError extends Error {
 const MAX_EVIDENCE_NODES = 256;
 const MAX_EVIDENCE_DEPTH = 8;
 const MAX_EVIDENCE_STRING_LENGTH = 4_096;
-const EXPECTED_REGISTRY_EVENTS = [
-  { kind: 'authority-issued', activeCount: 1 },
-  { kind: 'authority-deduplicated', activeCount: 1 },
-  { kind: 'authority-issued', activeCount: 2 },
-  { kind: 'expired-observed', activeCount: 2 },
-  { kind: 'expired-purged', activeCount: 1 },
-  { kind: 'authority-issued', activeCount: 2 },
-  { kind: 'capacity-evicted', activeCount: 2 },
-  { kind: 'shutdown-cleared', activeCount: 0 },
-] as const;
+const REGISTRY_EVENT_COUNT = 8;
+
+function expectedRegistryEvents(capacity: number) {
+  return [
+    { kind: 'authority-issued', activeCount: 1 },
+    { kind: 'authority-deduplicated', activeCount: 1 },
+    { kind: 'authority-issued', activeCount: 2 },
+    { kind: 'expired-observed', activeCount: 2 },
+    { kind: 'expired-purged', activeCount: 1 },
+    { kind: 'capacity-filled', activeCount: capacity },
+    { kind: 'capacity-evicted', activeCount: capacity },
+    { kind: 'shutdown-cleared', activeCount: 0 },
+  ] as const;
+}
 
 function fail(code: SharedCanvasRemediationLifecycleOracleErrorCode): never {
   throw new SharedCanvasRemediationLifecycleOracleError(code);
@@ -235,7 +240,7 @@ function parseEvidence(value: unknown): SharedCanvasRemediationLifecycleEvidence
   ] as const;
   const shutdownValues = ownDataValues(shutdown, shutdownKeys);
   const events = registryValues.events;
-  if (!Array.isArray(events) || events.length > EXPECTED_REGISTRY_EVENTS.length) {
+  if (!Array.isArray(events) || events.length > REGISTRY_EVENT_COUNT) {
     fail('SHARED_CANVAS_LIFECYCLE_EVIDENCE_INVALID');
   }
   const expectedArrayKeys = [
@@ -299,7 +304,11 @@ function parseInput(value: unknown): SharedCanvasRemediationLifecycleOracleInput
 }
 
 function assertRegistryEvidence(evidence: SharedCanvasRemediationLifecycleEvidence): void {
-  if (evidence.registry.capacity !== 2 || evidence.registry.events.length !== 8) {
+  if (
+    !Number.isSafeInteger(evidence.registry.capacity) ||
+    evidence.registry.capacity < 2 ||
+    evidence.registry.events.length !== REGISTRY_EVENT_COUNT
+  ) {
     fail('SHARED_CANVAS_REGISTRY_EVIDENCE_INVALID');
   }
 
@@ -310,9 +319,10 @@ function assertRegistryEvidence(evidence: SharedCanvasRemediationLifecycleEviden
     fail('SHARED_CANVAS_REGISTRY_NOT_CLEARED');
   }
 
-  for (let index = 0; index < EXPECTED_REGISTRY_EVENTS.length; index += 1) {
+  const expectedEvents = expectedRegistryEvents(evidence.registry.capacity);
+  for (let index = 0; index < expectedEvents.length; index += 1) {
     const actual = evidence.registry.events[index];
-    const expected = EXPECTED_REGISTRY_EVENTS[index];
+    const expected = expectedEvents[index];
     if (index === 7 && actual?.kind === 'shutdown-cleared' && actual.activeCount !== 0) {
       fail('SHARED_CANVAS_REGISTRY_NOT_CLEARED');
     }
