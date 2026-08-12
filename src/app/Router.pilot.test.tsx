@@ -9,6 +9,15 @@ vi.mock('../config/pilotRuntime', () => ({
   },
 }));
 
+const integratedStoryCanvasRender = vi.hoisted(() => vi.fn());
+
+vi.mock('../pages/production/IntegratedStoryCanvasPage', () => ({
+  IntegratedStoryCanvasPage: () => {
+    integratedStoryCanvasRender();
+    return <div data-testid="demo-integrated-storycanvas-page">Demo StoryCanvas</div>;
+  },
+}));
+
 vi.mock('../pages/auth/RegistrationPage', () => ({
   RegistrationPage: ({
     invitationToken,
@@ -494,6 +503,40 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       expect(window.location.pathname).toBe('/projects/project-alpha/brand');
     });
     expect(screen.getByTestId('pilot-route-handoff')).toBeInTheDocument();
+  });
+});
+
+describe('A-BIZ-06E.4P Shared Router fail-closed boundary RED', () => {
+  beforeEach(() => {
+    integratedStoryCanvasRender.mockClear();
+    window.localStorage.clear();
+    window.history.replaceState({}, '', '/pilot');
+    usePilotAuthStore.setState({
+      status: 'anonymous',
+      session: null,
+      error: null,
+      requestId: null,
+    });
+    usePilotProjectContextStore.getState().reset();
+  });
+
+  it('blocks a real Tenant Canvas route when the B Pilot boundary is unavailable', async () => {
+    setTenantContext();
+    window.history.replaceState({}, '', '/production/canvas/project-alpha');
+    render(<App />);
+
+    expect(await screen.findByTestId('pilot-app-shell')).toBeInTheDocument();
+    expect.soft(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
+    expect.soft(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
+    expect.soft(integratedStoryCanvasRender).not.toHaveBeenCalled();
+
+    const blockedState = screen.queryByTestId('pilot-storycanvas-boundary-blocked');
+    expect.soft(blockedState).not.toBeNull();
+    if (blockedState) {
+      expect.soft(blockedState).toHaveTextContent('Project project-alpha');
+      expect.soft(blockedState).toHaveTextContent(/StoryCanvas Pilot (边界|服务).*暂不可用/);
+      expect.soft(blockedState).toHaveTextContent('不会回退 Demo');
+    }
   });
 });
 
