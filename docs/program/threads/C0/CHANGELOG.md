@@ -507,3 +507,10 @@
 - 固定 registry 显式安全容量、dedupe、expiry purge、capacity fill/eviction、shutdown clear 证据语义，但不猜测 B 的生产容量常量；同时冻结 SIGTERM/SIGINT 5000ms 内 HTTP/Socket.IO/WebSocket/timer/exit 状态合同。
 - Evidence 解析对非 plain object、accessor、reflection trap、cycle、预算异常、额外 Gate 字段与敏感内容 fail closed；成功仅为 `A_REM_VAL_4_LIFECYCLE_ORACLE_READY`。
 - 六组 A-side acceptance `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS；未修改 StoryCanvas tracked 文件或 B-owned untracked `byteplus.ts`。
+
+## 2026-08-12 · A-REM-VAL-5 Candidate Acceptance Coordinator
+
+- `4126a71` 冻结 Coordinator RED，要求 Git → HTTP/log → runtime → lifecycle 串行 fail-fast、固定 stage error 与无 Gate overclaim 的 exact success result。
+- `12804a8` 实现 DI-only Coordinator：通过 Promise assimilation 归一化同步/异步失败，以 descriptor/own-key/plain-object 校验拒绝 accessor、额外键、异常 prototype、reflection trap 与子结果 overclaim。
+- 成功仅为 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY`，不表示 B remediation accepted、Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
+- 七组 A-side acceptance `79/79 PASS`；Root Build、Governance、changed-file ESLint、Prettier 与 diff-check PASS；未修改 StoryCanvas tracked 文件或 B-owned untracked `byteplus.ts`。

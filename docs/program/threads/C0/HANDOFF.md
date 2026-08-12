@@ -1031,3 +1031,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 六组 A-side acceptance 回归 `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance、diff-check PASS。
 - B candidate 到达后，验收顺序仍为 Git attestation → HTTP/log Oracle → no-PostgreSQL runtime Harness → lifecycle/shutdown Oracle → B targeted/build；全部通过后也只允许报告 `B_REMEDIATION_ACCEPTED`，再另行规划 Shared Green。
 - 保持 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；StoryCanvas tracked clean，B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+
+## 2026-08-12 · A-REM-VAL-5 Candidate Acceptance Coordinator Handoff
+
+- 提交链：`4126a71 test(e2e): freeze canvas remediation coordinator` → `12804a8 feat(e2e): coordinate canvas remediation acceptance`。
+- Coordinator 只组合现有 A-side acceptance stage，固定顺序为 Git attestation → HTTP/log security → no-PostgreSQL runtime Harness → lifecycle/shutdown evidence；任一阶段失败立即停止后续阶段并返回对应固定安全错误。
+- 每个 stage callback 通过 Promise assimilation 捕获同步 throw、rejection 与 thenable failure；stage result 必须是 exact plain-data object，额外字段、accessor、symbol、非 plain prototype 或 reflection trap 均 fail closed。异常内容不通过 message、stack 或 cause 透传。
+- 成功结果只允许 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY` 与四个 validation boolean；不回传 candidate SHA、commit/write-set 细节、HTTP body、stdout/stderr、data root、secret 或任何 Gate completion 字段。
+- 七组 A-side acceptance 回归 `79/79 PASS`，Root Build、Governance、changed-file ESLint、Prettier 与 diff-check PASS；这些结果只证明 Coordinator 可用，尚未对 B candidate 执行完整 acceptance。
+- B remediation candidate 到达后仍须以真实 candidate 输入运行 Git/HTTP-log/runtime/lifecycle 验收并复跑 B targeted/build；通过时最多进入独立 `B_REMEDIATION_ACCEPTED` 记录，Shared transport/Bridge/Router Green 仍需后续独立提交与双方同步。
+- 保持 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；StoryCanvas tracked clean，B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。

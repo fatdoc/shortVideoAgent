@@ -1384,3 +1384,13 @@
 - 六组 A-side acceptance 回归 `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。Oracle ready 不等于 B remediation accepted，不启动 B candidate、PostgreSQL、Chrome 或 Shared Green。
 - StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交；服务继续运行。
 - 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / A_REM_VAL_4_LIFECYCLE_ORACLE_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-5 Candidate Acceptance Coordinator Ready
+
+- `4126a71` 冻结 A-side candidate coordinator RED，`12804a8` 实现严格串行、fail-fast 的 acceptance 编排：Git attestation → HTTP/log security summary → no-PostgreSQL runtime Harness → lifecycle/shutdown Oracle。
+- 四个阶段均使用固定非泄漏错误码；同步 throw、Promise rejection 与 thenable assimilation 统一归一化，原始 exception、stack、candidate SHA、stdout/stderr、data root 和 Gate 字段不会进入错误或结果。
+- 子结果采用 exact plain-object/data-property/own-key 校验，拒绝 accessor、symbol/non-enumerable extra key、prototype-bearing object、Proxy reflection failure 和任何 remediation/Gate overclaim；最终只新建 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY` 结果。
+- Coordinator 当前是 DI-only acceptance infrastructure，不自行启动 B candidate、PostgreSQL、Chrome、Playwright、Shared proxy、Bridge 或 Router Green；也没有接受 B remediation。
+- 七组 A-side acceptance 回归 `79/79 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY != B_REMEDIATION_ACCEPTED != SHARED_ACTIVATION_GREEN != REAL_EDITOR_LOADED != GOLDEN_PATH_COMPLETE != JOINT_GATE_PASS`。
+- 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / A_REM_VAL_4_LIFECYCLE_ORACLE_READY / A_REM_VAL_5_CANDIDATE_COORDINATOR_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
