@@ -1041,3 +1041,11 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 七组 A-side acceptance 回归 `79/79 PASS`，Root Build、Governance、changed-file ESLint、Prettier 与 diff-check PASS；这些结果只证明 Coordinator 可用，尚未对 B candidate 执行完整 acceptance。
 - B remediation candidate 到达后仍须以真实 candidate 输入运行 Git/HTTP-log/runtime/lifecycle 验收并复跑 B targeted/build；通过时最多进入独立 `B_REMEDIATION_ACCEPTED` 记录，Shared transport/Bridge/Router Green 仍需后续独立提交与双方同步。
 - 保持 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；StoryCanvas tracked clean，B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+
+## 2026-08-12 · A-REM-VAL-5A Coordinator Adversarial Hardening Handoff
+
+- 提交链：`5885c5b test(e2e): harden canvas remediation coordinator` → `ee50356 fix(e2e): validate canvas coordinator dependencies`。
+- Coordinator 在零 stage 副作用前 exact-validate dependency container：只允许 `attestGit`、`validateHttpLog`、`validateRuntimeHarness`、`validateLifecycle` 四个 own data-property function；extra/symbol/accessor/inherited/Proxy-trapped container 统一 fail closed。
+- 新测试覆盖 rejecting callback 单次调用与 later-stage suppression，以及真实 rejecting thenable 和 hostile `then` getter；阶段错误仍固定、stack/cause 不透传、最终结果不增加任何 candidate/Gate 字段。
+- 七组 A-side acceptance `82/82 PASS`，Root Build、Governance、changed-file ESLint、Prettier、diff-check PASS；该结果仅加固 A-side Coordinator，不代表已运行或接受 B remediation candidate。
+- 现有冻结计划中，下一项功能性工作必须等待 B remediation candidate；在此之前不得实现 Shared transport/proxy、Bridge、Router 或 Golden Path Green。保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

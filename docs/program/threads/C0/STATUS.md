@@ -1394,3 +1394,12 @@
 - 七组 A-side acceptance 回归 `79/79 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY != B_REMEDIATION_ACCEPTED != SHARED_ACTIVATION_GREEN != REAL_EDITOR_LOADED != GOLDEN_PATH_COMPLETE != JOINT_GATE_PASS`。
 - 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / A_REM_VAL_4_LIFECYCLE_ORACLE_READY / A_REM_VAL_5_CANDIDATE_COORDINATOR_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-5A Coordinator Adversarial Hardening Complete
+
+- `5885c5b` 补充 adversarial RED，`ee50356` 完成 dependency container fail-closed hardening；既有 Git → HTTP/log → runtime → lifecycle 阶段顺序与成功语义均未改变。
+- Coordinator 现在要求 dependencies 为 exact plain-data object，四个 callback 必须是 own data-property function；额外字符串/symbol/non-enumerable key、继承属性、getter/setter、非 plain prototype 与 Proxy reflection trap 均在任何 callback 副作用前以固定 Git-stage 错误拒绝。
+- RED 同时证明 rejecting stage 恰好调用一次、后续 stage 不启动，以及 rejecting thenable/hostile `then` accessor 被 Promise assimilation 归一化；异常仍不通过 message、stack 或 cause 泄漏。
+- 七组 A-side acceptance 回归 `82/82 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+- 该 hardening 仍只表示 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY`；不表示 B remediation accepted、Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
+- 当前状态：`A_REM_VAL_5A_COORDINATOR_HARDENED / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

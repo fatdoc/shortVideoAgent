@@ -514,3 +514,9 @@
 - `12804a8` 实现 DI-only Coordinator：通过 Promise assimilation 归一化同步/异步失败，以 descriptor/own-key/plain-object 校验拒绝 accessor、额外键、异常 prototype、reflection trap 与子结果 overclaim。
 - 成功仅为 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY`，不表示 B remediation accepted、Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
 - 七组 A-side acceptance `79/79 PASS`；Root Build、Governance、changed-file ESLint、Prettier 与 diff-check PASS；未修改 StoryCanvas tracked 文件或 B-owned untracked `byteplus.ts`。
+
+## 2026-08-12 · A-REM-VAL-5A Coordinator Adversarial Hardening
+
+- `5885c5b` 添加 exact dependency container、单次失败调用和真实 thenable adversarial RED；`ee50356` 在 callback 执行前验证四个 exact own data-property function。
+- extra/symbol/accessor/inherited/Proxy-trapped dependencies 现在固定 fail closed；既有阶段顺序、成功 DTO 和非 Gate 语义保持不变。
+- 七组 A-side acceptance `82/82 PASS`；Root Build、Governance、ESLint、Prettier 与 diff-check PASS；StoryCanvas tracked 文件和 B-owned untracked `byteplus.ts` 未触碰。
