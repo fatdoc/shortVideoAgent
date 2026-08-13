@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   CanvasV1ContractError,
@@ -15,7 +14,9 @@ import {
   restoreCanvasDocumentForSession,
 } from "./index.js";
 
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../");
+const rootDir = process.cwd().endsWith(path.join("apps", "storycanvas"))
+  ? path.resolve(process.cwd(), "../..")
+  : process.cwd();
 const contractDir = path.join(rootDir, "docs/program/contracts/canvas-v1");
 const matrix = JSON.parse(fs.readFileSync(path.join(contractDir, "negative-vectors.json"), "utf8"));
 const loadFixture = (fileName: string) =>
@@ -95,6 +96,7 @@ test("backend replay and new-session document recovery semantics are frozen", ()
 
   const recoveryCase = matrix.positiveSemanticCases.find((item: any) => item.operation === "restoreDocument");
   const document = parseCanvasV1Contract(loadFixture(recoveryCase.fixture));
+  if (document.objectType !== "CanvasDocument") throw new Error("document recovery fixture has wrong objectType");
   const restored = restoreCanvasDocumentForSession(document, recoveryCase.newCanvasSessionId);
   assert.equal(restored.documentId, document.documentId);
   assert.equal(restored.version, document.version);
