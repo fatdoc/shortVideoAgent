@@ -524,7 +524,7 @@ describe('Canvas Asset authority service', () => {
       expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     });
-    clock = new Date('2026-08-14T02:01:00.000Z');
+    clock = new Date('2026-08-14T02:00:30.000Z');
     const input = {
       approvalId: ids.approvalId,
       tenantId: ids.tenantId,
@@ -540,7 +540,7 @@ describe('Canvas Asset authority service', () => {
       status: 'consumed',
       replayed: false,
     });
-    clock = new Date('2026-08-14T02:03:00.000Z');
+    clock = new Date('2026-08-14T02:02:00.000Z');
     await expect(authority.consumeHighCostApproval(input)).resolves.toMatchObject({
       status: 'consumed',
       replayed: true,

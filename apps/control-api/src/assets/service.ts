@@ -309,7 +309,7 @@ export class CanvasAssetAuthorityService {
       canvasSessionId: 'pcs_ABCDEFGHIJKLMNOPQRSTUVWX',
       commandType,
       action,
-      expiresInSeconds: 30,
+      expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     });
     return `sha256:${createHmac('sha256', this.fingerprintSecret)
