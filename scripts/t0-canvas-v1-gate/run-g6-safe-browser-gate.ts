@@ -5,6 +5,8 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import knex from '../../apps/control-api/node_modules/knex/knex.mjs';
+import storyKnex from '../../apps/storycanvas/node_modules/knex/knex.mjs';
+import { runStoryCanvasMigrations } from '../../apps/storycanvas/src/lib/storycanvasMigrations.js';
 
 import { resetMigrateSeedPilotE2e } from '../../apps/control-api/src/e2e/resetSeed.js';
 import {
@@ -18,6 +20,11 @@ import { PostgresStoryboardAuthorityStore } from '../../apps/control-api/src/sto
 import { StoryboardAuthorityService } from '../../apps/control-api/src/storyboards/service.js';
 import { ProjectGrantTokenService } from '../../apps/control-api/src/production/grantToken.js';
 import { PostgresProductionStore } from '../../apps/control-api/src/production/repository.js';
+import {
+  assertCanvasWorkspaceAuthorityMatchesRequest,
+  parseCanvasWorkspaceAuthorityRequestV01,
+  parseCanvasWorkspaceAuthorityV01,
+} from '../../apps/storycanvas/src/contracts/canvas-v1/workspaceMaterialization.js';
 
 const rootDir = path.resolve(import.meta.dirname, '../..');
 const controlRoot = path.join(rootDir, 'apps/control-api');
@@ -272,6 +279,7 @@ async function prepareReusableAsset(input: {
   projectId: string;
   packageId: string;
   controlAssetRoot: string;
+  internalToken: string;
 }) {
   let cookie = '';
   const request = async (
@@ -398,6 +406,68 @@ async function prepareReusableAsset(input: {
     },
     200,
   );
+
+  // Fixed-stage diagnostic: exercise the same Control authority response through the
+  // frozen Story parser without emitting request/response bodies, paths, or credentials.
+  const diagnosticActivation = await request(
+    controlOrigin,
+    `/api/v1/projects/${input.projectId}/production-packages/${input.packageId}/canvas-activation`,
+    {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        origin: webOrigin,
+        'x-csrf-token': csrf,
+      },
+      body: JSON.stringify({ activationAttemptId: randomUUID() }),
+    },
+    201,
+  );
+  const diagnosticEntry = diagnosticActivation.body.entry as Record<string, unknown>;
+  const diagnosticOpened = await request(storyOrigin, '/api/production/pilot/canvas/bootstrap', {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      origin: webOrigin,
+      'x-storycanvas-csrf': 'pilot-canvas-bootstrap-v1',
+    },
+    body: JSON.stringify({
+      handle: diagnosticEntry.handle,
+      tenantId: diagnosticEntry.tenantId,
+      projectId: diagnosticEntry.projectId,
+      packageId: diagnosticEntry.packageId,
+    }),
+  }, 200);
+  const authorityRequest = parseCanvasWorkspaceAuthorityRequestV01({
+    objectType: 'CanvasWorkspaceAuthorityRequest',
+    contractVersion: '0.1',
+    tenantId: diagnosticEntry.tenantId,
+    projectId: diagnosticEntry.projectId,
+    packageId: diagnosticEntry.packageId,
+    canvasSessionId: diagnosticOpened.body.canvasSessionId,
+    actorId: pilotE2eFixtureIds.users.tenantOperatorA,
+    requestId: `g6-stage-${randomUUID()}`,
+    occurredAt: new Date().toISOString(),
+  });
+  const authorityResponse = await fetch(`${controlOrigin}/api/v1/internal/canvas-workspace-authorities`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'x-production-plane-internal-token': input.internalToken,
+      'x-request-id': authorityRequest.requestId,
+    },
+    body: JSON.stringify(authorityRequest),
+  });
+  const authorityContentType = authorityResponse.headers.get('content-type')?.toLowerCase() ?? '';
+  if (authorityResponse.status !== 200 || !authorityContentType.includes('application/json')) {
+    throw new Error(`G6_STAGE_AUTHORITY_HTTP_${authorityResponse.status}`);
+  }
+  const authorityProjection = parseCanvasWorkspaceAuthorityV01(await authorityResponse.json());
+  assertCanvasWorkspaceAuthorityMatchesRequest(authorityProjection, authorityRequest);
+  process.stdout.write('[g6-safe-browser] CONTROL_AUTHORITY_HTTP_200_STORY_PARSE_PASS\n');
   return { assetId };
 }
 
@@ -424,6 +494,62 @@ function assertSafeLogs(children: SafeChild[], secrets: string[]) {
   }
   if (/seedance|ark_api_key|providerAssetId|providerGroupId|asset:\/\//iu.test(combined)) {
     throw new Error('G6_SERVICE_LOG_PROVIDER_DETAIL_LEAK');
+  }
+}
+
+async function storyPostcondition(dataRoot: string): Promise<Record<string, number>> {
+  const database = storyKnex({
+    client: 'better-sqlite3',
+    connection: { filename: path.join(dataRoot, 'db2.sqlite') },
+    useNullAsDefault: true,
+  });
+  try {
+    const tables = [
+      'sc_canvas_v1_documents',
+      'sc_canvas_v1_asset_records',
+      'sc_canvas_v1_requirements',
+      'sc_canvas_v1_readiness',
+      'sc_media_assets',
+      'sc_external_mappings',
+    ];
+    const output: Record<string, number> = {};
+    for (const table of tables) {
+      const [{ count }] = await database(table).count<{ count: number | string }[]>({ count: '*' });
+      output[table] = Number(count);
+    }
+    return output;
+  } finally {
+    await database.destroy();
+  }
+}
+
+async function initializeDedicatedStoryRoot(dataRoot: string, externalProjectId: string): Promise<void> {
+  const database = storyKnex({
+    client: 'better-sqlite3',
+    connection: { filename: path.join(dataRoot, 'db2.sqlite') },
+    useNullAsDefault: true,
+  });
+  try {
+    await database.raw('PRAGMA foreign_keys = ON');
+    for (const tableName of ['o_project', 'o_script', 'o_storyboard', 'o_image', 'o_video']) {
+      await database.schema.createTable(tableName, (table) => {
+        table.integer('id').primary();
+        if (tableName === 'o_project') table.text('name');
+      });
+    }
+    await database('o_project').insert({ id: 1, name: projectName });
+    await runStoryCanvasMigrations(database);
+    await database('sc_external_mappings').insert({
+      id: randomUUID(),
+      system: 'saas-control-plane',
+      entityType: 'project',
+      localId: '1',
+      externalId: externalProjectId,
+      metadataJson: '{}',
+      createdAt: new Date().toISOString(),
+    });
+  } finally {
+    await database.destroy();
   }
 }
 
@@ -456,6 +582,7 @@ async function main(): Promise<void> {
     CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: secret(),
   };
   const authority = await seedProductionAuthority(independentSecrets.PROJECT_GRANT_SIGNING_SECRET);
+  await initializeDedicatedStoryRoot(storyDataRoot, authority.projectId);
   const shared = providerDisabledEnvironment({ ...process.env, PILOT_E2E: 'true' });
   let control: SafeChild | undefined;
   let story: SafeChild | undefined;
@@ -509,6 +636,7 @@ async function main(): Promise<void> {
       ...credential,
       ...authority,
       controlAssetRoot,
+      internalToken: independentSecrets.PRODUCTION_PLANE_INTERNAL_TOKEN,
     });
 
     web = spawnSafe(
@@ -529,15 +657,21 @@ async function main(): Promise<void> {
     children.push(web);
     await waitForUrl(`${webOrigin}/login`, web);
 
-    await runBrowser({
-      ...shared,
-      CANVAS_V1_BROWSER_BASE_URL: `${webOrigin}/`,
-      CANVAS_V1_BROWSER_PROJECT_ID: authority.projectId,
-      CANVAS_V1_BROWSER_PACKAGE_ID: authority.packageId,
-      CANVAS_V1_BROWSER_PROJECT_NAME: projectName,
-      CANVAS_V1_BROWSER_LOGIN_EMAIL: credential.email,
-      CANVAS_V1_BROWSER_LOGIN_PASSWORD: credential.password,
-    });
+    try {
+      await runBrowser({
+        ...shared,
+        CANVAS_V1_BROWSER_BASE_URL: `${webOrigin}/`,
+        CANVAS_V1_BROWSER_PROJECT_ID: authority.projectId,
+        CANVAS_V1_BROWSER_PACKAGE_ID: authority.packageId,
+        CANVAS_V1_BROWSER_PROJECT_NAME: projectName,
+        CANVAS_V1_BROWSER_LOGIN_EMAIL: credential.email,
+        CANVAS_V1_BROWSER_LOGIN_PASSWORD: credential.password,
+      });
+    } catch (error) {
+      const postcondition = await storyPostcondition(storyDataRoot);
+      process.stderr.write(`[g6-safe-browser] STORY_DB_POSTCONDITION ${JSON.stringify(postcondition)}\n`);
+      throw error;
+    }
     assertSafeLogs(children, [
       ...Object.values(independentSecrets),
       ...Object.values(seeded.secrets.accounts).map(({ password }) => password),
@@ -547,6 +681,7 @@ async function main(): Promise<void> {
     await mkdir(evidenceDir, { recursive: true });
     await writeFile(path.join(evidenceDir, 'summary.json'), `${JSON.stringify({
       baseline: 'e747111d281170ccc061a600a908c0fdf12bf4ed',
+      testedIntegration: '9cb7b1f9f1e37636b116e510fff175a52fcf0938',
       databaseName: new URL(databaseUrl).pathname.slice(1),
       origins: { control: controlOrigin, story: storyOrigin, browser: webOrigin },
       canonicalUrl: `${webOrigin}/production/canvas/${authority.projectId}?packageId=${authority.packageId}`,
