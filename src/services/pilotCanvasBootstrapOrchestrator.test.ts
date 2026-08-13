@@ -123,14 +123,68 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
         capabilityRequirements: ['video.generate'],
         expiresInSeconds: 600,
       },
-      `pilot-production-package-v1:${projectId}:${scriptVersionId}:${storyboardVersionId}:pilot-canvas-package.v1:route-cycle-1`,
+      expect.stringMatching(
+        new RegExp(`^pilot-production-package-v1:${projectId}:h_[a-f0-9]{16}$`),
+      ),
       expect.anything(),
     );
+    const packageKey = deps.createProductionPackage.mock.calls[0]?.[2];
+    expect(packageKey).toHaveLength(83);
     expect(deps.bridgeOpen).toHaveBeenCalledWith(
       { tenantId, projectId, packageId, bootstrapCycleId: 'route-cycle-1' },
       expect.anything(),
     );
   });
+
+  it('keeps the Package idempotency key bounded for the longest valid cycle', async () => {
+    const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
+    const deps = dependencies();
+    const orchestrator = createPilotCanvasBootstrapOrchestrator(deps.value);
+
+    await orchestrator.open({
+      tenantId,
+      projectId,
+      bootstrapCycleId: `c${'x'.repeat(63)}`,
+    });
+
+    const packageKey = deps.createProductionPackage.mock.calls[0]?.[2];
+    expect(packageKey).toMatch(
+      new RegExp(`^pilot-production-package-v1:${projectId}:h_[a-f0-9]{16}$`),
+    );
+    expect(packageKey?.length).toBeLessThanOrEqual(200);
+  });
+
+  it.each([
+    [['private.secret']],
+    [['video.generate', 'video.generate']],
+    [['image.generate', 'video.generate', 'audio.tts', 'media.export', 'private.secret']],
+  ])(
+    'rejects an invalid runtime Package capability policy before API side effects',
+    async (capabilities) => {
+      const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
+      const deps = dependencies();
+
+      expect(() =>
+        createPilotCanvasBootstrapOrchestrator({
+          ...deps.value,
+          packagePolicy: {
+            ...policy,
+            capabilityRequirements: capabilities as never,
+          },
+        }),
+      ).toThrowError(
+        expect.objectContaining({
+          status: 422,
+          code: 'PILOT_CANVAS_PACKAGE_POLICY_INVALID',
+          retryable: false,
+          requestId: null,
+        }),
+      );
+      expect(deps.readProductionEligibility).not.toHaveBeenCalled();
+      expect(deps.createProductionPackage).not.toHaveBeenCalled();
+      expect(deps.bridgeOpen).not.toHaveBeenCalled();
+    },
+  );
 
   it('deduplicates concurrent and completed calls for the same bootstrap cycle', async () => {
     const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
