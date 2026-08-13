@@ -125,18 +125,28 @@ test("completeness can render a trustworthy blocked projection only with all exa
 });
 
 test("decoded byte range accepts one byte through exact 8 MiB and rejects 8 MiB plus one with stable codes", () => {
+  const oneByteBuffer = Buffer.from([0]);
   const oneByte = {
     ...fixture.materializationResponse,
     mimeType: "image/png",
     byteSize: 1,
-    checksum: "sha256:6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
-    contentBase64: "AA==",
+    checksum: `sha256:${crypto.createHash("sha256").update(oneByteBuffer).digest("hex")}`,
+    contentBase64: oneByteBuffer.toString("base64"),
   };
   assert.equal(
     codeOf(() => parseCanvasAssetMaterializationV01(oneByte)),
-    "CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED",
-    "one decoded byte is inside the size range but must still fail magic-byte verification",
+    "CANVAS_MATERIALIZATION_MIME_UNSUPPORTED",
+    "one decoded byte is canonical codec data but cannot contain an allowlisted image magic",
   );
+  const minimumJpeg = Buffer.from([0xff, 0xd8, 0xff]);
+  const minimumValid = {
+    ...fixture.materializationResponse,
+    mimeType: "image/jpeg",
+    byteSize: minimumJpeg.length,
+    checksum: `sha256:${crypto.createHash("sha256").update(minimumJpeg).digest("hex")}`,
+    contentBase64: minimumJpeg.toString("base64"),
+  };
+  assert.equal(parseCanvasAssetMaterializationV01(minimumValid).byteSize, 3);
   const bytes = Buffer.alloc(8 * 1024 * 1024);
   bytes[0] = 0xff;
   bytes[1] = 0xd8;
