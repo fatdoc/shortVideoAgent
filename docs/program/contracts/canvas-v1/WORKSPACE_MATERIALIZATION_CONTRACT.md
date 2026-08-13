@@ -56,6 +56,13 @@ The route returns only `CanvasWorkspace/0.1`, uses `Cache-Control: no-store`
 and carries the current safe Request ID. It does not return the legacy open
 response, Package, Grant, digest or provider authority.
 
+Every transport `occurredAt` is canonical UTC ISO with exactly millisecond
+precision (`YYYY-MM-DDTHH:mm:ss.sssZ`). Both parsers must parse the value and
+require `new Date(parsed).toISOString()` to equal the original bytes. Invalid
+calendar values, JavaScript date rollover, offsets (including `+00:00`) and
+missing or excess fractional precision fail with the transport's stable schema
+error.
+
 ### 2.2 Page hydration mapping
 
 The response maps to `CanvasV1Page` without implicit values:
@@ -414,7 +421,8 @@ apps/storycanvas/src/contracts/canvas-v1/workspaceMaterialization.ts
 src/features/canvas-v1/model/workspaceContract.ts
 ```
 
-The matrix contains 58 vectors covering strict workspace parity, exact
+The matrix contains 61 vectors covering strict workspace parity, canonical UTC
+timestamp validation, exact
 hydration joins, browser containment, authentication/parser order, 16 KiB/8
 MiB boundaries, magic-MIME/size/checksum integrity, response-loss replay and
 unique Story mapping.

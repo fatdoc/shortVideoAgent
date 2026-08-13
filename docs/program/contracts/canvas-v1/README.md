@@ -35,7 +35,7 @@ CanvasEntryRedemption/0.1 or Pilot Production Contract/0.2.
   it references, rather than expands, the nine accepted domain definitions.
 - `fixtures/workspace-materialization.json`: canonical workspace,
   materialization request/response and safe error fixtures.
-- `workspace-materialization-negative-vectors.json`: 58 workspace, byte
+- `workspace-materialization-negative-vectors.json`: 61 workspace, byte
   integrity, replay, containment and persistence RED vectors.
 - `validate-workspace-materialization.mjs`: dependency-free additive transport
   facts validator.
