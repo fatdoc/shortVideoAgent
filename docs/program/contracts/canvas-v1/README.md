@@ -28,10 +28,25 @@ CanvasEntryRedemption/0.1 or Pilot Production Contract/0.2.
 - `activation-transport-negative-vectors.json`: G5 transport RED matrix.
 - `validate-activation-transport.mjs`: dependency-free transport facts
   validator.
+- `WORKSPACE_MATERIALIZATION_CONTRACT.md`: proposed G5 formal workspace
+  hydration and server-only Control-to-Story asset-byte transport.
+- `workspace-materialization.schema.json`: additive strict
+  `CanvasWorkspace/0.1` and `CanvasAssetMaterialization/0.1` transport schema;
+  it references, rather than expands, the nine accepted domain definitions.
+- `fixtures/workspace-materialization.json`: canonical workspace,
+  materialization request/response and safe error fixtures.
+- `workspace-materialization-negative-vectors.json`: 58 workspace, byte
+  integrity, replay, containment and persistence RED vectors.
+- `validate-workspace-materialization.mjs`: dependency-free additive transport
+  facts validator.
 - `apps/storycanvas/src/contracts/canvas-v1/index.ts`: StoryCanvas strict runtime
   parser, types and semantic helpers.
 - `src/features/canvas-v1/model/contracts.ts`: browser/frontend strict parser,
   types and the same semantic helpers.
+- `apps/storycanvas/src/contracts/canvas-v1/workspaceMaterialization.ts`:
+  Story workspace and server-only materialization parser/integrity helpers.
+- `src/features/canvas-v1/model/workspaceContract.ts`: browser-only strict
+  workspace parser; it rejects the materialization envelope.
 
 The JSON Schema, canonical fixtures and negative vectors are the cross-project
 facts source. Runtime implementations must pass the same fixtures byte-for-byte
@@ -50,6 +65,13 @@ and reject every vector with the frozen stable code.
 | ShotReadiness/0.1 | browser-safe | Deterministic AND gate and ordered stable reason codes. |
 | CanvasCommand/0.1 | browser-safe | UI/Agent common command; safe command/approval/request IDs; no transport key or digest. |
 | CanvasEvent/0.1 | browser-safe | Persisted acceptance/submission/task/output/receipt facts; no inferred progress. |
+
+Additive transport aggregates do not expand this nine-object domain set:
+
+| Transport | Classification | Key semantics |
+|---|---|---|
+| CanvasWorkspace/0.1 | browser-safe aggregate | Formal bootstrap, document, real shot/readiness/asset/output/event facts and explicit completeness. |
+| CanvasAssetMaterialization/0.1 | server-only transport | Verified first-day virtual-character image bytes; magic MIME, exact size/checksum and response-loss replay. |
 
 `HighCostCommandApproval` remains a server-only Control Plane authority. A
 CanvasCommand carries only the safe UUID `approvalId`; a naked
@@ -228,6 +250,7 @@ entirety by the browser parser.
 See `AUTHORITY_INVENTORY.md` for the full authority boundary and all eight
 accepted Wave 0 decisions. See `G1_HANDOFF.md` for evidence and downstream
 implementation starts. See `G1_AMENDMENT_REQ_T0CV1_CV2_002.md` for the additive
-missing-binding repair and revalidation evidence. The G5 activation transport
-is still `PROPOSED / READY_FOR_CV0_DECISION`; passing its documentation
-validator is not product implementation or a Gate result.
+missing-binding repair and revalidation evidence. The G5 activation and
+workspace/materialization transports are `READY_FOR_CV0_GATE`; passing their
+documentation and parser validators is not product implementation or a Gate
+result.
