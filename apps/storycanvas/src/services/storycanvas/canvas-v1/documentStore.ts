@@ -24,7 +24,7 @@ interface DocumentRow {
 type DocumentContent = Pick<CanvasDocumentV01, "shots" | "playlist">;
 
 export interface CanvasDocumentStoreOptions {
-  database: Knex;
+  database: Knex | Knex.Transaction;
   now?: () => Date;
 }
 
@@ -78,9 +78,6 @@ export class CanvasDocumentStore {
   }
 
   async create(input: CreateCanvasDocumentInput): Promise<CanvasDocumentV01> {
-    const existing = await this.options.database<DocumentRow>("sc_canvas_v1_documents")
-      .where(rowScope(input)).first();
-    if (existing) return documentFromRow(existing, input.scope.canvasSessionId);
     const timestamp = this.now().toISOString();
     const candidate: CanvasDocumentV01 = {
       objectType: "CanvasDocument",
@@ -108,19 +105,22 @@ export class CanvasDocumentStore {
       playlistJson: JSON.stringify(parsed.playlist),
       createdAt: timestamp,
       updatedAt: timestamp,
-    });
-    return parsed;
+    }).onConflict(["tenantId", "projectId", "packageId", "documentId"]).ignore();
+    const row = await this.options.database<DocumentRow>("sc_canvas_v1_documents")
+      .where(rowScope(input)).first();
+    if (!row) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+    if (row.currentCanvasSessionId !== input.scope.canvasSessionId) {
+      await this.options.database("sc_canvas_v1_documents").where(rowScope(input)).update({
+        currentCanvasSessionId: input.scope.canvasSessionId,
+      });
+    }
+    return documentFromRow(row, input.scope.canvasSessionId);
   }
 
   async read(input: ReadCanvasDocumentInput): Promise<CanvasDocumentV01 | null> {
     const row = await this.options.database<DocumentRow>("sc_canvas_v1_documents")
       .where(rowScope(input)).first();
     if (!row) return null;
-    if (row.currentCanvasSessionId !== input.scope.canvasSessionId) {
-      await this.options.database("sc_canvas_v1_documents").where(rowScope(input)).update({
-        currentCanvasSessionId: input.scope.canvasSessionId,
-      });
-    }
     return documentFromRow(row, input.scope.canvasSessionId);
   }
 
