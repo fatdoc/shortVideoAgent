@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.7`
+> 版本：`v0.8`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -61,6 +61,12 @@ G4 Canvas Agent product integrated head:
 
 G4 independent QA evidence integrated head:
 c09be04a961dfb5a45286e375e81e4fa1f9c8895
+
+G5 additive Workspace/Materialization contract integrated head:
+0cc3b3613c86e8b5a17e62727d2f7d3ca3c32392
+
+G5 additive contract independent QA integrated head:
+37181987b6178e3ac39aaf3f7750e10ea2f48d87
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -419,12 +425,12 @@ raw Idempotency-Key
 | 员工 | 角色 | 任务书 | 初始状态 | 阻塞条件 |
 |---|---|---|---|---|
 | CV0 | 总控与集成负责人 | `tasks/CV0_MASTER_INTEGRATION_TASK.md` | `IN_PROGRESS` | 无 |
-| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `IN_PROGRESS` | G1 已验收；正冻结 G5 Workspace/Materialization additive 合同 |
+| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `ACCEPTED` | G5 Workspace/Materialization/Authority additive 合同已独立验收 |
 | CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `ACCEPTED` | G2 已独立验收；真实付费 Seedance smoke 留给 G6 |
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | 05A 已通过；05B 进入 G5 业务融合 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G4 已独立验收；等待 G5 additive 合同与产品切片 |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | Activation Facade 已实现；Control Materialization 待集成验收；Shared 待 Story Workspace |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 additive 合同已独立验收；等待 Story/Control/Shared 产品切片 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -559,7 +565,7 @@ Gate 状态：
 | G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
-| G5 | `IN_PROGRESS` | G2/G3/G4 已放行；先冻结 Workspace/Materialization additive 合同，再实现 Activation/Bootstrap/Bridge/Proxy/Router |
+| G5 | `IN_PROGRESS` | Workspace/Materialization/Authority additive 合同已独立放行；Activation Facade 已实现；Story Workspace、受信资产物化和 Shared 待完成 |
 | G6 | `NOT_STARTED` | 依赖 G5 |
 
 状态词只使用：
@@ -827,6 +833,9 @@ G4 independent static:     4/4 PASS
 G4 independent dynamic:    7/7 PASS
 G4 owner targeted:         11/11 PASS
 G4 status:                 ACCEPTED; no paid Seedance and no bulk production
+G5 additive validators:   domain 38 + activation 25 + workspace 69 + authority 30 PASS
+G5 additive parser Gate:  facts 7; Story 7; parity/boundary 11; browser/UI 6 PASS
+G5 additive status:       ACCEPTED for implementation; G5 product Gate remains IN_PROGRESS
 ```
 
 G0 已知基线事实：
@@ -846,6 +855,15 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.8 · 2026-08-14
+
+- 冻结并独立验收 `CanvasWorkspace/0.1`、`CanvasAssetMaterialization/0.1` 与 server-only Workspace Authority additive 合同；
+- 冻结 exact Package 数字版本投影、唯一虚拟人物 casting、公共 UUIDv5 派生、每镜头唯一 requirement 与分镜 description 初始 prompt；
+- casting 缺失或歧义时固定 409，不返回 partial Workspace，不写入伪 requirement/document/readiness；
+- 修复 materialization exact 8 MiB base64 parser 栈溢出，并冻结 JPEG/PNG/WebP magic、字节大小、SHA-256 和稳定边界错误；
+- CV6 验证 38+25+69+30 vectors、Story/browser parity、真实 UI hydration、构建和治理全通过；
+- CV0 只放行 G5 additive 合同进入产品实现；G5 产品 Gate 仍为 `IN_PROGRESS`，未完成 Golden Path。
 
 ### v0.7 · 2026-08-14
 
