@@ -5,7 +5,12 @@ import express from "express";
 import knex from "knex";
 
 import canvasV1Migration from "../../../../migrations/005_canvas_v1_asset_command";
-import type { AssetRecordV01, CanvasCommandV01 } from "@/contracts/canvas-v1";
+import type {
+  AssetRecordV01,
+  CanvasCommandV01,
+  ProviderAssetBindingV01,
+  ShotReadinessV01,
+} from "@/contracts/canvas-v1";
 import type { PilotCanvasServerAuthority } from "../pilotCanvasCapability";
 import { createCanvasV1RuntimeRouter } from "./runtime";
 
@@ -121,6 +126,7 @@ test("runtime binds Origin, Control Session actor and server-only canvas authori
       }
       : null,
     readAuthority: (id) => id === canvasSessionId ? authority : null,
+    acceptAuthority: async () => 42,
   }));
   const server = http.createServer(application);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -171,11 +177,138 @@ test("runtime binds Origin, Control Session actor and server-only canvas authori
     },
     body: JSON.stringify(generateCommand),
   });
-  assert.equal(blockedHighCost.status, 403);
+  assert.equal(blockedHighCost.status, 409);
   assert.equal(
     (await blockedHighCost.json() as { error: { code: string } }).error.code,
-    "CANVAS_APPROVAL_INVALID",
+    "CANVAS_SHOT_NOT_READY",
   );
   assert.equal((await database("sc_canvas_v1_commands")).length, 0);
   assert.equal((await database("sc_canvas_v1_events")).length, 0);
+
+  const readiness: ShotReadinessV01 = {
+    objectType: "ShotReadiness",
+    contractVersion: "0.1",
+    tenantId,
+    projectId,
+    packageId,
+    canvasSessionId,
+    readinessId: (generateCommand.payload as Extract<CanvasCommandV01, {
+      commandType: "GENERATE_SHOT";
+    }>["payload"]).readinessId,
+    shotId,
+    ready: true,
+    reasonCodes: [],
+    script: { scriptId: "44444444-4444-4444-8444-444444444444", version: 3, current: true },
+    storyboard: { storyboardId: "55555555-5555-4555-8555-555555555555", version: 2, current: true },
+    requirements: [{
+      requirementId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      assetId,
+      scopeMatched: true,
+      rightsStatus: "authorized",
+      approvalStatus: "approved",
+      providerStatus: "active",
+      entityBindingStatus: "approved",
+      capabilityAvailable: true,
+      ready: true,
+      reasonCodes: [],
+    }],
+    evaluatedAt: occurredAt,
+    occurredAt,
+  };
+  const provider: ProviderAssetBindingV01 = {
+    objectType: "ProviderAssetBinding",
+    contractVersion: "0.1",
+    tenantId,
+    projectId,
+    packageId,
+    canvasSessionId,
+    bindingId: "99999999-9999-4999-8999-999999999999",
+    assetId,
+    provider: "byteplus",
+    providerStatus: "active",
+    providerAssetId: "server-only-provider-id",
+    providerGroupId: "server-only-provider-group",
+    assetUri: "asset://server-only-provider-id",
+    registeredAt: occurredAt,
+    updatedAt: occurredAt,
+    occurredAt,
+  };
+  await database("sc_canvas_v1_readiness").insert({
+    readinessId: readiness.readinessId,
+    shotId,
+    tenantId,
+    projectId,
+    packageId,
+    projectionJson: JSON.stringify(readiness),
+    evaluatedAt: occurredAt,
+  });
+  await database("sc_canvas_v1_provider_bindings").insert({
+    bindingId: provider.bindingId,
+    assetId,
+    tenantId,
+    projectId,
+    packageId,
+    authorityJson: JSON.stringify(provider),
+    updatedAt: occurredAt,
+  });
+
+  let approvalConsumes = 0;
+  let providerStarts = 0;
+  const activated = express();
+  activated.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
+    database,
+    allowedOrigin: origin,
+    verifySession: async () => ({
+      actorId,
+      tenantId,
+      organizationType: "TENANT",
+      roles: ["content_operator"],
+    }),
+    readAuthority: (id) => id === canvasSessionId ? authority : null,
+    acceptAuthority: async () => 42,
+    validateApproval: async (command, resolved) => {
+      approvalConsumes += 1;
+      assert.equal(command.approvalId, generateCommand.approvalId);
+      assert.equal(resolved.actorId, actorId);
+      return true;
+    },
+    startShotProduction: async (input) => {
+      providerStarts += 1;
+      assert.deepEqual(input.referenceAssetUris, ["asset://server-only-provider-id"]);
+      return { taskId: "18181818-1818-4818-8818-181818181818" };
+    },
+  }));
+  const activatedServer = http.createServer(activated);
+  await new Promise<void>((resolve) => activatedServer.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve, reject) => {
+    activatedServer.close((error) => error ? reject(error) : resolve());
+  }));
+  const activatedAddress = activatedServer.address();
+  assert.ok(activatedAddress && typeof activatedAddress !== "string");
+  const activatedUrl = `http://127.0.0.1:${activatedAddress.port}/api/production/pilot/canvas/v1/commands`;
+  const headers = {
+    origin,
+    cookie: "videoagent_session=valid",
+    "content-type": "application/json",
+    "x-storycanvas-csrf": "pilot-canvas-v1",
+  };
+  const created = await fetch(activatedUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(generateCommand),
+  });
+  assert.equal(created.status, 202);
+  assert.equal((await created.json() as { event: { status: string } }).event.status, "task_created");
+  const replay = await fetch(activatedUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      ...generateCommand,
+      requestId: "req-runtime-command-replay",
+    }),
+  });
+  assert.equal(replay.status, 200);
+  assert.equal((await replay.json() as { event: { replayed: boolean } }).event.replayed, true);
+  assert.equal(approvalConsumes, 1);
+  assert.equal(providerStarts, 1);
 });

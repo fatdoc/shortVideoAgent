@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import { test } from "node:test";
 import knex, { type Knex } from "knex";
 
@@ -53,6 +54,22 @@ function command(overrides: Partial<CanvasCommandV01> = {}): CanvasCommandV01 {
     occurredAt,
     ...overrides,
   };
+}
+
+function canonical(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  return `{${Object.keys(value as Record<string, unknown>).sort().map((key) =>
+    `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(",")}}`;
+}
+
+function commandDigest(value: CanvasCommandV01): string {
+  return crypto.createHash("sha256").update(canonical({
+    requestedByActorId: value.requestedByActorId,
+    requestSource: value.requestSource,
+    approvalId: value.approvalId,
+    payload: value.payload,
+  })).digest("hex");
 }
 
 function readiness(overrides: Partial<ShotReadinessV01> = {}): ShotReadinessV01 {
@@ -123,7 +140,6 @@ test("same scope/same payload replays persisted truth; changed payload conflicts
 
   const first = await service.execute(command());
   const replay = await service.execute(command({
-    commandId: "21212121-2121-4121-8121-212121212121",
     requestId: "req-canvas-command-replay",
     occurredAt: "2026-08-14T02:02:01.000Z",
   }));
@@ -131,6 +147,15 @@ test("same scope/same payload replays persisted truth; changed payload conflicts
   assert.equal(replay.replayed, true);
   assert.equal(replay.eventId, first.eventId);
   assert.equal(starts, 1);
+
+  const changedCommandId = command({
+    commandId: "21212121-2121-4121-8121-212121212121",
+    requestId: "req-canvas-command-changed-id",
+  });
+  await assert.rejects(
+    () => service.execute(changedCommandId),
+    (error: unknown) => error instanceof CanvasCommandServiceError && error.code === "CANVAS_COMMAND_IDEMPOTENCY_CONFLICT",
+  );
 
   const changed = command({
     commandId: "22222222-2222-4222-8222-222222222222",
@@ -141,6 +166,116 @@ test("same scope/same payload replays persisted truth; changed payload conflicts
     (error: unknown) => error instanceof CanvasCommandServiceError && error.code === "CANVAS_COMMAND_IDEMPOTENCY_CONFLICT",
   );
   assert.equal(starts, 1);
+});
+
+test("an accepted GENERATE_SHOT recovers only through exact approval replay and never resubmits an unknown provider outcome", async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  const original = command();
+  const accepted = {
+    objectType: "CanvasEvent",
+    contractVersion: "0.1",
+    tenantId: scope.tenantId,
+    projectId: scope.projectId,
+    packageId: scope.packageId,
+    canvasSessionId: scope.canvasSessionId,
+    eventId: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+    commandId: original.commandId,
+    commandType: original.commandType,
+    status: "accepted",
+    providerSubmitted: false,
+    taskCreated: false,
+    outputRegistered: false,
+    receiptRecorded: false,
+    taskId: null,
+    outputAssetId: null,
+    receiptId: null,
+    replayed: false,
+    error: null,
+    requestId: original.requestId,
+    occurredAt,
+  };
+  const digest = commandDigest(original);
+  await db("sc_canvas_v1_commands").insert({
+    commandId: original.commandId,
+    tenantId: original.tenantId,
+    projectId: original.projectId,
+    packageId: original.packageId,
+    canvasSessionId: original.canvasSessionId,
+    commandType: original.commandType,
+    payloadDigest: digest,
+    commandJson: JSON.stringify(original),
+    resultEventJson: JSON.stringify(accepted),
+    createdAt: occurredAt,
+    updatedAt: occurredAt,
+  });
+  await db("sc_canvas_v1_events").insert({
+    eventId: accepted.eventId,
+    commandId: original.commandId,
+    tenantId: original.tenantId,
+    projectId: original.projectId,
+    packageId: original.packageId,
+    canvasSessionId: original.canvasSessionId,
+    status: accepted.status,
+    eventJson: JSON.stringify(accepted),
+    createdAt: occurredAt,
+  });
+  let approvals = 0;
+  let starts = 0;
+  const service = new CanvasCommandService(options(db, {
+    validateApproval: async () => { approvals += 1; return true; },
+    startShotProduction: async () => {
+      starts += 1;
+      return { taskId: "18181818-1818-4818-8818-181818181818" };
+    },
+  }));
+
+  const recovered = await service.execute(original);
+  assert.equal(recovered.status, "task_created");
+  assert.equal(recovered.eventId, accepted.eventId);
+  assert.equal(approvals, 1);
+  assert.equal(starts, 1);
+
+  const dbWithoutFact = await database();
+  context.after(() => dbWithoutFact.destroy());
+  await dbWithoutFact("sc_canvas_v1_commands").insert({
+    commandId: original.commandId,
+    tenantId: original.tenantId,
+    projectId: original.projectId,
+    packageId: original.packageId,
+    canvasSessionId: original.canvasSessionId,
+    commandType: original.commandType,
+    payloadDigest: digest,
+    commandJson: JSON.stringify(original),
+    resultEventJson: JSON.stringify(accepted),
+    createdAt: occurredAt,
+    updatedAt: occurredAt,
+  });
+  await dbWithoutFact("sc_canvas_v1_events").insert({
+    eventId: accepted.eventId,
+    commandId: original.commandId,
+    tenantId: original.tenantId,
+    projectId: original.projectId,
+    packageId: original.packageId,
+    canvasSessionId: original.canvasSessionId,
+    status: accepted.status,
+    eventJson: JSON.stringify(accepted),
+    createdAt: occurredAt,
+  });
+  let unknownStarts = 0;
+  const failClosed = new CanvasCommandService(options(dbWithoutFact, {
+    validateApproval: async () => true,
+    startShotProduction: async () => {
+      unknownStarts += 1;
+      throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
+    },
+  }));
+  await assert.rejects(
+    () => failClosed.execute(original),
+    (error: unknown) => error instanceof CanvasCommandServiceError && error.code === "CANVAS_PROVIDER_FAILED",
+  );
+  assert.equal(unknownStarts, 1);
+  assert.equal((JSON.parse((await dbWithoutFact("sc_canvas_v1_commands").first()).resultEventJson) as { status: string }).status, "failed");
 });
 
 test("rights/provider/entity/readiness and exact scope block generation without tasks, events or usage facts", async (context) => {
@@ -154,8 +289,10 @@ test("rights/provider/entity/readiness and exact scope block generation without 
     const db = await database();
     context.after(() => db.destroy());
     let starts = 0;
+    let approvals = 0;
     const service = new CanvasCommandService(options(db, {
       getReadiness: async () => readiness(readinessOverride),
+      validateApproval: async () => { approvals += 1; return true; },
       startShotProduction: async () => { starts += 1; return { taskId: "18181818-1818-4818-8818-181818181818" }; },
     }));
     await assert.rejects(
@@ -163,6 +300,7 @@ test("rights/provider/entity/readiness and exact scope block generation without 
       (error: unknown) => error instanceof CanvasCommandServiceError && error.code === expected,
     );
     assert.equal(starts, 0);
+    assert.equal(approvals, 0);
     assert.equal((await db("sc_canvas_v1_commands")).length, 0);
     assert.equal((await db("sc_canvas_v1_events")).length, 0);
   }
@@ -237,7 +375,7 @@ test("UI and Agent use the same SAVE_CANVAS_DOCUMENT command path and response-l
       },
     });
     const first = await service.execute(save);
-    const replay = await service.execute({ ...save, commandId: "25252525-2525-4525-8525-252525252525" });
+    const replay = await service.execute({ ...save, requestId: "req-save-replay" });
     assert.equal(first.status, "accepted");
     assert.equal(replay.replayed, true);
     const restored = await store.read({ scope, documentId });
