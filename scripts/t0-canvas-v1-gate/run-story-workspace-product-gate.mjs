@@ -17,11 +17,18 @@ if (!tsxCli) {
   process.exit(2);
 }
 const storyNodeModules = path.resolve(path.dirname(tsxCli), "../..");
-const productSentinel = path.join(
-  rootDir,
+const productSurfaces = [
+  "apps/storycanvas/src/services/storycanvas/canvas-v1/controlWorkspaceAuthorityClient.ts",
   "apps/storycanvas/src/services/storycanvas/canvas-v1/workspacePrepare.ts",
-);
-const productPresent = fs.existsSync(productSentinel);
+  "apps/storycanvas/src/services/storycanvas/canvas-v1/workspaceProjection.ts",
+  "apps/storycanvas/src/services/storycanvas/canvas-v1/controlAssetMaterializationClient.ts",
+  "apps/storycanvas/src/services/storycanvas/canvas-v1/assetMaterialization.ts",
+  "apps/storycanvas/src/services/storycanvas/canvas-v1/controlledMedia.ts",
+  "apps/storycanvas/src/routes/production/pilot/canvas/bootstrap-v1/index.ts",
+  "apps/storycanvas/src/routes/production/pilot/canvas/workspace/index.ts",
+  "apps/storycanvas/src/routes/production/pilot/canvas/media/index.ts",
+];
+const productPresent = productSurfaces.every((relativePath) => fs.existsSync(path.join(rootDir, relativePath)));
 const allowExpectedRed = process.argv.includes("--allow-expected-red") && !productPresent;
 
 const phases = [
@@ -42,7 +49,14 @@ const phases = [
   },
   {
     name: "CV6 Story formal workspace public runtime harness",
-    command: [process.execPath, tsxCli, "--test", "tests/e2e/canvas-v1/story-workspace-product.gate.test.ts"],
+    command: [
+      process.execPath,
+      tsxCli,
+      "--tsconfig",
+      path.join(rootDir, "apps/storycanvas/tsconfig.json"),
+      "--test",
+      "tests/e2e/canvas-v1/story-workspace-product.gate.test.ts",
+    ],
     expectedRed: allowExpectedRed,
     env: { NODE_PATH: storyNodeModules },
   },

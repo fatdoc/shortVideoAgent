@@ -6,10 +6,13 @@ import path from "node:path";
 import test from "node:test";
 
 import type { CanvasWorkspaceAuthorityRequestV01 } from "../../../apps/storycanvas/src/contracts/canvas-v1/workspaceMaterialization.js";
-import canvasV1Migration from "../../../apps/storycanvas/migrations/005_canvas_v1_asset_command.js";
+import * as migrationNamespace from "../../../apps/storycanvas/migrations/005_canvas_v1_asset_command.js";
 import * as pilotNamespace from "../../../apps/storycanvas/src/services/storycanvas/pilotCanvasCapability.js";
 
 const pilot = ((pilotNamespace as any).default ?? pilotNamespace) as typeof pilotNamespace;
+const canvasV1Migration = ((migrationNamespace as any).default?.default
+  ?? (migrationNamespace as any).default
+  ?? migrationNamespace) as { up(database: any): Promise<void> };
 
 const rootDir = process.cwd();
 const verifiedDepsRoot = process.env.CANVAS_V1_VERIFIED_DEPS_ROOT;
