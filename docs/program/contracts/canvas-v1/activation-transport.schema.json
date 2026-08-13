@@ -132,11 +132,7 @@
             "payload": { "type": "object" }
           }
         },
-        "expiresInSeconds": {
-          "type": "integer",
-          "minimum": 30,
-          "maximum": 300
-        },
+        "expiresInSeconds": { "const": 60 },
         "replayPolicy": { "const": "single_use_replay_same_command" }
       }
     },

@@ -88,6 +88,7 @@ test("approval prepare fingerprints the exact command submission", () => {
   assert.equal(canonical(prepare.action.payload), canonical(command.payload));
   assert.equal(prepare.packageId, command.packageId);
   assert.equal(prepare.canvasSessionId, command.canvasSessionId);
+  assert.equal(prepare.expiresInSeconds, 60);
   assert.equal(fixture.approvalPrepareResponse.approvalId, command.approvalId);
   assert.equal(prepare.replayPolicy, "single_use_replay_same_command");
 });
@@ -109,6 +110,18 @@ test("browser surfaces contain no raw idempotency or server authority fields", (
     fixture.commandDispatchRequest,
   ]) {
     walk(surface, (key) => assert.ok(!forbidden.has(key.toLowerCase()), `forbidden ${key}`));
+  }
+  for (const surface of [
+    fixture.activationResponse,
+    fixture.legacyOpenRequest,
+    fixture.legacyOpenResponse,
+    fixture.formalBootstrapResponse,
+    fixture.approvalPrepareRequest,
+    fixture.approvalPrepareResponse,
+    fixture.commandDispatchRequest,
+  ]) {
+    assert.equal(JSON.stringify(surface).includes("activationAttemptId"), false);
+    assert.equal(JSON.stringify(surface).includes(fixture.activationRequest.activationAttemptId), false);
   }
 });
 
