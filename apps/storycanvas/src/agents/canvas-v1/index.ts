@@ -26,4 +26,3 @@ export type {
   CanvasAgentToolName,
   CanvasAgentToolResult,
 } from "./types";
-

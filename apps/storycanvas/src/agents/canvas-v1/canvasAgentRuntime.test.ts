@@ -19,6 +19,7 @@ import {
   CanvasAgentPolicyError,
   CanvasAgentRuntime,
   buildCanvasAgentCommand,
+  canvasAgentContractScope,
   type CanvasAgentRuntimeOptions,
 } from ".";
 
@@ -30,6 +31,7 @@ const authority = {
   actorId: "12121212-1212-4212-8212-121212121212",
 } as const;
 const occurredAt = "2026-08-14T02:02:00.000Z";
+const contractScope = canvasAgentContractScope(authority);
 const assetId = "88888888-8888-4888-8888-888888888888";
 const entityId = "16161616-1616-4616-8616-161616161616";
 const shotId = "66666666-6666-4666-8666-666666666666";
@@ -40,7 +42,7 @@ const approvalId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const asset: AssetRecordV01 = {
   objectType: "AssetRecord",
   contractVersion: "0.1",
-  ...authority,
+  ...contractScope,
   assetId,
   category: "virtual_character",
   displayName: "门店讲解员",
@@ -67,7 +69,7 @@ const asset: AssetRecordV01 = {
 const requirement: ShotAssetRequirementV01 = {
   objectType: "ShotAssetRequirement",
   contractVersion: "0.1",
-  ...authority,
+  ...contractScope,
   requirementId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   shotId,
   assetCategory: "virtual_character",
@@ -89,7 +91,7 @@ function readiness(overrides: Partial<ShotReadinessV01> = {}): ShotReadinessV01 
   return {
     objectType: "ShotReadiness",
     contractVersion: "0.1",
-    ...authority,
+    ...contractScope,
     readinessId,
     shotId,
     ready: true,
@@ -277,6 +279,38 @@ test("high-cost tools cannot receive or mint approval and only host resume can d
   assert.deepEqual(commands[0].payload, pending.pendingAction?.payload);
 });
 
+test("validates a complete pending command before confirmation and exact-checks the host resume envelope", async () => {
+  const invalidCorrelation = new CanvasAgentRuntime(options({ randomId: () => "not-a-uuid" }));
+  await assert.rejects(
+    () => invalidCorrelation.invokeTool("generate_shot", {
+      shotId,
+      readinessId,
+      prompt: "门店入口介绍招牌套餐",
+      referenceAssetIds: [assetId],
+    }),
+    (error: unknown) => error instanceof CanvasAgentPolicyError && error.code === "CANVAS_AGENT_TOOL_INPUT_INVALID",
+  );
+
+  const runtime = new CanvasAgentRuntime(options());
+  const pending = await runtime.invokeTool("generate_shot", {
+    shotId,
+    readinessId,
+    prompt: "门店入口介绍招牌套餐",
+    referenceAssetIds: [assetId],
+  });
+  for (const confirmation of [
+    { commandId: pending.pendingAction!.commandId, approvalId, userConfirmed: true },
+    { commandId: pending.pendingAction!.commandId, approvalId, tenantId: authority.tenantId },
+    { commandId: pending.pendingAction!.commandId },
+  ]) {
+    await assert.rejects(
+      () => runtime.resumeApproved(confirmation),
+      (error: unknown) => error instanceof CanvasAgentPolicyError && error.code === "CANVAS_AGENT_CONFIRMATION_INVALID",
+    );
+  }
+  assert.equal(JSON.stringify(pending).includes("00000000-0000-4000-8000-000000000001"), false);
+});
+
 test("Agent commands pass the frozen parser and are structurally identical to the UI command shape", () => {
   const agent = buildCanvasAgentCommand({
     authority,
@@ -289,7 +323,7 @@ test("Agent commands pass the frozen parser and are structurally identical to th
   });
   const parsed = parseCanvasV1BrowserContract(agent);
   assert.equal(parsed.objectType, "CanvasCommand");
-  const fixturePath = path.resolve(process.cwd(), "../../docs/program/contracts/canvas-v1/fixtures/canvas-command.json");
+  const fixturePath = path.resolve(__dirname, "../../../../../docs/program/contracts/canvas-v1/fixtures/canvas-command.json");
   const uiFixture = JSON.parse(fs.readFileSync(fixturePath, "utf8")) as CanvasCommandV01;
   assert.deepEqual(Object.keys(agent).sort(), Object.keys(uiFixture).sort());
   assert.deepEqual(Object.keys(agent.payload).sort(), Object.keys(uiFixture.payload).sort());
@@ -297,6 +331,43 @@ test("Agent commands pass the frozen parser and are structurally identical to th
     { ...agent, requestSource: "user" },
     uiFixture,
   );
+});
+
+test("enforces exact approval policy for all five high-cost commands while low-cost sync and save dispatch directly", async () => {
+  const commands: CanvasCommandV01[] = [];
+  const runtime = new CanvasAgentRuntime(options({
+    ports: {
+      ...options().ports,
+      executeCanvasCommand: async (command) => { commands.push(command); return event(command); },
+    },
+  }));
+  const highCost: Array<[string, Record<string, unknown>, string]> = [
+    ["create_virtual_character", { assetId, entityId, prompt: "稳定的虚拟讲解员设定" }, "CREATE_VIRTUAL_CHARACTER"],
+    ["bind_asset_to_entity", { assetId, entityId }, "BIND_ASSET_TO_ENTITY"],
+    ["generate_shot", { shotId, readinessId, prompt: "门店入口介绍套餐", referenceAssetIds: [assetId] }, "GENERATE_SHOT"],
+    ["select_shot_output", { shotId, outputAssetId: "13131313-1313-4313-8313-131313131313", documentId, expectedVersion: 4 }, "SELECT_SHOT_OUTPUT"],
+    ["export_playlist", { documentId, expectedVersion: 4 }, "EXPORT_PLAYLIST"],
+  ];
+  for (const [tool, input, commandType] of highCost) {
+    const pending = await runtime.invokeTool(tool, input);
+    assert.equal(pending.status, "confirmation_required");
+    assert.equal(pending.pendingAction?.commandType, commandType);
+  }
+  assert.equal(commands.length, 0);
+
+  const sync = await runtime.invokeTool("sync_provider_asset", { assetId });
+  assert.equal(sync.status, "dispatched");
+  const save = await runtime.invokeTool("save_canvas_document", {
+    documentId,
+    expectedVersion: 4,
+    shots: [{ shotId, position: 0, selectedOutputAssetId: null, prompt: "门店入口介绍套餐", updatedAt: occurredAt }],
+    playlist: { shotIds: [shotId] },
+  });
+  assert.equal(save.status, "dispatched");
+  assert.deepEqual(commands.map((command) => [command.commandType, command.approvalId]), [
+    ["SYNC_PROVIDER_ASSET", null],
+    ["SAVE_CANVAS_DOCUMENT", null],
+  ]);
 });
 
 test("cross-scope and forbidden read-port values fail closed without leaking raw values", async () => {
@@ -318,6 +389,28 @@ test("cross-scope and forbidden read-port values fail closed without leaking raw
       },
     );
   }
+});
+
+test("projects host authority to the four-field contract scope and rejects leaked actorId", async () => {
+  assert.deepEqual(contractScope, {
+    tenantId: authority.tenantId,
+    projectId: authority.projectId,
+    packageId: authority.packageId,
+    canvasSessionId: authority.canvasSessionId,
+  });
+  assert.equal("actorId" in contractScope, false);
+  const runtime = new CanvasAgentRuntime(options());
+  const valid = await runtime.invokeTool("list_project_assets", {});
+  assert.equal(valid.status, "ok");
+
+  const leaked = { ...asset, actorId: authority.actorId };
+  const unsafe = new CanvasAgentRuntime(options({
+    ports: { ...options().ports, listProjectAssets: async () => [leaked] },
+  }));
+  await assert.rejects(
+    () => unsafe.invokeTool("list_project_assets", {}),
+    (error: unknown) => error instanceof CanvasAgentPolicyError && error.code === "CANVAS_AGENT_OUTPUT_UNSAFE",
+  );
 });
 
 test("response-loss retries the complete identical command and the common service starts production once", async (context) => {
@@ -408,8 +501,8 @@ test("production Agent modules cannot reach legacy agents, database, provider, m
     "u.vendor",
     "byteplus",
     "seedance",
-    "asset://",
   ]) {
     assert.equal(source.includes(marker), false, `forbidden architecture marker: ${marker}`);
   }
+  assert.equal(/['"]asset:\/\//u.test(source), false, "internal URI must not be a product-code literal");
 });
