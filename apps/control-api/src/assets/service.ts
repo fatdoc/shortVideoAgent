@@ -25,10 +25,12 @@ import type {
   TransitionAssetApprovalInput,
   TransitionAssetRightsInput,
 } from './types.js';
+import type { CanvasAssetSessionVerifier } from './sessionTypes.js';
 
 type ServiceOptions = {
   now?: () => Date;
   newId?: (kind: 'asset' | 'approval') => string;
+  sessionAuthority?: CanvasAssetSessionVerifier;
 };
 
 const rightsTransitions: Record<AssetRightsStatus, readonly AssetRightsStatus[]> = {
@@ -121,6 +123,7 @@ function notFound(): never {
 export class CanvasAssetAuthorityService {
   private readonly now: () => Date;
   private readonly newId: (kind: 'asset' | 'approval') => string;
+  private readonly sessionAuthority: CanvasAssetSessionVerifier | undefined;
 
   constructor(
     private readonly store: CanvasAssetAuthorityStore,
@@ -132,6 +135,25 @@ export class CanvasAssetAuthorityService {
     }
     this.now = options.now ?? (() => new Date());
     this.newId = options.newId ?? (() => randomUUID());
+    this.sessionAuthority = options.sessionAuthority;
+  }
+
+  private async assertActiveSession(
+    actor: SessionActorScope,
+    projectId: string,
+    packageId: string,
+    canvasSessionId: string,
+  ): Promise<void> {
+    if (!this.sessionAuthority) {
+      throw canvasAssetError('CANVAS_SESSION_INVALID', 'Canvas session authority is unavailable.');
+    }
+    await this.sessionAuthority.assertActiveSession({
+      tenantId: parseUuid(actor.tenantId),
+      projectId: parseUuid(projectId),
+      packageId,
+      canvasSessionId,
+      actorId: parseUuid(actor.userId),
+    });
   }
 
   async createAsset(
@@ -143,6 +165,12 @@ export class CanvasAssetAuthorityService {
     const tenantId = parseUuid(actor.tenantId);
     const projectId = parseUuid(projectIdInput);
     const declaredByActorId = parseUuid(actor.userId);
+    await this.assertActiveSession(
+      actor,
+      projectId,
+      input.packageId,
+      input.canvasSessionId,
+    );
     const declaredAt = time(this.now);
     const rightsValidFrom = input.rights.validFrom ? new Date(input.rights.validFrom) : null;
     const rightsValidUntil = input.rights.validUntil ? new Date(input.rights.validUntil) : null;
@@ -295,11 +323,18 @@ export class CanvasAssetAuthorityService {
     inputValue: CreateHighCostApprovalInput,
   ): Promise<HighCostApprovalProjection> {
     const input = parseCreateHighCostApprovalInput(inputValue);
+    const projectId = parseUuid(projectIdInput);
+    await this.assertActiveSession(
+      actor,
+      projectId,
+      input.packageId,
+      input.canvasSessionId,
+    );
     const confirmedAt = time(this.now);
     const value = await this.store.createHighCostApproval({
       approvalId: parseUuid(this.newId('approval')),
       tenantId: parseUuid(actor.tenantId),
-      projectId: parseUuid(projectIdInput),
+      projectId,
       packageId: input.packageId,
       canvasSessionId: input.canvasSessionId,
       actorId: parseUuid(actor.userId),

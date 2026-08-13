@@ -27,7 +27,9 @@ class MemorySessionStore implements CanvasAssetSessionAuthorityStore {
   async registerSession(input: Parameters<CanvasAssetSessionAuthorityStore['registerSession']>[0]) {
     this.registerCalls += 1;
     if (this.value) {
-      const same = Object.entries(scope).every(
+      const same = Object.entries(input)
+        .filter(([key]) => key !== 'registeredAt')
+        .every(
         ([key, value]) => this.value?.[key as keyof CanvasAssetSessionAuthority] === value,
       );
       if (!same) return { kind: 'conflict' as const };

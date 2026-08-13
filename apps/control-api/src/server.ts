@@ -49,6 +49,9 @@ import { MemberDirectoryService } from './members/service.js';
 import { PostgresCanvasAssetAuthorityRepository } from './assets/repository.js';
 import { CanvasAssetAuthorityService } from './assets/service.js';
 import { createCanvasAssetRouter } from './assets/routes.js';
+import { createInternalCanvasAssetSessionRouter } from './assets/internalSessionRoutes.js';
+import { PostgresCanvasAssetSessionAuthorityRepository } from './assets/sessionRepository.js';
+import { CanvasAssetSessionAuthorityService } from './assets/sessionService.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -141,10 +144,18 @@ const memberDirectoryRouter = createMemberDirectoryRouter({
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
 const projectPolicy = new PostgresProjectPolicy(database);
+const canvasAssetSessionAuthorityService = new CanvasAssetSessionAuthorityService(
+  new PostgresCanvasAssetSessionAuthorityRepository(database),
+);
 const canvasAssetAuthorityService = new CanvasAssetAuthorityService(
   new PostgresCanvasAssetAuthorityRepository(database),
   config.canvasApprovalFingerprintSecret,
+  { sessionAuthority: canvasAssetSessionAuthorityService },
 );
+const internalCanvasAssetSessionRouter = createInternalCanvasAssetSessionRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: canvasAssetSessionAuthorityService,
+});
 const assetRouter = createCanvasAssetRouter({
   service: canvasAssetAuthorityService,
   policy: projectPolicy,
@@ -209,6 +220,7 @@ const app = createApp({
   registrationRouter,
   internalProductionRouter,
   internalCanvasEntryRouter,
+  internalCanvasAssetSessionRouter,
   contentRouter,
   storyboardRouter,
   productionRouter,

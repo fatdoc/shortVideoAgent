@@ -12,6 +12,7 @@ export type ControlApiDependencies = {
   registrationRouter?: Router;
   internalProductionRouter?: Router;
   internalCanvasEntryRouter?: Router;
+  internalCanvasAssetSessionRouter?: Router;
   contentRouter?: Router;
   storyboardRouter?: Router;
   productionRouter?: Router;
@@ -72,6 +73,9 @@ export function createApp(dependencies: ControlApiDependencies) {
   }
   if (dependencies.internalCanvasEntryRouter) {
     app.use('/api/v1/internal', dependencies.internalCanvasEntryRouter);
+  }
+  if (dependencies.internalCanvasAssetSessionRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasAssetSessionRouter);
   }
   if (dependencies.contentRouter) app.use('/api/v1', dependencies.contentRouter);
   if (dependencies.storyboardRouter) app.use('/api/v1', dependencies.storyboardRouter);
