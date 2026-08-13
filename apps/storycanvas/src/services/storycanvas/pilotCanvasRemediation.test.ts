@@ -121,13 +121,14 @@ test("authority registry deduplicates, purges expiry, bounds capacity and clears
   const fakeClient = {
     redeem: async (input: PilotCanvasEntryReference) => {
       redeemCalls += 1;
+      const expiresAt = new Date(currentTime + 10 * 60 * 1_000).toISOString();
       return {
         handle: input.handle,
         tenantId: input.tenantId,
         projectId: input.projectId,
         packageId: input.packageId,
-        grant: { expiresAt: "2026-08-12T01:10:00.000Z" },
-        productionPackage: { expiresAt: "2026-08-12T01:10:00.000Z" },
+        grant: { expiresAt },
+        productionPackage: { expiresAt },
       };
     },
   };

@@ -18,12 +18,14 @@ import { ensureThumbnail, ThumbnailSize } from "@/utils/image";
 import { databaseReady, db } from "@/utils/db";
 import { initializeModels } from "@/config/initializeModels";
 import { capturePilotV02RawBody } from "@/routes/production/v0.2";
-import { getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
-import pilotCanvasBootstrapRouter from "@/routes/production/pilot/canvas/bootstrap";
+import { closePilotCanvasRuntimeResources, getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
+import pilotCanvasBootstrapRouter, { clearPilotCanvasAuthorityRegistry } from "@/routes/production/pilot/canvas/bootstrap";
 import pilotCanvasCapabilityRouter from "@/routes/production/pilot/canvas/capability";
 
 const app = express();
 const server = http.createServer(app);
+let socketServer: Server | null = null;
+let webSocketServer: ReturnType<typeof expressWs>["getWss"] extends () => infer T ? T | null : never = null;
 
 function installPilotCanvasRequestBoundary() {
   app.use("/api/production/pilot/canvas/bootstrap", pilotCanvasBootstrapRouter);
@@ -67,11 +69,13 @@ export default async function startServe(randomPort: Boolean = false) {
 
   await u.writeVersion();
   const io = new Server(server, { cors: { origin: "*" } });
+  socketServer = io;
   socketInit(io);
 
   if (process.env.NODE_ENV == "dev") await buildRoute();
 
-  expressWs(app);
+  const ws = expressWs(app, server);
+  webSocketServer = ws.getWss();
 
   app.use(logger("dev"));
   const corsOptions: CorsOptionsDelegate<Request> = (request, callback) => {
@@ -253,20 +257,18 @@ export default async function startServe(randomPort: Boolean = false) {
 }
 
 // 支持await关闭
-export function closeServe(timeoutMs = 5000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (server.listening) {
-      const timer = setTimeout(() => server.closeAllConnections(), timeoutMs);
-      server.close((err?: Error) => {
-        clearTimeout(timer);
-        if (err) return reject(err);
-        console.log("PILOT_CANVAS_RUNTIME_STOPPED");
-        resolve();
-      });
-    } else {
-      resolve();
-    }
+export async function closeServe(timeoutMs = 5000, signal: "SIGTERM" | "SIGINT" = "SIGTERM"): Promise<void> {
+  await closePilotCanvasRuntimeResources({
+    signal,
+    timeoutMs,
+    registry: { clear: clearPilotCanvasAuthorityRegistry },
+    http: server,
+    socketIo: socketServer,
+    webSocket: webSocketServer,
   });
+  socketServer = null;
+  webSocketServer = null;
+  console.log("PILOT_CANVAS_RUNTIME_STOPPED");
 }
 
 const isElectron =
@@ -277,11 +279,16 @@ if (!isElectron) {
     console.error("PILOT_CANVAS_RUNTIME_BLOCKED");
     process.exitCode = 1;
   });
-  const shutdown = () => {
-    void closeServe(5000).finally(() => {
+  let shuttingDown = false;
+  const shutdown = (signal: "SIGTERM" | "SIGINT") => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    void closeServe(5000, signal).then(() => {
       process.exitCode = 0;
+    }).catch(() => {
+      process.exitCode = 1;
     });
   };
-  process.once("SIGTERM", shutdown);
-  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }
