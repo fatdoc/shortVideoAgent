@@ -11,6 +11,8 @@ describe('loadConfig', () => {
     CANVAS_APPROVAL_FINGERPRINT_SECRET:
       'independent-canvas-approval-fingerprint-secret-for-tests',
     CANVAS_ASSET_CSRF_SECRET: 'independent-canvas-asset-csrf-secret-for-tests',
+    CANVAS_ACTIVATION_IDEMPOTENCY_SECRET:
+      'independent-canvas-activation-idempotency-secret-for-tests',
     CANVAS_ASSET_ALLOWED_ORIGINS: 'https://pilot.example.test',
   };
 
@@ -31,6 +33,7 @@ describe('loadConfig', () => {
     expect(config.registrationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
     expect(config.rechargePaymentDigestSecret.length).toBeGreaterThanOrEqual(32);
     expect(config.testPaymentInternalToken.length).toBeGreaterThanOrEqual(32);
+    expect(config.canvasActivationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
     expect(config.rechargePaymentDigestSecret).not.toBe(config.testPaymentInternalToken);
     expect(config.registrationMaxAttempts).toBe(5);
     expect(config.registrationWindowSeconds).toBe(900);
@@ -123,6 +126,14 @@ describe('loadConfig', () => {
     expect(() =>
       loadConfig({
         ...production,
+        CANVAS_APPROVAL_FINGERPRINT_SECRET:
+          'independent-canvas-approval-fingerprint-secret-for-tests',
+        CANVAS_ASSET_CSRF_SECRET: 'independent-canvas-asset-csrf-secret-for-tests',
+      }),
+    ).toThrow('CANVAS_ACTIVATION_IDEMPOTENCY_SECRET');
+    expect(() =>
+      loadConfig({
+        ...production,
         ...canvasAuthorityConfig,
         CANVAS_ASSET_ALLOWED_ORIGINS: 'https://user:secret@pilot.example.test',
       }),
@@ -149,6 +160,28 @@ describe('loadConfig', () => {
         CANVAS_ASSET_CSRF_SECRET: 'shared-canvas-authority-secret-with-enough-bytes',
       }),
     ).toThrow('Canvas authority secrets must be independent');
+    for (const reusedSecret of [
+      projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
+      projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
+      canvasAuthorityConfig.CANVAS_APPROVAL_FINGERPRINT_SECRET,
+      canvasAuthorityConfig.CANVAS_ASSET_CSRF_SECRET,
+    ]) {
+      expect(() =>
+        loadConfig({
+          NODE_ENV: 'test',
+          ...projectGrantConfig,
+          ...canvasAuthorityConfig,
+          CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: reusedSecret,
+        }),
+      ).toThrow('Canvas authority secrets must be independent');
+    }
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: 'too-short',
+      }),
+    ).toThrow('at least 32 bytes');
   });
 
   it('rejects Payment secret reuse across security boundaries', () => {
