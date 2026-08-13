@@ -64,4 +64,24 @@ describe('Control API Canvas Asset router registration', () => {
       request(app).post('/api/v1/canvas-assets/materializations').send({}),
     ).resolves.toMatchObject({ status: 404, body: { error: { code: 'ROUTE_NOT_FOUND' } } });
   });
+
+  it('mounts workspace authority only under the internal boundary', async () => {
+    const internalCanvasWorkspaceAuthorityRouter = Router();
+    internalCanvasWorkspaceAuthorityRouter.post(
+      '/canvas-workspace-authorities',
+      (_request, response) => response.status(200).json({ mounted: true }),
+    );
+    const app = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      internalCanvasWorkspaceAuthorityRouter,
+    });
+    await expect(
+      request(app).post('/api/v1/internal/canvas-workspace-authorities').send({}),
+    ).resolves.toMatchObject({ status: 200, body: { mounted: true } });
+    await expect(
+      request(app).post('/api/v1/canvas-workspace-authorities').send({}),
+    ).resolves.toMatchObject({ status: 404, body: { error: { code: 'ROUTE_NOT_FOUND' } } });
+  });
 });
