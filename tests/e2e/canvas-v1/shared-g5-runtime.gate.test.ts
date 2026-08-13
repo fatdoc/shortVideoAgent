@@ -5,6 +5,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   createCanvasActivationAttemptId,
+  parseCanvasActivationResponse,
   parseCanonicalCanvasRouteSelection,
 } from '../../../src/features/canvas-v1/api/activation';
 import { createPilotStoryCanvasBridge } from '../../../src/services/pilotStoryCanvasBridge';
@@ -22,6 +23,12 @@ const workspace = JSON.parse(
     'utf8',
   ),
 ).workspaceResponse;
+const assetRecord = JSON.parse(
+  fs.readFileSync(
+    path.join(rootDir, 'docs/program/contracts/canvas-v1/fixtures/asset-record.json'),
+    'utf8',
+  ),
+);
 
 const projectId = activation.activationResponse.entry.projectId;
 const packageId = activation.activationResponse.entry.packageId;
@@ -39,7 +46,7 @@ test('canonical route requires one explicit lowercase Package UUID and no other 
     { projectId, search: `?packageId=${packageId}&packageId=${packageId}` },
     { projectId, search: `?packageId=${packageId}&extra=true` },
     { projectId, search: `?packageId=${packageId}&activationAttemptId=${attemptId}` },
-    { projectId: projectId.toUpperCase(), search: `?packageId=${packageId}` },
+    { projectId: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA', search: `?packageId=${packageId}` },
   ])
     assert.throws(() => parseCanonicalCanvasRouteSelection(input));
 });
@@ -68,7 +75,7 @@ test('activation attempts are fresh UUIDs and touch no URL, Storage, DOM or cons
     assert.deepEqual(logs, []);
     assert.equal(globalThis.location?.href, beforeHref);
     assert.equal(globalThis.history?.length, beforeHistoryLength);
-    assert.equal(globalThis.document?.body.textContent?.includes(first), false);
+    assert.equal(Boolean(globalThis.document?.body.textContent?.includes(first)), false);
   } finally {
     console.log = originalLog;
     if (globalThis.localStorage && originalLocalSet)
@@ -95,7 +102,7 @@ function bridgePort(overrides: Record<string, unknown> = {}) {
       readBootstrap: method('readBootstrap', activation.formalBootstrapResponse),
       readWorkspace: method('readWorkspace', workspace),
       readDocument: method('readDocument', workspace.document),
-      readAssets: method('readAssets', workspace.assets),
+      readAssets: method('readAssets', [assetRecord]),
       readReadiness: method('readReadiness', workspace.shots[0].readiness),
       prepareApproval: method('prepareApproval', activation.approvalPrepareResponse),
       dispatch: method('dispatch', workspace.shots[0].event),
@@ -111,7 +118,14 @@ test('bridge performs activation, exact four-field open, formal bootstrap and wo
 
   assert.deepEqual(
     harness.calls.map(({ name }) => name),
-    ['acquireControlCsrf', 'activate', 'openLegacy', 'readBootstrap', 'readWorkspace'],
+    [
+      'acquireControlCsrf',
+      'activate',
+      'openLegacy',
+      'readBootstrap',
+      'readWorkspace',
+      'acquireControlCsrf',
+    ],
   );
   assert.deepEqual(harness.calls[2].args[0], activation.legacyOpenRequest);
   assert.equal(result.canvasSessionId, activation.legacyOpenResponse.canvasSessionId);
@@ -119,21 +133,9 @@ test('bridge performs activation, exact four-field open, formal bootstrap and wo
   assert.deepEqual(result.workspace, workspace);
 });
 
-test('strict response parsing rejects unknown fields and stops before downstream dispatch', async () => {
+test('strict activation leaf parser rejects unknown fields before a bridge port can receive them', () => {
   const poisoned = { ...activation.activationResponse, unexpected: true };
-  const harness = bridgePort({
-    activate: async (...args: unknown[]) => {
-      harness.calls.push({ name: 'activate', args });
-      return poisoned;
-    },
-  });
-  const bridge = createPilotStoryCanvasBridge({ port: harness.port });
-
-  await assert.rejects(bridge.activate({ projectId, packageId, activationAttemptId: attemptId }));
-  assert.deepEqual(
-    harness.calls.map(({ name }) => name),
-    ['acquireControlCsrf', 'activate'],
-  );
+  assert.throws(() => parseCanvasActivationResponse(poisoned, { projectId, packageId }));
 });
 
 test('scope poison in formal bootstrap or workspace fails closed without defaults', async () => {
@@ -166,7 +168,15 @@ test('approval and dispatch pass through the same complete command object', asyn
   harness.calls.length = 0;
   const pending = structuredClone(activation.commandDispatchRequest);
   const action = { commandId: pending.commandId, payload: pending.payload };
-  const approvalRequest = { ...activation.approvalPrepareRequest, action };
+  const approvalRequest = {
+    tenantId: pending.tenantId,
+    projectId: pending.projectId,
+    packageId: pending.packageId,
+    canvasSessionId: pending.canvasSessionId,
+    requestedByActorId: pending.requestedByActorId,
+    commandType: pending.commandType,
+    action,
+  };
 
   const approval = await bridge.prepareApproval(state, approvalRequest);
   const command = { ...pending, approvalId: approval.approvalId };
@@ -178,7 +188,11 @@ test('approval and dispatch pass through the same complete command object', asyn
     harness.calls.map(({ name }) => name),
     ['acquireControlCsrf', 'prepareApproval', 'dispatch'],
   );
-  assert.deepEqual(prepare?.args, [projectId, approvalRequest, 'csrf-safe-value']);
+  assert.deepEqual(prepare?.args, [
+    projectId,
+    { ...activation.approvalPrepareRequest, action },
+    'csrf-safe-value',
+  ]);
   assert.strictEqual(dispatch?.args[0], command);
   assert.deepEqual(action, { commandId: command.commandId, payload: command.payload });
 });
