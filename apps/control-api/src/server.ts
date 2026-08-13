@@ -53,6 +53,7 @@ import { createInternalCanvasAssetSessionRouter } from './assets/internalSession
 import { PostgresCanvasAssetSessionAuthorityRepository } from './assets/sessionRepository.js';
 import { CanvasAssetSessionAuthorityService } from './assets/sessionService.js';
 import { createInternalCanvasApprovalRouter } from './assets/internalApprovalRoutes.js';
+import { CanvasActivationService } from './assets/activationService.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -161,15 +162,6 @@ const internalCanvasApprovalRouter = createInternalCanvasApprovalRouter({
   internalToken: config.productionPlaneInternalToken,
   service: canvasAssetAuthorityService,
 });
-const assetRouter = createCanvasAssetRouter({
-  service: canvasAssetAuthorityService,
-  policy: projectPolicy,
-  resolveSession: (token) => authService.resolve(token),
-  secureCookies: config.nodeEnv === 'production',
-  sessionTtlSeconds: config.sessionTtlSeconds,
-  allowedOrigins: config.canvasAssetAllowedOrigins,
-  csrfSecret: config.canvasAssetCsrfSecret,
-});
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
   policy: projectPolicy,
@@ -204,6 +196,20 @@ const canvasEntryService = new CanvasEntryService(
   new PostgresCanvasEntryRepository(database, undefined, undefined, productionStore),
   config.rechargePaymentDigestSecret,
 );
+const canvasActivationService = new CanvasActivationService(
+  canvasEntryService,
+  config.canvasActivationIdempotencySecret,
+);
+const assetRouter = createCanvasAssetRouter({
+  service: canvasAssetAuthorityService,
+  activationService: canvasActivationService,
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+  allowedOrigins: config.canvasAssetAllowedOrigins,
+  csrfSecret: config.canvasAssetCsrfSecret,
+});
 const internalCanvasEntryRouter = createInternalCanvasEntryRouter({
   internalToken: config.productionPlaneInternalToken,
   service: canvasEntryService,

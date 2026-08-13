@@ -11,6 +11,8 @@ const DEVELOPMENT_CANVAS_APPROVAL_FINGERPRINT_SECRET =
   'local-canvas-approval-fingerprint-only-change-before-deploying';
 const DEVELOPMENT_CANVAS_ASSET_CSRF_SECRET =
   'local-canvas-asset-csrf-only-change-before-deploying';
+const DEVELOPMENT_CANVAS_ACTIVATION_IDEMPOTENCY_SECRET =
+  'local-canvas-activation-idempotency-only-change-before-deploying';
 const DEVELOPMENT_CANVAS_ASSET_ALLOWED_ORIGINS =
   'http://127.0.0.1:5173,http://localhost:5173';
 const secretWithAtLeast32Bytes = z
@@ -43,6 +45,7 @@ const environmentSchema = z.object({
   TEST_PAYMENT_INTERNAL_TOKEN: secretWithAtLeast32Bytes.optional(),
   CANVAS_APPROVAL_FINGERPRINT_SECRET: secretWithAtLeast32Bytes.optional(),
   CANVAS_ASSET_CSRF_SECRET: secretWithAtLeast32Bytes.optional(),
+  CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: secretWithAtLeast32Bytes.optional(),
   CANVAS_ASSET_ALLOWED_ORIGINS: z.string().min(1).optional(),
   REGISTRATION_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(1_000).default(5),
   REGISTRATION_WINDOW_SECONDS: z.coerce.number().int().min(10).max(86_400).default(900),
@@ -74,6 +77,7 @@ export type ControlApiConfig = {
   testPaymentInternalToken: string;
   canvasApprovalFingerprintSecret: string;
   canvasAssetCsrfSecret: string;
+  canvasActivationIdempotencySecret: string;
   canvasAssetAllowedOrigins: string[];
   registrationMaxAttempts: number;
   registrationWindowSeconds: number;
@@ -95,6 +99,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     parsed.CANVAS_APPROVAL_FINGERPRINT_SECRET ?? DEVELOPMENT_CANVAS_APPROVAL_FINGERPRINT_SECRET;
   const canvasAssetCsrfSecret =
     parsed.CANVAS_ASSET_CSRF_SECRET ?? DEVELOPMENT_CANVAS_ASSET_CSRF_SECRET;
+  const canvasActivationIdempotencySecret =
+    parsed.CANVAS_ACTIVATION_IDEMPOTENCY_SECRET ??
+    DEVELOPMENT_CANVAS_ACTIVATION_IDEMPOTENCY_SECRET;
   const canvasAssetAllowedOrigins = (
     parsed.CANVAS_ASSET_ALLOWED_ORIGINS ?? DEVELOPMENT_CANVAS_ASSET_ALLOWED_ORIGINS
   )
@@ -151,6 +158,12 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     throw new Error('CANVAS_ASSET_CSRF_SECRET must be explicitly configured in production');
   }
 
+  if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_ACTIVATION_IDEMPOTENCY_SECRET) {
+    throw new Error(
+      'CANVAS_ACTIVATION_IDEMPOTENCY_SECRET must be explicitly configured in production',
+    );
+  }
+
   if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_ASSET_ALLOWED_ORIGINS) {
     throw new Error('CANVAS_ASSET_ALLOWED_ORIGINS must be explicitly configured in production');
   }
@@ -202,10 +215,14 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     rechargePaymentDigestSecret,
     testPaymentInternalToken,
   ];
+  const canvasAuthoritySecrets = [
+    canvasApprovalFingerprintSecret,
+    canvasAssetCsrfSecret,
+    canvasActivationIdempotencySecret,
+  ];
   if (
-    allExistingSecrets.includes(canvasApprovalFingerprintSecret) ||
-    allExistingSecrets.includes(canvasAssetCsrfSecret) ||
-    canvasApprovalFingerprintSecret === canvasAssetCsrfSecret
+    canvasAuthoritySecrets.some((secret) => allExistingSecrets.includes(secret)) ||
+    new Set(canvasAuthoritySecrets).size !== canvasAuthoritySecrets.length
   ) {
     throw new Error('Canvas authority secrets must be independent from all other security secrets');
   }
@@ -233,6 +250,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     testPaymentInternalToken,
     canvasApprovalFingerprintSecret,
     canvasAssetCsrfSecret,
+    canvasActivationIdempotencySecret,
     canvasAssetAllowedOrigins,
     registrationMaxAttempts: parsed.REGISTRATION_MAX_ATTEMPTS,
     registrationWindowSeconds: parsed.REGISTRATION_WINDOW_SECONDS,

@@ -168,6 +168,18 @@ describe('Control Canvas activation facade HTTP contract', () => {
       .send({ activationAttemptId });
     expect(rawHeader.status).toBe(400);
     expect(rawHeader.body.error.code).toBe('CANVAS_SCHEMA_INVALID');
+    const queryAttempt = await guarded(
+      request(app).post(`${activationPath}?activationAttemptId=${activationAttemptId}`),
+    ).send({ activationAttemptId });
+    expect(queryAttempt.status).toBe(400);
+    expect(queryAttempt.body.error.code).toBe('CANVAS_SCHEMA_INVALID');
+    const malformedPackage = await guarded(
+      request(app).post(
+        `/api/v1/projects/${projectId}/production-packages/not-a-uuid/canvas-activation`,
+      ),
+    ).send({ activationAttemptId });
+    expect(malformedPackage.status).toBe(400);
+    expect(malformedPackage.body.error.code).toBe('CANVAS_SCHEMA_INVALID');
     expect(activationService.activate).not.toHaveBeenCalled();
   });
 

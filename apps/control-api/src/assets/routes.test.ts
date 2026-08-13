@@ -105,8 +105,25 @@ function harness(
       status: 'active',
     })),
   };
+  const activationService = {
+    activate: vi.fn(async () => ({
+      entry: {
+        objectType: 'CanvasEntry' as const,
+        contractVersion: '0.2' as const,
+        handle: `ce_${'A'.repeat(32)}`,
+        tenantId: session.tenant!.id,
+        projectId,
+        packageId,
+        state: 'active' as const,
+        issuedAt: '2026-08-14T02:00:00.000Z',
+        expiresAt: '2026-08-14T02:02:00.000Z',
+      },
+      replayed: false,
+    })),
+  };
   const router = createCanvasAssetRouter({
     service,
+    activationService,
     policy: {
       canCreateProject: async () => true,
       listVisibleProjectIds: async () => null,

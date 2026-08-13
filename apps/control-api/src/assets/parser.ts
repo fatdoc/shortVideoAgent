@@ -156,6 +156,12 @@ const transitionApprovalSchema = z
   .object({ status: z.enum(['approved', 'rejected', 'revoked']) })
   .strict();
 
+const canvasActivationSchema = z
+  .object({ activationAttemptId: uuid })
+  .strict();
+
+export type CanvasActivationInput = z.infer<typeof canvasActivationSchema>;
+
 const jsonValue: z.ZodType<unknown> = z.lazy(() =>
   z.union([
     z.string().max(4000),
@@ -325,6 +331,10 @@ export function parseConsumeHighCostApprovalInput(value: unknown): ConsumeHighCo
 export function parseHighCostApprovalProjection(value: unknown): HighCostApprovalProjection {
   assertBrowserSafeAssetProjection(value);
   return parse(highCostApprovalProjectionSchema, value);
+}
+
+export function parseCanvasActivationInput(value: unknown): CanvasActivationInput {
+  return parse(canvasActivationSchema, value);
 }
 
 export function parseUuid(value: unknown): string {

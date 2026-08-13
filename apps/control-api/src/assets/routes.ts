@@ -3,11 +3,17 @@ import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import { readCookie, SESSION_COOKIE_NAME } from '../auth/session.js';
 import type { PublicSession } from '../auth/service.js';
+import {
+  CanvasEntryDomainError,
+  safeCanvasEntryError,
+} from '../canvasEntries/errors.js';
+import { parseCanvasEntryPublicDto } from '../canvasEntries/parser.js';
 import { allowsProjectAction, type ProjectPolicy } from '../projects/policy.js';
 import type { SessionActor } from '../projects/types.js';
 import { CANVAS_ASSET_ERROR_STATUS, CanvasAssetDomainError } from './errors.js';
 import {
   assertBrowserSafeAssetProjection,
+  parseCanvasActivationInput,
   parseAssetRecordProjection,
   parseCreateAssetInput,
   parseCreateHighCostApprovalInput,
@@ -17,6 +23,7 @@ import {
   parseUuid,
 } from './parser.js';
 import type { CanvasAssetAuthorityService } from './service.js';
+import type { CanvasActivationService } from './activationService.js';
 
 export type CanvasAssetRouteService = Pick<
   CanvasAssetAuthorityService,
@@ -33,6 +40,7 @@ type SessionResolution = { token?: string; session: PublicSession };
 
 export type CanvasAssetRouterOptions = {
   service: CanvasAssetRouteService;
+  activationService: Pick<CanvasActivationService, 'activate'>;
   policy: ProjectPolicy;
   resolveSession: (token: string) => Promise<SessionResolution | null>;
   secureCookies: boolean;
@@ -56,6 +64,18 @@ function publicError(response: AssetResponse, status: number, code: string, mess
 
 function domainError(response: AssetResponse, caught: CanvasAssetDomainError): void {
   publicError(response, CANVAS_ASSET_ERROR_STATUS[caught.code], caught.code, caught.message);
+}
+
+function entryDomainError(response: AssetResponse, caught: CanvasEntryDomainError): void {
+  const safe = safeCanvasEntryError(caught);
+  response.status(safe.status).json({
+    error: {
+      code: safe.code,
+      message: safe.message,
+      retryable: safe.retryable,
+      requestId: response.locals.requestId,
+    },
+  });
 }
 
 function internalError(response: AssetResponse): void {
@@ -211,6 +231,7 @@ function endpoint(
       await handler(request, response);
     } catch (caught) {
       if (caught instanceof CanvasAssetDomainError) domainError(response, caught);
+      else if (caught instanceof CanvasEntryDomainError) entryDomainError(response, caught);
       else internalError(response);
     }
   };
@@ -227,6 +248,7 @@ export function createCanvasAssetRouter(options: CanvasAssetRouterOptions): Rout
   const roots = [
     '/projects/:projectId/canvas-assets',
     '/projects/:projectId/canvas-command-approvals',
+    '/projects/:projectId/production-packages/:packageId/canvas-activation',
   ];
   for (const root of roots) {
     router.use(root, async (request, response: AssetResponse, next) => {
@@ -238,6 +260,47 @@ export function createCanvasAssetRouter(options: CanvasAssetRouterOptions): Rout
       }
     });
   }
+
+  router.post(
+    '/projects/:projectId/production-packages/:packageId/canvas-activation',
+    endpoint(options, true, async (request, response) => {
+      const id = projectId(request);
+      const selectedPackageId = parseUuid(request.params.packageId);
+      if (
+        request.header('idempotency-key') !== undefined ||
+        Object.keys(request.query).length > 0
+      ) {
+        throw new CanvasAssetDomainError(
+          'CANVAS_SCHEMA_INVALID',
+          'Canvas activation does not accept a browser Idempotency-Key.',
+        );
+      }
+      const input = parseCanvasActivationInput(request.body);
+      if (!(await authorize(response, options, id, true))) return;
+      const result = await options.activationService.activate(
+        actor(response),
+        id,
+        selectedPackageId,
+        input,
+      );
+      if (typeof result.replayed !== 'boolean') throw new Error('invalid activation replay flag');
+      const activeActor = actor(response);
+      const entry = parseCanvasEntryPublicDto(result.entry);
+      if (
+        entry.tenantId !== activeActor.tenantId ||
+        entry.projectId !== id ||
+        entry.packageId !== selectedPackageId
+      ) {
+        throw new Error('invalid activation scope binding');
+      }
+      const body = {
+        entry,
+        replayed: result.replayed,
+        requestId: response.locals.requestId,
+      };
+      response.status(result.replayed ? 200 : 201).json(body);
+    }),
+  );
 
   router.post(
     '/projects/:projectId/canvas-assets',
