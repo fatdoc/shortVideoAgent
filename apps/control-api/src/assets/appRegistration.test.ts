@@ -44,4 +44,24 @@ describe('Control API Canvas Asset router registration', () => {
       body: { error: { code: 'ROUTE_NOT_FOUND' } },
     });
   });
+
+  it('mounts asset materialization only under the internal boundary', async () => {
+    const internalCanvasAssetMaterializationRouter = Router();
+    internalCanvasAssetMaterializationRouter.post(
+      '/canvas-assets/materializations',
+      (_request, response) => response.status(201).json({ mounted: true }),
+    );
+    const app = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      internalCanvasAssetMaterializationRouter,
+    });
+    await expect(
+      request(app).post('/api/v1/internal/canvas-assets/materializations').send({}),
+    ).resolves.toMatchObject({ status: 201, body: { mounted: true } });
+    await expect(
+      request(app).post('/api/v1/canvas-assets/materializations').send({}),
+    ).resolves.toMatchObject({ status: 404, body: { error: { code: 'ROUTE_NOT_FOUND' } } });
+  });
 });

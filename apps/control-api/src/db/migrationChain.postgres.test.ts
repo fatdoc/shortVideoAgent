@@ -42,7 +42,7 @@ describe.runIf(hasDedicatedTestDatabase)('Control API migration chain', () => {
     await database.destroy();
   });
 
-  it('loads migrations 001 through 026 from an empty database and is idempotent on replay', async () => {
+  it('loads migrations 001 through 027 from an empty database and is idempotent on replay', async () => {
     const config = migrationConfig(import.meta.url);
     const [batch, migrations] = await database.migrate.latest(config);
 

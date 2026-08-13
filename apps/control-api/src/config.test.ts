@@ -13,6 +13,7 @@ describe('loadConfig', () => {
     CANVAS_ASSET_CSRF_SECRET: 'independent-canvas-asset-csrf-secret-for-tests',
     CANVAS_ACTIVATION_IDEMPOTENCY_SECRET:
       'independent-canvas-activation-idempotency-secret-for-tests',
+    CANVAS_ASSET_STORAGE_ROOT: '/srv/videoagent/canvas-assets',
     CANVAS_ASSET_ALLOWED_ORIGINS: 'https://pilot.example.test',
   };
 
@@ -34,6 +35,7 @@ describe('loadConfig', () => {
     expect(config.rechargePaymentDigestSecret.length).toBeGreaterThanOrEqual(32);
     expect(config.testPaymentInternalToken.length).toBeGreaterThanOrEqual(32);
     expect(config.canvasActivationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
+    expect(config.canvasAssetStorageRoot).toMatch(/canvas-assets$/);
     expect(config.rechargePaymentDigestSecret).not.toBe(config.testPaymentInternalToken);
     expect(config.registrationMaxAttempts).toBe(5);
     expect(config.registrationWindowSeconds).toBe(900);
@@ -141,6 +143,19 @@ describe('loadConfig', () => {
 
     const configured = loadConfig({ ...production, ...canvasAuthorityConfig });
     expect(configured.canvasAssetAllowedOrigins).toEqual(['https://pilot.example.test']);
+    expect(configured.canvasAssetStorageRoot).toBe('/srv/videoagent/canvas-assets');
+  });
+
+  it('requires a safe absolute Canvas asset storage root', () => {
+    for (const root of ['relative/private-assets', '/']) {
+      expect(() =>
+        loadConfig({
+          NODE_ENV: 'test',
+          ...projectGrantConfig,
+          CANVAS_ASSET_STORAGE_ROOT: root,
+        }),
+      ).toThrow('CANVAS_ASSET_STORAGE_ROOT');
+    }
   });
 
   it('rejects Canvas authority secret reuse across security boundaries', () => {
