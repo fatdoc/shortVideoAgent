@@ -6,6 +6,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const verifiedDepsRoot = process.env.CANVAS_V1_VERIFIED_DEPS_ROOT;
+const dependencyRoots = [rootDir, verifiedDepsRoot].filter(Boolean);
+const resolveDependency = (relativePath) => dependencyRoots
+  .map((dependencyRoot) => path.join(dependencyRoot, relativePath))
+  .find((candidate) => fs.existsSync(candidate));
+const tsxCli = resolveDependency("apps/storycanvas/node_modules/tsx/dist/cli.mjs");
+if (!tsxCli) {
+  process.stderr.write("[story-workspace-product-gate] ENVIRONMENT_FAILURE missing StoryCanvas tsx runtime\n");
+  process.exit(2);
+}
 const productSentinel = path.join(
   rootDir,
   "apps/storycanvas/src/services/storycanvas/canvas-v1/workspacePrepare.ts",
@@ -27,6 +37,11 @@ const phases = [
   {
     name: "CV6 Story formal workspace product policy",
     command: [process.execPath, "--test", "tests/e2e/canvas-v1/story-workspace-product-policy.gate.mjs"],
+    expectedRed: allowExpectedRed,
+  },
+  {
+    name: "CV6 Story formal workspace public runtime harness",
+    command: [process.execPath, tsxCli, "--test", "tests/e2e/canvas-v1/story-workspace-product.gate.test.ts"],
     expectedRed: allowExpectedRed,
   },
 ];
