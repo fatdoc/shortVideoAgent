@@ -36,10 +36,10 @@ require Electron APIs.
 ## Atomic QA commits
 
 ```text
-71ac4605c4fa7d2b6b123e678da078a13b897611
+71ac4606015ddc55e8e79e7f8bad31b4257e4ac2
 test(gate): freeze canvas amendment revalidation
 
-5710b829840bef9780e7853e83a3db288032909e
+5710b824a1464d419ea9c35442a8e65ee467d0c1
 fix(gate): accept additive canvas fixture catalog
 ```
 

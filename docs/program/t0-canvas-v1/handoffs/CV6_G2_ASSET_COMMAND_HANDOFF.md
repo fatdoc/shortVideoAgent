@@ -23,7 +23,7 @@ to that package/Canvas Entry.
 Atomic independent RED:
 
 ```text
-891c1772477a22263092fe8b354b4232329662ff
+891c177042da5c7e1c6251281688060380377cce
 test(gate): expose control canvas scope bypass
 ```
 

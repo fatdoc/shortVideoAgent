@@ -45,7 +45,7 @@ evidence does not override security or state-recovery RED.
 Atomic commit:
 
 ```text
-acf2904afe552b131767690445979c35219da140
+acf2904f043e1af312db94ec8e5f8e16578c50f2
 test(gate): expose canvas ui fail-open paths
 ```
 
