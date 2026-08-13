@@ -1,4 +1,5 @@
 import { pilotRuntime, type PilotRuntime } from '../config/pilotRuntime';
+import { sha256 } from '../domain/controlPlaneUtils';
 
 export const REGISTRATION_TERMS_DOCUMENT_CODE = 'registration-notice';
 export const REGISTRATION_LOCALE = 'zh-CN';
@@ -140,6 +141,20 @@ function invalidResponse(message: string): PublicRegistrationApiError {
   return new PublicRegistrationApiError('INVALID_API_RESPONSE', message, null, null);
 }
 
+function matchesSha256Digest(content: string, expectedDigest: string): boolean {
+  const actualDigest = sha256(content);
+  const normalizedExpected = expectedDigest.toLowerCase();
+  let difference = actualDigest.length ^ normalizedExpected.length;
+  const comparisonLength = Math.max(actualDigest.length, normalizedExpected.length);
+
+  for (let index = 0; index < comparisonLength; index += 1) {
+    difference |=
+      (actualDigest.charCodeAt(index) || 0) ^ (normalizedExpected.charCodeAt(index) || 0);
+  }
+
+  return difference === 0;
+}
+
 function parseTerms(value: unknown): PublicRegistrationTerms {
   const keys = [
     'termsDocumentId',
@@ -165,6 +180,7 @@ function parseTerms(value: unknown): PublicRegistrationTerms {
     !requiredString(value.content) ||
     !requiredString(value.contentDigest) ||
     !SHA256_PATTERN.test(value.contentDigest) ||
+    !matchesSha256Digest(value.content, value.contentDigest) ||
     !validDate(value.effectiveAt) ||
     typeof value.mustReaccept !== 'boolean'
   ) {

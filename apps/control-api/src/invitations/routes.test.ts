@@ -360,10 +360,11 @@ describe('Invitation HTTP contract', () => {
     expect(replay.body.token).toBeNull();
 
     const listed = await request(app(invitationService))
-      .get('/api/v1/platform/invitations')
+      .get('/api/v1/platform/invitations?status=active&limit=25')
       .set('cookie', 'videoagent_session=platform-session');
     expect(listed.status).toBe(200);
     expect(listed.body).toEqual({ invitations: [managementInvitation()] });
+    expect(invitationService.listInvitations).toHaveBeenCalledWith(actor('PLATFORM'), 'active', 25);
 
     const rejected = await request(app(invitationService))
       .post('/api/v1/platform/invitations')
@@ -421,6 +422,54 @@ describe('Invitation HTTP contract', () => {
       .set('cookie', 'videoagent_session=tenant-session');
     expect(mismatch.status).toBe(409);
     expect(mismatch.body.error.code).toBe('INVITATION_SCOPE_CONFLICT');
+  });
+
+  it('passes strict bounded list filters through CHANNEL and TENANT scopes', async () => {
+    const invitationService = service();
+    const channel = await request(app(invitationService))
+      .get(`/api/v1/channels/${channelId}/invitations?status=revoked&limit=10`)
+      .set('cookie', 'videoagent_session=channel-session');
+    const tenant = await request(app(invitationService))
+      .get(`/api/v1/tenants/${tenantOrganizationId}/invitations?status=expired&limit=20`)
+      .set('cookie', 'videoagent_session=tenant-session');
+
+    expect(channel.status).toBe(200);
+    expect(tenant.status).toBe(200);
+    expect(invitationService.listInvitations).toHaveBeenNthCalledWith(
+      1,
+      actor('CHANNEL'),
+      'revoked',
+      10,
+    );
+    expect(invitationService.listInvitations).toHaveBeenNthCalledWith(
+      2,
+      actor('TENANT'),
+      'expired',
+      20,
+    );
+  });
+
+  it.each([
+    ['/api/v1/platform/invitations?status=pending', 'platform-session'],
+    ['/api/v1/platform/invitations?limit=0', 'platform-session'],
+    ['/api/v1/platform/invitations?limit=101', 'platform-session'],
+    ['/api/v1/platform/invitations?limit=1.5', 'platform-session'],
+    ['/api/v1/platform/invitations?status=all&secret=probe', 'platform-session'],
+    [`/api/v1/channels/${channelId}/invitations?status=ACTIVE`, 'channel-session'],
+    ['/api/v1/channels/not-a-uuid/invitations', 'channel-session'],
+    [`/api/v1/tenants/${tenantOrganizationId}/invitations?unknown=1`, 'tenant-session'],
+  ])('returns 422 for invalid bounded list query/path: %s', async (path, sessionToken) => {
+    const invitationService = service();
+    const response = await request(app(invitationService))
+      .get(path)
+      .set('cookie', `videoagent_session=${sessionToken}`);
+
+    expect(response.status).toBe(422);
+    expect(response.body.error).toMatchObject({
+      code: 'INVITATION_QUERY_INVALID',
+      requestId: 'invitation-request-1',
+    });
+    expect(invitationService.listInvitations).not.toHaveBeenCalled();
   });
 
   it('denies the wrong active organization role before invoking management services', async () => {

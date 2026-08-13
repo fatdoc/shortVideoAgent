@@ -14,6 +14,18 @@ const publicCurrentSchema = z
     locale: z.string().trim().min(1).max(35),
   })
   .strict();
+const documentDirectoryQuerySchema = z
+  .object({
+    status: z.enum(['all', 'active', 'retired']).default('all'),
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+  .strict();
+const versionDirectoryQuerySchema = z
+  .object({
+    status: z.enum(['all', 'DRAFT', 'PUBLISHED', 'RETIRED']).default('all'),
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+  .strict();
 const createDocumentSchema = z
   .object({
     documentCode: z.string().trim().min(1).max(100),
@@ -41,6 +53,8 @@ type SessionResolution = { token?: string; session: PublicSession };
 type TermsHttpService = Pick<
   TermsService,
   | 'getPublicCurrent'
+  | 'listDocuments'
+  | 'listVersions'
   | 'createDocument'
   | 'createDraft'
   | 'updateDraft'
@@ -78,6 +92,10 @@ function error(response: Response, status: number, code: string, message: string
 
 function invalid(response: Response): void {
   error(response, 400, 'INVALID_TERMS_REQUEST', 'Terms 请求格式无效。');
+}
+
+function invalidQuery(response: Response): void {
+  error(response, 422, 'TERMS_QUERY_INVALID', 'Terms 查询格式无效。');
 }
 
 function domainError(response: Response, caught: TermsDomainError): void {
@@ -183,6 +201,51 @@ export function createTermsRouter(options: TermsRouterOptions): Router {
       next(caught);
     }
   });
+
+  router.get('/platform/terms/documents', async (request, response: TermsResponse, next) => {
+    const parsed = documentDirectoryQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      invalidQuery(response);
+      return;
+    }
+    try {
+      response.status(200).json({
+        documents: await options.service.listDocuments(
+          actor(response),
+          parsed.data.status,
+          parsed.data.limit,
+        ),
+      });
+    } catch (caught) {
+      if (caught instanceof TermsDomainError) domainError(response, caught);
+      else next(caught);
+    }
+  });
+
+  router.get(
+    '/platform/terms/documents/:documentId/versions',
+    async (request, response: TermsResponse, next) => {
+      const documentId = uuidSchema.safeParse(request.params.documentId);
+      const parsed = versionDirectoryQuerySchema.safeParse(request.query);
+      if (!documentId.success || !parsed.success) {
+        invalidQuery(response);
+        return;
+      }
+      try {
+        response.status(200).json({
+          versions: await options.service.listVersions(
+            actor(response),
+            documentId.data,
+            parsed.data.status,
+            parsed.data.limit,
+          ),
+        });
+      } catch (caught) {
+        if (caught instanceof TermsDomainError) domainError(response, caught);
+        else next(caught);
+      }
+    },
+  );
 
   router.post('/platform/terms/documents', async (request, response: TermsResponse, next) => {
     const parsed = createDocumentSchema.safeParse(request.body);

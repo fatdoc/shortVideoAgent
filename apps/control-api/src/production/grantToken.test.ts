@@ -25,7 +25,11 @@ function claims(): ProjectGrantClaims {
 
 describe('ProjectGrant signed token', () => {
   it('verifies a minimal tenant/project/package/capability/scope token', () => {
-    const tokens = new ProjectGrantTokenService('test-secret-at-least-thirty-two-characters', 'kid-1', () => issuedAt);
+    const tokens = new ProjectGrantTokenService(
+      'test-secret-at-least-thirty-two-characters',
+      'kid-1',
+      () => issuedAt,
+    );
     const token = tokens.issue(claims());
 
     expect(tokens.verify(token)).toEqual(claims());
@@ -33,6 +37,23 @@ describe('ProjectGrant signed token', () => {
     const decodedPayload = JSON.parse(
       Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
     ) as Record<string, unknown>;
+    expect(Object.keys(decodedPayload).sort()).toEqual(
+      [
+        'iss',
+        'aud',
+        'jti',
+        'tenantId',
+        'projectId',
+        'packageId',
+        'capabilities',
+        'scopes',
+        'contractVersion',
+        'nonce',
+        'iat',
+        'nbf',
+        'exp',
+      ].sort(),
+    );
     expect(decodedPayload).toMatchObject({
       tenantId: claims().tenantId,
       projectId: claims().projectId,
@@ -56,11 +77,17 @@ describe('ProjectGrant signed token', () => {
     const tampered = `${header}.${payload}.${signature?.slice(0, -1)}x`;
 
     expect(() => tokens.verify(tampered)).toThrowError(
-      expect.objectContaining<Partial<ProductionDomainError>>({ code: 'GRANT_INVALID', status: 401 }),
+      expect.objectContaining<Partial<ProductionDomainError>>({
+        code: 'GRANT_INVALID',
+        status: 401,
+      }),
     );
     now = new Date('2026-08-05T01:10:05.000Z');
     expect(() => tokens.verify(token)).toThrowError(
-      expect.objectContaining<Partial<ProductionDomainError>>({ code: 'GRANT_EXPIRED', status: 410 }),
+      expect.objectContaining<Partial<ProductionDomainError>>({
+        code: 'GRANT_EXPIRED',
+        status: 410,
+      }),
     );
   });
 

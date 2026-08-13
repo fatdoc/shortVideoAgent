@@ -11,9 +11,16 @@ export type ControlApiDependencies = {
   invitationRouter?: Router;
   registrationRouter?: Router;
   internalProductionRouter?: Router;
+  internalCanvasEntryRouter?: Router;
   contentRouter?: Router;
+  storyboardRouter?: Router;
   productionRouter?: Router;
+  canvasEntryRouter?: Router;
   paymentRouter?: Router;
+  commercialChannelRouter?: Router;
+  commissionAuditRouter?: Router;
+  commissionSettlementRouter?: Router;
+  memberDirectoryRouter?: Router;
   trustProxy?: boolean;
 };
 
@@ -62,9 +69,26 @@ export function createApp(dependencies: ControlApiDependencies) {
   if (dependencies.internalProductionRouter) {
     app.use('/api/v1/internal', dependencies.internalProductionRouter);
   }
+  if (dependencies.internalCanvasEntryRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasEntryRouter);
+  }
   if (dependencies.contentRouter) app.use('/api/v1', dependencies.contentRouter);
+  if (dependencies.storyboardRouter) app.use('/api/v1', dependencies.storyboardRouter);
   if (dependencies.productionRouter) app.use('/api/v1', dependencies.productionRouter);
+  if (dependencies.canvasEntryRouter) app.use('/api/v1', dependencies.canvasEntryRouter);
   if (dependencies.paymentRouter) app.use('/api/v1', dependencies.paymentRouter);
+  if (dependencies.commercialChannelRouter) {
+    app.use('/api/v1', dependencies.commercialChannelRouter);
+  }
+  if (dependencies.commissionAuditRouter) {
+    app.use('/api/v1', dependencies.commissionAuditRouter);
+  }
+  if (dependencies.commissionSettlementRouter) {
+    app.use('/api/v1', dependencies.commissionSettlementRouter);
+  }
+  if (dependencies.memberDirectoryRouter) {
+    app.use('/api/v1', dependencies.memberDirectoryRouter);
+  }
 
   app.use((_request, response) => {
     response.status(404).json({

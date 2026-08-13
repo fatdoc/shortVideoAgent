@@ -202,12 +202,14 @@ export class PostgresAuthRepository implements AuthRepository {
       .whereRaw(
         `
         (
-          organizations.organization_type = 'TENANT'
-          and tenants.tenant_id is not null
-          and tenants.status = 'active'
-        ) or (
-          organizations.organization_type <> 'TENANT'
-          and tenants.tenant_id is null
+          (
+            organizations.organization_type = 'TENANT'
+            and tenants.tenant_id is not null
+            and tenants.status = 'active'
+          ) or (
+            organizations.organization_type <> 'TENANT'
+            and tenants.tenant_id is null
+          )
         )
       `,
       )
@@ -286,13 +288,15 @@ export class PostgresAuthRepository implements AuthRepository {
       .whereRaw(
         `
         (
-          organizations.organization_type = 'TENANT'
-          and sessions.tenant_id is not null
-          and tenants.tenant_id is not null
-          and tenants.status = 'active'
-        ) or (
-          organizations.organization_type <> 'TENANT'
-          and sessions.tenant_id is null
+          (
+            organizations.organization_type = 'TENANT'
+            and sessions.tenant_id is not null
+            and tenants.tenant_id is not null
+            and tenants.status = 'active'
+          ) or (
+            organizations.organization_type <> 'TENANT'
+            and sessions.tenant_id is null
+          )
         )
       `,
       )

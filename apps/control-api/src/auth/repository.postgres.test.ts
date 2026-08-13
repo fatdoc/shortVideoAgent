@@ -18,6 +18,9 @@ const tenantMembershipId = '10000000-0000-4000-8000-000000000003';
 const platformOrganizationId = '20000000-0000-4000-8000-000000000001';
 const platformMembershipId = '20000000-0000-4000-8000-000000000003';
 const platformUserId = '20000000-0000-4000-8000-000000000002';
+const channelOrganizationId = '20000000-0000-4000-8000-000000000004';
+const channelUserId = '20000000-0000-4000-8000-000000000005';
+const channelMembershipId = '20000000-0000-4000-8000-000000000006';
 
 async function resetDatabase(database: Knex): Promise<void> {
   await database.raw('drop schema if exists control_plane cascade');
@@ -85,6 +88,40 @@ async function insertPlatformMembership(
   const membership = await database('control_plane.organization_memberships')
     .select('version')
     .where({ membership_id: platformMembershipId })
+    .first<{ version: number }>();
+  return membership?.version ?? 0;
+}
+
+async function insertChannelMembership(database: Knex): Promise<number> {
+  await database('control_plane.organizations').insert({
+    organization_id: channelOrganizationId,
+    organization_type: 'CHANNEL',
+    display_name: 'Channel',
+    status: 'active',
+  });
+  await database('control_plane.users').insert({
+    user_id: channelUserId,
+    email: 'channel@example.com',
+    display_name: 'Channel Admin',
+    password_hash: 'stored-password-hash',
+    status: 'active',
+  });
+  await database.transaction(async (transaction) => {
+    await transaction('control_plane.organization_memberships').insert({
+      membership_id: channelMembershipId,
+      user_id: channelUserId,
+      organization_id: channelOrganizationId,
+      status: 'active',
+      primary_role_code: 'channel_admin',
+    });
+    await transaction('control_plane.organization_membership_roles').insert({
+      membership_id: channelMembershipId,
+      role_code: 'channel_admin',
+    });
+  });
+  const membership = await database('control_plane.organization_memberships')
+    .select('version')
+    .where({ membership_id: channelMembershipId })
     .first<{ version: number }>();
   return membership?.version ?? 0;
 }
@@ -180,11 +217,22 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresAuthRepository active membersh
     await expect(repository.findSession(tenantSession().tokenDigest)).resolves.toBeNull();
   });
 
-  it('resolves a PLATFORM Session without inventing a Tenant scope', async () => {
+  it('isolates PLATFORM login and Session queries from other non-Tenant contexts', async () => {
     const platformVersion = await insertPlatformMembership(database, {
       targetUserId: platformUserId,
       email: 'platform@example.com',
     });
+    await insertChannelMembership(database);
+
+    await expect(repository.findLoginIdentity('platform@example.com')).resolves.toMatchObject({
+      userId: platformUserId,
+      membershipId: platformMembershipId,
+      organizationId: platformOrganizationId,
+      organizationType: 'PLATFORM',
+      primaryRole: 'platform_admin',
+      roles: ['platform_admin'],
+    });
+
     await database('control_plane.auth_sessions').insert({
       session_id: '40000000-0000-4000-8000-000000000001',
       user_id: platformUserId,

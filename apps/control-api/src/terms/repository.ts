@@ -13,6 +13,8 @@ import type {
   CreateTermsDocumentInput,
   CreateTermsDraftInput,
   CurrentTerms,
+  ListTermsDocumentsInput,
+  ListTermsVersionsInput,
   RecordTermsConsentInput,
   ReplayableResult,
   TermsDocument,
@@ -76,6 +78,11 @@ function sameInstant(value: Date | string | null, expected: Date): boolean {
 
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === '23505';
+}
+
+function boundedLimit(limit: number): number {
+  if (!Number.isSafeInteger(limit)) return 100;
+  return Math.min(100, Math.max(1, limit));
 }
 
 function documentFromRow(row: TermsDocumentRow): TermsDocument {
@@ -200,6 +207,34 @@ export class PostgresTermsRepository implements TermsStore {
     private readonly newId: (entity: 'document' | 'version' | 'consent') => string = () =>
       randomUUID(),
   ) {}
+
+  async listDocuments(input: ListTermsDocumentsInput): Promise<TermsDocument[]> {
+    const query = this.database('control_plane.terms_documents').select('*');
+    if (input.status !== 'all') query.where({ status: input.status });
+    const rows = (await query
+      .orderBy('updated_at', 'desc')
+      .orderBy('terms_document_id', 'desc')
+      .limit(boundedLimit(input.limit))) as TermsDocumentRow[];
+    return rows.map(documentFromRow);
+  }
+
+  async listVersions(input: ListTermsVersionsInput): Promise<TermsVersion[]> {
+    const document = (await this.database('control_plane.terms_documents')
+      .select('terms_document_id')
+      .where({ terms_document_id: input.termsDocumentId })
+      .first()) as Pick<TermsDocumentRow, 'terms_document_id'> | undefined;
+    if (!document) throw new TermsDocumentNotFoundError();
+
+    const query = this.database('control_plane.terms_versions')
+      .select('*')
+      .where({ terms_document_id: input.termsDocumentId });
+    if (input.status !== 'all') query.where({ status: input.status });
+    const rows = (await query
+      .orderBy('updated_at', 'desc')
+      .orderBy('terms_version_id', 'desc')
+      .limit(boundedLimit(input.limit))) as TermsVersionRow[];
+    return rows.map(versionFromRow);
+  }
 
   async createDocument(input: CreateTermsDocumentInput): Promise<TermsDocument> {
     try {

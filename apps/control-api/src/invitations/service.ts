@@ -13,6 +13,7 @@ import type {
   CreateInvitationRecord,
   Invitation,
   InvitationActor,
+  InvitationStatusFilter,
   InvitationStore,
   IssuedInvitation,
   ReplayableResult,
@@ -23,6 +24,13 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}
 const digestPattern = /^[0-9a-f]{64}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+$/;
 const dayMilliseconds = 86_400_000;
+const invitationStatuses = new Set<InvitationStatusFilter>([
+  'all',
+  'active',
+  'revoked',
+  'exhausted',
+  'expired',
+]);
 
 type ServiceOptions = {
   now?: () => Date;
@@ -72,6 +80,20 @@ function email(value: string): string {
     throw new InvitationValidationError('target email is invalid.');
   }
   return normalized;
+}
+
+function status(value: InvitationStatusFilter): InvitationStatusFilter {
+  if (!invitationStatuses.has(value)) {
+    throw new InvitationValidationError('status is invalid.');
+  }
+  return value;
+}
+
+function boundedLimit(value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1 || value > 100) {
+    throw new InvitationValidationError('limit must be an integer between 1 and 100.');
+  }
+  return value;
 }
 
 export class InvitationService {
@@ -137,12 +159,18 @@ export class InvitationService {
     });
   }
 
-  async listInvitations(actor: InvitationActor): Promise<Invitation[]> {
+  async listInvitations(
+    actor: InvitationActor,
+    invitationStatus: InvitationStatusFilter = 'all',
+    limit = 100,
+  ): Promise<Invitation[]> {
     this.requireManager(actor);
-    return this.store.listByIssuerOrganization(
-      uuid(actor.organizationId, 'actor.organizationId'),
-      this.now(),
-    );
+    return this.store.listByIssuerOrganization({
+      issuerOrganizationId: uuid(actor.organizationId, 'actor.organizationId'),
+      asOf: this.now(),
+      status: status(invitationStatus),
+      limit: boundedLimit(limit),
+    });
   }
 
   async preview(token: string): Promise<Invitation> {

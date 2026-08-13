@@ -14,6 +14,7 @@ import { createApp } from '../app.js';
 const tenantId = '10000000-0000-4000-8000-000000000001';
 const otherTenantId = '10000000-0000-4000-8000-000000000002';
 const organizationId = tenantId;
+const distinctTenantOrganizationId = '10000000-0000-4000-8000-000000000003';
 const userId = '20000000-0000-4000-8000-000000000001';
 const membershipId = '30000000-0000-4000-8000-000000000001';
 const ruleVersionId = '40000000-0000-4000-8000-000000000001';
@@ -51,14 +52,16 @@ const paymentEvent: PaymentEvent = {
   currency: 'CNY',
   occurredAt: '2026-08-08T05:59:00.000Z',
   receivedAt: '2026-08-08T06:00:00.000Z',
-  processingStatus: 'received',
+  processingStatus: 'applied',
   errorCode: null,
+  processedAt: '2026-08-08T06:00:00.000Z',
 };
 
 function session(
   organizationType: PublicSession['activeContext']['organizationType'] = 'TENANT',
   roles: PublicSession['activeContext']['roles'] = ['tenant_admin'],
   activeTenantId: string | null = tenantId,
+  activeOrganizationId = activeTenantId ?? organizationId,
 ): PublicSession {
   return {
     user: { id: userId, email: 'admin@example.com', displayName: 'Admin' },
@@ -66,8 +69,7 @@ function session(
     roles,
     activeContext: {
       membershipId,
-      organizationId:
-        organizationType === 'TENANT' ? (activeTenantId ?? organizationId) : organizationId,
+      organizationId: activeOrganizationId,
       organizationType,
       organizationDisplayName: 'Payment Organization',
       membershipVersion: 1,
@@ -164,6 +166,41 @@ describe('Payment HTTP API', () => {
     );
   });
 
+  it('uses the canonical Tenant id when the verified organization id is different', async () => {
+    const activeSession = session(
+      'TENANT',
+      ['tenant_admin'],
+      tenantId,
+      distinctTenantOrganizationId,
+    );
+    const { app, service } = application({ activeSession });
+
+    const listed = await request(app)
+      .get(`/api/v1/tenants/${tenantId}/recharge-orders?limit=25`)
+      .set('cookie', cookie());
+    const created = await request(app)
+      .post(`/api/v1/tenants/${tenantId}/recharge-orders`)
+      .set('cookie', cookie())
+      .send(createBody);
+
+    expect(listed.status).toBe(200);
+    expect(created.status).toBe(201);
+    expect(service.listRechargeOrders).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: distinctTenantOrganizationId,
+        tenantId,
+      }),
+      25,
+    );
+    expect(service.createRechargeOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: distinctTenantOrganizationId,
+        tenantId,
+      }),
+      createBody,
+    );
+  });
+
   it('returns 200 and an explicit replay header for a safe order replay', async () => {
     const service = services();
     service.createRechargeOrder.mockResolvedValue({ value: rechargeOrder, replayed: true });
@@ -219,14 +256,32 @@ describe('Payment HTTP API', () => {
     expect(service.createRechargeOrder).not.toHaveBeenCalled();
   });
 
-  it('lists only the active Tenant RechargeOrders with a bounded limit', async () => {
-    const { app, service } = application();
+  it('lists only the active Tenant paid issuance summary with a bounded limit', async () => {
+    const paidRechargeOrder: RechargeOrder = {
+      ...rechargeOrder,
+      status: 'paid',
+      updatedAt: '2026-08-08T06:00:00.000Z',
+    };
+    const service = services();
+    service.listRechargeOrders.mockResolvedValue([paidRechargeOrder]);
+    const { app } = application({ service });
     const response = await request(app)
       .get(`/api/v1/tenants/${tenantId}/recharge-orders?limit=25`)
       .set('cookie', cookie());
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ rechargeOrders: [rechargeOrder] });
+    expect(response.body).toEqual({ rechargeOrders: [paidRechargeOrder] });
+    expect(response.body.rechargeOrders[0]).toEqual(
+      expect.objectContaining({
+        paymentMode: 'TEST',
+        status: 'paid',
+        purchasedCredits: 10,
+        bonusCredits: 2,
+        bonusExpiresInDays: 30,
+      }),
+    );
+    expect(response.text).not.toContain('providerEventId');
+    expect(response.text).not.toContain('eventDigest');
     expect(service.listRechargeOrders).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId }),
       25,
@@ -252,14 +307,49 @@ describe('Payment HTTP API', () => {
       .set('x-test-payment-internal-token', internalToken)
       .send(eventBody);
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['idempotency-replayed']).toBe('false');
     expect(response.body).toEqual({ paymentEvent });
-    expect(response.body.paymentEvent.paymentMode).toBe('TEST');
+    expect(response.body.paymentEvent).toEqual(
+      expect.objectContaining({
+        paymentMode: 'TEST',
+        processingStatus: 'applied',
+        errorCode: null,
+        processedAt: '2026-08-08T06:00:00.000Z',
+      }),
+    );
     expect(service.receivePaymentEvent).toHaveBeenCalledWith({
       paymentMode: 'TEST',
       payload: eventBody,
     });
+  });
+
+  it('returns a safe terminal rejection as HTTP 200 without implying a real payment', async () => {
+    const rejectedEvent: PaymentEvent = {
+      ...paymentEvent,
+      eventType: 'payment_failed',
+      processingStatus: 'rejected',
+      errorCode: 'unsupported_event_type',
+    };
+    const service = services();
+    service.receivePaymentEvent.mockResolvedValue({ value: rejectedEvent, replayed: false });
+
+    const response = await request(application({ service }).app)
+      .post('/api/v1/internal/payments/test/events')
+      .set('x-test-payment-internal-token', internalToken)
+      .send({ ...eventBody, eventType: 'payment_failed' });
+
+    expect(response.status).toBe(200);
+    expect(response.headers['idempotency-replayed']).toBe('false');
+    expect(response.body.paymentEvent).toEqual(
+      expect.objectContaining({
+        paymentMode: 'TEST',
+        processingStatus: 'rejected',
+        errorCode: 'unsupported_event_type',
+        processedAt: '2026-08-08T06:00:00.000Z',
+      }),
+    );
   });
 
   it('returns 200 for Payment Event replay and 409 for identity conflict', async () => {

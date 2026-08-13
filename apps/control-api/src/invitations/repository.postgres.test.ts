@@ -236,9 +236,100 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresInvitationRepository', () => {
         targetRoleCode: 'content_operator',
       },
     });
-    await expect(repository.listByIssuerOrganization(platformOrganizationId, now)).resolves.toEqual(
-      [platform.value],
+    await expect(
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: platformOrganizationId,
+        asOf: now,
+        status: 'all',
+        limit: 100,
+      }),
+    ).resolves.toEqual([platform.value]);
+  });
+
+  it('lists bounded issuer invitations with active, expired, revoked, and exhausted filters', async () => {
+    const active = await repository.create(creation('PLATFORM'));
+    const expired = await repository.create(
+      creation('PLATFORM', {
+        tokenDigest: tokenDigest('d'),
+        validFrom: new Date(now.getTime() - 8 * 86_400_000),
+        expiresAt: new Date(now.getTime() - 86_400_000),
+        creationIdempotencyKey: 'platform-expired',
+        creationRequestDigest: requestDigest('d'),
+      }),
     );
+    const revocable = await repository.create(
+      creation('PLATFORM', {
+        tokenDigest: tokenDigest('e'),
+        creationIdempotencyKey: 'platform-revoked',
+        creationRequestDigest: requestDigest('e'),
+      }),
+    );
+    const revoked = await repository.revoke({
+      invitationId: revocable.value.invitationId,
+      issuerOrganizationId: platformOrganizationId,
+      revokedByMembershipId: platformMembershipId,
+      revokedAt: now,
+    });
+    const exhausted = await repository.create(
+      creation('PLATFORM', {
+        tokenDigest: tokenDigest('f'),
+        creationIdempotencyKey: 'platform-exhausted',
+        creationRequestDigest: requestDigest('f'),
+      }),
+    );
+    await repository.consume({
+      tokenDigest: tokenDigest('f'),
+      registrationId: '98000000-0000-4000-8000-000000000010',
+      userId: inviteeUserId,
+      emailNormalized: 'platform@example.com',
+      idempotencyKey: 'platform-exhausted-use',
+      requestDigest: requestDigest('a'),
+      usedAt: now,
+    });
+
+    await expect(
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: platformOrganizationId,
+        asOf: now,
+        status: 'all',
+        limit: 2,
+      }),
+    ).resolves.toMatchObject([
+      { invitationId: exhausted.value.invitationId, status: 'exhausted' },
+      { invitationId: revoked.value.invitationId, status: 'revoked' },
+    ]);
+    await expect(
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: platformOrganizationId,
+        asOf: now,
+        status: 'active',
+        limit: 100,
+      }),
+    ).resolves.toMatchObject([{ invitationId: active.value.invitationId, status: 'active' }]);
+    await expect(
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: platformOrganizationId,
+        asOf: now,
+        status: 'expired',
+        limit: 100,
+      }),
+    ).resolves.toMatchObject([{ invitationId: expired.value.invitationId, status: 'expired' }]);
+    await expect(
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: platformOrganizationId,
+        asOf: now,
+        status: 'revoked',
+        limit: 100,
+      }),
+    ).resolves.toMatchObject([{ invitationId: revoked.value.invitationId, status: 'revoked' }]);
+    await expect(
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: platformOrganizationId,
+        asOf: now,
+        status: 'exhausted',
+        limit: 100,
+      }),
+    ).resolves.toMatchObject([{ invitationId: exhausted.value.invitationId, status: 'exhausted' }]);
   });
 
   it('replays an identical scoped creation without replacing its Token and rejects conflicting facts', async () => {
@@ -369,7 +460,12 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresInvitationRepository', () => {
       }),
     );
     await expect(
-      repository.listByIssuerOrganization(channelOrganizationId, now),
+      repository.listByIssuerOrganization({
+        issuerOrganizationId: channelOrganizationId,
+        asOf: now,
+        status: 'all',
+        limit: 100,
+      }),
     ).resolves.toMatchObject([{ status: 'expired' }]);
     await expect(
       repository.consume({

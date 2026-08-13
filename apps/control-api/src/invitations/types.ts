@@ -2,6 +2,7 @@ import type { OrganizationType, RoleCode } from '../auth/types.js';
 
 export type InvitationType = 'PLATFORM' | 'CHANNEL' | 'TENANT_MEMBER';
 export type InvitationStatus = 'active' | 'revoked' | 'exhausted' | 'expired';
+export type InvitationStatusFilter = InvitationStatus | 'all';
 
 export type InvitationActor = {
   userId: string;
@@ -89,9 +90,16 @@ export type IssuedInvitation = {
   replayed: boolean;
 };
 
+export type ListInvitationsInput = {
+  issuerOrganizationId: string;
+  asOf: Date;
+  status: InvitationStatusFilter;
+  limit: number;
+};
+
 export interface InvitationStore {
   create(input: CreateInvitationRecord): Promise<ReplayableResult<Invitation>>;
-  listByIssuerOrganization(issuerOrganizationId: string, asOf: Date): Promise<Invitation[]>;
+  listByIssuerOrganization(input: ListInvitationsInput): Promise<Invitation[]>;
   findAvailableByTokenDigest(tokenDigest: string, asOf: Date): Promise<Invitation | null>;
   revoke(input: RevokeInvitationRecord): Promise<ReplayableResult<Invitation>>;
   consume(input: ConsumeInvitationRecord): Promise<ReplayableResult<InvitationUsageResult>>;

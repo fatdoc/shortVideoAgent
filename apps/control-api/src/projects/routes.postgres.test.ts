@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from 'node:crypto';
 import request from 'supertest';
 import knex, { type Knex } from 'knex';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -5,6 +6,7 @@ import { createApp } from '../app.js';
 import { up as createPilotCore } from '../db/migrations/001_pilot_core.js';
 import { up as addSessionRotation } from '../db/migrations/002_auth_session_rotation.js';
 import { up as addContentTenantIntegrity } from '../db/migrations/003_content_tenant_integrity.js';
+import { up as addStoryboardAuthority } from '../db/migrations/020_storyboard_authority.js';
 import type { ProjectPolicy } from './policy.js';
 import { createContentRouter } from './routes.js';
 import { PostgresContentStore } from './repository.js';
@@ -16,6 +18,92 @@ const tenantA = '10000000-0000-4000-8000-000000000001';
 const tenantB = '20000000-0000-4000-8000-000000000001';
 const userA = '10000000-0000-4000-8000-000000000002';
 const userB = '20000000-0000-4000-8000-000000000002';
+
+function digest(seed: string): `sha256:${string}` {
+  return `sha256:${createHash('sha256').update(seed).digest('hex')}`;
+}
+
+async function insertStoryboardVersion(
+  database: Knex,
+  input: {
+    projectId: string;
+    scriptVersionId: string;
+    version: number;
+    status?: 'draft' | 'approved';
+  },
+): Promise<string> {
+  const script = (await database('control_plane.script_versions')
+    .select('payload_digest')
+    .where({
+      tenant_id: tenantA,
+      project_id: input.projectId,
+      script_version_id: input.scriptVersionId,
+    })
+    .first()) as { payload_digest: string } | undefined;
+  if (!script) throw new Error('script fixture missing');
+  const storyboardVersionId = randomUUID();
+  const revisionId = randomUUID();
+  await database('control_plane.storyboard_versions').insert({
+    storyboard_version_id: storyboardVersionId,
+    tenant_id: tenantA,
+    project_id: input.projectId,
+    script_version_id: input.scriptVersionId,
+    version: input.version,
+    status: 'draft',
+    draft_revision_id: revisionId,
+    draft_revision_number: input.version,
+    previous_draft_revision_id: input.version === 1 ? null : randomUUID(),
+    script_payload_digest: `sha256:${script.payload_digest}`,
+    payload: { revisionId, shots: [{ sequence: 1 }] },
+    payload_digest: digest(`storyboard:${input.projectId}:${input.version}`),
+    provenance: {
+      sourceReceipt: {
+        receiptId: randomUUID(),
+        receiptDigest: digest(`receipt:${input.projectId}:${input.version}`),
+        receivedAt: '2026-08-11T00:00:00.000Z',
+      },
+    },
+    created_by: userA,
+  });
+  if (input.status === 'approved') {
+    await appendStoryboardApproval(database, input.projectId, storyboardVersionId, {
+      status: 'approved',
+      factRiskStatus: 'cleared',
+      projectStatus: 'approved',
+    });
+  }
+  return storyboardVersionId;
+}
+
+async function appendStoryboardApproval(
+  database: Knex,
+  projectId: string,
+  storyboardVersionId: string,
+  input: {
+    status: 'approved' | 'revoked' | 'blocked';
+    factRiskStatus: 'cleared' | 'unresolved';
+    projectStatus?: 'draft' | 'approved' | 'revoked';
+  },
+): Promise<void> {
+  const approvalId = randomUUID();
+  await database('control_plane.storyboard_approvals').insert({
+    storyboard_approval_id: approvalId,
+    tenant_id: tenantA,
+    project_id: projectId,
+    storyboard_version_id: storyboardVersionId,
+    status: input.status,
+    fact_risk_status: input.factRiskStatus,
+    reason: input.status === 'approved' ? null : `${input.status} fixture`,
+    idempotency_key: `storyboard-approval-${approvalId}`,
+    event_digest: digest(`storyboard-approval:${approvalId}`),
+    acted_by: userA,
+  });
+  if (input.projectStatus) {
+    await database('control_plane.storyboard_versions')
+      .where({ storyboard_version_id: storyboardVersionId })
+      .update({ status: input.projectStatus });
+  }
+}
 
 function session(tenantId: string, userId: string) {
   return {
@@ -48,6 +136,7 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     await createPilotCore(database);
     await addSessionRotation(database);
     await addContentTenantIntegrity(database);
+    await addStoryboardAuthority(database);
     const projectPolicy: ProjectPolicy = {
       canCreateProject: async () => true,
       listVisibleProjectIds: async () => null,
@@ -75,6 +164,8 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
   beforeEach(async () => {
     await database.raw(`
       truncate table
+        control_plane.storyboard_approvals,
+        control_plane.storyboard_versions,
         control_plane.script_approvals,
         control_plane.script_versions,
         control_plane.creative_briefs,
@@ -182,6 +273,11 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
       .set('cookie', 'videoagent_session=tenant-b-session');
     expect(crossTenant.status).toBe(404);
     expect(crossTenant.body.error.code).toBe('PROJECT_NOT_FOUND');
+    const crossTenantEligibility = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-eligibility`)
+      .set('cookie', 'videoagent_session=tenant-b-session');
+    expect(crossTenantEligibility.status).toBe(404);
+    expect(crossTenantEligibility.body.error.code).toBe('PROJECT_NOT_FOUND');
 
     for (const [index, goal] of ['awareness', 'conversion'].entries()) {
       const brief = await request(app)
@@ -224,15 +320,47 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
       .set('idempotency-key', 'approval-1')
       .send({ status: 'approved', factRiskStatus: 'cleared' });
     expect(approved.status).toBe(201);
+    const storyboardVersionId = await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: latestScriptId,
+      version: 1,
+      status: 'approved',
+    });
     const eligible = await request(app)
       .get(`/api/v1/projects/${projectId}/production-eligibility`)
       .set('cookie', 'videoagent_session=tenant-a-session');
+    expect(eligible.status).toBe(200);
+    expect(Object.keys(eligible.body)).toEqual([
+      'projectId',
+      'eligible',
+      'scriptVersionId',
+      'scriptVersion',
+      'storyboardVersionId',
+      'storyboardVersion',
+      'reasonCode',
+      'scriptApproval',
+      'storyboardApproval',
+    ]);
     expect(eligible.body).toMatchObject({
+      projectId,
       eligible: true,
       scriptVersionId: latestScriptId,
       scriptVersion: 2,
+      storyboardVersionId,
+      storyboardVersion: 1,
       reasonCode: 'ELIGIBLE',
+      scriptApproval: {
+        scriptVersionId: latestScriptId,
+        status: 'approved',
+        factRiskStatus: 'cleared',
+      },
+      storyboardApproval: {
+        storyboardVersionId,
+        status: 'approved',
+        factRiskStatus: 'cleared',
+      },
     });
+    expect(eligible.body).not.toHaveProperty('approval');
 
     const revoked = await request(app)
       .post(`/api/v1/projects/${projectId}/script-versions/${latestScriptId}/approvals`)
@@ -243,7 +371,10 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     const ineligible = await request(app)
       .get(`/api/v1/projects/${projectId}/production-eligibility`)
       .set('cookie', 'videoagent_session=tenant-a-session');
-    expect(ineligible.body).toMatchObject({ eligible: false, reasonCode: 'APPROVAL_REVOKED' });
+    expect(ineligible.body).toMatchObject({
+      eligible: false,
+      reasonCode: 'SCRIPT_APPROVAL_REVOKED',
+    });
 
     const blocked = await request(app)
       .post(`/api/v1/projects/${projectId}/script-versions/${latestScriptId}/approvals`)
@@ -277,6 +408,169 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     expect(
       scripts.body.scriptVersions.map((version: { version: number }) => version.version),
     ).toEqual([1, 2]);
+  });
+
+  it('uses only the latest script/storyboard authorities and fails closed without fallback', async () => {
+    const project = await request(app)
+      .post('/api/v1/projects')
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'dual-authority-project')
+      .send({
+        name: 'Dual Authority',
+        status: 'draft',
+        platform: 'douyin',
+        aspectRatio: '9:16',
+        targetDurationSeconds: 30,
+      });
+    expect(project.status).toBe(201);
+    const projectId = project.body.id as string;
+
+    const scriptV1 = await request(app)
+      .post(`/api/v1/projects/${projectId}/script-versions`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'dual-authority-script-1')
+      .send({ payload: { title: 'Approved script v1' } });
+    expect(scriptV1.status).toBe(201);
+    const scriptV1Id = scriptV1.body.id as string;
+    expect(
+      (
+        await request(app)
+          .post(`/api/v1/projects/${projectId}/script-versions/${scriptV1Id}/approvals`)
+          .set('cookie', 'videoagent_session=tenant-a-session')
+          .set('idempotency-key', 'dual-authority-script-approval-1')
+          .send({ status: 'approved', factRiskStatus: 'cleared' })
+      ).status,
+    ).toBe(201);
+
+    const withoutStoryboard = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-eligibility`)
+      .set('cookie', 'videoagent_session=tenant-a-session');
+    expect(withoutStoryboard.body).toMatchObject({
+      eligible: false,
+      storyboardVersionId: null,
+      storyboardVersion: null,
+      reasonCode: 'NO_STORYBOARD_VERSION',
+      storyboardApproval: null,
+    });
+
+    await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: scriptV1Id,
+      version: 1,
+      status: 'approved',
+    });
+    const draftStoryboardId = await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: scriptV1Id,
+      version: 2,
+    });
+    const latestDraft = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-eligibility`)
+      .set('cookie', 'videoagent_session=tenant-a-session');
+    expect(latestDraft.body).toMatchObject({
+      eligible: false,
+      storyboardVersionId: draftStoryboardId,
+      storyboardVersion: 2,
+      reasonCode: 'STORYBOARD_NOT_APPROVED',
+      storyboardApproval: null,
+    });
+
+    const scriptV2 = await request(app)
+      .post(`/api/v1/projects/${projectId}/script-versions`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'dual-authority-script-2')
+      .send({ payload: { title: 'Approved script v2' } });
+    expect(scriptV2.status).toBe(201);
+    const scriptV2Id = scriptV2.body.id as string;
+    expect(
+      (
+        await request(app)
+          .post(`/api/v1/projects/${projectId}/script-versions/${scriptV2Id}/approvals`)
+          .set('cookie', 'videoagent_session=tenant-a-session')
+          .set('idempotency-key', 'dual-authority-script-approval-2')
+          .send({ status: 'approved', factRiskStatus: 'cleared' })
+      ).status,
+    ).toBe(201);
+    const mismatchedStoryboardId = await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: scriptV1Id,
+      version: 3,
+      status: 'approved',
+    });
+    const bindingMismatch = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-eligibility`)
+      .set('cookie', 'videoagent_session=tenant-a-session');
+    expect(bindingMismatch.body).toMatchObject({
+      eligible: false,
+      scriptVersionId: scriptV2Id,
+      storyboardVersionId: mismatchedStoryboardId,
+      reasonCode: 'SCRIPT_STORYBOARD_BINDING_MISMATCH',
+    });
+
+    const revokedStoryboardId = await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: scriptV2Id,
+      version: 4,
+      status: 'approved',
+    });
+    await appendStoryboardApproval(database, projectId, revokedStoryboardId, {
+      status: 'revoked',
+      factRiskStatus: 'cleared',
+      projectStatus: 'revoked',
+    });
+    expect(
+      (
+        await request(app)
+          .get(`/api/v1/projects/${projectId}/production-eligibility`)
+          .set('cookie', 'videoagent_session=tenant-a-session')
+      ).body,
+    ).toMatchObject({
+      storyboardVersionId: revokedStoryboardId,
+      reasonCode: 'STORYBOARD_APPROVAL_REVOKED',
+    });
+
+    const blockedStoryboardId = await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: scriptV2Id,
+      version: 5,
+      status: 'approved',
+    });
+    await appendStoryboardApproval(database, projectId, blockedStoryboardId, {
+      status: 'blocked',
+      factRiskStatus: 'cleared',
+      projectStatus: 'draft',
+    });
+    expect(
+      (
+        await request(app)
+          .get(`/api/v1/projects/${projectId}/production-eligibility`)
+          .set('cookie', 'videoagent_session=tenant-a-session')
+      ).body,
+    ).toMatchObject({
+      storyboardVersionId: blockedStoryboardId,
+      reasonCode: 'STORYBOARD_BLOCKED',
+    });
+
+    const unresolvedStoryboardId = await insertStoryboardVersion(database, {
+      projectId,
+      scriptVersionId: scriptV2Id,
+      version: 6,
+      status: 'approved',
+    });
+    await appendStoryboardApproval(database, projectId, unresolvedStoryboardId, {
+      status: 'approved',
+      factRiskStatus: 'unresolved',
+    });
+    expect(
+      (
+        await request(app)
+          .get(`/api/v1/projects/${projectId}/production-eligibility`)
+          .set('cookie', 'videoagent_session=tenant-a-session')
+      ).body,
+    ).toMatchObject({
+      storyboardVersionId: unresolvedStoryboardId,
+      reasonCode: 'STORYBOARD_FACT_RISK_UNRESOLVED',
+    });
   });
 
   it('rejects client tenant injection and unresolved-risk approval', async () => {

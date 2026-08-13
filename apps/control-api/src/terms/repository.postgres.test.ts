@@ -12,11 +12,12 @@ const hasDedicatedTestDatabase = /_test$/.test(testDatabaseName);
 const publisherId = '81000000-0000-4000-8000-000000000001';
 const consentingUserId = '81000000-0000-4000-8000-000000000002';
 const documentId = '82000000-0000-4000-8000-000000000001';
+const documentTwoId = '82000000-0000-4000-8000-000000000002';
 const versionOneId = '83000000-0000-4000-8000-000000000001';
 const versionTwoId = '83000000-0000-4000-8000-000000000002';
 const consentId = '84000000-0000-4000-8000-000000000001';
 const generatedIds = {
-  document: [documentId],
+  document: [documentId, documentTwoId],
   version: [versionOneId, versionTwoId],
   consent: [consentId],
 };
@@ -106,6 +107,83 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresTermsRepository', () => {
       mustReaccept: true,
       effectiveAt: '2026-08-07T11:00:00.000Z',
     });
+  });
+
+  it('lists bounded management Documents and Versions with deterministic filters and safe missing-document behavior', async () => {
+    const firstDocument = await repository.createDocument({
+      documentCode: 'registration-notice',
+      title: 'Registration notice test fixture',
+    });
+    const secondDocument = await repository.createDocument({
+      documentCode: 'privacy-notice',
+      title: 'Privacy notice test fixture',
+    });
+    const retiredDocument = await repository.retireDocument(firstDocument.termsDocumentId);
+
+    await expect(repository.listDocuments({ status: 'all', limit: 1 })).resolves.toEqual([
+      retiredDocument.value,
+    ]);
+    await expect(repository.listDocuments({ status: 'active', limit: 100 })).resolves.toEqual([
+      secondDocument,
+    ]);
+    await expect(repository.listDocuments({ status: 'retired', limit: 100 })).resolves.toEqual([
+      expect.objectContaining({
+        termsDocumentId: firstDocument.termsDocumentId,
+        status: 'retired',
+      }),
+    ]);
+
+    const firstVersion = await repository.createDraft({
+      termsDocumentId: secondDocument.termsDocumentId,
+      versionLabel: 'test-v1',
+      content: 'Test-only terms body version one.',
+      locale: 'zh-CN',
+      mustReaccept: false,
+      supersedesTermsVersionId: null,
+    });
+    await repository.publishVersion(
+      firstVersion.termsVersionId,
+      publisherId,
+      new Date('2026-08-07T11:00:00.000Z'),
+    );
+    const retiredVersion = await repository.retireVersion(firstVersion.termsVersionId);
+    const secondVersion = await repository.createDraft({
+      termsDocumentId: secondDocument.termsDocumentId,
+      versionLabel: 'test-v2',
+      content: 'Test-only terms body version two.',
+      locale: 'zh-CN',
+      mustReaccept: true,
+      supersedesTermsVersionId: firstVersion.termsVersionId,
+    });
+
+    await expect(
+      repository.listVersions({
+        termsDocumentId: secondDocument.termsDocumentId,
+        status: 'all',
+        limit: 1,
+      }),
+    ).resolves.toEqual([retiredVersion.value]);
+    await expect(
+      repository.listVersions({
+        termsDocumentId: secondDocument.termsDocumentId,
+        status: 'DRAFT',
+        limit: 100,
+      }),
+    ).resolves.toEqual([secondVersion]);
+    await expect(
+      repository.listVersions({
+        termsDocumentId: secondDocument.termsDocumentId,
+        status: 'RETIRED',
+        limit: 100,
+      }),
+    ).resolves.toEqual([retiredVersion.value]);
+    await expect(
+      repository.listVersions({
+        termsDocumentId: '82000000-0000-4000-8000-000000000099',
+        status: 'all',
+        limit: 100,
+      }),
+    ).rejects.toMatchObject({ code: 'TERMS_DOCUMENT_NOT_FOUND', status: 404 });
   });
 
   it('selects exact-locale current Terms by effective time and never returns DRAFT or future content', async () => {

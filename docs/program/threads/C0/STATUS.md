@@ -1,9 +1,9 @@
 # C0 STATUS
 
 - 岗位：总项目负责人 / 总架构师
-- 当前阶段：A 业务平台 Wave 1 · 多组织与真实 RBAC 底座
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01 `COMPLETE` / A-BIZ-02 `COMPLETE` / A-BIZ-03.1A～03.1C `COMPLETE`
-- 当前任务：A-BIZ-03.1C TEST Recharge/Payment HTTP API 与 Bootstrap 已完成并独立提交；下一步先冻结 A-BIZ-03.2 原子到账/额度发行边界，继续保持 LIVE 支付与未会签商业数字 fail closed
+- 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A 已完成 Shared transport RED、Golden Path semantic evidence Oracle 与 remediation HTTP/log security Oracle，已完成 remediation Git attestation 主线程验收；同时等待 B 修复 Pilot parser/error、legacy tokenKey false-ready、authority lifecycle、bounded shutdown 与 Pilot 日志泄漏，复验通过前不进入 Shared activation Green
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-08
+- 最近更新：2026-08-13
 
 ## 2026-07-30 单前端收口
 
@@ -834,3 +834,591 @@
 - rollback 在存在发行证据时 fail closed；历史无 Lot 的 Pilot Ledger 保持兼容。
 - Gate：015 定向 5/5；migration chain + 015 6/6；Control API 全量 44 files / 273 tests PASS；typecheck、build、定向 ESLint、Governance、diff check PASS。
 - 下一步：03.2B Repository/Service 原子应用，先写 succeeded/replay/concurrency/unsupported/rollback RED。
+
+## 2026-08-08 A-BIZ-03.2B TEST Payment 原子应用完成
+
+- Repository 已把 TEST `payment_succeeded` 在单一 PostgreSQL 事务内应用为 PaymentEvent `applied`、RechargeOrder `pending → paid`、purchased/bonus Credit Lot 与逐 Lot append-only Ledger issue。
+- 同 Provider identity 串行/并发 replay 不重复；同 Order 的不同 succeeded Event 只允许一个 applied，另一个稳定 rejected / `invalid_order_state`。
+- `payment_failed`、refund、chargeback 等未支持事件稳定 rejected / `unsupported_event_type`；冻结 Wallet 稳定 rejected / `wallet_unavailable`，不改变 Order、不发行额度。
+- 中途 Ledger ID 失败合同证明 Event、Order、Order Event、Lot 与 Ledger 全部回滚，无半到账。
+- PaymentEvent 安全投影新增 `processedAt`；Service 与既有 Route mock 已同步 terminal Store 结果，LIVE 仍 503 fail closed。
+- RED：新增原子行为 6 项全部按旧 Inbox-only 行为失败；Green：Repository PostgreSQL 13/13、Service/Route 27/27、Control API 全量 44 files / 277 tests PASS。
+- typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交；本切片未修改共享 Bootstrap。
+- 当前状态：`A_BIZ_03_2B_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): apply test payments atomically`，随后进入 03.2C HTTP terminal 语义与安全发行摘要。
+
+## 2026-08-08 A-BIZ-03.2C HTTP 终态与安全发行摘要完成
+
+- Internal TEST Payment Event endpoint 现在同步返回 Repository 的 terminal 结果：首次 `applied` 或 `rejected` 均为 HTTP 200；安全 replay 仍为 200，并通过 `Idempotency-Replayed` 区分。
+- 响应明确包含 `paymentMode: TEST`、`processingStatus`、`errorCode` 与 `processedAt`，不再使用暗示异步 Inbox 的首次 202，也不把 TEST Event 描述为真实收款。
+- Tenant RechargeOrder bounded list 已用 paid 合同验证可安全展示购买额度、赠送额度和赠送到期天数；未暴露 Provider Event identity、digest 或原始 payload，未增加不必要的独立 Credit endpoint。
+- RED：新增首次 applied/rejected 两项终态 HTTP 合同，旧实现均因返回 202 按预期失败；Green：Payment Route 13/13。
+- Gate：Control API 全量 44 files / 278 tests PASS；typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 本切片只修改 Payment Route、Route Test 与 C0 文档；未修改共享 App/Config/Server，B 无需等待同步共享 Bootstrap。
+- B 的 `apps/storycanvas/data/vendor/byteplus.ts` 保持未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_2C_COMPLETE / A_BIZ_03_2_COMPLETE / READY_TO_COMMIT`。
+- 下一步：独立提交 `feat(control-api): expose test credit issuance results`；随后先冻结 A-BIZ-03.3 或下一业务节点合同。
+
+## 2026-08-08 A-BIZ-03.3 佣金影子账、冲正与结算草稿计划冻结
+
+- 计划依据：Wave 0 已批准单级直接归因佣金、实际支付净额、版本化 Rule、append-only Reversal、自然月 Settlement Draft，以及不提现、不自动打款。
+- 实施顺序：03.3A Migration 016 Schema → 03.3B TEST succeeded 原子计提 → 03.3C TEST 全额安全退款/拒付冲正 → 03.3D Channel/Platform scoped 只读 API → 03.3E TEST Settlement Draft。
+- 无归因或归因过期不计提但写 Calculation Outcome；Channel/Rule 不可用进入 `manual_review`，不得套默认佣金比例；多个 ACTIVE Rule 匹配时整个事务 fail closed。
+- 退款首版只允许能证明原订单 purchased/bonus Lot 全部未冻结、未消费、未回收的 TEST 全额安全子集；部分退款或额度已使用继续稳定拒绝，等待 A-06 Lot 分摊合同和商业决策。
+- Settlement 状态只允许 `draft/reviewed/approved`，数据库禁止 `paid`；不实现 KYC、税务、提现、出款或真实资金承诺。
+- 03.3A 只新增 Commission Schema 与 PostgreSQL 合同，不修改共享 App/Config/Server，B 无需为这一切片同步 Bootstrap。
+- 权威计划：`A_BIZ_03_3_COMMISSION_REVERSAL_SETTLEMENT_PLAN.md`；当前基线：`857c2cf`。
+- 当前状态：`A_BIZ_03_3_PLAN_FROZEN / READY_FOR_03_3A_RED`。
+
+## 2026-08-08 A-BIZ-03.3A Commission Shadow Ledger Schema 完成
+
+- Migration 016 已建立版本化 Commission Rule、Calculation Outcome、Accrual、Reversal、Settlement 与 Settlement Item 六张空表，不 seed 任何 TEST/LIVE Rule。
+- Rule 审批、生命周期、有效窗口不重叠与核心计算事实不可变由 PostgreSQL trigger 保护；佣金金额使用整数比例和显式舍入。
+- Outcome/Accrual/Reversal/Settlement Item append-only；数据库校验 Payment/Order/Attribution/Channel/Rule、金额、币种、事件时间、观察期和累计冲正一致性。
+- Settlement 只允许 `draft/reviewed/approved`，Platform Admin 才能创建/审核/批准，数据库禁止 `paid`；空 Schema 可回滚，存在审计事实时 rollback fail closed。
+- RED 证据：Migration 016 空骨架下 7/7 因表不存在失败；Green：016 定向 7/7、migration chain 联合 8/8、Control API 全量 45 files / 285 tests PASS。
+- typecheck、build、定向 ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 本切片未修改 Payment Repository、HTTP 或共享 Bootstrap；B 无需为 03.3A 同步共享入口，`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_03_3A_COMPLETE / READY_FOR_03_3B_PLANNING`。
+- 下一步：先冻结 03.3B succeeded Payment 原子佣金计提的 Repository/事务/失败语义，再写 RED；真实比例继续未授权。
+
+## 2026-08-08 A-BIZ-03.3B TEST Payment 原子佣金计提计划冻结
+
+- 权威细化计划：`A_BIZ_03_3B_ATOMIC_COMMISSION_ACCRUAL_PLAN.md`。
+- 成功路径将在现有 Payment/Order/Credit 同一事务内，先把 Order/PaymentEvent 更新为 `paid/applied`，再追加 Calculation Outcome，并在唯一合法 Rule 时追加 Accrual；Commission 写入失败必须回滚全部事实。
+- 无 Attribution 写 `not_attributed`；过期写 `attribution_expired`；Attribution/Channel/Rule 不可用写 `manual_review`；任何场景都不使用默认佣金比例。
+- LIVE、unsupported Event、refund/chargeback、HTTP 佣金查询与 Settlement 不在 03.3B 范围。
+- 下一动作：新增独立 PostgreSQL RED 合同，覆盖 accrued、无归因、过期、Channel/Rule 不可用、replay、并发、多 Rule 冲突和 Commission 中途失败。
+
+## 2026-08-08 A-BIZ-03.3B TEST Payment 原子佣金计提完成
+
+- 新增 `payments/commissionCalculation.ts`：使用 canonical JSON + SHA-256 冻结计算证据，并以 BigInt 执行 FLOOR/CEILING/HALF_UP 整数 minor-unit 计算。
+- TEST `payment_succeeded` 现在在现有 Payment/Order/Credit 同一事务内先完成 `paid/applied`，再为每个 applied Event 追加唯一 Calculation Outcome；仅在冻结直接 Attribution、active Channel Organization 与唯一 ACTIVE TEST Rule 同时成立时追加 Accrual。
+- 无归因写 `not_attributed`；过期写 `attribution_expired`；Attribution、Channel 或 Rule 不可用写 `manual_review`；多个匹配 Rule 明确 fail closed，任何 Commission 写入失败回滚 Payment、Order、Lot、Ledger 与 Commission 全部事实。
+- RED→Green：9 个新 PostgreSQL 场景先按实现缺失失败，Repository 最终 22/22；纯计算 6/6。
+- 完整 Gate：Control API 46 files / 300 tests；typecheck、build、ESLint、Prettier、Governance、diff check 全 PASS。
+- 本切片未修改共享 Bootstrap/HTTP，也未触碰 StoryCanvas；下一步先规划 A-BIZ-03.3C，只处理能证明 Credit Lot 可完整回收的 TEST 全额 refund/chargeback 冲正安全子集。
+
+## 2026-08-08 A-BIZ-03.3C TEST 全额退款/拒付原子冲正计划冻结
+
+- 权威细化计划：`A_BIZ_03_3C_FULL_TEST_REVERSAL_PLAN.md`；实现基线 `61e8b67`。
+- 03.3C 只支持 TEST 全额 refund/chargeback：PaymentEvent、全 Lot reclaim、可选 Commission Reversal、Order 与 OrderEvent 必须处于单一事务。
+- 可回收证明采用最保守边界：Lot/issue 完整匹配，Wallet 不得存在任何非 issue Ledger 或任何历史 Reservation，Lot 不得已 reclaim，Accrual 不得已 reversal。
+- 部分退款保存为 `rejected / partial_refund_unsupported`；无法证明额度安全时为 `credit_reclaim_unsafe`；Commission 冲突为 `commission_reversal_conflict`，不实现近似冲正。
+- Migration 017 将增加 `reclaim` Ledger operation、Lot-linked reclaim 约束、PaymentEvent 审计码并补强 Reversal 必须引用 applied TEST 全额 Event。
+- 本切片不涉及 LIVE、真实 Provider 退款、负余额、跨 Lot 分摊、HTTP 新接口、Settlement 或 StoryCanvas。
+- 当前状态：`A_BIZ_03_3C_PLAN_FROZEN / READY_FOR_03_3C_RED`。
+- 下一步：先新增 migration 017 空骨架与 PostgreSQL RED 合同，确认因 reclaim/原子 reversal 实现缺失而失败，再进入最小 Green。
+
+## 2026-08-08 A-BIZ-03.3C TEST 全额退款/拒付原子冲正完成
+
+- Migration 017 已增加 `reclaim` Ledger operation、每 Lot 独立 issue/reclaim 唯一性、严格的 applied TEST 全额 reversal 来源校验，并补强 PaymentEvent stable rejected code 与 Commission Reversal 全额约束。
+- Payment Repository 现支持 TEST 全额 `refund_succeeded` / `chargeback_succeeded`：PaymentEvent、完整 Lot reclaim、可选 Commission Reversal、Order 终态与 RechargeOrderEvent 位于同一 PostgreSQL 事务。
+- refund 将 `paid → refunded`；chargeback 将 `paid → disputed`。原 succeeded Payment 没有 Accrual 时只回收 Credit，不创建虚假 Reversal。
+- 安全证明保持最保守边界：Order 必须 paid、Wallet active、Lot/issue 与订单完全一致、Wallet 无任何非 issue Ledger、无任何历史 Credit Reservation、无 applied reversal、Accrual 无既有 Reversal。
+- 部分退款稳定 `partial_refund_unsupported`；Credit 证据不足稳定 `credit_reclaim_unsafe`；Commission 冲突稳定 `commission_reversal_conflict`。
+- 新增 replay、refund/chargeback 竞争、历史 Reservation、冻结 Wallet、非 paid Order、既有 Commission Reversal、reclaim/Reversal ID 故障全事务回滚合同。
+- 定向 Gate：Migration 017 + Repository 2 files / 36 tests PASS；完整 Control API 47 files / 314 tests PASS。
+- typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全部 PASS。
+- 未修改共享 Bootstrap/HTTP 或 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_3C_COMPLETE / COMMITTED / READY_FOR_NEXT_PLANNING`；未收到 push 指令前不 push。
+
+## 2026-08-08 A-BIZ-03.3D Scoped Commission Read APIs 计划冻结
+
+- 权威计划：`A_BIZ_03_3D_SCOPED_COMMISSION_READ_APIS_PLAN.md`；实现基线 `66301c5`。
+- Platform Admin 提供全局 Calculation/Accrual/Reversal 和 manual-review bounded list；Channel Admin 仅能读取 canonical 自身 beneficiary Channel。
+- Tenant/Content Operator 探测返回 404；跨 Channel 返回 404；同 Scope 缺管理员角色返回 403。
+- 响应只包含最小审计投影，禁止 snapshot/digest、Provider payload/secret、审批凭据、Tenant/User/Referral 明细和其他 Channel 数据。
+- 03.3D 不创建 Rule、Settlement 或真实资金能力；共享 `app.ts` / `server.ts` 接线必须独立提交并通知 B 同步。
+- 下一步：先写 Commission Service/Repository/Router RED，再实现最小 Green。
+
+## 2026-08-08 A-BIZ-03.3D Scoped Commission Read APIs 完成
+
+- 新增独立 `apps/control-api/src/commissions/**`：安全 DTO、稳定 Scope 错误、PostgreSQL 只读 Repository、Service 权限策略与 HTTP Router。
+- Platform Admin 可读取全局 Calculation/Accrual/Reversal 和 `manual_review`；Channel Admin 仅能读取 canonical 自身 beneficiary Channel。
+- Tenant/Content Operator、错误 Organization 和跨 Channel 统一 404；同 PLATFORM/CHANNEL Scope 缺管理员角色为 403。
+- 列表默认 50、最大 100，稳定按 occurredAt 与主键倒序；响应排除 snapshot/digest、Provider payload/secret、内部 Token、审批凭据和 User/Tenant/Referral 明细。
+- 核心提交：`957c080`；共享 Bootstrap 提交：`93c48aa`。B 需要在继续共享 `app.ts` / `server.ts` 开发前同步 `93c48aa`。
+- 全量 Gate：Control API 50 files / 334 tests PASS；typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 未修改 StoryCanvas；`apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交。
+- 下一步：先独立冻结 A-BIZ-03.3E Settlement Draft 计划；不得把 draft 描述成已到账、可提现或真实 paid。
+
+## 2026-08-08 A-BIZ-03.3E TEST Commission Settlement Draft 完成
+
+- 独立 Migration 018 修复 Reversal Settlement Item validator 的 PL/pgSQL record/alias 重名缺陷；提交 `9b252ee`，定向迁移链/Repository `3 files / 9 tests` PASS。
+- Settlement 核心提交 `499dcbb`：Platform Admin TEST-only 月度 Draft、HMAC 幂等、Scope/Period advisory lock、证据重验、eligibleAt/cutoff、跨月负 Reversal、零额 Draft 与安全投影。
+- 共享 Bootstrap 提交 `0433fdb`：挂载 `POST /api/v1/platform/commission-settlements`；首次 201、replay 200，并显式返回 `idempotency-replayed`。
+- 定向 Gate：Settlement `3 files / 26 tests`，Bootstrap/Router `2 files / 19 tests`；全量 Control API `54 files / 363 tests` PASS。
+- typecheck、build、ESLint、Prettier、Governance、`git diff --check` 全 PASS。
+- 继续禁止 LIVE Settlement、真实佣金比例、review/approve HTTP 命令、paid、提现、KYC、税务与自动打款。
+- B 同步要求：修改共享 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 前同步 `0433fdb`。
+- StoryCanvas 未修改；`apps/storycanvas/data/vendor/byteplus.ts` 未暂存、未提交。
+- 当前状态：`A_BIZ_03_3E_COMPLETE / A_BIZ_03_3_COMPLETE / READY_FOR_03_4_PLANNING`。
+
+## 2026-08-08 A-BIZ-03.4 Commercial Frontend & Audit 计划冻结
+
+- 权威计划：`A_BIZ_03_4_COMMERCIAL_FRONTEND_AUDIT_PLAN.md`；当前基线 `33b46ed`。
+- 冻结为六个原子切片：03.4A Channel Reference/Directory + Strict Client；03.4B Organization Route Policy；03.4C Platform/Channel Commission Audit；03.4D Platform TEST Settlement Draft UI；03.4E Tenant TEST RechargeOrder Audit；03.4F 共享 Pilot Router/Sidebar/Topbar 激活。
+- 关键前置合同：新增 `GET /api/v1/channels/current` 安全解析 canonical `channelId`，以及 `GET /api/v1/platform/channels?status=active&limit=100` 提供最小 active Channel Directory；前端禁止猜测 `channelId === organizationId`，也不得从 Commission 记录反推 Channel。
+- Pilot 必须按 PLATFORM/CHANNEL/TENANT 分流；所有默认路由、菜单、direct URL 与 returnTo 复用同一 Policy。Platform/Channel 不进入 Tenant Boundary、不显示 Project Selector；Tenant 保留现有 Project Context。
+- Demo 与 Pilot 严格隔离；Pilot 只使用 HttpOnly Session Cookie 和真实 Control API，失败时不回退 Mock。401 清 Session 并安全回登录，403 保留 Session，404 不泄漏 Scope，错误展示安全 Request ID。
+- Commission 页面只读安全投影；Settlement 页面必须显著标记 `TEST / draft / NON_QUOTE`、非到账、非提现、非 paid；Tenant Recharge 仅 `tenant_admin` 只读，不开放创建或 Conversion Rule UUID 输入。
+- 首个 RED：CHANNEL Session 的 `organizationId` 与 canonical `channelId` 使用不同 UUID，`GET /api/v1/channels/current` 必须返回 Repository 解析的 Channel ID；当前预期 `404 ROUTE_NOT_FOUND`。
+- 共享 Control API Bootstrap 与共享 Pilot Router/Layout 都必须分别独立 commit，并明确通知 B；StoryCanvas 与 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_03_4_PLAN_FROZEN / READY_FOR_03_4A_RED`；未收到实现指令前不修改业务代码，未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4A Commercial Channel Reference / Strict Client 完成
+
+- 核心提交 `461f494`：新增 `GET /api/v1/channels/current` 与 `GET /api/v1/platform/channels?status=active&limit=100`，由 Repository 解析 canonical Channel ID 并只返回 active CHANNEL Organization 的最小目录投影。
+- Current Channel 禁止猜测 `organizationId === channelId`；Repository join `organizations` 重验 `organization_type = CHANNEL` 与 `status = active`。Directory 按 `displayName ASC + channelId ASC` 稳定排序，limit 在 Repository/Service 双层限制为 1～100。
+- Scope/错误合同：错误 Scope、跨 Scope 与缺失 canonical mapping 为 404；同 PLATFORM/CHANNEL Scope 缺管理员角色为 403；非法或未知 query 为 422；响应保持 `cache-control: no-store`。
+- 共享 Bootstrap 提交 `856757b`：修改 `apps/control-api/src/app.ts`、`app.test.ts`、`server.ts` 并挂载 Commercial Channel Router。B 修改这些共享文件前必须同步该提交。
+- 前端提交 `671fe3e`：扩展严格 `pilotControlApi`，覆盖 Current Channel、active Directory、Platform/Channel Commission Audit、Platform TEST Settlement Draft 与 Tenant RechargeOrder bounded list。
+- Client 全请求使用真实 Session Cookie；商业读取 `no-store`；严格解析 UUID、枚举、safe integer minor unit、currency、带时区 timestamp；保留 401/403/404/409/422/5xx、业务 code 与 Request ID。
+- Client 只接受 TEST 商业事实，LIVE 与 malformed/non-JSON success fail closed；安全 DTO 排除 Provider 标识/摘要、Buyer/Membership/Wallet/Attribution 等敏感字段；Pilot 失败不回退 Demo、Mock 或 localStorage。
+- 验证：Channel 定向 17 PASS / 3 PostgreSQL SKIP，App + Router 22 PASS，Control API 全量 31 files / 219 PASS / 165 PostgreSQL SKIP，typecheck/build PASS；前端 Client 16/16 PASS，build PASS。并发根测试的 3 个既有重型 UI 用例曾触发 5 秒资源超时，失败文件单独复跑 19/19 PASS；最终 Gate 使用单 worker。
+- StoryCanvas tracked diff 为零；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。未实现 UI、LIVE、真实比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
+- 当前状态：`A_BIZ_03_4A_COMPLETE / READY_FOR_03_4B_RED`；下一 RED 为纯 Route Policy：PLATFORM Session 默认路由必须是 `/platform/commission-audit`，且不得进入 Tenant Project Boundary。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4B Pilot Organization Commercial Route Policy 完成
+
+- 新增 `src/domain/pilotOrganizationRoutePolicy.ts` 与 15 项权限测试；首个 RED 因目标 Policy 模块不存在按预期失败，随后最小实现转绿。
+- 冻结四条商业路由 Manifest：Platform Commission Audit、Platform TEST Settlement Draft、Channel Commission Audit、Tenant TEST RechargeOrder Audit；Manifest 统一提供 Scope、Role、Capability、菜单与 Project Context 事实。
+- 默认路由：PLATFORM `platform_admin` → `/platform/commission-audit`，CHANNEL `channel_admin` → `/channel/commission-audit`，均明确不需要 Tenant Project Context；TENANT 继续复用现有稳定首个可见 Project Brand，无 Project 时进入 `/projects`。
+- 越权语义：跨 Organization 或探测其他 Scope 的已注册路由为 `scope-not-found`（03.4F 映射 404）；同 Scope 缺所需角色为 `permission-denied`（映射 403）；`pilot_support` 不自动继承商业权限。
+- Tenant `/enterprise/recharge-orders` 仅 `tenant_admin`；`content_operator` 菜单为空且直接 URL 为 permission denied。Tenant Project 路由继续委托既有 `authorizeTenantWorkbenchRoute`，不创建 Demo Project fallback。
+- 安全 returnTo 只保留当前 Session Policy 允许的站内路径；外部 URL、协议相对 URL、未知、控制字符、反斜杠与跨 Scope 候选统一回当前 Scope 安全默认路由，缺角色时不得借 fallback 获权。
+- 全量前端单 worker：37 files 中 36 PASS，295/296 tests PASS；唯一失败为既有 `app.smoke` 重型 UI 用例超过 5 秒，对应文件随后 11/11 PASS。03.4B 定向 15/15、TypeScript、ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS。
+- 本切片只新增纯 Domain Policy 与测试；未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、业务页面、Control API 或 StoryCanvas。B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4B_COMPLETE / READY_FOR_03_4C_RED`。下一 RED：Platform Commission Audit 页面必须只调用真实 `pilotControlApi` 并先呈现 loading/empty 状态，不得读取 Demo `useControlPlaneStore`。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4C Platform/Channel Commission Audit 完成
+
+- 新增独立 Pilot 页面 `src/pages/pilot/PilotCommissionAuditPages.tsx` 与 11 项页面测试；Demo 的 `PlatformManagementPages.tsx`、`ChannelCommercialPages.tsx` 和 `useControlPlaneStore` 保持不变。
+- 首个 RED 因目标页面模块不存在按预期失败；实现后页面测试 11/11 PASS，并证明 Platform 页面只调用真实 `pilotControlApi`、先呈现 loading、随后进入真实 empty/ready。
+- Platform 页面并行读取 bounded 50 的 Payment Events、Calculations、Accruals、Reversals 与 Manual Reviews；仅显示 TEST 最小安全投影，不推导真实比例，不提供 review/approve 操作。
+- Channel 页面严格先调用 `readCurrentChannel()`，再使用服务端返回的 canonical `channelId` 请求 Calculation/Accrual/Reversal；测试故意令 Organization ID 与 Channel ID 不同，且禁止 URL、文本框或下拉框覆盖 Channel Scope。
+- 状态模型覆盖 loading、empty、ready、retrying、401、403、404、network/5xx 与 invalid response。Retry 会先清空旧投影，只重试真实 API；401 清除 Pilot Session 与 Project Context，403 保留 Session，404 使用通用 Scope 文案。
+- 错误 UI 仅显示固定安全文案与可用 Request ID，不渲染原始 error body、Provider payload、stack、SQL、Secret 或完整敏感 DTO；Pilot 失败绝不回退 Demo、Mock 或 localStorage。
+- 页面持续标记 `TEST · READ ONLY` 和 bounded window，并明确“不表示已到账、可提现、paid 或自动打款”；未实现 LIVE、真实比例、paid、提现、KYC、税务、自动打款或未规划 review/approve HTTP。
+- Gate：03.4C 定向 11/11 PASS；全量前端单 worker 为 37/38 files、306/307 tests PASS，唯一失败是既有 `app.smoke` 重型 UI 用例超过 5 秒，该用例隔离复跑 1/1 PASS；TypeScript、ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4C_COMPLETE / READY_FOR_03_4D_RED`。下一 RED：Settlement Draft 页面必须先从真实 active Channel Directory 加载 beneficiary 选项，显著显示 `TEST / draft / NON_QUOTE`，并证明不会提供手工 Channel UUID 输入或伪造历史列表。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4D Platform TEST Settlement Draft 完成
+
+- 新增独立 Pilot 页面 `src/pages/pilot/PilotSettlementDraftPage.tsx` 与 8 项页面测试；首个 RED 因目标页面模块不存在按预期失败，Router/Layout 接线继续保留到 03.4F。
+- 页面只从真实 `pilotControlApi.listActiveChannels(100)` 读取 active Channel Directory；beneficiary 使用 canonical `channelId` 下拉选择，不提供手工 UUID、Commission 反推、Demo Store、Mock 或 localStorage fallback。
+- 表单把币种固定为 `CNY`，把 month 转为 UTC 自然月起点，并要求带 `Z` 的 `cutoffAt` 不早于下一 UTC 月起点；前端无效事实在调用 API 前 fail closed。
+- 创建请求只能是 `paymentMode: TEST`；页面标题、表单确认、错误重试与成功区持续标记 `TEST / draft / NON_QUOTE`，并明确非到账、非提现、非 paid、非自动打款。
+- 幂等合同已冻结：同一业务事实失败重试复用同一 key；beneficiary、period 或 cutoff 改变后轮换 key；409 保留 Request ID 且不自动换 key 绕过冲突；key 不展示在 UI。
+- 成功后仅展示本次严格解析的 API Draft；零候选/零额 Draft 是合法审计结果。当前无 Settlement GET，因此页面不伪造服务端记录、不用本地成功结果冒充可恢复数据。
+- Directory/Submit 状态覆盖 loading、empty、retrying、401、403、404、409、network/5xx 与 invalid response；401 清 Session/Project Context，错误只显示固定安全文案与 Request ID，不泄漏原始服务端 body。
+- Gate：03.4D 定向 8/8 PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` PASS。全量单 worker为 37/39 files、311/315 tests PASS，4 个既有重型 UI 用例触发 5 秒 timeout；对应 Script Editor 8/8 与 Brand Brain 5/5 隔离复跑 PASS。
+- 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4D_COMPLETE / READY_FOR_03_4E_RED`。下一 RED：Tenant Recharge Audit 页面必须只使用 Session 的 canonical `tenantId` 调用真实 bounded GET，`content_operator` 不得获得页面能力，且页面不得出现 Recharge POST 或 Mock fallback。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4E Tenant TEST RechargeOrder Audit 完成
+
+- 新增独立 Pilot 页面 `src/pages/pilot/PilotTenantRechargeAuditPage.tsx` 与 7 项页面测试；首个 RED 因目标页面模块不存在按预期失败，Router/Layout 接线继续保留到 03.4F。
+- 页面只使用当前 Session `activeContext.tenantId` 调用真实 `listTenantRechargeOrders(tenantId, 50)`；不接受 URL、Project 或手工 Tenant 覆盖，不读取 Demo Store、Mock 或 localStorage。
+- 页面自身也 fail closed：仅 TENANT Scope 的 `tenant_admin` 可加载；`content_operator` 在调用 API 前得到 403 语义，缺 canonical Tenant Context 得到安全 404 语义。
+- 只读安全投影显示 TEST 金额、购买/赠送额度、赠送到期、短 Order reference、UTC 时间和 created/pending/paid/partially_refunded/refunded/cancelled/disputed 状态；不暴露 Tenant ID、完整 Order ID、Provider、Rule、Attribution、Buyer 或 Wallet 字段。
+- UI 显著标记 `TEST · READ ONLY · NON_QUOTE` 与 bounded 50；明确 paid/refunded/disputed 仅为 TEST 审计状态，不代表真实收款、到账、可用余额或退款完成。
+- 页面没有 Recharge POST、支付模拟、退款动作、任意搜索或完整导出；Retry 先清空旧投影，只请求真实 API。状态覆盖 loading、empty、ready、retrying、401、403、404、network/5xx 与 invalid response。
+- 401 清 Session/Project Context；403 保留 Session；错误只显示固定安全文案与 Request ID，不渲染原始 body 或敏感 DTO；Pilot 失败绝不回退 Mock。
+- Gate：03.4E 定向 7/7 PASS；全量前端单 worker 40/40 files、322/322 tests PASS；TypeScript、定向 ESLint、Build、Prettier、Governance 与 `git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- 本切片未修改 `Router.tsx`、`Sidebar.tsx`、`Topbar.tsx`、Control API 或 StoryCanvas；B 的 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_03_4E_COMPLETE / READY_FOR_03_4F_RED`。下一 RED：PLATFORM/CHANNEL Session 必须绕过 Tenant Project Boundary 并进入各自默认商业页，同时 Pilot Sidebar/Topbar 不得显示 Project Selector。03.4F 是共享 Router/Layout 独立提交，完成后必须通知 B 同步。未收到 push 指令前不 push。
+
+## 2026-08-09 A-BIZ-03.4F 组织商业工作台激活完成
+
+- 首个 RED 证明 PLATFORM Session 仍被旧 `PilotTenantBoundary` 阻断；Green 后 PLATFORM/CHANNEL 不再等待或进入 Tenant Project Boundary，分别默认进入 `/platform/commission-audit` 与 `/channel/commission-audit`。
+- 共享 Router 现在统一复用 03.4B Organization Policy 处理默认路由、安全 returnTo、菜单/direct URL 和 Scope/Role 授权；跨 Scope 已注册路由返回安全 404，同 Scope 缺角色返回 403，不回退 Demo/Mock。
+- Platform 菜单接入佣金审计与 `TEST 结算草稿`，Channel 菜单只接入佣金审计；Tenant Admin 增加 `TEST 充值记录`，Content Operator 菜单隐藏且 direct URL 在页面加载前拒绝。
+- Platform/Channel Topbar 不显示 Project Selector，并使用各自商业工作台 home/label；TENANT 保留现有 Project Selector、Project 默认路由、空列表和 Project Scope 服务错误/Request ID 语义。
+- Pilot 404 使用独立安全状态，不展示 Demo 导航；真实商业页面继续保留 loading/empty/retry、401/403/404/5xx、Request ID、敏感信息最小投影和 TEST-only 声明。
+- Gate：03.4F Router 定向 20/20 PASS；全量前端 40/40 files、330/330 tests PASS；TypeScript、定向 ESLint、Build、Prettier、Governance、`git diff --check` 全 PASS，仅保留既有大 chunk warning。
+- Demo Router/Store/UI 保持不变；StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；不 push。
+- 当前状态：`A_BIZ_03_4F_COMPLETE / A_BIZ_03_4_COMPLETE / READY_FOR_03_4_DOCS_CLOSE`。共享 Router/Layout 提交完成后，B 修改 `src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 前必须先同步。
+
+## 2026-08-09 A-BIZ-03.4 商业前端与审计完整收口
+
+- 03.4A～03.4F 已按独立原子提交完成：Channel Reference/Directory 与严格 Client、Organization Route Policy、Platform/Channel Commission Audit、Platform TEST Settlement Draft、Tenant Recharge Audit、共享 Pilot Router/Layout 激活。
+- 最终实现基线为 `b80e9ef feat(pilot): activate organization commercial workbenches`；PLATFORM 默认进入 `/platform/commission-audit`，CHANNEL 默认进入 `/channel/commission-audit`，TENANT 保留首个可见 Project/空列表 `/projects`。
+- Pilot 商业 API 只使用真实 Session Cookie 与 `no-store`，严格保留 401/403/404/409/422/5xx、业务 code 和 Request ID；malformed/non-JSON success fail closed，失败不回退 Demo、Mock 或 localStorage。
+- Platform/Channel/Tenant 菜单、默认路由、returnTo 与 direct URL 统一复用 Organization Policy；跨 Scope 为安全 404，同 Scope 缺角色为 403，Content Operator 不获得 Tenant Recharge 能力。
+- Commission/Recharge 页面只显示 bounded TEST 安全投影；Settlement 只允许 `TEST / draft / NON_QUOTE`，不表达到账、提现、paid 或自动打款。
+- 最终 Gate：Router 定向 20/20、前端全量 40/40 files 与 330/330 tests PASS；TypeScript、ESLint、Build、Prettier、Governance、diff-check 全 PASS。
+- 共享同步点：Control API Bootstrap 为 `856757b`；Router/Sidebar/Topbar 为 `b80e9ef`。B 修改对应共享文件前必须先同步。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除；分支不 push。
+- 当前状态：`A_BIZ_03_4_COMPLETE / READY_FOR_A_BIZ_06_PLANNING`。下一步先冻结 Wave 4 运营收口、联合 E2E、迁移/回滚、README 与 A/B 联合 Gate，不直接写实现。
+
+## 2026-08-09 A-BIZ-06 Operational Closure & A/B Joint Gate 计划冻结
+
+- 权威计划：`A_BIZ_06_OPERATIONAL_CLOSURE_JOINT_GATE_PLAN.md`；当前实现基线 `69b8181`。
+- 源码审计确认：现有 Playwright 仅覆盖 Demo/localStorage；Control API PostgreSQL suites 在缺 `CONTROL_API_TEST_DATABASE_URL` 时可能 SKIP；根目录没有统一 Joint Gate manifest/runner。
+- 冻结 06A～06F：确定性 Joint Gate、最小 Member Directory/Deactivation、Terms/Invitation/Member Pilot UI、专用 PostgreSQL + 真实 Session Cookie E2E、A/B 黄金路径、迁移/回滚与最终运营文档。
+- full Gate 必须 fail closed：缺合法 `_test` PostgreSQL、B 可同步基线或 required phase 时非零退出；`--list`/`--plan` 和快速模式不得冒充最终 PASS。
+- 统一冻结 401/403/404/409/422、Request ID、loading/empty/retry/inactive、Demo/Pilot 隔离与敏感信息最小投影；Pilot 失败不得回退 Mock/localStorage。
+- Commercial 仍严格为 `TEST / NON_QUOTE`；Settlement 仍为 `TEST + draft`，非到账、非提现、非 paid；不实现 LIVE、真实比例、KYC、税务、自动打款或未规划 review/approve HTTP。
+- A 不修改 StoryCanvas；B 未提供已提交且可同步的干净基线前，06E 与最终 A/B full Gate 保持未完成。`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_06_PLAN_FROZEN / READY_FOR_06A_RED`。首个 RED：Joint Gate manifest 必须列全 required phases，且 `--full` 缺专用 PostgreSQL URL 必须失败，不能让 PostgreSQL suite 静默 SKIP 后宣称 PASS。
+
+## 2026-08-09 A-BIZ-06A Deterministic Joint Gate Runner 完成
+
+- 首个 RED 按预期因 manifest 模块缺失失败；Green 后新增 12-phase 机器可读 manifest、Root runner、StoryCanvas v0.2 显式定向 wrapper、package scripts 与 Pilot README。
+- `--list`/`--plan` 只输出 `NOT_RUN`；`--full` 缺专用 `_test` PostgreSQL、06D/06E/06F 或 B 基线时退出 2，不执行 required commands，不宣称 PASS。
+- runner 对 Provider 环境变量清空并保持日志脱敏；不打印 PostgreSQL URL/密码，不启动 LIVE Payment/Settlement/媒体调用，不修改 StoryCanvas。
+- Gate：manifest 7/7、Root Build、Control API typecheck/build、StoryCanvas v0.2 targeted 13/13、ESLint、Prettier、Governance、diff-check PASS；full preflight 按预期 BLOCKED。
+- Root 默认全量测试在并发负载下 328/330，两个既有 App smoke timeout；提高单测 timeout 后剩余逻辑通过，因此不把本次结果记为 Root full PASS。
+- 现有 cross-plane contract Gate 真实暴露存量缺口：StoryCanvas v0.1 跨 package TS export 兼容失败，A3 package/grant HTTP Oracle 返回 500；最终 full Gate 继续 fail closed，06A 不掩盖或越界修改 B 文件。
+- 本提交属于根共享 Gate 基线。B 后续修改联合 Gate、StoryCanvas v0.2 定向测试或根 package scripts 前必须先同步；`apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_BIZ_06A_COMPLETE / JOINT_GATE_RUNNER_READY / READY_FOR_06B_PLANNING`；不 push。
+
+## 2026-08-09 A-BIZ-06B Member Directory / Deactivation 合同冻结
+
+- 权威子计划：`A_BIZ_06B_MEMBER_DIRECTORY_DEACTIVATION_PLAN.md`；当前基线 `93c7392`，不 push。
+- 路由冻结为 current Organization：bounded Member Directory 与单 Membership suspend，不接受客户端覆盖 Organization/Channel/Tenant scope。
+- PLATFORM/CHANNEL/TENANT 分别只允许 `platform_admin`、`channel_admin`、`tenant_admin`；`pilot_support` 与 `content_operator` 同 Scope 返回 403。
+- Directory 返回 Membership ID、姓名、邮箱、status、primary role、roles、version、timestamps、isCurrentActor；不返回 User/Organization/Tenant/Channel ID、Session、Token/digest、password、Invitation 或 Provider 内部字段。
+- suspend 冻结 strict `expectedVersion`、重复请求资源状态 replay、self-suspend、last-admin、expired、stale version、跨 Organization 404 与并发串行化。
+- 不新增 Migration：现有 version trigger 与 Auth resolve 已让旧 Session 在下一次请求失效。TENANT 存在 legacy shadow row 时经 legacy 更新推进 canonical，禁止无规则双写。
+- 实施分为 Repository/Service、HTTP Route、共享 App/Server wiring 三个独立提交；共享 wiring 提交后必须通知 B 同步。
+- 首个 RED：Service 授权与 canonical Scope；随后 PostgreSQL RED 覆盖 Directory、version + 1、Session 失效、replay、last-admin、并发与 legacy 一致性。
+- 当前状态：`A_BIZ_06B_PLAN_FROZEN / READY_FOR_REPOSITORY_SERVICE_RED`。
+
+## 2026-08-09 A-BIZ-06B Legacy Membership Trigger 合同勘误
+
+- Repository 预审发现 migration 010 的 legacy UPDATE trigger 会在 status-only 更新时删除 secondary roles，并触发额外 version bump。
+- 原“无需新增 Migration”结论撤回；冻结独立 06B.1A / Migration 019，仅加固 `shadow_legacy_membership()`，不新增业务表或 Session revoke 机制。
+- status-only legacy suspend 必须保留完整 canonical roles，status 变 suspended，version 恰好 `+1`；只有 legacy primary role 真正变化时才执行既有单角色兼容逻辑。
+- Migration 019 必须先以 PostgreSQL RED/Green 证明并独立提交，之后才继续 Member Repository；缺合法 `_test` PostgreSQL 时不得把 SKIP 记为 PASS。
+- 当前状态：`A_BIZ_06B_PLAN_CORRECTED / READY_FOR_MIGRATION_019_RED`。
+
+## 2026-08-09 A-BIZ-06B Member Operations API 完成
+
+- Migration 019 已加固 legacy Membership shadow：status-only 更新保留 secondary roles，canonical status 正确推进且 version 恰好 `+1`；legacy primary role 真变化仍保持既有单角色兼容语义。
+- 新增 canonical current-Organization Member Repository/Service：PLATFORM、CHANNEL、TENANT 仅对应管理员可操作，bounded/sorted 最小 DTO，跨 Organization 404，self-suspend、last-admin、expired、stale version 与并发均 fail closed。
+- suspend 对 TENANT legacy row 使用单向兼容写路径；duplicate replay 不二次 bump；失败事务全回滚；被停用成员的旧 Session 在下一次 Auth resolve 时失效。
+- HTTP 已提供 `GET /api/v1/organizations/current/members` 与 `POST /api/v1/organizations/current/members/:membershipId/suspend`，使用真实 Cookie/rotation、`no-store`、strict Zod、Request ID、安全错误 envelope 与显式 replay header。
+- 共享 Bootstrap 已在 `0b177cf` 接线；B 后续修改 `apps/control-api/src/app.ts`、`app.test.ts` 或 `server.ts` 前必须先同步。
+- Gate：Migration 定向 2 files / 4 tests、Repository/Service 2 files / 14 tests、Route/Service 2 files / 19 tests、App/Route 2 files / 24 tests、Control API 全量 61 files / 414 tests PASS；typecheck、build、ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_06B_COMPLETE / MEMBER_OPERATIONS_API_READY / READY_FOR_06C_PLANNING`。未宣称 A-BIZ-06 总体完成、完整 IAM、LIVE Operations 或 Full Joint Gate 通过。
+
+## 2026-08-10 A-BIZ-06C Pilot Operations UI 计划冻结
+
+- 新增 `A_BIZ_06C_PILOT_OPERATIONS_UI_PLAN.md`，冻结 Terms、Invitation、Member 真实 Pilot 运营页及其前置 bounded read 合同。
+- 审计确认 Invitation GET 当前服务端无 limit；Terms 管理端缺 Document/Version Directory。两项必须先在 06C.1 补齐，前端不得靠截断或本地 state 伪造可恢复管理事实。
+- 冻结 06C.1～06C.6 原子顺序：bounded backend reads、strict Client、Terms page、Invitation pages、Member pages、共享 Router/Layout 激活；每个切片独立 commit。
+- Platform/Channel/Tenant 默认路由保持现状；运营页不要求 Project Context。Channel 使用 canonical current channelId，Tenant 使用 Session tenantId，跨 Scope 404、同 Scope 缺角色 403。
+- Invitation Token 仅首次创建响应内存态最小展示；不持久化、不进 URL/日志/trace。Terms 正文只允许授权管理员录入业务/法务提供内容，工程师不 seed、不代写、不自动发布。
+- 首个 RED：`listPilotCurrentOrganizationMembers()` 真实 Cookie、`no-store`、bounded query、strict Member DTO 与敏感字段拒绝。
+- 当前状态：`A_BIZ_06C_PLAN_FROZEN / READY_FOR_06C_1_RED`。未宣称 06C、A-BIZ-06、完整 IAM、正式 Terms、Full Joint Gate 或 LIVE Operations 完成。
+
+## 2026-08-10 A-BIZ-06C.1 Bounded Operations Reads 完成
+
+- Terms 新增 Platform Admin bounded Document/Version directories；Repository/Service 与 HTTP 分为 `8feda7f`、`1f4d768` 两个独立提交。
+- Invitation management list 新增 `all|active|revoked|exhausted|expired` 与 `limit=1..100`；Repository/Service 与 HTTP 分为 `7c31089`、`b6ff3db` 两个独立提交。
+- 两类 GET 均使用真实 Session Cookie/rotation、`cache-control: no-store`、strict query/path、422 安全错误与 Request ID；expired 只按服务端 `asOf` 计算。
+- PostgreSQL/Service/Route 证据：Terms 32/32、Invitation 37/37 PASS；Control API typecheck/build、ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_06C_1_COMPLETE / BOUNDED_OPERATIONS_READS_READY / READY_FOR_06C_2_CLIENTS`。未宣称 06C、正式 Terms、完整 IAM、Full Joint Gate 或 LIVE Operations 完成。
+
+## 2026-08-10 A-BIZ-06C.2 Strict Pilot Operations Client 完成
+
+- Member strict Client 已由 `9ac03d8` 先行交付；本切片新增 Terms `310920e` 与 Invitation `5c3617a` 两个独立提交。
+- Terms Client 覆盖 bounded Document/Version list、create document、create/update DRAFT、publish 与 retire；只发送冻结 HTTP 字段，并严格校验 UUID、status、SHA-256 digest、带时区 timestamp、nullable 发布事实与 replay header。
+- Invitation Client 覆盖 Platform/Channel/Tenant bounded list/create 与 revoke；Channel 只接受显式 canonical channelId，Tenant 只接受显式 Session tenantId，不猜测 Organization ID。
+- Invitation Token 仅从首次 create 调用返回给当前调用方内存；replay 必须为 `null`，不恢复历史 Token，不写 localStorage/sessionStorage/URL/log/trace。
+- 所有 management GET 使用真实 Cookie 与 `cache: no-store`；成功 DTO 对未知/敏感字段 fail closed，错误保留 401/403/404/409/422/5xx、业务 code 与 Request ID，失败不回退 Demo/Mock。
+- Gate：`src/services/pilotControlApi.test.ts` 30/30 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_06C_2_COMPLETE / STRICT_OPERATIONS_CLIENT_READY / READY_FOR_06C_3_TERMS_PAGE_RED`。下一 RED 为 Platform Terms 页面从真实 Document Directory 恢复 loading/empty/ready/error/retry，且 Pilot 失败不得读取 Demo Store。
+
+## 2026-08-10 A-BIZ-06C Pilot Operations UI 完成
+
+- 06C.3 `226d1a8` 已交付 Platform Terms Operations Page：真实 bounded Document/Version Directory、create Document、create/update DRAFT、publish/retire 确认与 replay/409、安全 401/403/404/422/5xx/Request ID；工程师不 seed、不代写、不自动发布正式 Terms。
+- 06C.4 `649b3f6` 已交付 Platform/Channel/Tenant Invitation Operations Pages：Channel 先读取 canonical current channelId，Tenant 只用 Session tenantId；bounded list/create/revoke/replay、expired/revoked/exhausted 与首次 Token 仅本次内存可见，不持久化、不进 URL/日志/目录。
+- 06C.5 `ec3cb40` 已交付 current Organization Member Operations Pages：按固定 Scope/管理员角色授权，bounded status list、self/last-admin/stale/inactive/replay、安全 suspend expectedVersion 与 401 Session 清理；不实现角色编辑、新增、恢复、删除、批量、密码、MFA、全局 User suspend 或 Support Grant。
+- 06C.6 共享提交 `26400fa` 已激活 `/platform/terms`、三类 Invitation 与三类 Member 路由，并统一复用 Route Manifest/Policy 处理 direct URL、returnTo、Sidebar、Router 和 Topbar；Platform/Channel 默认仍为 Commission Audit，Tenant 默认仍为首个可见 Project Workbench。
+- 06C 运营页均不要求 Project Context；Tenant 进入 Invitation/Member 时 Topbar 不伪造 Project。跨 Scope 返回 404、同 Scope 缺角色返回 403、未认证回登录、未知路径返回 404，Pilot 失败不回退 Demo/Mock。
+- **共享通知给 B**：`26400fa` 修改 `src/domain/pilotOrganizationRoutePolicy.ts`、`src/app/Router.tsx`、`src/layouts/Sidebar.tsx`、`src/layouts/Topbar.tsx` 及 Router/Policy 测试；B 修改这些共享文件前必须先同步。
+- Gate：Terms 18/18、Invitation 11/11、Member 8/8、Policy/Router 45/45 PASS；Root Build、定向 ESLint、Prettier、Governance、diff-check PASS。一次并行执行 Root 全量 Vitest 与 Build 时，4 个既有 Demo suite 因资源竞争出现 14 个 timeout；脱离并行负载后受影响 4 files / 26 tests 全部 PASS，不把该次并发 timeout 伪报为全量 Gate PASS。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+- 当前状态：`A_BIZ_06C_COMPLETE / PILOT_OPERATIONS_UI_READY / READY_FOR_06D_HARNESS_AUDIT`。仍不得宣称正式 Terms 内容上线、完整 IAM、A-BIZ-06 总体完成、Full Joint Gate PASS 或 LIVE Operations Ready。
+
+## 2026-08-10 A-BIZ-06D Deterministic Pilot Browser E2E 计划冻结
+
+- 新增权威计划 `A_BIZ_06D_DETERMINISTIC_PILOT_BROWSER_E2E_PLAN.md`，状态 `A_BIZ_06D_PLAN_FROZEN / READY_FOR_06D_1_ENVIRONMENT_CONTRACT_RED`。
+- 审计确认现有 Playwright 只覆盖 Demo localStorage smoke；没有真实 Control API lifecycle、真实 Session Cookie、专用数据库 reset/seed 或 Pilot operations spec，且 `fullyParallel: true` 不适合共享 PostgreSQL 有状态矩阵。
+- `compose.pilot.yaml` 只有开发库，现有 auth bootstrap 只创建单 Tenant；06D 必须使用显式 `_test` URL、独立用户覆盖 PLATFORM/CHANNEL/TENANT、确定性 reset/migrate/seed/verify 与单 worker Playwright。
+- 冻结同源 Vite proxy，不为 06D 放宽生产 CORS；浏览器只通过真实登录获得 HttpOnly `videoagent_session`，禁止 localStorage/Zustand/`addCookies` 注入。
+- Registration 成功 E2E 需要双端显式 test-only verification adapter；临时 Token 每轮生成、不写仓库、不渲染、不记录，任何非 test 环境继续 fail closed，不能外推为正式邮箱验证。
+- Public Terms 当前只检查 digest 格式，06D 必须先以 digest mismatch 浏览器 RED 推动 SHA-256 重算后再允许展示/接受。
+- 冻结切片：06D.1 Environment Guard → 06D.2 Reset/Seed → 06D.3 Verification/Proxy/Runner → 06D.4 Auth/Router → 06D.5 Public Lifecycle → 06D.6 Operations/TEST Commercial/Security → 06D.7 Joint Gate 激活与文档收口。
+- 首个 RED：数据库 URL 缺失、指向开发库或实际 `current_database()` 身份不一致时，必须在任何 destructive SQL 前失败，且日志不得泄漏完整 URL、用户名或密码。
+- 06E/06F 与 B external baseline 继续保持未完成；StoryCanvas tracked diff 必须为零，`apps/storycanvas/data/vendor/byteplus.ts` 始终排除。
+
+## 2026-08-10 A-BIZ-06D.1～06D.2 Dedicated DB Harness 完成
+
+- 06D.1 提交 `2f5131e`：E2E 仅接受显式 `PILOT_E2E=true` 与唯一 `CONTROL_API_TEST_DATABASE_URL`；只允许 PostgreSQL、数据库名必须 `_test` 结尾、显式拒绝 `videoagent_control`，reset 前必须以 `current_database()` 核对实际身份。
+- Environment 安全摘要不输出数据库 URL、用户名或密码；默认 Control API/Web 均固定 loopback，分别为 `127.0.0.1:10601` 与 `127.0.0.1:5175`。
+- 06D.2 提交 `4c05157`：新增 `e2e:reset-seed`，只删除 `control_plane` schema 与 migration metadata，随后复用完整 19 migration chain 并写入固定 PLATFORM/CHANNEL/TENANT、独立用户、Project/Assignment、Terms、Invitation、Registration/Attribution 与 TEST Commercial fixture。
+- 每轮账号密码、Invitation Token 与 verification Token 随机生成，只在调用模块内存返回；CLI 明确 `credentialOutput: false`，不打印凭据。
+- 专用本地 PostgreSQL `videoagent_control_test` 定向 Gate：`2 files / 14 tests PASS / 0 SKIP`；连续两轮安全 fingerprint 均为 `18ca4b0a2c335500639b62a8222ca9f88229ab620ec24726da047051d30d9737`。
+- Postcondition 包含 `migrationCount: 19`、`organizationCount: 5`、`userCount: 8`、`membershipCount: 8`、`liveFactCount: 0`、`activeSessionCount: 0`；未 seed LIVE、paid/提现、KYC、税务、发票或自动打款。
+- Control API typecheck/build、定向 ESLint、Prettier、Governance、diff-check PASS；StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存。
+- 当前状态：`A_BIZ_06D_2_COMPLETE / DEDICATED_DB_SEED_READY / READY_FOR_06D_3_DIGEST_RED`。Joint Gate `pilot-browser-e2e` 仍保持 `planned`/BLOCKED；下一 RED 为 Public Terms 正文与合法格式 digest 不匹配时 Client 必须 fail closed，不展示正文且不回退 Demo/Mock。
+
+## 2026-08-10 A-BIZ-06D.3～06D.5 Pilot Browser Gate 进展
+
+- 06D.3 以 `fd4e3de`～`bda23ac` 完成 Public Terms digest fail-closed、双端 test-only verification、Demo persistence 阻断、同源 Vite proxy、真实 Control API lifecycle 与单 worker Playwright runner；非 test 环境继续 fail closed。
+- 06D.4 以 `9bddd47`～`8480f80` 完成 Auth/Router Browser Matrix，真实 Gate `10/10 PASS`；覆盖匿名回跳、PLATFORM/CHANNEL/TENANT 默认路由、direct URL、Project-independent Tenant Operations、403/404、刷新、logout 与 suspend Session invalidation。
+- 06D.5 以 `c5f5248`、`a4ad473`、`778419e` 完成 Public Lifecycle Matrix；canonical Terms fixture code 修正为 `registration-notice`，完整 Pilot Browser Gate `22/22 PASS`。
+- `c492c36` 将 stale Terms 从错误的 `503 TERMS_NOT_AVAILABLE` 修正为 canonical `409 TERMS_VERSION_STALE`；Registration HTTP/PostgreSQL 定向 `20/20 PASS`，Control API typecheck/build、Root Build、Governance、Prettier、diff-check PASS。
+- Invitation Token 立即从 URL 清除，刷新不恢复，不进入 DOM、localStorage/sessionStorage、日志或 artifact；Registration 成功不自动创建 Session，replay/conflict/duplicate/verification recovery/stale/unavailable 均使用真实 API 事实。
+- **共享通知给 B**：Public Registration stale Terms HTTP 合同现为 `409 TERMS_VERSION_STALE`；B 修改 Registration/Terms HTTP 合同时必须先同步 `c492c36`。共享 Pilot E2E runtime 基线为 `bda23ac`。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；根 `5173` 与 StoryCanvas `10588` 服务保持运行。
+- 当前状态：`A_BIZ_06D_5_COMPLETE / PUBLIC_LIFECYCLE_BROWSER_GATE_PASS / READY_FOR_06D_6_OPERATIONS_RED`。下一个真实 RED 是 Platform Commission Audit 页面返回 403；`pilot-browser-e2e` 仍为 `planned`/BLOCKED，尚未激活 Joint Gate，尚未进入 06E/06F。
+
+## 2026-08-10 A-BIZ-06D.6 Operations / TEST Commercial / Security 完成
+
+- 提交链 `bf054aa`～`426103b` 完成真实 Operations/Commercial/Security Browser Matrix；修复 Commission Router fallthrough、canonical Tenant scope、Settlement period/date 投影，并加入 recovery、安全 404、敏感浏览器表面与 artifact 扫描。
+- Terms、Invitation、Member、Tenant RechargeOrder、Platform/Channel Commission Audit、active Channel Directory 与 Platform TEST Settlement Draft 均覆盖 loading/empty/ready/error/retry；成功事实来自真实 Control API，不由 route mock 提供。
+- Channel/Tenant 跨组织探测对“存在但无权”和“未知”返回等价 `404`、`no-store`、固定安全错误与独立 Request ID，不泄露目标 ID。
+- Settlement submit 的不确定失败重试复用相同业务事实和 body `idempotencyKey`；结果保持 `TEST / draft / CNY / zero-candidate`，明确非到账、非提现、非 paid Settlement、非自动打款。
+- 敏感矩阵验证 HttpOnly Session Cookie 不可由页面读取，Pilot localStorage/sessionStorage 均为空；DOM、URL、console、pageerror、requestfailed 和 artifact 不泄露密码、Session、Invitation/verification Token、Terms digest、内部 snapshot、Grant、SQL 或 stack。
+- 真实 Google Chrome `150.0.7871.125`、专用 PostgreSQL `videoagent_control_test`、单 worker完整 Gate：`39/39 PASS / 0 SKIP`；artifact scanner 单测 `3/3 PASS`。
+- StoryCanvas tracked diff 为零，B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；根 `5173` 与 StoryCanvas `10588` 服务继续运行。
+- 当前状态：`A_BIZ_06D_6_COMPLETE / READY_FOR_06D_7_JOINT_GATE_ACTIVATION`。尚未进入 06E/06F，不宣称 A-BIZ-06 或 Full Joint Gate 完成。
+
+## 2026-08-10 A-BIZ-06D.7 Joint Gate 激活与阶段收口完成
+
+- RED `346a183` 冻结 Pilot Browser phase 的 ready/runner/precondition 合同；Green `c154b1e` 修改共享 `scripts/joint-gate-manifest.mjs` 与 `scripts/run-joint-gate.mjs`。
+- `pilot-browser-e2e` 已从 `planned` 激活为 `ready`，唯一命令为 `npm run test:e2e:pilot`；06D 的 `PILOT_BROWSER_E2E_NOT_IMPLEMENTED` slice blocker 已移除。
+- phase 继续要求显式 dedicated PostgreSQL `_test` URL；Full runner 固定传递 `PILOT_E2E=true`、`PILOT_E2E_BROWSER_CHANNEL=chrome`，并继续清空 paid provider secrets。
+- manifest `8/8 PASS`，plan 正确列出 ready phase；带 `videoagent_control_test` URL 的 full preflight 退出 `2`，只保留 06E/06F/B external blockers，不含数据库 URL/password，也不宣称 `JOINT_GATE_PASS`。
+- 06D 最终浏览器证据保持为真实 Google Chrome `150.0.7871.125`、专用 PostgreSQL、单 worker `39/39 PASS / 0 SKIP`；Session/Storage/Request ID/跨组织 404/敏感 artifact 与 TEST draft 边界均已覆盖。
+- Root Build、Control API typecheck/build、Governance、Prettier/diff-check PASS。Root 全仓 ESLint 仍被既有 StoryCanvas 源码、生成目录和历史测试 `any` 基线阻断（本轮未修改这些文件）；不得将其误报为本切片回归或全仓 Lint PASS。
+- **共享通知给 B**：B 修改 Joint Gate manifest/runner 前必须同步 `c154b1e`；该提交改变 Full Gate 的 Pilot Browser phase 环境与执行命令。
+- StoryCanvas tracked diff 为零；B 的未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。根 `5173` 与 StoryCanvas `10588` 服务继续运行；分支未 push。
+- 当前状态：`A_BIZ_06D_COMPLETE / PILOT_BROWSER_PHASE_READY / FULL_JOINT_GATE_STILL_BLOCKED`。下一步只能审计 06E 前置与 B baseline，不得把 06D 完成外推为 A-BIZ-06 或 Full Joint Gate 完成。
+
+## 2026-08-10 A-BIZ-06E A/B Golden Path Joint Gate 计划冻结
+
+- 新增 `A_BIZ_06E_A_B_GOLDEN_PATH_JOINT_GATE_PLAN.md`，冻结 baseline attestation、Storyboard authority、server-mediated Canvas bootstrap、A/B 页面接线、真实浏览器 Gate 与 Joint Gate 激活顺序。
+- 当前 `origin/dev/production-plane@84d922c` 仅是 2026-08-02 D2 基线，不是 Wave 4 handoff；工作区 B-owned `apps/storycanvas/data/vendor/byteplus.ts` 仍为未跟踪文件，A 不修改、不暂存、不提交。
+- A 已有真实 Tenant Project Context、Script/Production API 与 Grant introspection；但 Pilot Script/Storyboard/Canvas 页面仍依赖 Demo Store、`DEMO_PROJECT_ID`、LocalStorage 和 Demo Grant/Bridge。
+- 阻断性缺口为 Storyboard authority：当前 Production Package 仍从 approved Script payload 的 `storyboard` 字段构建，不能证明 B draft 已由 A 保存并人工批准。
+- 冻结 B draft provenance → A-owned Storyboard Version/Approval → approved Script/Storyboard 双绑定 → Production Package 的 fail-closed 事实链。
+- Canvas bootstrap 采用 server-mediated 方向；raw Grant accessToken 不进入 DOM、URL、Storage、props、日志、trace、截图、report 或错误 envelope。
+- 06E.0 可在等待 B 时前置加固 Joint Gate：非空但不存在/未同步的 baseline commit 必须阻断，不执行 required commands，不移除 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`。共享 manifest/runner Green 后必须通知 B。
+- 06E.3～06E.6 只有 B 提供明确、可同步、tracked clean 的 Wave 4 commit 后才可执行。当前状态：`A_BIZ_06E_PLAN_FROZEN / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-10 A-BIZ-06E.0 B Baseline Attestation 完成
+
+- RED `f29a0bd` 冻结“非空但不存在的 baseline 不能通过”合同；Green `94fabe1` 将 `ab-golden-path` 与 `storycanvas-build-targeted` 的前置从 `non-empty` 改为 `git-commit-ancestor`。
+- Full preflight 现在要求完整 40 位 SHA、真实 commit object 且为当前 integration `HEAD` 的 ancestor；missing / invalid / not-ancestor 分别返回稳定安全 blocker。
+- Matrix `cf6bf58` 覆盖 missing、invalid、not-ancestor、valid synchronized commit；manifest `12/12 PASS`，plan PASS。
+- 非法值不回显，required commands 不执行；合法当前 HEAD 只保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED`。
+- **共享通知给 B**：B 修改 Joint Gate manifest/runner 前必须同步 `94fabe1`；后续 handoff commit 必须已同步进入当前集成祖先链，旧 D2 ref 不能解除前置。
+- StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push，服务继续运行。
+- 当前状态：`A_BIZ_06E_0_COMPLETE / WAITING_FOR_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。下一步并行审计 06F A-owned migration/README，不进入 06E.1 实现。
+
+## 2026-08-10 A-BIZ-06F Migration/Rollback 与 Final Joint Gate 计划冻结
+
+- 新增 `A_BIZ_06F_MIGRATION_ROLLBACK_FINAL_GATE_PLAN.md`，冻结 06F.1～06F.6：安全环境边界、fresh forward/one-batch rollback/reapply、失败与脱敏矩阵、Joint Gate phase 激活、Ops Docs/最终报告和最终 Full Gate。
+- 当前 `migration-rollback-reapply` phase 仍为 `planned`，runner `scripts/run-control-api-migration-gate.mjs` 尚不存在，`MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED` 必须保留。
+- 普通 `db:migrate` / `db:rollback` 不具备 destructive Gate 所需的 `PILOT_E2E=true`、专用 `_test` URL、禁止 `DATABASE_URL` fallback 和 `current_database()` identity 二次校验，不能直接作为 Joint Gate。
+- 06F 将复用 `apps/control-api/src/e2e/environment.ts` 的权威 guard；任何 environment 或 identity 失败必须在 DROP/migrate/rollback 前非零退出，且不输出完整 URL、用户名、密码、SQL 或 stack。
+- migration chain 当前冻结为 001～019；rollback 必须在 fresh、empty、dedicated `_test` DB 上验证 one-batch 语义，随后 deterministic reapply 并比对最终 fingerprint。
+- 首个 RED：缺失 `PILOT_E2E=true` 或 URL 缺失/非法/非 `_test`/开发主库时，migration runner 不得进入 `RUNNING_MIGRATION_GATE`，不得执行 destructive operation，也不得泄漏凭据。
+- 06F.4 修改共享 Joint Gate manifest/runner 时必须独立提交并通知 B；当前计划提交不改变共享运行合同。
+- 06F.6 继续等待 06E 与 B baseline；在全部 required phases 零 SKIP 前不得宣称 `A_BIZ_06_COMPLETE` 或 `JOINT_GATE_PASS`。
+- 当前状态：`A_BIZ_06F_PLAN_FROZEN / READY_FOR_MIGRATION_GATE_RED / FULL_JOINT_GATE_STILL_BLOCKED`。StoryCanvas tracked diff 保持为零，B-owned 未跟踪 vendor 文件继续排除。
+
+## 2026-08-10 A-BIZ-06F.1～06F.5 Migration Gate 与 Ops Docs 完成
+
+- 06F.1 提交 `0753c26` / `43ba2f8` 完成 destructive environment guard：强制 `PILOT_E2E=true`，唯一数据库输入为 `CONTROL_API_TEST_DATABASE_URL`，只接受 PostgreSQL `_test`，禁止 `DATABASE_URL` fallback，并显式拒绝开发主库。
+- 06F.2 提交 `6d278e9` / `2d09553` 完成真实 001—019 fresh forward → latest replay no-op → one-batch rollback → empty verification → deterministic reapply → final fingerprint → cleanup；destructive SQL 前再次校验 `current_database()`。
+- 06F.3 提交 `55dd0c7` / `cd38047` 完成 13 项 failure/recovery/redaction matrix：environment、connection、identity、reset、forward、rollback、reapply、verification、cleanup 与 destroy 任一失败均非零退出，primary failure 不被 cleanup failure 覆盖，只有全部成功才输出最终 PASS。
+- 真实专用 `videoagent_control_test` PostgreSQL rollback/reapply Gate `1/1 PASS / 0 SKIP`；environment boundary `8/8 PASS`；failure matrix `13/13 PASS`；Control API typecheck/build PASS。每轮 Gate 后清理 `control_plane` schema 和 migration metadata。
+- 06F.4 RED `26e0819`、共享 Green `018190d` 已将 `migration-rollback-reapply` phase 从 `planned` 激活为 `ready`，保留 dedicated PostgreSQL precondition，移除 `MIGRATION_ROLLBACK_GATE_NOT_IMPLEMENTED`；Full runner 已统一注入 `PILOT_E2E=true`。
+- Full preflight 使用合法 dedicated DB 与当前 ancestor attestation 时只剩 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，退出 `2` 且不执行 required commands、不输出 Secret、不宣称 `JOINT_GATE_PASS`。
+- 06F.5 已同步 Root/Control API/Pilot E2E 运行说明与 Final Report Contract：逐 phase 记录 command、owner、precondition、start/end/duration、PASS/FAIL/BLOCKED、test count、zero-SKIP evidence、artifact path 和脱敏结论。
+- 所有 Payment/Commission/Settlement 仍仅为 TEST Pilot；Settlement 仅 `TEST / draft / NON_QUOTE`，不是到账、paid、提现或自动打款。不实现 LIVE、真实比例、KYC、税务、发票、自动打款或未规划 review/approve HTTP。
+- **共享通知给 B**：修改 `scripts/joint-gate-manifest.mjs` / `scripts/run-joint-gate.mjs` 前必须同步 `018190d`；该提交已激活 migration phase，不能恢复旧 06F slice blocker。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交；分支未 push，5173/10588 服务继续运行。
+- 当前状态：`A_BIZ_06F_1_TO_5_COMPLETE / MIGRATION_ROLLBACK_PHASE_READY / WAITING_FOR_06E_B_BASELINE / FULL_JOINT_GATE_STILL_BLOCKED`。06F.6 只有 06E Golden Path、同步 B baseline 与全部 required phases 零 SKIP 后才可执行。
+
+## 2026-08-11 A-BIZ-06E B Wave 4 Baseline 同步验收
+
+- 已将 B 远程提交 `f68ac6a551231243d10978e9a798286672dd95e6` 以 `--ff-only` 同步到 `dev/business-plane`；其直接 parent 为 A baseline `c449508d2ad13e68cb55680cb882cac91de83325`，当前 A `HEAD` 即该 B commit。
+- commit object、remote-tracking ref 与 ancestor attestation 均通过；B response commit 的 tracked diff 仅新增 `docs/collaboration/production-plane/B_TO_A_AGENT_WAVE4_BASELINE_RESPONSE_2026-08-10.md`。
+- `npm run test:joint-gate:manifest` 为 `13/13 PASS`；`test:joint-gate:plan` 只列 `NOT_RUN`；以 dedicated `_test` URL 形状和已同步 B SHA 执行安全 Full preflight 时，仅返回 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，未执行 required commands，未输出 `JOINT_GATE_PASS`。
+- Baseline blocker 已解除，但 Storyboard Draft/Version/Approval authority、approved Script + Storyboard Package eligibility、server-mediated non-secret Canvas Entry、B Pilot pages、共享激活与真实 Chrome/PostgreSQL Golden Path 仍未实现。
+- 下一原子切片为 06E.1 A-owned Storyboard authority/bootstrap contract RED；首个 RED：缺 approved Script digest 或 source Receipt 的 Storyboard Draft provenance envelope 必须 fail closed。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`B_WAVE4_BASELINE_SYNCED / B_BASELINE_ANCESTOR_ATTESTED / READY_FOR_06E_1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 A-BIZ-06E A-side Dual-Authority Canvas Chain 完成
+
+- Storyboard authority、browser-safe strict Client、Production Package v0.3、Project Grant 与 Canvas Entry 的 A 侧双权威链已完成；数据库 migration chain 已扩展至 020—023。
+- Production Package 只允许绑定当前 approved Script 与当前 approved Storyboard；create/read 使用 strict v0.3 HTTP、真实 Session Cookie、`Cache-Control: no-store`、Request ID 与安全 401/403/404/409/422/500 envelope。
+- Grant issue、idempotent replay 与 introspection 每次重新验证 Package v0.3、有效期及当前 Script/Storyboard 双权威；历史 v0.2 Package 和 stale authority 均不得签发或恢复 Grant。
+- Canvas Entry 使用 Grant/Package/Project/Tenant 四列复合约束绑定 exact Grant；create/replay/read/consume 均复用 server-only Production Authority verifier，不复制 Script、Storyboard 或 Approval SQL。
+- Storyboard authority 被 revoke、supersede 或变为 stale 后，Canvas read fail closed；replay/consume 将 Entry 持久化为 `expired` 后返回安全 `410 CANVAS_ENTRY_EXPIRED`。已 consumed Entry 继续保持 `409 CANVAS_ENTRY_REPLAYED`。
+- Browser Canvas DTO 继续严格限定为 9 个字段，不暴露 raw Grant、access token、grantId、token digest、Script/Storyboard digest、authority reason、Package snapshot 或内部持久化事实。
+- Authority verifier 共享提交为 `b57adc1`；Canvas runtime revalidation 提交为 `fed5580`。B 修改 Production、Grant、Canvas authority 或共享 Bootstrap 前必须先同步对应 A commits。
+- 本轮主线程复验：Production/Canvas PostgreSQL `28/28 PASS`，Canvas 非 PostgreSQL `63/63 PASS`，Canvas lifecycle/migration chain `7/7 PASS`；Control API typecheck/build、Prettier 与 diff-check PASS。
+- 后续源码审计确认：Browser Canvas create/read 已完成，但不存在 StoryCanvas server 可调用的 internal Canvas Entry redemption HTTP；现有 `consumeEntry` 只返回 `grantId`，不足以恢复 Package v0.3、canonical Grant 与 raw server-only token。
+- 已冻结 `A_BIZ_06E_CANVAS_ENTRY_REDEMPTION_PLAN.md`：先完成 06E.R1 RED，再按 Migration 024、A-owned repository/service、shared internal HTTP/Bootstrap、B handoff 原子提交。
+- 在 redemption Green 与 B 同步前，B 可继续 Script/Storyboard 页面工作，但 Canvas 接线保持 blocked；06E.4 Shared Router/Bridge、06E.5 Real Browser Golden Path 和 06E.6 Joint Gate Activation 不得开始。
+- StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。A 新提交尚未 push。
+- 当前状态：`A_SIDE_BROWSER_CONTRACT_COMPLETE / CANVAS_ENTRY_REDEMPTION_CONTRACT_REQUIRED / B_06E_3_CANVAS_BLOCKED / READY_FOR_06E_R1_RED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.R Canvas Entry Internal Redemption Ready
+
+- 06E.R1—R4 已完成：Bootstrap RED `4f57912`、Migration 024 `9f8c0d4`、A-owned redemption core `349b752`、Internal HTTP `2034a12`、shared Bootstrap `32848fd`。
+- 正式 endpoint 为 `POST /api/v1/internal/canvas-entries/redeem`；只允许 StoryCanvas server 使用 server-only internal token 与稳定 `Idempotency-Key`，body 为 exact handle/tenant/project/package。
+- Repository 使用 exact row lock 与 immutable redemption facts；同 key + 同 digest 安全 replay，不同 key 或 digest 稳定 409；恢复当前 Package v0.3、canonical Grant 与确定性重签 token，不创建新 Grant。
+- legacy 应用层 `consumeEntry` 已移除，避免对 Migration 024 写入伪造 redemption evidence；纯内存 lifecycle state machine 保留。
+- Internal HTTP 固定 Request ID、`Cache-Control: no-store`、`Idempotency-Replayed` 与安全 `401/404/409/410/422/500/503`；错误不泄漏 token、grantId、digest、snapshot、SQL 或 stack。
+- 验证：Canvas parser/service/digest `37/37 PASS`，Canvas/Production PostgreSQL `32/32 PASS`，Bootstrap/Internal route `29/29 PASS`，Control API typecheck/build、Prettier、diff-check PASS。
+- `32848fd` 是 shared Bootstrap，B 必须同步其完整祖先链后才可实现 server-side redemption client；Pilot 失败不得回退 v0.2 receiver、Demo Grant、Mock 或 LocalStorage。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。A 新提交未 push。
+- 状态：`A_CANVAS_ENTRY_REDEMPTION_READY / B_REDEMPTION_CLIENT_SYNC_REQUIRED / B_06E_3_CANVAS_READY_FOR_IMPLEMENTATION / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.4P / 06E.5 Shared Activation 与 Golden Path 计划冻结
+
+- A/B 远程 HEAD 已共同对齐到 `a7f8021b80f540c69e4c45718b335ba2c0fca539`；baseline blocker 已解除，但 B 回执明确仅完成同步，不包含 StoryCanvas redemption consumer、browser-facing bootstrap 或 Pilot Script/Storyboard/Canvas page。
+- 新增 `A_BIZ_06E_4_5_SHARED_ACTIVATION_GOLDEN_PATH_PLAN.md`，冻结 06E.4P、06E.4A—C、06E.5A—C 与 06E.6 的依赖、所有权、写集、RED、提交顺序和停止条件。
+- 06E.4A 冻结为 B-owned consumer/page synchronization；06E.4B 为 shared Pilot Bridge；06E.4C 为 shared Router activation/regression。B consumer/page 未同步验收前，Shared Green 保持 blocked。
+- 浏览器只允许携带 non-secret Canvas Entry handle 与 canonical tenant/project/package reference；internal token、raw Grant/access token、grantId、digest 和 `CanvasEntryRedemption/0.1` server-only DTO 不得进入浏览器表面。
+- 06E.5A1 可由 A 立即推进：修复 Pilot E2E seed 仍冻结 `migrationCount: 19` 的确定性缺口，并保持未改变数据形状的 `fixtureVersion: 1`。首个 RED 为 `Pilot E2E seed accepts the complete 001—024 migration chain`。
+- 06E.5B/5C 冻结真实 Control API + Root Frontend + StoryCanvas lifecycle、真实 Google Chrome、专用 `_test` PostgreSQL、单 worker、零 retry、JSON report 和 `0 SKIP` 机器验收；任一服务/环境不可用必须 FAIL/BLOCKED，不得 SKIP。
+- Demo/Pilot 继续严格隔离：Pilot 失败不得回退 `DEMO_PROJECT_ID`、Demo Store、`DemoProjectGrant`、`X-StoryCanvas-Demo-Grant`、Mock、Zustand 或 LocalStorage。
+- 06E.6 前继续保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`；不宣称 `A_BIZ_06E_COMPLETE`、`JOINT_GATE_PASS` 或 `FULL_JOINT_GATE_PASS`。
+- 状态：`A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-11 · A-BIZ-06E.5A 与 06E.5B Fail-closed Runner Skeleton 完成
+
+- A 本地实现基线推进至 `963c85f`；A/B 共同同步基线仍为 `a7f8021b80f540c69e4c45718b335ba2c0fca539`。该 baseline 只证明 Git 祖先链，不证明 B consumer/page/bootstrap 已完成。
+- 06E.5A1 已完成：Pilot E2E migration postcondition 从权威 migration contract 派生，完整接受 `001—024`，`migrationCount=24`；提交 `6ca5d78` / `45b3563`。
+- 06E.5A2 已完成：新增 canonical Golden Path 输入并将数据形状升级为 `fixtureVersion=2`，固定时钟 `2026-08-11T00:00:00.000Z`；Script/Storyboard/Package/Grant/Canvas Entry/Redemption 成功事实均为零，不预埋浏览器成功链；提交 `3881b4c` / `d7f4c75`。
+- 06E.5B 前置组件已完成：artifact security `d50a0ed` / `5d5040d`、fail-closed preflight `3988fcf` / `b91de9f`、JSON zero-SKIP Oracle `0ec63b9` / `7c5a7f3`、bounded process harness `7134192` / `3c4a2ae`、dedicated config `186dd42` / `96dd0be`、static no-skip policy `aad90da` / `32d70ac`。
+- shared baseline validator 已由 `d141faa` / `6e37dc9` 提取；保持 missing/invalid/not-ancestor 安全错误码。这是 shared Joint Gate 改动，B 修改 manifest/runner 前必须同步。
+- fail-closed runner skeleton 已由 `2b5154c` / `37aab02` 完成，Joint Gate wiring 已由 `cad93d9` / `ed7adee` 完成。真实 CLI 已证明 B consumer capability 未证明时，在数据库 reset、任何服务 spawn 与 Chrome 启动前返回 `AB_GOLDEN_PATH_B_CONSUMER_REQUIRED`；phase 继续为 `external`。
+- 严格 TypeScript hardening 已由 `da47830` / `963c85f` 完成：JSON report 保持 `unknown` 后再经类型守卫收窄；process harness 精确建模 `stdin=null`、`stdout/stderr=Readable`，不改变 `stdio: ignore/pipe/pipe` 或运行语义。
+- B 仍需提供 server-side redemption consumer、browser-safe bootstrap、Pilot Canvas 页面、deterministic start/readiness/capability contract、Session/CSRF/CORS/error mapping、可验证 capability marker/commit/tests、稳定 selectors、临时 data root 与 secret/log marker 字典。
+- 禁止浏览器直调 internal redemption；raw Grant/access token、internal token、grantId、digest 与 `CanvasEntryRedemption/0.1` 不得进入 DOM、URL、Storage、props、console、trace、截图、report 或日志。
+- `ab-golden-path` 继续为 `external`；保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED`，不宣称 Joint Gate 或 Full Joint Gate PASS。
+- StoryCanvas tracked 文件未修改；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 继续排除。
+- 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-BIZ-06E.5B Golden Path Safety Oracle 加固
+
+- 旧 Demo/Mock 证据防线由 `dceb03a` / `26ba12e` 完成，浏览器 artifact、Control API 与 StoryCanvas 输出会拒绝 Demo Grant、Demo Project、Mock contract 与 legacy local handle/package marker。
+- spec 依赖防线由 `cc9b47f` / `e2b669e` 完成，Golden Path spec 禁止 internal redemption、internal token header、Demo Grant、Demo Project、Web Storage 与 Mock contract；注释中的同名文字不误报。
+- in-memory evidence 防线由 `c8b0fb5` / `256f2ff` 完成，原始 Playwright report 与 spec source 在解析/落盘前接受有界、循环安全、getter fail-closed 的 secret/marker 扫描。
+- shared Joint Gate command environment 由 `a31abac` / `c8c02e7` 完成：仅 `ab-golden-path` 命令获得 `PILOT_E2E_AB_GOLDEN_PATH=true`，base environment 会删除外部同名变量，sibling phase 不受污染；phase 仍为 `external`。B 修改 shared runner/manifest 前必须同步 `c8c02e7`。
+- process timer、loopback origin、Git probe、stack 与 tracked baseline 加固分别由 `b1ba2c2` / `d56bb0a`、`d35fbd0` / `c2a86d2`、`7f7297f` / `3493cde`、`71657c5` / `53ef8f4`、`c51685b` / `582150f` 完成；`4bbefb1` 使 preflight failure branch 的 lint 控制流显式化。
+- Runner 现在先验证 static environment、commit object、HEAD ancestor，再验证 StoryCanvas unstaged tracked、staged tracked 与 baseline→HEAD tracked diff；只有三项 clean 后才探测 B consumer。Git diff `status=1` 返回 `JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED`，`128/null/throw` 返回 `JOINT_GATE_B_BASELINE_COMMIT_INVALID`。未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 不进入 attestation。
+- 验证：Golden Path safety regression `65/65 PASS / 0 SKIP`；Joint Gate manifest/CLI `14/14 PASS`，shared precondition/env `6/6 PASS`；Root Build、changed-file ESLint、Governance、Prettier/diff-check PASS。Root 全仓 ESLint 仍被既有 generated dist、StoryCanvas 与旧 Control API lint debt 阻断，不作为本切片新增回归。
+- 服务继续监听 `127.0.0.1:5173` 与 `:10588`；StoryCanvas tracked diff 为零，B-owned 未跟踪 vendor 文件未修改、未暂存、未提交。
+- 状态保持：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 A-BIZ-06E.4P Shared Router / Bridge RED 冻结
+
+- Shared Router fail-closed RED 已由 `7c7ff8a` 冻结：真实 TENANT Session 访问 `/production/canvas/project-alpha` 时，不得继续渲染 generic `pilot-route-handoff`，不得渲染 Demo `IntegratedStoryCanvasPage`；B Pilot boundary 未安装时必须显示专用 `pilot-storycanvas-boundary-blocked` 安全状态，并明确不回退 Demo。
+- Shared Bridge isolation RED 已由 `4b24466` 冻结：未来 `src/services/pilotStoryCanvasBridge.ts` 不得导入或引用旧 `storyCanvasBridge`、`controlPlaneMockAdapter`，不得构造 `X-StoryCanvas-Demo-Grant`，不得访问 LocalStorage/SessionStorage，也不得向 injected port 传递 raw Grant、access token、grantId 或 digest。
+- 两个提交均为 shared RED-only 测试，不包含 Router/Bridge Green，不猜测 B endpoint、DTO、readiness、capability marker 或 Package selection；B 修改相关 shared 测试或进入 06E.4B/4C 前必须同步这两个提交。
+- 定向 RED 证据：Router `1 failed / 28 skipped`，失败点为当前仍存在 generic handoff 且缺少专用 blocked state；Bridge `2 passed / 1 failed`，两个 source-policy 自测通过，失败点为 `PILOT_STORYCANVAS_BRIDGE_IMPLEMENTATION_REQUIRED`。
+- Green 继续等待 B implementation commit 提供 server consumer、browser-safe bootstrap、Pilot Canvas boundary/export、stable selectors、deterministic start/readiness/capability、Package bootstrap/selection 与安全错误映射。不得为使 RED 转绿而创建猜测性 adapter 或 Demo fallback。
+- 远程 fetch 于 2026-08-12 因 GitHub `443` 连接超时未完成；当前本地缓存的 A/B remote 仍为 docs-only `a7f8021b80f540c69e4c45718b335ba2c0fca539`，不能作为 B capability 已实现的证据。
+- StoryCanvas tracked staged/unstaged diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态保持：`A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_IMPLEMENTATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · B Shared Canvas Capability 安全验收与整改阻塞
+
+- A 已验收 B HEAD `6fd901f56c1bd8aa37d04740e02e7c14e93f304b`：commit object、`c015823 → 7afd692 → ec48e76 → 6fd901f` 祖先链、RED/GREEN/docs 原子写集与 `byteplus.ts` 排除均 PASS。
+- A 已独立复现 B capability `5/5`、Pilot 页面 `4/4`、StoryCanvas v0.2 `13/13`、Media/TTS/Storage `17/17`、Root/StoryCanvas build、Governance 与 diff-check；本轮阻塞不是证据缺失。
+- 已通过：server-only redemption、strict Entry/Package/Grant/Redemption parser、exact Scope binding、stable replay、路由内 Session/CSRF/Origin、browser-safe DTO、Package selection、stable selectors、Request ID 与 Demo/Mock/Storage 隔离。
+- A 实际复现 malformed JSON 绕过 Pilot 安全 envelope：全局 parser/error handler 会把原始请求 body 回显到 400 响应并把 body/stack 写入日志；Pilot 还继承 100MB body limit。B 必须先补 malformed 与 oversized body 的响应/日志 RED。
+- 其他阻塞：Pilot bypass 晚于 legacy `tokenKey` 查询导致 capability false-ready；authority registry 保存 raw token/Grant/Package 但无主动 purge、容量边界或 shutdown clear；5000ms shutdown 未完整关闭 Socket.IO/WebSocket 或保证安全失败；Pilot 启动日志输出 data-root 绝对路径。
+- 新增 `A_TO_B_AGENT_SHARED_CANVAS_CAPABILITY_REMEDIATION_2026-08-12.md`，要求 B 使用独立 RED/GREEN/docs commits 修复安全 lifecycle，不混入 Shared Router/Bridge Green，也不扩大为完整 Canvas editor。
+- Root SaaS 尚无 `/api/production/pilot/canvas/*` 到 StoryCanvas 的 transport/proxy；该 shared runtime 缺口在 B 安全整改通过后另以独立 shared commit 冻结和实现。
+- 服务继续运行；A 主工作区 StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_4P_ROUTER_RED_FROZEN / A_BIZ_06E_4P_BRIDGE_ISOLATION_RED_FROZEN / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-side Shared Canvas 验收基础设施推进
+
+- Shared transport 边界已由本地提交 `03df6cb test(proxy): freeze pilot canvas transport boundary` 冻结；该切片是 **RED-only**，当前定向结果预期仍为 `2 failed / 3 passed`，不代表 transport Green、Shared activation Green 或任何运行能力已激活。
+- Golden Path semantic evidence Oracle 已完成：canonical evidence 明确拆分 `canvas-bootstrap-authority-ready` 与 `real-canvas-editor-loaded`；`bootstrap authority ready != real editor loaded`，仅出现 bootstrap selector 必须以 `PILOT_E2E_REAL_EDITOR_EVIDENCE_REQUIRED` fail closed，且不得据此宣称 Golden Path complete 或 Joint Gate PASS。
+- remediation HTTP/log security Oracle 已由 `bcc6fd3` / `241bcc7` 完成，冻结 malformed JSON、oversized body、安全 envelope、Request ID、`no-store`、敏感信息禁止项及 Pilot runtime stdout/stderr allowlist；Oracle 自身定向 `13/13 PASS`，只表示验收器可用，不表示 B remediation 已通过。
+- remediation Git attestation 已由 `84a98d1` / `0edc58f` 按 RED/GREEN 原子提交完成，覆盖完整 commit object、七个原子角色 SHA 唯一性与祖先顺序、required A baseline、exact write set、禁止路径、绝对 repository root 与 bounded shell-free Git probes；定向 `14/14 PASS`，但不得写成 remediation Gate PASS。
+- B remediation 与 Shared activation Green 继续阻塞；在 B candidate 通过 HTTP/log、Git/ancestor/write-set、registry lifecycle、bounded shutdown 与日志安全复验前，不实现 Shared transport/Bridge/Router Green。
+- `AB_GOLDEN_PATH_NOT_IMPLEMENTED` 与 `FULL_JOINT_GATE_STILL_BLOCKED` 必须保留；`bootstrap authority ready`、Oracle PASS 或静态 attestation 均不能替代真实 Chrome + dedicated PostgreSQL 联合证据。
+- Root SaaS 与 StoryCanvas 服务继续监听 `127.0.0.1:5173`、`:10588`。A 主工作区未修改 StoryCanvas tracked 文件；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`A_SHARED_TRANSPORT_RED_FROZEN / A_GOLDEN_PATH_SEMANTIC_ORACLE_READY / A_REMEDIATION_HTTP_LOG_ORACLE_READY / A_REMEDIATION_GIT_ATTESTATION_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-3 no-PostgreSQL Runtime Acceptance Harness Ready
+
+- `8d555ac` 冻结 no-PostgreSQL Shared Canvas runtime acceptance 合同；`45781a9` 修正空字符串泄漏检查与函数引用相等两个 RED 测试断言；`3b9150f` 完成 DI-only acceptance orchestration。
+- Harness 只接收绝对 repository root、合法 StoryCanvas 端口、exact HTTP allowed origin，并生成安全 internal token、仓库外临时 data root 与 `127.0.0.1:0` synthetic Control API；不接收或启动 PostgreSQL、Chrome、Playwright、Golden Path runner。
+- 生命周期固定为 process stop → stopped-output security Oracle → synthetic Control API close → temporary root remove；cleanup 全尝试且 cleanup failure 优先映射为固定非泄漏错误。
+- 返回结果仅为 `A_REM_VAL_3_RUNTIME_HARNESS_READY`，明确不含 Gate PASS、Golden Path complete、real editor loaded 或 B capability accepted 字段。
+- 五组 A-side Oracle 定向回归 `58/58 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。该结果仅证明验收 Harness 可用，尚未运行 B remediation candidate，也未启动 PostgreSQL 或真实 Chrome。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交；Root SaaS 与 StoryCanvas 服务继续运行。
+- 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-4 Registry Lifecycle / Bounded Shutdown Oracle Ready
+
+- `077ec9a` 冻结 registry lifecycle 与 bounded shutdown 基础 RED；`1c79c13` 追加 input getter/Proxy、稀疏/超长数组和错误 Gate 字段的结构安全 RED；`6111821` 完成纯证据 Oracle；`8dfbe8a` / `d3d4330` 以 RED/GREEN 消除对 B 生产容量为 2 的无依据假设。
+- Oracle 要求 B 明确报告安全整数容量（至少 2），并以 capacity-filled → deterministic capacity eviction 证明该边界真实生效；A 不猜测或冻结 B 的生产容量常量。完整生命周期为 issue → dedupe → issue → expiry observed → expiry purge → capacity fill → capacity eviction → shutdown clear，最终 active count 必须为零且 raw authority 不可读。
+- Shutdown 只接受 `SIGTERM`/`SIGINT`，要求 0～5000ms 内 HTTP、Socket.IO、WebSocket 全部关闭、registry clear、pending timer 为零且 exit code 为零；任何 false-success 或不完整关闭均 fail closed。
+- 原始 evidence 使用 exact plain-object/data-property 结构、节点/深度/字符串预算和固定数组键；getter、Proxy trap、cycle、prototype object、稀疏/超长数组、额外 Gate 字段与敏感值均映射为固定非泄漏错误。
+- 六组 A-side acceptance 回归 `72/72 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。Oracle ready 不等于 B remediation accepted，不启动 B candidate、PostgreSQL、Chrome 或 Shared Green。
+- StoryCanvas tracked diff 为零；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交；服务继续运行。
+- 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / A_REM_VAL_4_LIFECYCLE_ORACLE_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-5 Candidate Acceptance Coordinator Ready
+
+- `4126a71` 冻结 A-side candidate coordinator RED，`12804a8` 实现严格串行、fail-fast 的 acceptance 编排：Git attestation → HTTP/log security summary → no-PostgreSQL runtime Harness → lifecycle/shutdown Oracle。
+- 四个阶段均使用固定非泄漏错误码；同步 throw、Promise rejection 与 thenable assimilation 统一归一化，原始 exception、stack、candidate SHA、stdout/stderr、data root 和 Gate 字段不会进入错误或结果。
+- 子结果采用 exact plain-object/data-property/own-key 校验，拒绝 accessor、symbol/non-enumerable extra key、prototype-bearing object、Proxy reflection failure 和任何 remediation/Gate overclaim；最终只新建 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY` 结果。
+- Coordinator 当前是 DI-only acceptance infrastructure，不自行启动 B candidate、PostgreSQL、Chrome、Playwright、Shared proxy、Bridge 或 Router Green；也没有接受 B remediation。
+- 七组 A-side acceptance 回归 `79/79 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY != B_REMEDIATION_ACCEPTED != SHARED_ACTIVATION_GREEN != REAL_EDITOR_LOADED != GOLDEN_PATH_COMPLETE != JOINT_GATE_PASS`。
+- 当前状态：`A_REM_VAL_3_RUNTIME_HARNESS_READY / A_REM_VAL_4_LIFECYCLE_ORACLE_READY / A_REM_VAL_5_CANDIDATE_COORDINATOR_READY / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-12 · A-REM-VAL-5A Coordinator Adversarial Hardening Complete
+
+- `5885c5b` 补充 adversarial RED，`ee50356` 完成 dependency container fail-closed hardening；既有 Git → HTTP/log → runtime → lifecycle 阶段顺序与成功语义均未改变。
+- Coordinator 现在要求 dependencies 为 exact plain-data object，四个 callback 必须是 own data-property function；额外字符串/symbol/non-enumerable key、继承属性、getter/setter、非 plain prototype 与 Proxy reflection trap 均在任何 callback 副作用前以固定 Git-stage 错误拒绝。
+- RED 同时证明 rejecting stage 恰好调用一次、后续 stage 不启动，以及 rejecting thenable/hostile `then` accessor 被 Promise assimilation 归一化；异常仍不通过 message、stack 或 cause 泄漏。
+- 七组 A-side acceptance 回归 `82/82 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+- 该 hardening 仍只表示 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY`；不表示 B remediation accepted、Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
+- 当前状态：`A_REM_VAL_5A_COORDINATOR_HARDENED / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Baseline 祖先链修正
+
+- B 正确指出此前 A 的通知把“已审计 B `6fd901f`”错误表述为“B 可直接 fast-forward 到 A HEAD”；实际 `a7de44f` 与 `6fd901f` 从 `c015823` 分叉，B-only 3 commits、A-only 29 commits。
+- A 未要求 B rebase、reset、cherry-pick 或 force push，而是创建独立 merge commit `228c211accc33e886aa851af20ef4a0a16bfc9db`，parents 为 `a7de44fb624df8f135b5c90dc142707c22b6a6f1` 与 `6fd901f56c1bd8aa37d04740e02e7c14e93f304b`。
+- `git merge-base --is-ancestor 6fd901f... 228c211...` 返回 0；B 的 RED `7afd692`、GREEN `ec48e76` 与回执 `6fd901f` 均已进入 A 祖先链。
+- 合并后验证：A acceptance `82/82 PASS`、B capability `5/5 PASS`、Pilot pages `4/4 PASS`、StoryCanvas v0.2 `13/13 PASS`、Media/TTS/Storage Node targeted `27/27 PASS`、Root Build、StoryCanvas Build、Governance 与 diff-check PASS。Electron 直接运行 storage suite 曾因本机 `better-sqlite3` ABI 127/143 不匹配失败；使用与 native module 匹配的 Node ABI 127 复跑 `6/6 PASS`，未据此改动依赖或业务源码。
+- StoryCanvas build 生成的 tracked `apps/storycanvas/data/serve/app.js` 已恢复；B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 仍是唯一工作区文件，未修改、删除、暂存或提交。
+- 本次只修正 baseline ancestor/fast-forward 合同，不表示 `B_REMEDIATION_ACCEPTED`、`SHARED_ACTIVATION_GREEN`、`REAL_EDITOR_LOADED`、`GOLDEN_PATH_COMPLETE` 或 `JOINT_GATE_PASS`。
+- 当前状态：`B_BASELINE_ANCESTOR_CORRECTED / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Remediation Accepted
+
+- B remediation candidate `b5f36f2e43e8c43a9fdc3b015ddd67e87d33297a` 已完成正式验收；A formal acceptance runner 提交为 `5d78007`，正式 runner 结果为 PASS。
+- `0d9319b` 以双 parent merge commit 纳入 candidate；验收确认 candidate 已进入合并后祖先链，未 squash、rebase 或 cherry-pick。
+- 合并态验证：A acceptance `68/68 PASS`、B targeted `12/12 PASS`、Pilot pages `4/4 PASS`、StoryCanvas v0.2 `13/13 PASS`、Media/TTS/Storage `17/17 PASS`、Root Build、StoryCanvas Build、Governance 与 diff-check 均 PASS。
+- Shared Router、Bridge 与 Proxy RED 继续保留；本次验收不代表 Shared activation Green、真实编辑器加载、Golden Path 或 Joint Gate 完成。
+- B-owned 未跟踪文件 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态仅为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

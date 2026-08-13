@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
 import { ContentConflictError, IdempotencyConflictError } from './errors.js';
 import { payloadDigest } from './digest.js';
+import { evaluateProductionEligibility } from './productionEligibility.js';
 import type {
   ApprovalEvent,
   BriefVersion,
@@ -10,7 +11,7 @@ import type {
   CreateProjectInput,
   IdempotencyInput,
   IdempotentResult,
-  ProductionEligibility,
+  ProductionEligibilityDecision,
   Project,
   ScriptVersion,
   SessionActor,
@@ -45,6 +46,7 @@ type ScriptRow = {
   version: number;
   status: ScriptVersion['status'];
   payload: Record<string, unknown>;
+  payload_digest: string;
   created_by: string;
   created_at: Date | string;
 };
@@ -53,6 +55,28 @@ type ApprovalRow = {
   approval_id: string;
   project_id: string;
   script_version_id: string;
+  status: ApprovalEvent['status'];
+  fact_risk_status: ApprovalEvent['factRiskStatus'];
+  reason: string | null;
+  acted_by: string;
+  acted_at: Date | string;
+  approval_sequence: string;
+};
+
+type StoryboardRow = {
+  storyboard_version_id: string;
+  project_id: string;
+  script_version_id: string;
+  version: number;
+  status: ScriptVersion['status'];
+  script_payload_digest: string;
+  payload_digest: string;
+};
+
+type StoryboardApprovalRow = {
+  storyboard_approval_id: string;
+  project_id: string;
+  storyboard_version_id: string;
   status: ApprovalEvent['status'];
   fact_risk_status: ApprovalEvent['factRiskStatus'];
   reason: string | null;
@@ -339,6 +363,16 @@ export class PostgresContentStore implements ContentStore {
           })
           .returning('*')) as ApprovalRow[];
         if (!row) throw new Error('approval insert returned no row');
+        const projectedStatus: ScriptVersion['status'] =
+          input.status === 'blocked' ? 'draft' : input.status;
+        const updated = await transaction('control_plane.script_versions')
+          .where({
+            tenant_id: actor.tenantId,
+            project_id: projectId,
+            script_version_id: scriptVersionId,
+          })
+          .update({ status: projectedStatus });
+        if (updated !== 1) throw new Error('script status projection failed');
         return approvalFromRow(row);
       });
     } catch (error) {
@@ -350,46 +384,61 @@ export class PostgresContentStore implements ContentStore {
   async getProductionEligibility(
     actor: SessionActor,
     projectId: string,
-  ): Promise<ProductionEligibility | null> {
+  ): Promise<ProductionEligibilityDecision | null> {
     if (!(await this.getProject(actor, projectId))) return null;
-    const script = (await this.database('control_plane.script_versions')
-      .select('*')
-      .where({ tenant_id: actor.tenantId, project_id: projectId })
-      .orderBy('version', 'desc')
-      .first()) as ScriptRow | undefined;
-    if (!script) {
-      return {
-        projectId,
-        eligible: false,
-        scriptVersionId: null,
-        scriptVersion: null,
-        reasonCode: 'NO_SCRIPT_VERSION',
-        approval: null,
-      };
-    }
-    const approvalRow = (await this.database('control_plane.script_approvals')
-      .select('*')
-      .where({
-        tenant_id: actor.tenantId,
-        project_id: projectId,
-        script_version_id: script.script_version_id,
-      })
-      .orderBy('approval_sequence', 'desc')
-      .first()) as ApprovalRow | undefined;
-    const approval = approvalRow ? approvalFromRow(approvalRow) : null;
-    let reasonCode: ProductionEligibility['reasonCode'] = 'SCRIPT_NOT_APPROVED';
-    if (approval?.factRiskStatus === 'unresolved') reasonCode = 'FACT_RISK_UNRESOLVED';
-    else if (approval?.status === 'revoked') reasonCode = 'APPROVAL_REVOKED';
-    else if (approval?.status === 'blocked') reasonCode = 'SCRIPT_BLOCKED';
-    else if (approval?.status === 'approved') reasonCode = 'ELIGIBLE';
-    return {
+    const [scripts, scriptApprovals, storyboards, storyboardApprovals] = await Promise.all([
+      this.database('control_plane.script_versions')
+        .select('*')
+        .where({ tenant_id: actor.tenantId, project_id: projectId })
+        .orderBy('version', 'desc') as Promise<ScriptRow[]>,
+      this.database('control_plane.script_approvals')
+        .select('*')
+        .where({ tenant_id: actor.tenantId, project_id: projectId })
+        .orderBy('approval_sequence', 'desc') as Promise<ApprovalRow[]>,
+      this.database('control_plane.storyboard_versions')
+        .select('*')
+        .where({ tenant_id: actor.tenantId, project_id: projectId })
+        .orderBy('version', 'desc') as Promise<StoryboardRow[]>,
+      this.database('control_plane.storyboard_approvals')
+        .select('*')
+        .where({ tenant_id: actor.tenantId, project_id: projectId })
+        .orderBy('approval_sequence', 'desc') as Promise<StoryboardApprovalRow[]>,
+    ]);
+
+    return evaluateProductionEligibility({
       projectId,
-      eligible: reasonCode === 'ELIGIBLE',
-      scriptVersionId: script.script_version_id,
-      scriptVersion: script.version,
-      reasonCode,
-      approval,
-    };
+      scripts: scripts.map((script) => ({
+        id: script.script_version_id,
+        projectId: script.project_id,
+        version: script.version,
+        status: script.status,
+        payloadDigest: script.payload_digest,
+      })),
+      scriptApprovals: scriptApprovals.map((approval) => ({
+        ...approvalFromRow(approval),
+        sequence: String(approval.approval_sequence),
+      })),
+      storyboards: storyboards.map((storyboard) => ({
+        id: storyboard.storyboard_version_id,
+        projectId: storyboard.project_id,
+        scriptVersionId: storyboard.script_version_id,
+        version: storyboard.version,
+        status: storyboard.status,
+        scriptPayloadDigest: storyboard.script_payload_digest,
+        payloadDigest: storyboard.payload_digest,
+      })),
+      storyboardApprovals: storyboardApprovals.map((approval) => ({
+        id: approval.storyboard_approval_id,
+        projectId: approval.project_id,
+        storyboardVersionId: approval.storyboard_version_id,
+        sequence: String(approval.approval_sequence),
+        status: approval.status,
+        factRiskStatus: approval.fact_risk_status,
+        reason: approval.reason,
+        actedBy: approval.acted_by,
+        actedAt: iso(approval.acted_at),
+      })),
+    });
   }
 
   private async lockProject(

@@ -3,6 +3,7 @@ import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import type { PublicSession } from '../auth/service.js';
 import {
+  TermsDocumentNotFoundError,
   TermsNotAvailableError,
   TermsPublishConflictError,
   TermsVersionNotFoundError,
@@ -68,6 +69,8 @@ function session(
 function service() {
   return {
     getPublicCurrent: vi.fn(async () => ({ document, version })),
+    listDocuments: vi.fn(async () => [document]),
+    listVersions: vi.fn(async () => [version]),
     createDocument: vi.fn(async () => document),
     createDraft: vi.fn(async () => ({ ...version, status: 'DRAFT' as const })),
     updateDraft: vi.fn(async () => ({ ...version, status: 'DRAFT' as const })),
@@ -183,6 +186,99 @@ describe('Terms HTTP contract', () => {
     expect(denied.status).toBe(403);
     expect(denied.body.error.code).toBe('TERMS_PERMISSION_DENIED');
     expect(termsService.createDocument).not.toHaveBeenCalled();
+  });
+
+  it('returns bounded Terms Document and Version directories with strict filters', async () => {
+    const termsService = service();
+    const documents = await request(app(termsService))
+      .get('/api/v1/platform/terms/documents?status=active&limit=25')
+      .set('cookie', 'videoagent_session=platform-session');
+
+    expect(documents.status).toBe(200);
+    expect(documents.headers['cache-control']).toBe('no-store');
+    expect(documents.body).toEqual({ documents: [document] });
+    expect(termsService.listDocuments).toHaveBeenCalledWith(
+      { userId, organizationType: 'PLATFORM', roles: ['platform_admin'] },
+      'active',
+      25,
+    );
+
+    const versions = await request(app(termsService))
+      .get(`/api/v1/platform/terms/documents/${documentId}/versions?status=DRAFT&limit=50`)
+      .set('cookie', 'videoagent_session=platform-session');
+
+    expect(versions.status).toBe(200);
+    expect(versions.body).toEqual({ versions: [version] });
+    expect(termsService.listVersions).toHaveBeenCalledWith(
+      { userId, organizationType: 'PLATFORM', roles: ['platform_admin'] },
+      documentId,
+      'DRAFT',
+      50,
+    );
+  });
+
+  it('returns empty Terms directories using bounded defaults without inventing records', async () => {
+    const termsService = service();
+    termsService.listDocuments.mockResolvedValueOnce([]);
+    termsService.listVersions.mockResolvedValueOnce([]);
+
+    const documents = await request(app(termsService))
+      .get('/api/v1/platform/terms/documents')
+      .set('cookie', 'videoagent_session=platform-session');
+    const versions = await request(app(termsService))
+      .get(`/api/v1/platform/terms/documents/${documentId}/versions`)
+      .set('cookie', 'videoagent_session=platform-session');
+
+    expect(documents.status).toBe(200);
+    expect(documents.body).toEqual({ documents: [] });
+    expect(termsService.listDocuments).toHaveBeenCalledWith(expect.any(Object), 'all', 100);
+    expect(versions.status).toBe(200);
+    expect(versions.body).toEqual({ versions: [] });
+    expect(termsService.listVersions).toHaveBeenCalledWith(
+      expect.any(Object),
+      documentId,
+      'all',
+      100,
+    );
+  });
+
+  it.each([
+    '/api/v1/platform/terms/documents?status=inactive',
+    '/api/v1/platform/terms/documents?limit=0',
+    '/api/v1/platform/terms/documents?limit=101',
+    '/api/v1/platform/terms/documents?limit=1.5',
+    '/api/v1/platform/terms/documents?status=all&secret=probe',
+    `/api/v1/platform/terms/documents/${documentId}/versions?status=draft`,
+    `/api/v1/platform/terms/documents/not-a-uuid/versions`,
+  ])('returns 422 for invalid or unknown management query/path input: %s', async (path) => {
+    const termsService = service();
+    const response = await request(app(termsService))
+      .get(path)
+      .set('cookie', 'videoagent_session=platform-session');
+
+    expect(response.status).toBe(422);
+    expect(response.body.error).toMatchObject({
+      code: 'TERMS_QUERY_INVALID',
+      requestId: 'terms-request-1',
+    });
+    expect(termsService.listDocuments).not.toHaveBeenCalled();
+    expect(termsService.listVersions).not.toHaveBeenCalled();
+  });
+
+  it('maps a missing Terms Document to a safe 404 without leaking internals', async () => {
+    const termsService = service();
+    termsService.listVersions.mockRejectedValueOnce(new TermsDocumentNotFoundError());
+
+    const response = await request(app(termsService))
+      .get(`/api/v1/platform/terms/documents/${documentId}/versions`)
+      .set('cookie', 'videoagent_session=platform-session');
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toMatchObject({
+      code: 'TERMS_DOCUMENT_NOT_FOUND',
+      requestId: 'terms-request-1',
+    });
+    expect(response.text).not.toContain('Terms document was not found');
   });
 
   it('strictly validates management bodies without accepting publication facts', async () => {

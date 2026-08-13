@@ -22,11 +22,8 @@ import { pilotRuntime } from '../config/pilotRuntime';
 import { colors, layout, zIndex } from '../design/tokens';
 import { DEMO_PROJECT_ID, ROUTES } from '../domain/constants';
 import { canAccessDemoRoute, type DemoRoutePermission } from '../domain/demoIdentity';
-import {
-  buildTenantMenu,
-  type TenantMenuItem,
-  type TenantWorkbenchRole,
-} from '../domain/unifiedTenantWorkbench';
+import { buildPilotCommercialMenu } from '../domain/pilotOrganizationRoutePolicy';
+import { buildTenantMenu, type TenantWorkbenchRole } from '../domain/unifiedTenantWorkbench';
 import { useAuthStore } from '../stores/authStore';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import { usePilotAuthStore } from '../stores/pilotAuthStore';
@@ -112,9 +109,22 @@ const iconByTenantMenuKey: Record<string, React.ReactNode> = {
   'production-tasks': <VideoCameraOutlined />,
   'production-assets': <FileDoneOutlined />,
   'production-export': <WalletOutlined />,
+  'platform-commission-audit': <SafetyCertificateOutlined />,
+  'platform-commission-settlements': <WalletOutlined />,
+  'channel-commission-audit': <SafetyCertificateOutlined />,
+  'tenant-recharge-orders': <WalletOutlined />,
+  'platform-terms': <FileTextOutlined />,
+  'platform-invitations': <InboxOutlined />,
+  'platform-members': <ApartmentOutlined />,
+  'channel-invitations': <InboxOutlined />,
+  'channel-members': <ApartmentOutlined />,
+  'tenant-invitations': <InboxOutlined />,
+  'tenant-members': <ApartmentOutlined />,
 };
 
-function shellItems(items: readonly TenantMenuItem[]): ShellMenuItem[] {
+function shellItems(
+  items: readonly { key: string; path: string; label: string }[],
+): ShellMenuItem[] {
   return items.map((item) => ({
     key: item.path,
     icon: iconByTenantMenuKey[item.key] ?? <FolderOpenOutlined />,
@@ -222,32 +232,62 @@ function PilotSidebar() {
   const activeProjectId = usePilotProjectContextStore((state) => state.activeProjectId);
   const status = usePilotProjectContextStore((state) => state.status);
   const context = usePilotProjectContextStore((state) => state.context);
-  const items = session
-    ? [
-        {
-          key: '/projects',
-          icon: iconByTenantMenuKey.projects,
-          label: '项目',
-        },
-        ...shellItems(
-          buildTenantMenu({
-            roleCodes: session.roles,
-            projectId: activeProjectId,
-          }),
-        ),
-      ]
+  const organizationType = session?.activeContext.organizationType;
+  const commercialItems = session
+    ? shellItems(
+        buildPilotCommercialMenu({
+          organizationType: session.activeContext.organizationType,
+          roleCodes: session.activeContext.roles,
+        }),
+      )
     : [];
+  const items = session
+    ? organizationType === 'TENANT'
+      ? [
+          {
+            key: '/projects',
+            icon: iconByTenantMenuKey.projects,
+            label: '项目',
+          },
+          ...commercialItems,
+          ...shellItems(
+            buildTenantMenu({
+              roleCodes: session.activeContext.roles,
+              projectId: activeProjectId,
+            }),
+          ),
+        ]
+      : commercialItems
+    : [];
+  const subtitle =
+    organizationType === 'PLATFORM'
+      ? '平台运营与审计'
+      : organizationType === 'CHANNEL'
+        ? '渠道运营与审计'
+        : '统一创作工作台';
 
   return (
     <SidebarFrame
-      subtitle="统一创作工作台"
+      subtitle={subtitle}
       items={items}
       footer={
-        <>
-          <Typography.Text className="sidebar-footer-state">PILOT · {status}</Typography.Text>
-          <div>{session?.activeContext.organizationDisplayName ?? '组织上下文不可用'}</div>
-          <small>{context ? `${context.projectName} · ${context.projectId}` : '未选择项目'}</small>
-        </>
+        organizationType === 'TENANT' ? (
+          <>
+            <Typography.Text className="sidebar-footer-state">PILOT · {status}</Typography.Text>
+            <div>{session?.activeContext.organizationDisplayName ?? '组织上下文不可用'}</div>
+            <small>
+              {context ? `${context.projectName} · ${context.projectId}` : '未选择项目'}
+            </small>
+          </>
+        ) : (
+          <>
+            <Typography.Text className="sidebar-footer-state">
+              PILOT · {organizationType ?? 'UNKNOWN'}
+            </Typography.Text>
+            <div>{session?.activeContext.organizationDisplayName ?? '组织上下文不可用'}</div>
+            <small>{session?.activeContext.primaryRole ?? '无角色'}</small>
+          </>
+        )
       }
     />
   );

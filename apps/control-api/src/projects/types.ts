@@ -56,19 +56,78 @@ export type ApprovalEvent = {
   actedAt: string;
 };
 
-export type ProductionEligibility = {
+export const PRODUCTION_ELIGIBILITY_REASON_CODES = [
+  'ELIGIBLE',
+  'NO_SCRIPT_VERSION',
+  'SCRIPT_NOT_APPROVED',
+  'SCRIPT_APPROVAL_REVOKED',
+  'SCRIPT_BLOCKED',
+  'SCRIPT_FACT_RISK_UNRESOLVED',
+  'NO_STORYBOARD_VERSION',
+  'STORYBOARD_NOT_APPROVED',
+  'STORYBOARD_APPROVAL_REVOKED',
+  'STORYBOARD_BLOCKED',
+  'STORYBOARD_FACT_RISK_UNRESOLVED',
+  'SCRIPT_STORYBOARD_BINDING_MISMATCH',
+] as const;
+
+export type ProductionEligibilityReason = (typeof PRODUCTION_ELIGIBILITY_REASON_CODES)[number];
+
+export type ProductionStoryboardApproval = {
+  id: string;
+  projectId: string;
+  storyboardVersionId: string;
+  status: ApprovalEvent['status'];
+  factRiskStatus: ApprovalEvent['factRiskStatus'];
+  reason: string | null;
+  actedBy: string;
+  actedAt: string;
+};
+
+export type ProductionEligibilityDecision = {
   projectId: string;
   eligible: boolean;
   scriptVersionId: string | null;
   scriptVersion: number | null;
-  reasonCode:
-    | 'ELIGIBLE'
-    | 'NO_SCRIPT_VERSION'
-    | 'SCRIPT_NOT_APPROVED'
-    | 'APPROVAL_REVOKED'
-    | 'SCRIPT_BLOCKED'
-    | 'FACT_RISK_UNRESOLVED';
-  approval: ApprovalEvent | null;
+  storyboardVersionId: string | null;
+  storyboardVersion: number | null;
+  reasonCode: ProductionEligibilityReason;
+  scriptApproval: ApprovalEvent | null;
+  storyboardApproval: ProductionStoryboardApproval | null;
+};
+
+export type ProductionScriptAuthority = {
+  id: string;
+  projectId: string;
+  version: number;
+  status: ScriptVersion['status'];
+  payloadDigest: string;
+};
+
+export type ProductionStoryboardAuthority = {
+  id: string;
+  projectId: string;
+  scriptVersionId: string;
+  version: number;
+  status: ScriptVersion['status'];
+  scriptPayloadDigest: string;
+  payloadDigest: string;
+};
+
+export type ProductionScriptApprovalAuthority = ApprovalEvent & {
+  sequence: string;
+};
+
+export type ProductionStoryboardApprovalAuthority = ProductionStoryboardApproval & {
+  sequence: string;
+};
+
+export type ProductionEligibilityEvaluationInput = {
+  projectId: string;
+  scripts: readonly ProductionScriptAuthority[];
+  scriptApprovals: readonly ProductionScriptApprovalAuthority[];
+  storyboards: readonly ProductionStoryboardAuthority[];
+  storyboardApprovals: readonly ProductionStoryboardApprovalAuthority[];
 };
 
 export type IdempotentResult<T> = { value: T; replayed: boolean };
@@ -135,5 +194,5 @@ export interface ContentStore {
   getProductionEligibility(
     actor: SessionActor,
     projectId: string,
-  ): Promise<ProductionEligibility | null>;
+  ): Promise<ProductionEligibilityDecision | null>;
 }

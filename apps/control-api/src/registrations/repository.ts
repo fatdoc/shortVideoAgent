@@ -19,6 +19,7 @@ import {
   RegistrationIdempotencyConflictError,
   RegistrationInvitationUnavailableError,
   RegistrationTermsNotAvailableError,
+  RegistrationTermsVersionStaleError,
   RegistrationValidationError,
 } from './errors.js';
 import type {
@@ -295,6 +296,7 @@ export class PostgresRegistrationRepository implements RegistrationStore {
         error instanceof RegistrationIdempotencyConflictError ||
         error instanceof RegistrationInvitationUnavailableError ||
         error instanceof RegistrationTermsNotAvailableError ||
+        error instanceof RegistrationTermsVersionStaleError ||
         error instanceof RegistrationValidationError
       ) {
         throw error;
@@ -306,7 +308,7 @@ export class PostgresRegistrationRepository implements RegistrationStore {
         throw new RegistrationIdempotencyConflictError();
       }
       if (error instanceof TermsVersionStaleError) {
-        throw new RegistrationTermsNotAvailableError();
+        throw new RegistrationTermsVersionStaleError();
       }
       if (isUniqueViolation(error)) {
         if (postgresError(error).constraint === 'registrations_idempotency_key_uq') {

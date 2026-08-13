@@ -1,10 +1,11 @@
+import { Router } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import type { ProjectPolicy } from '../projects/policy.js';
 import { contractPayloadDigest } from './digest.js';
 import { ProductionDomainError, ProductionIdempotencyConflictError } from './errors.js';
-import { createProductionRouter } from './routes.js';
+import { createProductionRouter, type ProductionRouterOptions } from './routes.js';
 import type { ProductionStore, ProjectGrant, ProjectProductionPackage } from './types.js';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
@@ -12,18 +13,44 @@ const userId = '10000000-0000-4000-8000-000000000002';
 const projectId = '10000000-0000-4000-8000-000000000003';
 const scriptVersionId = '10000000-0000-4000-8000-000000000004';
 const packageId = '10000000-0000-4000-8000-000000000005';
+const storyboardVersionId = '10000000-0000-4000-8000-000000000008';
+const approvedScriptDigest = `sha256:${'1'.repeat(64)}`;
+const approvedStoryboardDigest = `sha256:${'2'.repeat(64)}`;
+
+const publicPackageKeys = [
+  'objectType',
+  'contractVersion',
+  'tenantId',
+  'projectId',
+  'packageId',
+  'packageVersion',
+  'scriptVersionId',
+  'storyboardVersionId',
+  'capabilityRequirements',
+  'status',
+  'payloadDigest',
+  'approvedScriptDigest',
+  'approvedStoryboardDigest',
+  'createdAt',
+  'expiresAt',
+] as const;
 
 function packageFixture(): ProjectProductionPackage {
   const unsigned = {
     objectType: 'ProjectProductionPackage' as const,
-    contractVersion: '0.2' as const,
+    contractVersion: '0.3' as const,
+    status: 'ready' as const,
     tenantId,
     projectId,
     idempotencyKey: 'package-key-1',
-    occurredAt: '2026-08-05T01:00:00.000Z',
+    occurredAt: '2026-08-11T01:00:00.000Z',
     packageId,
     packageVersion: 1,
     organizationId: tenantId,
+    scriptVersionId,
+    storyboardVersionId,
+    approvedScriptDigest,
+    approvedStoryboardDigest,
     briefSnapshot: {
       briefVersionId: '10000000-0000-4000-8000-000000000006',
       objective: 'Pilot objective',
@@ -34,19 +61,28 @@ function packageFixture(): ProjectProductionPackage {
       facts: [],
       prohibitedTerms: [],
       requiredDisclosures: ['internal-controlled-pilot'],
-      sourceDigest: `sha256:${'1'.repeat(64)}`,
+      sourceDigest: `sha256:${'3'.repeat(64)}`,
     },
     approvedScript: {
       scriptVersionId,
-      content: 'Approved script',
-      approvedAt: '2026-08-05T00:59:00.000Z',
+      payloadDigest: approvedScriptDigest,
+      content: 'Approved script that must never reach the browser.',
+      approvedAt: '2026-08-11T00:59:00.000Z',
+      approvedBy: userId,
+    },
+    approvedStoryboard: {
+      storyboardVersionId,
+      scriptVersionId,
+      scriptPayloadDigest: approvedScriptDigest,
+      payloadDigest: approvedStoryboardDigest,
+      approvedAt: '2026-08-11T00:59:30.000Z',
       approvedBy: userId,
     },
     storyboard: [
       {
         shotId: 'shot-1',
         sequence: 1,
-        description: 'Opening',
+        description: 'Opening shot that must never reach the browser.',
         durationSeconds: 5,
         sourceMode: 'mixed' as const,
       },
@@ -58,10 +94,32 @@ function packageFixture(): ProjectProductionPackage {
       videoCodec: 'h264' as const,
     },
     capabilityRequirements: ['video.generate' as const],
-    createdAt: '2026-08-05T01:00:00.000Z',
-    expiresAt: '2026-08-05T07:00:00.000Z',
+    createdAt: '2026-08-11T01:00:00.000Z',
+    expiresAt: '2026-08-11T02:00:00.000Z',
   };
   return { ...unsigned, payloadDigest: contractPayloadDigest(unsigned) };
+}
+
+function publicPackageFixture() {
+  const value = packageFixture();
+  if (value.contractVersion !== '0.3') throw new Error('v0.3 fixture required');
+  return {
+    objectType: value.objectType,
+    contractVersion: value.contractVersion,
+    tenantId: value.tenantId,
+    projectId: value.projectId,
+    packageId: value.packageId,
+    packageVersion: value.packageVersion,
+    scriptVersionId: value.scriptVersionId,
+    storyboardVersionId: value.storyboardVersionId,
+    capabilityRequirements: value.capabilityRequirements,
+    status: value.status,
+    payloadDigest: value.payloadDigest,
+    approvedScriptDigest: value.approvedScriptDigest,
+    approvedStoryboardDigest: value.approvedStoryboardDigest,
+    createdAt: value.createdAt,
+    expiresAt: value.expiresAt,
+  };
 }
 
 function grantFixture(): ProjectGrant {
@@ -71,15 +129,15 @@ function grantFixture(): ProjectGrant {
     tenantId,
     projectId,
     idempotencyKey: 'grant-key-1',
-    occurredAt: '2026-08-05T01:00:01.000Z',
+    occurredAt: '2026-08-11T01:00:01.000Z',
     grantId: '10000000-0000-4000-8000-000000000007',
     packageId,
     capabilities: ['video.generate' as const],
     scopes: ['production.package.read' as const, 'production.task.write' as const],
-    tokenDigest: `sha256:${'2'.repeat(64)}`,
+    tokenDigest: `sha256:${'4'.repeat(64)}`,
     keyId: 'pilot-kid-1',
-    issuedAt: '2026-08-05T01:00:01.000Z',
-    expiresAt: '2026-08-05T01:10:01.000Z',
+    issuedAt: '2026-08-11T01:00:01.000Z',
+    expiresAt: '2026-08-11T01:10:01.000Z',
   };
   return { ...unsigned, payloadDigest: contractPayloadDigest(unsigned) };
 }
@@ -111,7 +169,7 @@ function testApp(store: ProductionStore, policy: ProjectPolicy = managerPolicy) 
               roles: ['tenant_admin'] as const,
               tenantId,
             },
-            expiresAt: '2026-08-05T08:00:00.000Z',
+            expiresAt: '2026-08-11T08:00:00.000Z',
           },
         };
       }
@@ -131,7 +189,7 @@ function testApp(store: ProductionStore, policy: ProjectPolicy = managerPolicy) 
               roles: ['platform_admin'] as const,
               tenantId: null,
             },
-            expiresAt: '2026-08-05T08:00:00.000Z',
+            expiresAt: '2026-08-11T08:00:00.000Z',
           },
         };
       }
@@ -157,76 +215,211 @@ function store(overrides: Partial<ProductionStore> = {}): ProductionStore {
   };
 }
 
+function expectSafeError(
+  response: request.Response,
+  status: number,
+  code: string,
+  requestId: string,
+): void {
+  expect(response.status).toBe(status);
+  expect(response.headers['cache-control']).toBe('no-store');
+  expect(response.headers['x-request-id']).toBe(requestId);
+  expect(response.body).toEqual({
+    error: {
+      code,
+      message: expect.any(String),
+      requestId,
+    },
+  });
+  for (const forbidden of [
+    'tenantId',
+    'projectId',
+    'packageId',
+    'idempotencyKey',
+    'payloadDigest',
+    'approvedScriptDigest',
+    'approvedStoryboardDigest',
+    'occurredAt',
+    'errorId',
+    'details',
+  ]) {
+    expect(response.text).not.toContain(forbidden);
+  }
+}
+
+function createPackageCommand() {
+  return {
+    scriptVersionId,
+    storyboardVersionId,
+    capabilityRequirements: ['video.generate'] as const,
+    expiresInSeconds: 3600,
+  };
+}
+
 describe('A05 production HTTP boundary', () => {
-  it('rejects a PLATFORM context before invoking the Tenant production store', async () => {
-    const createPackage = vi.fn<ProductionStore['createPackage']>();
+  it('accepts only the exact four-key v0.3 command and returns the exact 15-key DTO', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>().mockResolvedValue({
+      value: packageFixture(),
+      replayed: false,
+    });
     const app = testApp(store({ createPackage }));
 
     const response = await request(app)
       .post(`/api/v1/projects/${projectId}/production-packages`)
-      .set('cookie', 'videoagent_session=platform-session')
-      .set('idempotency-key', 'platform-package-key')
-      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-v03-create')
+      .set('idempotency-key', 'package-v03-red-1')
+      .send(createPackageCommand());
 
-    expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe('TENANT_CONTEXT_REQUIRED');
+    expect(response.status).toBe(201);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['x-request-id']).toBe('package-v03-create');
+    expect(response.headers['idempotency-replayed']).toBe('false');
+    expect(Object.keys(response.body)).toEqual(publicPackageKeys);
+    expect(response.body).toEqual(publicPackageFixture());
+    expect(response.text).not.toContain('Approved script that must never reach the browser.');
+    expect(response.text).not.toContain('Opening shot that must never reach the browser.');
+    expect(response.body).not.toHaveProperty('idempotencyKey');
+    expect(response.body).not.toHaveProperty('briefSnapshot');
+    expect(response.body).not.toHaveProperty('approvedScript');
+    expect(response.body).not.toHaveProperty('approvedStoryboard');
+    expect(response.body).not.toHaveProperty('storyboard');
+    expect(createPackage).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId, userId }),
+      projectId,
+      createPackageCommand(),
+      expect.objectContaining({
+        operation: 'production.package.create',
+        key: 'package-v03-red-1',
+        payload: createPackageCommand(),
+      }),
+    );
+  });
+
+  it('falls through unrelated GET and POST paths without resolving a Tenant session', async () => {
+    const productionStore = store();
+    const resolveSession = vi.fn<ProductionRouterOptions['resolveSession']>();
+    const productionRouter = createProductionRouter({
+      store: productionStore,
+      policy: managerPolicy,
+      resolveSession,
+      secureCookies: false,
+      sessionTtlSeconds: 28_800,
+    });
+    const downstreamRouter = Router();
+    downstreamRouter.get('/platform/payment-events', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    downstreamRouter.post('/platform/commission-settlements', (_request, response) => {
+      response.status(201).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      productionRouter,
+      paymentRouter: downstreamRouter,
+    });
+
+    const readResponse = await request(application).get('/api/v1/platform/payment-events');
+    const writeResponse = await request(application)
+      .post('/api/v1/platform/commission-settlements')
+      .send({ paymentMode: 'TEST' });
+
+    expect(readResponse.status).toBe(200);
+    expect(readResponse.body).toEqual({ mounted: true });
+    expect(writeResponse.status).toBe(201);
+    expect(writeResponse.body).toEqual({ mounted: true });
+    expect(resolveSession).not.toHaveBeenCalled();
+    expect(productionStore.createPackage).not.toHaveBeenCalled();
+    expect(productionStore.issueGrant).not.toHaveBeenCalled();
+  });
+
+  it('freezes real Session Cookie 401 and PLATFORM context 403 as no-store responses', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>();
+    const app = testApp(store({ createPackage }));
+
+    const unauthenticated = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('x-request-id', 'package-auth-401')
+      .set('idempotency-key', 'package-key-1')
+      .send(createPackageCommand());
+    expectSafeError(unauthenticated, 401, 'AUTHENTICATION_REQUIRED', 'package-auth-401');
+
+    const platform = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=platform-session')
+      .set('x-request-id', 'package-platform-403')
+      .set('idempotency-key', 'platform-package-key')
+      .send(createPackageCommand());
+    expectSafeError(platform, 403, 'TENANT_CONTEXT_REQUIRED', 'package-platform-403');
     expect(createPackage).not.toHaveBeenCalled();
   });
 
-  it('requires a real session and a strict v0.2 package command', async () => {
-    const app = testApp(store());
-    const unauthenticated = await request(app)
+  it('requires all four fields, rejects extras, and has no TTL default', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>();
+    const app = testApp(store({ createPackage }));
+
+    const missingTtl = await request(app)
       .post(`/api/v1/projects/${projectId}/production-packages`)
-      .set('idempotency-key', 'package-key-1')
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-missing-ttl')
+      .set('idempotency-key', 'package-missing-ttl')
       .send({
         scriptVersionId,
+        storyboardVersionId,
         capabilityRequirements: ['video.generate'],
       });
-    expect(unauthenticated.status).toBe(401);
+    expectSafeError(missingTtl, 422, 'SCHEMA_INVALID', 'package-missing-ttl');
 
     const injected = await request(app)
       .post(`/api/v1/projects/${projectId}/production-packages`)
       .set('cookie', 'videoagent_session=valid-session')
-      .set('idempotency-key', 'package-key-1')
-      .send({
-        scriptVersionId,
-        capabilityRequirements: ['video.generate'],
-        tenantId: '20000000-0000-4000-8000-000000000001',
-      });
-    expect(injected.status).toBe(422);
-    expect(injected.body).toMatchObject({
-      objectType: 'StandardError',
-      contractVersion: '0.2',
-      tenantId,
-      projectId,
-      error: { code: 'SCHEMA_INVALID', category: 'schema', retryable: false },
-    });
-    expect(injected.body.payloadDigest).toBe(contractPayloadDigest(injected.body));
+      .set('x-request-id', 'package-extra-field')
+      .set('idempotency-key', 'package-extra-field')
+      .send({ ...createPackageCommand(), tenantId });
+    expectSafeError(injected, 422, 'SCHEMA_INVALID', 'package-extra-field');
+    expect(createPackage).not.toHaveBeenCalled();
   });
 
-  it('returns an immutable contract package and exposes safe replay metadata', async () => {
+  it('requires Idempotency-Key only from the header', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>();
+    const app = testApp(store({ createPackage }));
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-idempotency-400')
+      .send({ ...createPackageCommand(), idempotencyKey: 'body-key' });
+
+    expectSafeError(response, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'package-idempotency-400');
+    expect(createPackage).not.toHaveBeenCalled();
+  });
+
+  it('returns the same exact public DTO on idempotent replay', async () => {
     const createPackage = vi
       .fn<ProductionStore['createPackage']>()
       .mockResolvedValueOnce({ value: packageFixture(), replayed: false })
       .mockResolvedValueOnce({ value: packageFixture(), replayed: true });
     const app = testApp(store({ createPackage }));
-    const send = () =>
+    const send = (requestId: string) =>
       request(app)
         .post(`/api/v1/projects/${projectId}/production-packages`)
         .set('cookie', 'videoagent_session=valid-session')
+        .set('x-request-id', requestId)
         .set('idempotency-key', 'package-key-1')
-        .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
+        .send(createPackageCommand());
 
-    const created = await send();
-    const replayed = await send();
+    const created = await send('package-created');
+    const replayed = await send('package-replayed');
     expect(created.status).toBe(201);
-    expect(created.body).toEqual(packageFixture());
     expect(replayed.status).toBe(200);
+    expect(replayed.headers['cache-control']).toBe('no-store');
     expect(replayed.headers['idempotency-replayed']).toBe('true');
-    expect(replayed.body.packageId).toBe(created.body.packageId);
+    expect(Object.keys(replayed.body)).toEqual(publicPackageKeys);
+    expect(replayed.body).toEqual(created.body);
   });
 
-  it('maps same-key/different-payload conflicts to the frozen StandardError', async () => {
+  it('maps same-key/different-payload conflicts to a minimal safe envelope', async () => {
     const app = testApp(
       store({
         createPackage: vi.fn(async () => {
@@ -237,14 +430,153 @@ describe('A05 production HTTP boundary', () => {
     const response = await request(app)
       .post(`/api/v1/projects/${projectId}/production-packages`)
       .set('cookie', 'videoagent_session=valid-session')
-      .set('idempotency-key', 'package-key-1')
-      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
-    expect(response.status).toBe(409);
-    expect(response.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
-    expect(response.body.payloadDigest).toBe(contractPayloadDigest(response.body));
+      .set('x-request-id', 'package-idempotency-conflict')
+      .set('idempotency-key', 'raw-key-must-not-leak')
+      .send(createPackageCommand());
+
+    expectSafeError(response, 409, 'IDEMPOTENCY_CONFLICT', 'package-idempotency-conflict');
+    expect(response.text).not.toContain('raw-key-must-not-leak');
   });
 
-  it('returns a no-store, least-privilege signed Grant envelope', async () => {
+  it('maps stale Script or Storyboard authority to a generic 409', async () => {
+    const app = testApp(
+      store({
+        createPackage: vi.fn(async () => {
+          throw new ProductionDomainError(
+            'storyboard approval was revoked',
+            403,
+            'CAPABILITY_SCOPE_DENIED',
+            'scope',
+            {
+              reasonCode: 'STORYBOARD_APPROVAL_REVOKED',
+              authorityReasonCode: 'STORYBOARD_APPROVAL_REVOKED',
+            },
+          );
+        }),
+      }),
+    );
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-authority-stale')
+      .set('idempotency-key', 'stale-key-must-not-leak')
+      .send(createPackageCommand());
+
+    expectSafeError(response, 409, 'PRODUCTION_AUTHORITY_STALE', 'package-authority-stale');
+    expect(response.text).not.toContain('STORYBOARD_APPROVAL_REVOKED');
+    expect(response.text).not.toContain('stale-key-must-not-leak');
+  });
+
+  it('allows a viewer to read only the strict v0.3 public projection', async () => {
+    const getPackage = vi.fn<ProductionStore['getPackage']>().mockResolvedValue(packageFixture());
+    const viewerPolicy: ProjectPolicy = {
+      canCreateProject: async () => false,
+      listVisibleProjectIds: async () => [projectId],
+      resolveProjectAccess: async () => 'viewer',
+    };
+    const app = testApp(store({ getPackage }), viewerPolicy);
+    const response = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-packages/${packageId}`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-viewer-read');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['x-request-id']).toBe('package-viewer-read');
+    expect(Object.keys(response.body)).toEqual(publicPackageKeys);
+    expect(response.body).toEqual(publicPackageFixture());
+    expect(response.text).not.toContain('Approved script that must never reach the browser.');
+    expect(response.text).not.toContain('Opening shot that must never reach the browser.');
+    expect(getPackage).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId, userId }),
+      projectId,
+      packageId,
+    );
+  });
+
+  it('rejects viewer production writes with 403 before invoking the store', async () => {
+    const createPackage = vi.fn<ProductionStore['createPackage']>();
+    const viewerPolicy: ProjectPolicy = {
+      canCreateProject: async () => false,
+      listVisibleProjectIds: async () => [projectId],
+      resolveProjectAccess: async () => 'viewer',
+    };
+    const app = testApp(store({ createPackage }), viewerPolicy);
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-viewer-write')
+      .set('idempotency-key', 'viewer-package-1')
+      .send(createPackageCommand());
+
+    expectSafeError(response, 403, 'CAPABILITY_SCOPE_DENIED', 'package-viewer-write');
+    expect(createPackage).not.toHaveBeenCalled();
+  });
+
+  it('uses one safe 404 for unknown project and unknown or cross-scope package', async () => {
+    const hiddenPolicy: ProjectPolicy = {
+      canCreateProject: async () => false,
+      listVisibleProjectIds: async () => [],
+      resolveProjectAccess: async () => null,
+    };
+    const hiddenApp = testApp(store(), hiddenPolicy);
+    const missingApp = testApp(store({ getPackage: vi.fn(async () => null) }));
+
+    const hidden = await request(hiddenApp)
+      .get(`/api/v1/projects/${projectId}/production-packages/${packageId}`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-safe-404');
+    const missing = await request(missingApp)
+      .get(`/api/v1/projects/${projectId}/production-packages/${packageId}`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-safe-404');
+
+    expectSafeError(hidden, 404, 'RESOURCE_NOT_FOUND', 'package-safe-404');
+    expectSafeError(missing, 404, 'RESOURCE_NOT_FOUND', 'package-safe-404');
+    expect(hidden.body).toEqual(missing.body);
+  });
+
+  it('fails closed with a fixed 500 when the store returns a non-v0.3 package', async () => {
+    const invalid = {
+      ...packageFixture(),
+      contractVersion: '0.2',
+      internalSql: 'select * from control_plane.production_packages',
+    } as unknown as ProjectProductionPackage;
+    const app = testApp(store({ getPackage: vi.fn(async () => invalid) }));
+    const response = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-packages/${packageId}`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-invalid-source');
+
+    expectSafeError(response, 500, 'INTERNAL_ERROR', 'package-invalid-source');
+    expect(response.text).not.toContain('control_plane');
+    expect(response.text).not.toContain('Zod');
+  });
+
+  it('redacts unknown repository failures instead of delegating environment-specific messages', async () => {
+    const app = testApp(
+      store({
+        createPackage: vi.fn(async () => {
+          throw new Error(
+            `select * from control_plane.production_packages where tenant_id = '${tenantId}'`,
+          );
+        }),
+      }),
+    );
+    const response = await request(app)
+      .post(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-safe-500')
+      .set('idempotency-key', 'secret-idempotency-key')
+      .send(createPackageCommand());
+
+    expectSafeError(response, 500, 'INTERNAL_ERROR', 'package-safe-500');
+    expect(response.text).not.toContain('control_plane');
+    expect(response.text).not.toContain(tenantId);
+    expect(response.text).not.toContain('secret-idempotency-key');
+  });
+
+  it('keeps the Grant URL, body defaults, token, and success contract unchanged', async () => {
     const issueGrant = vi.fn<ProductionStore['issueGrant']>().mockResolvedValue({
       value: { grant: grantFixture(), tokenType: 'Bearer', accessToken: 'signed.token.value' },
       replayed: false,
@@ -253,6 +585,7 @@ describe('A05 production HTTP boundary', () => {
     const response = await request(app)
       .post(`/api/v1/projects/${projectId}/production-grants`)
       .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'grant-contract-unchanged')
       .set('idempotency-key', 'grant-key-1')
       .send({
         packageId,
@@ -262,6 +595,7 @@ describe('A05 production HTTP boundary', () => {
 
     expect(response.status).toBe(201);
     expect(response.headers['cache-control']).toBe('no-store');
+    expect(response.headers['x-request-id']).toBe('grant-contract-unchanged');
     expect(response.body).toEqual({
       grant: grantFixture(),
       tokenType: 'Bearer',
@@ -277,87 +611,5 @@ describe('A05 production HTTP boundary', () => {
       }),
       expect.objectContaining({ operation: 'production.grant.issue', key: 'grant-key-1' }),
     );
-  });
-
-  it('allows a viewer to read an assigned production package', async () => {
-    const getPackage = vi.fn<ProductionStore['getPackage']>().mockResolvedValue(packageFixture());
-    const viewerPolicy: ProjectPolicy = {
-      canCreateProject: async () => false,
-      listVisibleProjectIds: async () => [projectId],
-      resolveProjectAccess: async () => 'viewer',
-    };
-    const app = testApp(store({ getPackage }), viewerPolicy);
-    const response = await request(app)
-      .get(`/api/v1/projects/${projectId}/production-packages/${packageId}`)
-      .set('cookie', 'videoagent_session=valid-session');
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual(packageFixture());
-    expect(getPackage).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId, userId }),
-      projectId,
-      packageId,
-    );
-  });
-
-  it('rejects viewer production writes before invoking the Production Store', async () => {
-    const createPackage = vi.fn<ProductionStore['createPackage']>();
-    const viewerPolicy: ProjectPolicy = {
-      canCreateProject: async () => false,
-      listVisibleProjectIds: async () => [projectId],
-      resolveProjectAccess: async () => 'viewer',
-    };
-    const app = testApp(store({ createPackage }), viewerPolicy);
-    const response = await request(app)
-      .post(`/api/v1/projects/${projectId}/production-packages`)
-      .set('cookie', 'videoagent_session=valid-session')
-      .set('idempotency-key', 'viewer-package-1')
-      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
-
-    expect(response.status).toBe(403);
-    expect(response.body.error.code).toBe('CAPABILITY_SCOPE_DENIED');
-    expect(createPackage).not.toHaveBeenCalled();
-  });
-
-  it('never serializes signed URLs, scripts, cross-tenant values, or unknown details', async () => {
-    const signedUrl = 'https://bucket.example/video.mp4?x-tos-signature=do-not-leak';
-    const app = testApp(
-      store({
-        createPackage: vi.fn(async () => {
-          throw new ProductionDomainError(
-            `脚本正文: private customer script ${signedUrl}`,
-            500,
-            'CAPABILITY_SCOPE_DENIED',
-            'grant',
-            {
-              reasonCode: 'tenant-other-secret',
-              signedUrl,
-              scriptContent: 'private customer script',
-              operation: 'production.package.create',
-              unknownDetail: 'private unknown detail',
-            },
-          );
-        }),
-      }),
-    );
-    const response = await request(app)
-      .post(`/api/v1/projects/${projectId}/production-packages`)
-      .set('cookie', 'videoagent_session=valid-session')
-      .set('idempotency-key', 'safe-error-key-1')
-      .send({ scriptVersionId, capabilityRequirements: ['video.generate'] });
-
-    expect(response.status).toBe(403);
-    expect(response.body.error).toEqual({
-      code: 'CAPABILITY_SCOPE_DENIED',
-      message: 'Requested capability is not authorized.',
-      retryable: false,
-      category: 'scope',
-      details: { operation: 'production.package.create' },
-    });
-    expect(response.text).not.toContain('do-not-leak');
-    expect(response.text).not.toContain('private customer script');
-    expect(response.text).not.toContain('tenant-other-secret');
-    expect(response.text).not.toContain('private unknown detail');
-    expect(response.body.payloadDigest).toBe(contractPayloadDigest(response.body));
   });
 });
