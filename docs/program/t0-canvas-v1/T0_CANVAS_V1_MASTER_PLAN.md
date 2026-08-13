@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.6`
+> 版本：`v0.7`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -55,6 +55,12 @@ Wave 2 independent QA integrated head:
 
 G5 activation transport contract head:
 ee1c24e9c55369c2d38eabc89e76a4cbfea17197
+
+G4 Canvas Agent product integrated head:
+93f26d8af1ed4d37f43540c0b7cbe139e217923c
+
+G4 independent QA evidence integrated head:
+c09be04a961dfb5a45286e375e81e4fa1f9c8895
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -413,12 +419,12 @@ raw Idempotency-Key
 | 员工 | 角色 | 任务书 | 初始状态 | 阻塞条件 |
 |---|---|---|---|---|
 | CV0 | 总控与集成负责人 | `tasks/CV0_MASTER_INTEGRATION_TASK.md` | `IN_PROGRESS` | 无 |
-| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `ACCEPTED` | G1 已验收 |
+| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `IN_PROGRESS` | G1 已验收；正冻结 G5 Workspace/Materialization additive 合同 |
 | CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `ACCEPTED` | G2 已独立验收；真实付费 Seedance smoke 留给 G6 |
-| CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `IN_PROGRESS` | G2 已放行；进入 Agent RED/GREEN |
+| CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | 05A 已通过；05B 等待 G4 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G2 runtime 已独立复核；进入 G4 验收准备 |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | 05A 已通过；05B 进入 G5 业务融合 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G4 已独立验收；等待 G5 additive 合同与产品切片 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -552,8 +558,8 @@ Gate 状态：
 | G1 | `ACCEPTED` | 含 EntityBinding missing amendment；66/66 PASS、10 fixtures、38/38 双 parser parity |
 | G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
-| G4 | `IN_PROGRESS` | CV3 只读准备已完成，按同一 CanvasCommand Service 开始 RED/GREEN |
-| G5 | `NOT_STARTED` | 依赖 G2/G3/G4 |
+| G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
+| G5 | `IN_PROGRESS` | G2/G3/G4 已放行；先冻结 Workspace/Materialization additive 合同，再实现 Activation/Bootstrap/Bridge/Proxy/Router |
 | G6 | `NOT_STARTED` | 依赖 G5 |
 
 状态词只使用：
@@ -588,6 +594,7 @@ CANVAS_V1_CONTRACT_FROZEN
 CANVAS_V1_ASSET_GATE_READY
 CANVAS_V1_COMMAND_READY
 CANVAS_V1_UI_READY
+CANVAS_V1_AGENT_READY
 B_REMEDIATION_ACCEPTED
 SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
@@ -781,15 +788,16 @@ G6 最少需要：
 
 用户已正式启动 T0-CV1。G0 已由 CV6 完成并由 CV0 以
 `ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行；G1（含 additive amendment）、
-G2 和 G3 已由 CV0 验收。当前进入 Wave 3 / G4 Canvas Agent：
+G2、G3 和 G4 已由 CV0 验收。当前进入 Wave 3 / G5 业务融合：
 
 ```text
 1. CV2 已完成资产门禁、Document、Canvas Command Service、受信审批消费与 Seedance runtime adapter
 2. CV2 已完成 SYNC/BIND/GENERATE/SELECT/SAVE 最小命令面，真实付费 Seedance smoke 仅在 G6 执行
 3. CV4 UI 和动态 exact-action approval 已通过独立 Gate
-4. CV3 现按同一 CanvasCommand Service 实现只读分析、资产计划和单镜头受控生成
-5. CV5 05B 保持只读，等待 G4；G4 后进入 Activation/Bootstrap/Bridge/Proxy/Router
-6. CV6 进入 G4 Agent 独立 Gate 准备
+4. CV3 已完成 12 个白名单 Agent tools，只读分析、资产计划和单镜头命令全部经同一 CanvasCommand Service
+5. CV1 冻结 browser-safe `CanvasWorkspace/0.1` 与 server-only `CanvasAssetMaterialization/0.1`
+6. CV2 后续实现 formal bootstrap/workspace/materialization；CV5 实现 Activation/Bridge/Proxy/Router
+7. CV6 对 G5 additive 合同和业务融合产品线执行独立 Gate
 ```
 
 G1 证据：
@@ -815,6 +823,10 @@ G2 runtime independent:    approval/wiring 23/23; provider recovery 18/18 PASS
 G2 owner targeted:         Control 60/60; StoryCanvas 54/54 PASS
 Dynamic approval Gate:     71/71 PASS
 G2 status:                 ACCEPTED; paid Seedance smoke deferred to G6
+G4 independent static:     4/4 PASS
+G4 independent dynamic:    7/7 PASS
+G4 owner targeted:         11/11 PASS
+G4 status:                 ACCEPTED; no paid Seedance and no bulk production
 ```
 
 G0 已知基线事实：
@@ -834,6 +846,15 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.7 · 2026-08-14
+
+- 集成 Canvas Agent 12 个严格白名单工具、受信 host scope、单镜头命令工作流与安全 Skill；
+- 五类高成本命令仍需 host approval，Agent 不能 mint approval，SYNC 保持 low-cost 但仍走共同命令服务；
+- CV6 独立 G4 静态 4/4、动态 7/7，CV3 owner 11/11，合同、G2 回归、构建和治理通过；
+- CV0 将 G4 标记为 `ACCEPTED`，新增联合状态 `CANVAS_V1_AGENT_READY`；
+- 进入 G5：先冻结 browser-safe Workspace 与 server-only Materialization 合同，再实现真实 Activation/Bootstrap/Bridge/Proxy/Router；
+- 未执行付费 Seedance，未完成正式画布浏览器闭环、Golden Path 或 Joint Gate。
 
 ### v0.6 · 2026-08-14
 
