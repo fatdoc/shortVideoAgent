@@ -124,7 +124,19 @@ test("completeness can render a trustworthy blocked projection only with all exa
   assert.equal(codeOf(() => parseBrowserWorkspace(blocked)), "CANVAS_WORKSPACE_STATUS_INCONSISTENT");
 });
 
-test("decoded byte ceiling accepts exactly 8 MiB and rejects 8 MiB plus one", () => {
+test("decoded byte range accepts one byte through exact 8 MiB and rejects 8 MiB plus one with stable codes", () => {
+  const oneByte = {
+    ...fixture.materializationResponse,
+    mimeType: "image/png",
+    byteSize: 1,
+    checksum: "sha256:6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+    contentBase64: "AA==",
+  };
+  assert.equal(
+    codeOf(() => parseCanvasAssetMaterializationV01(oneByte)),
+    "CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED",
+    "one decoded byte is inside the size range but must still fail magic-byte verification",
+  );
   const bytes = Buffer.alloc(8 * 1024 * 1024);
   bytes[0] = 0xff;
   bytes[1] = 0xd8;
@@ -142,6 +154,16 @@ test("decoded byte ceiling accepts exactly 8 MiB and rejects 8 MiB plus one", ()
     codeOf(() => parseCanvasAssetMaterializationV01({ ...boundary, byteSize: 8 * 1024 * 1024 + 1 })),
     "CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE",
   );
+});
+
+test("malformed and noncanonical base64 fail with fixed code and never escape an uncaught parser error", () => {
+  for (const contentBase64 of ["not base64", "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC\nAAAA"]) {
+    assert.equal(
+      codeOf(() => parseCanvasAssetMaterializationV01({ ...fixture.materializationResponse, contentBase64 })),
+      "CANVAS_MATERIALIZATION_RESPONSE_INVALID",
+      contentBase64,
+    );
+  }
 });
 
 test("browser parser cannot accept any server-only materialization envelope", () => {

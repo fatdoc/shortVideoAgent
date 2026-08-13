@@ -134,10 +134,10 @@ test("materialization fixture derives exact magic MIME, byte size, checksum and 
   assert.equal(Buffer.byteLength(JSON.stringify(fixture.materializationRequest), "utf8") < 16 * 1024, true);
 });
 
-test("all 58 vectors uniquely freeze parser, auth ordering, bytes, replay, no-store and persistence", () => {
+test("all 61 vectors uniquely freeze parser, auth ordering, bytes, replay, no-store and persistence", () => {
   assert.equal(matrix.schemaVersion, "canvas-v1-workspace-materialization-negative-vectors.v1");
-  assert.equal(matrix.vectors.length, 58);
-  assert.equal(new Set(matrix.vectors.map(({ id }) => id)).size, 58);
+  assert.equal(matrix.vectors.length, 61);
+  assert.equal(new Set(matrix.vectors.map(({ id }) => id)).size, 61);
   const operations = new Set(matrix.vectors.map(({ operation }) => operation));
   assert.deepEqual(operations, new Set([
     "parse-workspace",
