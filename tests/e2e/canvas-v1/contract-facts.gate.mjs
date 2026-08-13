@@ -8,6 +8,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.
 const contractDir = path.join(rootDir, "docs/program/contracts/canvas-v1");
 const fixtureDir = path.join(contractDir, "fixtures");
 const amendmentFixtureFile = "shot-readiness-binding-missing.json";
+const independentTransportFixtureFile = "activation-transport.json";
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 const schema = readJson(path.join(contractDir, "canvas-v1.schema.json"));
@@ -112,7 +113,9 @@ test("nine aggregate fixtures plus the additive amendment fixture are exhaustive
   assert.deepEqual(Object.keys(matrix.fixtureFiles), expectedDefinitions);
   const expectedFixtureFiles = [...Object.values(matrix.fixtureFiles), amendmentFixtureFile].sort();
   assert.deepEqual(
-    fs.readdirSync(fixtureDir).filter((name) => name.endsWith(".json")).sort(),
+    fs.readdirSync(fixtureDir)
+      .filter((name) => name.endsWith(".json") && name !== independentTransportFixtureFile)
+      .sort(),
     expectedFixtureFiles,
   );
 
