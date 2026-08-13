@@ -12,6 +12,15 @@ export interface CanvasAgentAuthority extends CanvasV1Scope {
   actorId: string;
 }
 
+export function canvasAgentContractScope(authority: CanvasAgentAuthority): CanvasV1Scope {
+  return {
+    tenantId: authority.tenantId,
+    projectId: authority.projectId,
+    packageId: authority.packageId,
+    canvasSessionId: authority.canvasSessionId,
+  };
+}
+
 export interface CanvasAgentReadPorts {
   listProjectAssets(authority: CanvasAgentAuthority): Promise<unknown[]>;
   listShotRequirements(shotId: string, authority: CanvasAgentAuthority): Promise<unknown[]>;

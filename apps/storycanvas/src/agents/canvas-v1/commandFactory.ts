@@ -3,7 +3,11 @@ import {
   type CanvasCommandV01,
 } from "@/contracts/canvas-v1";
 import { assertCanvasAgentOutputSafe, CanvasAgentPolicyError } from "./policy";
-import type { CanvasAgentAuthority, CanvasAgentPendingAction } from "./types";
+import {
+  canvasAgentContractScope,
+  type CanvasAgentAuthority,
+  type CanvasAgentPendingAction,
+} from "./types";
 
 export interface BuildCanvasAgentCommandInput {
   authority: CanvasAgentAuthority;
@@ -19,14 +23,13 @@ export interface CanvasAgentCommandDraft extends Omit<CanvasCommandV01, "approva
   approvalId: null;
 }
 
+const DRAFT_VALIDATION_APPROVAL_ID = "00000000-0000-4000-8000-000000000001";
+
 function base(input: BuildCanvasAgentCommandInput): CanvasCommandV01 {
   return {
     objectType: "CanvasCommand",
     contractVersion: "0.1",
-    tenantId: input.authority.tenantId,
-    projectId: input.authority.projectId,
-    packageId: input.authority.packageId,
-    canvasSessionId: input.authority.canvasSessionId,
+    ...canvasAgentContractScope(input.authority),
     commandId: input.commandId,
     commandType: input.commandType,
     requestedByActorId: input.authority.actorId,
@@ -53,9 +56,17 @@ export function buildCanvasAgentCommand(input: BuildCanvasAgentCommandInput): Ca
 export function buildCanvasAgentCommandDraft(
   input: Omit<BuildCanvasAgentCommandInput, "approvalId">,
 ): CanvasAgentCommandDraft {
-  const draft = base({ ...input, approvalId: null }) as CanvasAgentCommandDraft;
-  assertCanvasAgentOutputSafe(draft);
-  return draft;
+  try {
+    const validated = buildCanvasAgentCommand({
+      ...input,
+      approvalId: DRAFT_VALIDATION_APPROVAL_ID,
+    });
+    const draft = { ...validated, approvalId: null } as CanvasAgentCommandDraft;
+    assertCanvasAgentOutputSafe(draft);
+    return draft;
+  } catch {
+    throw new CanvasAgentPolicyError("CANVAS_AGENT_TOOL_INPUT_INVALID");
+  }
 }
 
 export function pendingAction(draft: CanvasAgentCommandDraft): CanvasAgentPendingAction {

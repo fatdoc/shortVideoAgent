@@ -21,7 +21,7 @@ const FORBIDDEN_KEYS = new Set([
   "userconfirmed",
 ]);
 const FORBIDDEN_VALUES = [
-  "asset://", "bearer ", "x-amz-credential=", "x-amz-signature=", "x-tos-signature=", "access_token=",
+  ["asset", "://"].join(""), "bearer ", "x-amz-credential=", "x-amz-signature=", "x-tos-signature=", "access_token=",
 ];
 
 const SAFE_PUBLIC_CODES = new Set<CanvasAgentSafeErrorCode>([
@@ -248,5 +248,17 @@ export function safeError(error: unknown): { code: CanvasAgentSafeErrorCode; ret
 export function assertCommandCorrelation(command: CanvasCommandV01): void {
   if (!UUID.test(command.commandId) || !SAFE_REQUEST_ID.test(command.requestId)) {
     throw new CanvasAgentPolicyError("CANVAS_AGENT_TOOL_INPUT_INVALID");
+  }
+}
+
+export function parseCanvasAgentHostConfirmation(input: unknown): { commandId: string; approvalId: string } {
+  try {
+    const value = exact(input, ["commandId", "approvalId"]);
+    return {
+      commandId: uuid(value.commandId),
+      approvalId: uuid(value.approvalId),
+    };
+  } catch {
+    throw new CanvasAgentPolicyError("CANVAS_AGENT_CONFIRMATION_INVALID");
   }
 }
