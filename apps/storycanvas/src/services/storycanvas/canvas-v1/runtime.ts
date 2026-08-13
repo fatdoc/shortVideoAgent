@@ -109,6 +109,32 @@ function exactOrigin(value: string): boolean {
   }
 }
 
+function exactRefererOrigin(value: string | undefined, allowedOrigin: string): boolean {
+  if (!value) return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.origin === allowedOrigin
+      && ["http:", "https:"].includes(parsed.protocol)
+      && !parsed.username
+      && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function hasTrustedBrowserProvenance(request: Request, allowedOrigin: string): boolean {
+  const origin = request.header("origin");
+  const fetchSite = request.header("sec-fetch-site");
+  const referer = request.header("referer");
+  if ((origin !== undefined && origin !== allowedOrigin)
+    || (fetchSite !== undefined && fetchSite !== "same-origin")
+    || (referer !== undefined && !exactRefererOrigin(referer, allowedOrigin))) {
+    return false;
+  }
+  return origin === allowedOrigin
+    || (fetchSite === "same-origin" && exactRefererOrigin(referer, allowedOrigin));
+}
+
 function parseProjection<T extends AssetRecordV01 | ShotReadinessV01>(value: string): T {
   const parsed = parseCanvasV1Contract(JSON.parse(value));
   return parsed as T;
@@ -166,7 +192,7 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     request: Request,
     response?: Response,
   ): Promise<CanvasProductionScope> => {
-    if (request.header("origin") !== options.allowedOrigin) {
+    if (!hasTrustedBrowserProvenance(request, options.allowedOrigin)) {
       throw new CanvasCommandServiceError("CANVAS_SESSION_INVALID");
     }
     const session = await options.verifySession(request.header("cookie") ?? "");

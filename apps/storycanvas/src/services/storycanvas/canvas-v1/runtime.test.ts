@@ -24,6 +24,66 @@ const shotId = "66666666-6666-4666-8666-666666666666";
 const occurredAt = "2026-08-14T02:00:00.000Z";
 const origin = "https://pilot.example.test";
 
+test("runtime accepts Chromium same-origin GET provenance without Origin and rejects ambiguous or contradictory provenance", async (context) => {
+  const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
+  context.after(() => database.destroy());
+  await canvasV1Migration.up(database);
+  const authority = {
+    actorId,
+    redemption: { tenantId, projectId, packageId },
+    expiresAt: "2099-08-14T03:00:00.000Z",
+  } as unknown as PilotCanvasServerAuthority;
+  const application = express();
+  application.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
+    database,
+    allowedOrigin: origin,
+    verifySession: async (cookie) => cookie === "videoagent_session=valid"
+      ? { actorId, tenantId, organizationType: "TENANT", roles: ["content_operator"] }
+      : null,
+    readAuthority: (id) => id === canvasSessionId ? authority : null,
+    acceptAuthority: async () => 42,
+  }));
+  const server = http.createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  }));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/assets`;
+  const authorityHeaders = {
+    cookie: "videoagent_session=valid",
+    "x-canvas-session-id": canvasSessionId,
+  };
+
+  const chromiumGet = await fetch(url, {
+    headers: {
+      ...authorityHeaders,
+      referer: `${origin}/canvas/${projectId}`,
+      "sec-fetch-site": "same-origin",
+    },
+  });
+  assert.equal(chromiumGet.status, 200);
+
+  for (const headers of [
+    authorityHeaders,
+    { ...authorityHeaders, referer: `${origin}/canvas/${projectId}` },
+    { ...authorityHeaders, "sec-fetch-site": "same-origin" },
+    { ...authorityHeaders, referer: "https://attacker.example.test/canvas", "sec-fetch-site": "same-origin" },
+    { ...authorityHeaders, referer: `${origin}/canvas/${projectId}`, "sec-fetch-site": "cross-site" },
+    {
+      ...authorityHeaders,
+      origin: "https://attacker.example.test",
+      referer: `${origin}/canvas/${projectId}`,
+      "sec-fetch-site": "same-origin",
+    },
+  ]) {
+    const blocked = await fetch(url, { headers });
+    assert.equal(blocked.status, 401);
+    assert.equal((await blocked.json() as { error: { code: string } }).error.code, "CANVAS_SESSION_INVALID");
+  }
+});
+
 test("runtime aggregate wires controlled media into the formal preview route", async (context) => {
   const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
   context.after(() => database.destroy());
