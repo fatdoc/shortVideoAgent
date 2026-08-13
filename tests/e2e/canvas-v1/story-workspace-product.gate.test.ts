@@ -401,6 +401,77 @@ test("asset materializer publishes verified bytes atomically and fails changed c
   assert.equal((await db("sc_external_mappings")).length, 1);
 });
 
+test("controlled media rejects poisoned persisted event and command scopes before signing or fetching", async (context) => {
+  const [{ CanvasV1ControlledMediaService }, { buildRemoteOutputKey }] = await Promise.all([
+    import("../../../apps/storycanvas/src/services/storycanvas/canvas-v1/controlledMedia.js"),
+    import("../../../apps/storycanvas/src/services/storycanvas/remoteOutputStorage.js"),
+  ]);
+  const target = {
+    accessKey: "cv6-access",
+    secretKey: "cv6-secret",
+    region: "ap-southeast-1",
+    bucket: "cv6-controlled-bucket",
+    endpoint: "tos.example.test",
+    prefix: "pilot",
+    groupId: "cv6-group",
+  };
+  const taskId = "18181818-1818-4818-8818-181818181818";
+  const outputAssetId = "13131313-1313-4313-8313-131313131313";
+  const commandId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const eventId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+  const shotId = "66666666-6666-4666-8666-666666666666";
+  const occurredAt = "2026-08-14T02:06:00.000Z";
+  const command = {
+    objectType: "CanvasCommand", contractVersion: "0.1", tenantId: scope.tenantId, projectId: scope.projectId,
+    packageId: scope.packageId, canvasSessionId: scope.canvasSessionId, commandId, commandType: "GENERATE_SHOT",
+    requestedByActorId: scope.actorId, requestSource: "user", approvalId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    payload: { shotId, readinessId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", prompt: "门店入口", referenceAssetIds: [authorityFixture.authorityResponse.assets[0].assetId] },
+    requestId: "req-cv6-controlled-command", occurredAt,
+  };
+  const event = {
+    objectType: "CanvasEvent", contractVersion: "0.1", tenantId: scope.tenantId, projectId: scope.projectId,
+    packageId: scope.packageId, canvasSessionId: scope.canvasSessionId, eventId, commandId, commandType: "GENERATE_SHOT",
+    status: "task_created", providerSubmitted: true, taskCreated: true, outputRegistered: false, receiptRecorded: false,
+    taskId, outputAssetId: null, receiptId: null, replayed: false, error: null,
+    requestId: "req-cv6-controlled-command", occurredAt,
+  };
+  for (const poison of [
+    { table: "sc_canvas_v1_events", column: "eventJson", value: { ...event, projectId: "99999999-9999-4999-8999-999999999999" } },
+    { table: "sc_canvas_v1_commands", column: "commandJson", value: { ...command, requestedByActorId: "99999999-9999-4999-8999-999999999999" } },
+  ] as const) {
+    const db = await database();
+    context.after(() => db.destroy());
+    const key = buildRemoteOutputKey({ projectId: scope.localProjectId, taskId, assetId: outputAssetId }, "video/mp4", target.prefix);
+    await db("sc_tasks").insert({ id: taskId, projectId: scope.localProjectId, status: "succeeded", outputJson: JSON.stringify({ outputAssetId }) });
+    await db("sc_media_assets").insert({
+      id: outputAssetId, projectId: scope.localProjectId, type: "video", source: "generated", mimeType: "video/mp4",
+      localPath: `tos://${target.bucket}/${key}`, metadataJson: JSON.stringify({ taskId, storage: { provider: "byteplus-tos", bucket: target.bucket, key } }),
+    });
+    await db("sc_canvas_v1_commands").insert({
+      commandId, tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId,
+      canvasSessionId: scope.canvasSessionId, commandType: "GENERATE_SHOT", payloadDigest: "cv6-digest",
+      commandJson: JSON.stringify(command), resultEventJson: JSON.stringify(event), createdAt: occurredAt, updatedAt: occurredAt,
+    });
+    await db("sc_canvas_v1_events").insert({
+      eventId, commandId, tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId,
+      canvasSessionId: scope.canvasSessionId, status: "task_created", eventJson: JSON.stringify(event), createdAt: occurredAt,
+    });
+    await db(poison.table).update({ [poison.column]: JSON.stringify(poison.value) });
+    let signed = 0;
+    let fetched = 0;
+    const service = new CanvasV1ControlledMediaService({
+      database: db,
+      resolveTarget: async () => target,
+      signGet: () => { signed += 1; return "https://bucket.example.test/private?X-Tos-Signature=secret"; },
+      fetch: async () => { fetched += 1; return new Response(Buffer.from("video"), { status: 200, headers: { "content-type": "video/mp4" } }); },
+    });
+    await assert.rejects(() => service.open({ scope, assetId: outputAssetId }), (error: unknown) =>
+      codeOf(error) === "CANVAS_MEDIA_NOT_FOUND", `${poison.table} poisoned authority must fail closed`);
+    assert.equal(signed, 0, `${poison.table} must fail before signing`);
+    assert.equal(fetched, 0, `${poison.table} must fail before object storage`);
+  }
+});
+
 test("trusted prepare is idempotent and creates exact UUIDv5 requirements and storyboard prompts", async (context) => {
   const module = await import(
     "../../../apps/storycanvas/src/services/storycanvas/canvas-v1/workspacePrepare.js"
