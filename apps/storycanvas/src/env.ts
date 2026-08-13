@@ -17,5 +17,7 @@ const env = process.env.NODE_ENV;
 if (!env) {
   if (isElectron) process.env.NODE_ENV = "prod";
   else process.env.NODE_ENV = "dev";
-  console.log(`[环境变量：${process.env.NODE_ENV}]`);
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") {
+    console.log(`[环境变量：${process.env.NODE_ENV}]`);
+  }
 }

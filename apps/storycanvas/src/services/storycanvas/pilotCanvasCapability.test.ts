@@ -6,7 +6,10 @@ import http from "node:http";
 import {
   PilotCanvasRedemptionClient,
   PilotCanvasRedemptionError,
+  PilotCanvasAuthorityRegistry,
+  closePilotCanvasRuntimeResources,
   createPilotCanvasBootstrapRouter,
+  createPilotCanvasSafeBootstrapRouter,
   getPilotCanvasRuntimeCapability,
   parseCanvasEntryRedemptionV01,
   parseProjectGrantV02,
@@ -257,6 +260,97 @@ test("browser bootstrap enforces Session, Origin and CSRF and returns only a saf
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
+});
+
+test("safe bootstrap parser returns fixed malformed and oversized envelopes", async () => {
+  const application = express();
+  application.use("/api/production/pilot/canvas/bootstrap", createPilotCanvasSafeBootstrapRouter({
+    allowedOrigin: "https://pilot.example.test",
+    verifySession: async () => null,
+    redeem: async () => { throw new Error("invalid JSON must not redeem"); },
+  }));
+  const server = http.createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/bootstrap`;
+  try {
+    for (const fixture of [
+      {
+        body: '{"unsafe":"SECRET_SENTINEL"',
+        status: 400,
+        code: "PILOT_CANVAS_MALFORMED_JSON",
+        message: "Pilot Canvas request body is invalid.",
+      },
+      {
+        body: JSON.stringify({ unsafe: "X".repeat(20_000) }),
+        status: 413,
+        code: "PILOT_CANVAS_REQUEST_TOO_LARGE",
+        message: "Pilot Canvas request body is too large.",
+      },
+    ]) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-request-id": "safe-parser-request" },
+        body: fixture.body,
+      });
+      assert.equal(response.status, fixture.status);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(response.headers.get("x-request-id"), "safe-parser-request");
+      assert.deepEqual(await response.json(), {
+        error: {
+          code: fixture.code,
+          message: fixture.message,
+          requestId: "safe-parser-request",
+          retryable: false,
+        },
+      });
+    }
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("authority registry and shutdown expose bounded lifecycle semantics", async () => {
+  let clock = Date.parse(now);
+  let calls = 0;
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => {
+      calls += 1;
+      return redemption() as never;
+    },
+  } as never, { capacity: 2, now: () => clock });
+  const first = await registry.openEntry(entry);
+  assert.equal((await registry.openEntry(entry)).authorityId, first.authorityId);
+  assert.equal(calls, 1);
+  await registry.openEntry({ ...entry, handle: `ce_${"B".repeat(32)}` });
+  const third = await registry.openEntry({ ...entry, handle: `ce_${"C".repeat(32)}` });
+  assert.equal(registry.activeCount(), 2);
+  assert.equal(registry.readServerAuthority(first.authorityId), null);
+
+  clock = Date.parse("2026-08-12T01:31:00.000Z");
+  assert.equal(registry.purgeExpired(), 2);
+  assert.equal(registry.readServerAuthority(third.authorityId), null);
+
+  const closed: string[] = [];
+  const evidence = await closePilotCanvasRuntimeResources({
+    signal: "SIGINT",
+    timeoutMs: 5_000,
+    registry,
+    socketIo: { close: (callback) => { closed.push("socket.io"); callback(); } },
+    webSocket: { close: (callback) => { closed.push("websocket"); callback(); } },
+    http: { close: (callback) => { closed.push("http"); callback(); } },
+  });
+  assert.deepEqual(closed, ["socket.io", "websocket", "http"]);
+  assert.equal(registry.activeCount(), 0);
+  assert.deepEqual(evidence, {
+    signal: "SIGINT",
+    registryCleared: true,
+    httpClosed: true,
+    socketIoClosed: true,
+    webSocketClosed: true,
+    pendingTimerCount: 0,
+  });
 });
 
 test("reports a dedicated deterministic capability without exposing configuration values", async () => {

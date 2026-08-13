@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { access, mkdir } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import express, { type Request, type Response as ExpressResponse } from "express";
+import express, { type NextFunction, type Request, type Response as ExpressResponse } from "express";
 import { z } from "zod";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -169,6 +169,11 @@ export interface BrowserSafeCanvasBootstrap { schemaVersion: "pilot-canvas-boots
 export interface PilotCanvasBootstrapRouterOptions { allowedOrigin: string; verifySession(cookie: string): Promise<PilotCanvasSessionContext | null>; redeem(entry: PilotCanvasEntryReference): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }>; }
 function requestId(request: Request): string { const supplied = request.header("x-request-id"); return supplied && REQUEST_ID_PATTERN.test(supplied) ? supplied : crypto.randomUUID(); }
 function safeBrowserError(response: ExpressResponse, status: number, code: string, retryable: boolean, id: string): void { response.setHeader("cache-control", "no-store"); response.setHeader("x-request-id", id); response.status(status).json({ error: { code, message: "Pilot Canvas could not be opened.", retryable, requestId: id } }); }
+function safeRequestBodyError(response: ExpressResponse, status: 400 | 413, code: string, message: string, id: string): void {
+  response.setHeader("cache-control", "no-store");
+  response.setHeader("x-request-id", id);
+  response.status(status).json({ error: { code, message, requestId: id, retryable: false } });
+}
 export function createPilotCanvasBootstrapRouter(options: PilotCanvasBootstrapRouterOptions): express.Router {
   const allowed = validOrigin(options.allowedOrigin); if (!allowed) throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
   const router = express.Router(); router.post("/", async (request, response) => {
@@ -190,6 +195,26 @@ export function createPilotCanvasBootstrapRouter(options: PilotCanvasBootstrapRo
   }); return router;
 }
 
+export function createPilotCanvasSafeBootstrapRouter(options: PilotCanvasBootstrapRouterOptions): express.Router {
+  const router = express.Router();
+  router.use(express.json({ limit: "16kb", strict: true }));
+  router.use(createPilotCanvasBootstrapRouter(options));
+  router.use((error: unknown, request: Request, response: ExpressResponse, next: NextFunction) => {
+    const parserError = error as { status?: number; type?: string } | null;
+    const id = requestId(request);
+    if (parserError?.status === 413 || parserError?.type === "entity.too.large") {
+      safeRequestBodyError(response, 413, "PILOT_CANVAS_REQUEST_TOO_LARGE", "Pilot Canvas request body is too large.", id);
+      return;
+    }
+    if (parserError?.status === 400 || parserError?.type === "entity.parse.failed") {
+      safeRequestBodyError(response, 400, "PILOT_CANVAS_MALFORMED_JSON", "Pilot Canvas request body is invalid.", id);
+      return;
+    }
+    safeRequestBodyError(response, 400, "PILOT_CANVAS_MALFORMED_JSON", "Pilot Canvas request body is invalid.", id);
+  });
+  return router;
+}
+
 const sessionResponseSchema = z.object({ session: z.object({ activeContext: z.object({ organizationType: z.literal("TENANT"), tenantId: uuid, roles: z.array(z.enum(["platform_admin", "channel_admin", "tenant_admin", "content_operator", "pilot_support"])) }).passthrough() }).passthrough() }).passthrough();
 export function createControlApiSessionVerifier(options: { controlApiBaseUrl: string; fetchImpl?: PilotCanvasFetch }) {
   const baseUrl = validBaseUrl(options.controlApiBaseUrl); if (!baseUrl) throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false); const fetchImpl = options.fetchImpl ?? fetch;
@@ -204,13 +229,160 @@ export function createControlApiSessionVerifier(options: { controlApiBaseUrl: st
 }
 
 export class PilotCanvasAuthorityRegistry {
-  private readonly values = new Map<string, { redemption: PilotCanvasRedemption; expiresAt: string }>();
-  constructor(private readonly client: PilotCanvasRedemptionClient) {}
-  async openEntry(entry: PilotCanvasEntryReference): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }> {
-    const redemption = await this.client.redeem(entry); const authorityId = `pcs_${crypto.randomBytes(24).toString("base64url")}`; const expiresAt = new Date(Math.min(Date.parse(redemption.grant.expiresAt), Date.parse(redemption.productionPackage.expiresAt))).toISOString(); this.values.set(authorityId, { redemption, expiresAt }); return { authorityId, expiresAt, requestId: null };
+  private readonly values = new Map<string, { redemption: PilotCanvasRedemption; expiresAt: string; entryKey: string }>();
+  private readonly authorityByEntry = new Map<string, string>();
+  private readonly capacity: number;
+  private readonly now: () => number;
+  private readonly onEvent?: (event: PilotCanvasAuthorityRegistryEvent) => void;
+  constructor(
+    private readonly client: PilotCanvasRedemptionClient,
+    options: PilotCanvasAuthorityRegistryOptions = {},
+  ) {
+    this.capacity = options.capacity ?? 64;
+    this.now = options.now ?? Date.now;
+    this.onEvent = options.onEvent;
+    if (!Number.isSafeInteger(this.capacity) || this.capacity < 2 || this.capacity > 1_024) {
+      throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
+    }
   }
-  readServerAuthority(authorityId: string): PilotCanvasRedemption | null { const found = this.values.get(authorityId); if (!found || Date.now() >= Date.parse(found.expiresAt)) { this.values.delete(authorityId); return null; } return found.redemption; }
-  clear(): void { this.values.clear(); }
+  async openEntry(entry: PilotCanvasEntryReference): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }> {
+    this.purgeExpired();
+    const entryKey = sha256(canonicalJson(entry));
+    const existingId = this.authorityByEntry.get(entryKey);
+    const existing = existingId ? this.values.get(existingId) : undefined;
+    if (existing) {
+      this.emit("authority-deduplicated");
+      return { authorityId: existingId!, expiresAt: existing.expiresAt, requestId: null };
+    }
+
+    const redemption = await this.client.redeem(entry);
+    const expiryTime = Math.min(Date.parse(redemption.grant.expiresAt), Date.parse(redemption.productionPackage.expiresAt));
+    if (!Number.isFinite(expiryTime) || this.now() >= expiryTime) {
+      throw new PilotCanvasRedemptionError("PILOT_CANVAS_EXPIRED", 410, false);
+    }
+    if (this.values.size >= this.capacity) {
+      const oldest = this.values.keys().next().value as string | undefined;
+      if (oldest) this.deleteAuthority(oldest);
+      this.emit("capacity-evicted");
+    }
+    const authorityId = `pcs_${crypto.randomBytes(24).toString("base64url")}`;
+    const expiresAt = new Date(expiryTime).toISOString();
+    this.values.set(authorityId, { redemption, expiresAt, entryKey });
+    this.authorityByEntry.set(entryKey, authorityId);
+    this.emit(this.values.size === this.capacity ? "capacity-filled" : "authority-issued");
+    return { authorityId, expiresAt, requestId: null };
+  }
+  readServerAuthority(authorityId: string): PilotCanvasRedemption | null {
+    const found = this.values.get(authorityId);
+    if (!found) return null;
+    if (this.now() >= Date.parse(found.expiresAt)) {
+      this.emit("expired-observed");
+      this.deleteAuthority(authorityId);
+      this.emit("expired-purged");
+      return null;
+    }
+    return found.redemption;
+  }
+  purgeExpired(): number {
+    const expired = [...this.values.entries()]
+      .filter(([, value]) => this.now() >= Date.parse(value.expiresAt))
+      .map(([authorityId]) => authorityId);
+    if (expired.length > 0) this.emit("expired-observed");
+    for (const authorityId of expired) this.deleteAuthority(authorityId);
+    if (expired.length > 0) this.emit("expired-purged");
+    return expired.length;
+  }
+  activeCount(): number { return this.values.size; }
+  clear(): void {
+    this.values.clear();
+    this.authorityByEntry.clear();
+    this.emit("shutdown-cleared");
+  }
+  private deleteAuthority(authorityId: string): void {
+    const found = this.values.get(authorityId);
+    if (!found) return;
+    this.values.delete(authorityId);
+    if (this.authorityByEntry.get(found.entryKey) === authorityId) this.authorityByEntry.delete(found.entryKey);
+  }
+  private emit(kind: PilotCanvasAuthorityRegistryEvent["kind"]): void {
+    this.onEvent?.({ kind, activeCount: this.values.size });
+  }
+}
+
+export interface PilotCanvasAuthorityRegistryOptions {
+  capacity?: number;
+  now?: () => number;
+  onEvent?: (event: PilotCanvasAuthorityRegistryEvent) => void;
+}
+export interface PilotCanvasAuthorityRegistryEvent {
+  kind: "authority-issued" | "authority-deduplicated" | "expired-observed" | "expired-purged" | "capacity-filled" | "capacity-evicted" | "shutdown-cleared";
+  activeCount: number;
+}
+
+interface CallbackClosable { close(callback: (error?: Error) => void): unknown; }
+export interface PilotCanvasRuntimeResources {
+  signal: "SIGTERM" | "SIGINT";
+  timeoutMs?: number;
+  registry: { clear(): void };
+  http: CallbackClosable & { closeAllConnections?(): void };
+  socketIo: CallbackClosable | null;
+  webSocket: CallbackClosable | null;
+}
+export interface PilotCanvasRuntimeCloseEvidence {
+  signal: "SIGTERM" | "SIGINT";
+  registryCleared: true;
+  httpClosed: true;
+  socketIoClosed: true;
+  webSocketClosed: true;
+  pendingTimerCount: 0;
+}
+function closeCallbackResource(resource: CallbackClosable | null): Promise<void> {
+  if (!resource) return Promise.resolve();
+  return new Promise<void>((resolve, reject) => {
+    try {
+      resource.close((error?: Error) => {
+        if (error && (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING") reject(error);
+        else resolve();
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ERR_SERVER_NOT_RUNNING") resolve();
+      else reject(error);
+    }
+  });
+}
+export async function closePilotCanvasRuntimeResources(input: PilotCanvasRuntimeResources): Promise<PilotCanvasRuntimeCloseEvidence> {
+  const timeoutMs = input.timeoutMs ?? 5_000;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5_000) {
+    throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
+  }
+  input.registry.clear();
+  let timer: NodeJS.Timeout | undefined;
+  const bounded = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      input.http.closeAllConnections?.();
+      reject(new PilotCanvasRedemptionError("PILOT_CANVAS_INTERNAL_ERROR", 500, false));
+    }, timeoutMs);
+  });
+  try {
+    await Promise.race([
+      (async () => {
+        await closeCallbackResource(input.socketIo);
+        await closeCallbackResource(input.webSocket);
+        await closeCallbackResource(input.http);
+      })(),
+      bounded,
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  return {
+    signal: input.signal,
+    registryCleared: true,
+    httpClosed: true,
+    socketIoClosed: true,
+    webSocketClosed: true,
+    pendingTimerCount: 0,
+  };
 }
 
 export interface PilotCanvasRuntimeCapability {
