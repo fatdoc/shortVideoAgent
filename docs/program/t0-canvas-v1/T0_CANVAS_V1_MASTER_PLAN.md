@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.9`
+> 版本：`v0.10`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -70,6 +70,9 @@ G5 additive contract independent QA integrated head:
 
 G5 Control Materialization independent QA integrated head:
 4fea9b76412d92eaec91106b83634455c2e8ea9b
+
+G5 Control Workspace Authority independent QA integrated head:
+f9a894d3ea582b8a733120dd7ba84b73af90a01a
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -432,7 +435,7 @@ raw Idempotency-Key
 | CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `ACCEPTED` | G2 已独立验收；真实付费 Seedance smoke 留给 G6 |
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | Activation Facade 已实现；Control Materialization 已独立验收；Shared 待 Story Workspace |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | Activation/Control Materialization/Workspace Authority 已实现；Shared 待 Story Workspace |
 | CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 additive 合同已独立验收；等待 Story/Control/Shared 产品切片 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
@@ -568,7 +571,7 @@ Gate 状态：
 | G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
-| G5 | `IN_PROGRESS` | additive 合同和 Control Materialization 已独立放行；Activation Facade 已实现；Story Workspace/本地映射和 Shared 待完成 |
+| G5 | `IN_PROGRESS` | additive 合同、Control Materialization/Workspace Authority 已独立放行；Story Workspace/本地映射和 Shared 待完成 |
 | G6 | `NOT_STARTED` | 依赖 G5 |
 
 状态词只使用：
@@ -858,6 +861,14 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.10 · 2026-08-14
+
+- 集成 Control server-only Workspace Authority，通过 active Canvas session 精确绑定 actor/tenant/project/package；
+- 按 Package 中精确 Script/Storyboard ID 查询数字版本，禁止 latest 推断，返回真实 project name 和完整安全 AssetRecord 集合；
+- 一个 pending 虚拟人物保留真实状态，零个或多个固定 409，不返回 partial authority/workspace；
+- CV6 独立静态 5/5、HTTP/service/PostgreSQL 6/6、Owner 16/16，Control 全量 790 PASS / 4 existing skips；
+- CV0 接受 Control Workspace Authority 切片；Story trusted prepare 与 formal Workspace 已进入实现和分段独立复验。
 
 ### v0.9 · 2026-08-14
 
