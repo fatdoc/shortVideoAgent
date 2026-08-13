@@ -92,3 +92,16 @@ test("formal route source cannot serialize frozen server-only authority markers"
     assert.equal(responseShaped.test(routeSources), false, marker);
   }
 });
+
+test("runtime supplies the aggregate media route its frozen nested service port", () => {
+  const runtime = fs.readFileSync(path.join(
+    rootDir,
+    "apps/storycanvas/src/services/storycanvas/canvas-v1/runtime.ts",
+  ), "utf8");
+  assert.match(
+    runtime,
+    /media\s*:\s*\{\s*media\s*:\s*controlledMedia\s*\}/u,
+    "EXPECTED_RED runtime must pass { media: controlledMedia } to CanvasV1ProductionRouter",
+  );
+  assert.doesNotMatch(runtime, /media\s*:\s*controlledMedia\s*[,}]/u);
+});
