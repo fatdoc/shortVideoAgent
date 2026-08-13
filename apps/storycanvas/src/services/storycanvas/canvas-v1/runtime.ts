@@ -31,6 +31,12 @@ import {
 import { CanvasV1WorkspaceReader } from "./workspaceProjection";
 import type { CanvasWorkspaceAuthorityV01 } from "@/contracts/canvas-v1/workspaceMaterialization";
 import { isCanvasV1ShotProductionConfigured } from "./shotProductionAdapter";
+import {
+  ControlCanvasAssetMaterializationClient,
+  type CanvasAssetMaterializationPort,
+} from "./controlAssetMaterializationClient";
+import { CanvasV1AssetMaterializer } from "./assetMaterialization";
+import getPath from "@/utils/getPath";
 
 interface ProjectionRow {
   projectionJson: string;
@@ -55,6 +61,8 @@ export interface CanvasV1RuntimeRouterOptions {
   workspaceAuthorityClient?: CanvasWorkspaceAuthorityPort;
   now?: () => Date;
   capabilityAvailable?: () => boolean;
+  assetMaterializationClient?: CanvasAssetMaterializationPort;
+  projectsRoot?: string;
 }
 
 function sessionId(request: Request): string {
@@ -132,6 +140,23 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     capabilityAvailable: options.capabilityAvailable ?? (() => isCanvasV1ShotProductionConfigured()),
   }) : null;
   const workspaceReader = new CanvasV1WorkspaceReader({ database: options.database, now: options.now });
+  let assetMaterializationClient = options.assetMaterializationClient;
+  if (!assetMaterializationClient) {
+    try {
+      assetMaterializationClient = new ControlCanvasAssetMaterializationClient({
+        controlApiBaseUrl: process.env.CONTROL_API_BASE_URL?.trim() ?? "",
+        internalToken: process.env.PRODUCTION_PLANE_INTERNAL_TOKEN?.trim() ?? "",
+      });
+    } catch {
+      assetMaterializationClient = undefined;
+    }
+  }
+  const materializer = assetMaterializationClient ? new CanvasV1AssetMaterializer({
+    database: options.database,
+    client: assetMaterializationClient,
+    projectsRoot: options.projectsRoot ?? getPath("projects"),
+    now: options.now,
+  }) : null;
 
   const resolveRequestScope = async (
     request: Request,
@@ -215,6 +240,15 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
           approvedPackage: authority.redemption.productionPackage,
           requestId,
         });
+        const primaryAssets = prepared.authority.assets.filter(({ category }) => category === "virtual_character");
+        const primary = primaryAssets[0];
+        if (materializer && primary && primary.rights.status === "authorized" && primary.approval.status === "approved") {
+          try {
+            await materializer.materialize({ scope, asset: primary, requestId });
+          } catch {
+            throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+          }
+        }
         preparedAuthorities.set(scope.canvasSessionId, prepared.authority);
         return prepared.bootstrap;
       },
