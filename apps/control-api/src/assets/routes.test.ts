@@ -243,7 +243,7 @@ describe('Canvas Asset browser route gates', () => {
               readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
             },
           },
-          expiresInSeconds: 120,
+          expiresInSeconds: 60,
           replayPolicy: 'single_use_replay_same_command',
         }),
     );

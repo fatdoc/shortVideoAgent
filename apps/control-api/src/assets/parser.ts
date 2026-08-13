@@ -180,7 +180,7 @@ const createHighCostApprovalSchema = z
     canvasSessionId,
     commandType: z.enum(HIGH_COST_COMMAND_TYPES),
     action: highCostApprovalActionSchema,
-    expiresInSeconds: z.number().int().min(30).max(300),
+    expiresInSeconds: z.literal(60),
     replayPolicy: z.literal('single_use_replay_same_command'),
   })
   .strict()

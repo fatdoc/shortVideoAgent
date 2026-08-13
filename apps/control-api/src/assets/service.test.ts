@@ -232,7 +232,7 @@ describe('Canvas Asset authority service', () => {
           commandId: ids.commandId,
           payload: { shotId: '66666666-6666-4666-8666-666666666666' },
         },
-        expiresInSeconds: 120,
+        expiresInSeconds: 60,
         replayPolicy: 'single_use_replay_same_command',
       }),
     ).rejects.toMatchObject({ code: 'CANVAS_SESSION_INVALID' });
@@ -296,7 +296,7 @@ describe('Canvas Asset authority service', () => {
       canvasSessionId,
       commandType: 'GENERATE_SHOT',
       action,
-      expiresInSeconds: 120,
+      expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     });
     expect(created).toEqual({ approvalId: ids.approvalId, status: 'active' });
@@ -430,7 +430,7 @@ describe('Canvas Asset authority service', () => {
       canvasSessionId,
       commandType: 'GENERATE_SHOT',
       action,
-      expiresInSeconds: 120,
+      expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     });
     const input = {
@@ -521,7 +521,7 @@ describe('Canvas Asset authority service', () => {
       canvasSessionId,
       commandType: 'GENERATE_SHOT',
       action,
-      expiresInSeconds: 120,
+      expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     });
     clock = new Date('2026-08-14T02:01:00.000Z');

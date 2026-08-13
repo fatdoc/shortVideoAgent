@@ -167,7 +167,7 @@ export type CreateHighCostApprovalInput = {
   canvasSessionId: string;
   commandType: HighCostCommandType;
   action: HighCostApprovalAction;
-  expiresInSeconds: number;
+  expiresInSeconds: 60;
   replayPolicy: ApprovalReplayPolicy;
 };
 
