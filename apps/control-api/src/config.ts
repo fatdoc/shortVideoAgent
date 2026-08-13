@@ -7,6 +7,12 @@ const DEVELOPMENT_RECHARGE_PAYMENT_DIGEST_SECRET =
   'local-recharge-payment-digest-only-change-before-deploying';
 const DEVELOPMENT_TEST_PAYMENT_INTERNAL_TOKEN =
   'local-test-payment-internal-token-only-change-before-deploying';
+const DEVELOPMENT_CANVAS_APPROVAL_FINGERPRINT_SECRET =
+  'local-canvas-approval-fingerprint-only-change-before-deploying';
+const DEVELOPMENT_CANVAS_ASSET_CSRF_SECRET =
+  'local-canvas-asset-csrf-only-change-before-deploying';
+const DEVELOPMENT_CANVAS_ASSET_ALLOWED_ORIGINS =
+  'http://127.0.0.1:5173,http://localhost:5173';
 const secretWithAtLeast32Bytes = z
   .string()
   .refine((value) => Buffer.byteLength(value, 'utf8') >= 32, 'must contain at least 32 bytes');
@@ -35,6 +41,9 @@ const environmentSchema = z.object({
   REGISTRATION_IDEMPOTENCY_SECRET: secretWithAtLeast32Bytes.optional(),
   RECHARGE_PAYMENT_DIGEST_SECRET: secretWithAtLeast32Bytes.optional(),
   TEST_PAYMENT_INTERNAL_TOKEN: secretWithAtLeast32Bytes.optional(),
+  CANVAS_APPROVAL_FINGERPRINT_SECRET: secretWithAtLeast32Bytes.optional(),
+  CANVAS_ASSET_CSRF_SECRET: secretWithAtLeast32Bytes.optional(),
+  CANVAS_ASSET_ALLOWED_ORIGINS: z.string().min(1).optional(),
   REGISTRATION_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(1_000).default(5),
   REGISTRATION_WINDOW_SECONDS: z.coerce.number().int().min(10).max(86_400).default(900),
   REGISTRATION_BLOCK_SECONDS: z.coerce.number().int().min(10).max(86_400).default(900),
@@ -63,6 +72,9 @@ export type ControlApiConfig = {
   registrationIdempotencySecret: string;
   rechargePaymentDigestSecret: string;
   testPaymentInternalToken: string;
+  canvasApprovalFingerprintSecret: string;
+  canvasAssetCsrfSecret: string;
+  canvasAssetAllowedOrigins: string[];
   registrationMaxAttempts: number;
   registrationWindowSeconds: number;
   registrationBlockSeconds: number;
@@ -79,6 +91,33 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     parsed.RECHARGE_PAYMENT_DIGEST_SECRET ?? DEVELOPMENT_RECHARGE_PAYMENT_DIGEST_SECRET;
   const testPaymentInternalToken =
     parsed.TEST_PAYMENT_INTERNAL_TOKEN ?? DEVELOPMENT_TEST_PAYMENT_INTERNAL_TOKEN;
+  const canvasApprovalFingerprintSecret =
+    parsed.CANVAS_APPROVAL_FINGERPRINT_SECRET ?? DEVELOPMENT_CANVAS_APPROVAL_FINGERPRINT_SECRET;
+  const canvasAssetCsrfSecret =
+    parsed.CANVAS_ASSET_CSRF_SECRET ?? DEVELOPMENT_CANVAS_ASSET_CSRF_SECRET;
+  const canvasAssetAllowedOrigins = (
+    parsed.CANVAS_ASSET_ALLOWED_ORIGINS ?? DEVELOPMENT_CANVAS_ASSET_ALLOWED_ORIGINS
+  )
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value, index, values) => value.length > 0 && values.indexOf(value) === index);
+  if (
+    canvasAssetAllowedOrigins.length === 0 ||
+    canvasAssetAllowedOrigins.some((value) => {
+      try {
+        const parsedOrigin = new URL(value);
+        return (
+          parsedOrigin.origin !== value ||
+          !['http:', 'https:'].includes(parsedOrigin.protocol) ||
+          Boolean(parsedOrigin.username || parsedOrigin.password)
+        );
+      } catch {
+        return true;
+      }
+    })
+  ) {
+    throw new Error('CANVAS_ASSET_ALLOWED_ORIGINS must contain exact HTTP(S) origins');
+  }
 
   if (parsed.NODE_ENV === 'production' && sessionSecret === DEVELOPMENT_SESSION_SECRET) {
     throw new Error('SESSION_SECRET must be explicitly configured in production');
@@ -102,6 +141,18 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
 
   if (parsed.NODE_ENV === 'production' && !parsed.TEST_PAYMENT_INTERNAL_TOKEN) {
     throw new Error('TEST_PAYMENT_INTERNAL_TOKEN must be explicitly configured in production');
+  }
+
+  if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_APPROVAL_FINGERPRINT_SECRET) {
+    throw new Error('CANVAS_APPROVAL_FINGERPRINT_SECRET must be explicitly configured in production');
+  }
+
+  if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_ASSET_CSRF_SECRET) {
+    throw new Error('CANVAS_ASSET_CSRF_SECRET must be explicitly configured in production');
+  }
+
+  if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_ASSET_ALLOWED_ORIGINS) {
+    throw new Error('CANVAS_ASSET_ALLOWED_ORIGINS must be explicitly configured in production');
   }
 
   if (parsed.PROJECT_GRANT_SIGNING_SECRET === sessionSecret) {
@@ -146,6 +197,18 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
       'TEST_PAYMENT_INTERNAL_TOKEN must be independent from all other security secrets',
     );
   }
+  const allExistingSecrets = [
+    ...existingSecuritySecrets,
+    rechargePaymentDigestSecret,
+    testPaymentInternalToken,
+  ];
+  if (
+    allExistingSecrets.includes(canvasApprovalFingerprintSecret) ||
+    allExistingSecrets.includes(canvasAssetCsrfSecret) ||
+    canvasApprovalFingerprintSecret === canvasAssetCsrfSecret
+  ) {
+    throw new Error('Canvas authority secrets must be independent from all other security secrets');
+  }
 
   return {
     nodeEnv: parsed.NODE_ENV,
@@ -168,6 +231,9 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     registrationIdempotencySecret,
     rechargePaymentDigestSecret,
     testPaymentInternalToken,
+    canvasApprovalFingerprintSecret,
+    canvasAssetCsrfSecret,
+    canvasAssetAllowedOrigins,
     registrationMaxAttempts: parsed.REGISTRATION_MAX_ATTEMPTS,
     registrationWindowSeconds: parsed.REGISTRATION_WINDOW_SECONDS,
     registrationBlockSeconds: parsed.REGISTRATION_BLOCK_SECONDS,

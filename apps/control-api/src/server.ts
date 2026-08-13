@@ -46,6 +46,9 @@ import { CommissionSettlementService } from './settlements/service.js';
 import { PostgresMemberDirectoryRepository } from './members/repository.js';
 import { createMemberDirectoryRouter } from './members/routes.js';
 import { MemberDirectoryService } from './members/service.js';
+import { PostgresCanvasAssetAuthorityRepository } from './assets/repository.js';
+import { CanvasAssetAuthorityService } from './assets/service.js';
+import { createCanvasAssetRouter } from './assets/routes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -138,6 +141,19 @@ const memberDirectoryRouter = createMemberDirectoryRouter({
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
 const projectPolicy = new PostgresProjectPolicy(database);
+const canvasAssetAuthorityService = new CanvasAssetAuthorityService(
+  new PostgresCanvasAssetAuthorityRepository(database),
+  config.canvasApprovalFingerprintSecret,
+);
+const assetRouter = createCanvasAssetRouter({
+  service: canvasAssetAuthorityService,
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+  allowedOrigins: config.canvasAssetAllowedOrigins,
+  csrfSecret: config.canvasAssetCsrfSecret,
+});
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
   policy: projectPolicy,
@@ -202,6 +218,7 @@ const app = createApp({
   commissionAuditRouter,
   commissionSettlementRouter,
   memberDirectoryRouter,
+  assetRouter,
   trustProxy: config.trustProxy,
 });
 
