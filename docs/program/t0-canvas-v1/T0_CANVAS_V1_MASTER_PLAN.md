@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.4`
+> 版本：`v0.5`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -52,6 +52,9 @@ Wave 2 remediation product head:
 
 Wave 2 independent QA integrated head:
 9d86c7cf1c2fab97ba2e2e0753bc1ec7fe8e02b4
+
+G5 activation transport contract head:
+ee1c24e9c55369c2d38eabc89e76a4cbfea17197
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -826,6 +829,14 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.5 · 2026-08-14
+
+- CV0 接受 G5 additive Activation Transport 合同 `ee1c24e9c55369c2d38eabc89e76a4cbfea17197`；
+- canonical route 冻结为 `/production/canvas/:projectId?packageId=<uuid>`，缺失或猜测 Package 一律 fail-closed；
+- 冻结 Control activation facade、server-derived Canvas Entry 幂等、legacy open 与 formal CanvasBootstrap/0.1 分层；
+- 冻结高成本命令动态确认：`action={commandId,payload}`，禁止静态通用 approval；
+- Transport validator 6/6 PASS，25 个 negative vectors；当前仅合同放行，不表示 G5 已实现。
 
 ### v0.4 · 2026-08-14
 
