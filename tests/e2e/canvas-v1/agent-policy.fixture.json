@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "canvas-v1-agent-policy.v1",
+  "tools": [
+    "list_project_assets",
+    "inspect_asset_readiness",
+    "analyze_script_entities",
+    "propose_missing_assets",
+    "create_virtual_character",
+    "sync_provider_asset",
+    "bind_asset_to_entity",
+    "generate_shot",
+    "get_generation_task",
+    "select_shot_output",
+    "save_canvas_document",
+    "export_playlist"
+  ],
+  "readOnlyTools": [
+    "list_project_assets",
+    "inspect_asset_readiness",
+    "analyze_script_entities",
+    "propose_missing_assets",
+    "get_generation_task"
+  ],
+  "commandTools": {
+    "create_virtual_character": "CREATE_VIRTUAL_CHARACTER",
+    "sync_provider_asset": "SYNC_PROVIDER_ASSET",
+    "bind_asset_to_entity": "BIND_ASSET_TO_ENTITY",
+    "generate_shot": "GENERATE_SHOT",
+    "select_shot_output": "SELECT_SHOT_OUTPUT",
+    "save_canvas_document": "SAVE_CANVAS_DOCUMENT",
+    "export_playlist": "EXPORT_PLAYLIST"
+  },
+  "highCostTools": [
+    "create_virtual_character",
+    "bind_asset_to_entity",
+    "generate_shot",
+    "select_shot_output",
+    "export_playlist"
+  ],
+  "lowCostCommandTools": [
+    "sync_provider_asset",
+    "save_canvas_document"
+  ],
+  "hostBoundContextKeys": [
+    "tenantId",
+    "projectId",
+    "packageId",
+    "canvasSessionId",
+    "requestedByActorId",
+    "approvalId"
+  ],
+  "forbiddenToolParameterKeys": [
+    "tenantId",
+    "projectId",
+    "packageId",
+    "canvasSessionId",
+    "requestedByActorId",
+    "approvalId",
+    "providerAssetId",
+    "providerGroupId",
+    "providerTaskId",
+    "remoteAssetId",
+    "assetUri",
+    "groupId",
+    "accessToken",
+    "authorization",
+    "cookie",
+    "grant",
+    "projectGrant",
+    "productionPackage",
+    "packageSnapshot",
+    "payloadDigest",
+    "approvedScriptDigest",
+    "approvedStoryboardDigest",
+    "idempotencyKey",
+    "internalToken",
+    "credential",
+    "secret",
+    "password",
+    "databaseId",
+    "localPath",
+    "providerRawBody",
+    "providerRawMessage"
+  ],
+  "forbiddenOutputValuePatterns": [
+    "asset://",
+    "bearer ",
+    "x-amz-credential=",
+    "x-amz-signature=",
+    "x-tos-signature=",
+    "access_token="
+  ],
+  "forbiddenImportFragments": [
+    "/agents/productionAgent",
+    "/agents/scriptAgent",
+    "/utils/agent/memory",
+    "better-sqlite3",
+    "sqlite3",
+    "knex",
+    "byteplus",
+    "seedance",
+    "seedream"
+  ],
+  "onlyWritePort": "CanvasCommandService.execute",
+  "blockedResult": "confirmation_required"
+}
