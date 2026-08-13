@@ -2,8 +2,8 @@ import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { AssetBindingDrawer } from '../components/AssetBindingDrawer';
 import { AssetDock } from '../components/AssetDock';
-import { AssetReadinessPanel } from '../components/AssetReadinessPanel';
 import { CanvasHeader } from '../components/CanvasHeader';
+import { NodeInspector } from '../components/NodeInspector';
 import { PlaylistStrip } from '../components/PlaylistStrip';
 import { ProductionCanvas } from '../components/ProductionCanvas';
 import { ShotRail } from '../components/ShotRail';
@@ -132,7 +132,7 @@ export function CanvasV1Page({
   const taskRunning = event && ['accepted', 'provider_submitted', 'task_created'].includes(event.status);
   const canGenerate = bootstrap.status === 'ready' && activeShot.readiness.ready && !taskRunning;
 
-  const generateShot = () => {
+  const generateShot = (prompt: string) => {
     if (!canGenerate) return;
     const referenceAssetIds = activeShot.readiness.requirements.flatMap((requirement) => requirement.assetId ? [requirement.assetId] : []);
     void onCommand({
@@ -150,7 +150,7 @@ export function CanvasV1Page({
       payload: {
         shotId: activeShot.shotId,
         readinessId: activeShot.readiness.readinessId,
-        prompt: document.shots.find((shot) => shot.shotId === activeShot.shotId)?.prompt ?? activeShot.storyboardText,
+        prompt,
         referenceAssetIds,
       },
       requestId: `req-canvas-${generatedUuid()}`,
@@ -191,23 +191,16 @@ export function CanvasV1Page({
           <AssetDock assets={assetViews} open={assetDockOpen} onToggle={toggleAssetDock} onInspectBinding={openAssetBinding} />
           <PlaylistStrip shots={shots} orderedShotIds={document.playlist.shotIds} onReorder={reorderPlaylist} />
         </div>
-        <aside className="cv1-inspector" aria-label="镜头检查器">
-          <div className="cv1-section-heading"><div><span>生产检查</span><small>镜头 {String(activeShot.sequence).padStart(2, '0')}</small></div></div>
-          <section className={`cv1-readiness ${canGenerate ? 'is-ready' : 'is-blocked'}`}>
-            <span>{activeShot.readiness.ready ? 'READY' : 'BLOCKED'}</span>
-            <strong>{activeShot.readiness.ready ? '镜头已就绪，可以生成' : '当前镜头暂不可生成'}</strong>
-            {blockingReasons.length ? <ul>{blockingReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : <p>权利、审批、Provider 和项目绑定均已通过。</p>}
-          </section>
-          <AssetReadinessPanel assets={assetViews} />
-          {event?.status === 'failed' && event.error ? <div className="cv1-task-error" role="alert"><strong>任务失败</strong><p>{event.error.message}</p></div> : null}
-          {taskRunning ? <div className="cv1-task-running" role="status"><IconLoader2 className="cv1-spin" size={16} /><span>正在生成镜头</span></div> : null}
-          <label className="cv1-field">
-            <span>生成提示</span>
-            <textarea defaultValue={document.shots.find((shot) => shot.shotId === activeShot.shotId)?.prompt ?? activeShot.storyboardText} rows={5} />
-          </label>
-          <button className="cv1-primary-action" type="button" disabled={!canGenerate} onClick={generateShot}>生成当前镜头</button>
-          {!canGenerate && blockingReasons.length ? <p className="cv1-action-explain">请先处理：{blockingReasons[0]}</p> : null}
-        </aside>
+        <NodeInspector
+          key={activeShot.shotId}
+          shot={activeShot}
+          assets={assetViews}
+          event={event}
+          initialPrompt={document.shots.find((shot) => shot.shotId === activeShot.shotId)?.prompt ?? activeShot.storyboardText}
+          canGenerate={Boolean(canGenerate)}
+          blockingReasons={blockingReasons}
+          onGenerate={generateShot}
+        />
       </div>
       <AssetBindingDrawer asset={bindingAsset} onClose={closeAssetBinding} onBind={bindAsset} />
     </div>

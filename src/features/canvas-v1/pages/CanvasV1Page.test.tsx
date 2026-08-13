@@ -1,12 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   CanvasBootstrapV01,
   CanvasDocumentV01,
   CanvasEventV01,
   ShotReadinessV01,
 } from '../model/contracts';
+import { parseCanvasV1BrowserContract } from '../model/contracts';
+import { useCanvasV1ViewState } from '../model/viewState';
 import {
   CanvasV1Page,
   type CanvasShotView,
@@ -191,6 +193,10 @@ function createProps(overrides: Partial<CanvasV1PageProps> = {}): CanvasV1PagePr
 }
 
 describe('CanvasV1Page workspace states', () => {
+  beforeEach(() => {
+    useCanvasV1ViewState.getState().resetView();
+  });
+
   it.each([
     ['loading', createProps({ loadState: 'loading', bootstrap: null, document: null, shots: [] }), '正在加载门店生产台'],
     ['empty', createProps({ document: createDocument(false), shots: [] }), '还没有可制作的镜头'],
@@ -230,5 +236,104 @@ describe('CanvasV1Page workspace states', () => {
         },
       }),
     );
+  });
+});
+
+describe('CanvasV1Page interactions and safety', () => {
+  beforeEach(() => {
+    useCanvasV1ViewState.getState().resetView();
+  });
+
+  it('switches the production chain and inspector to the selected shot', async () => {
+    const user = userEvent.setup();
+    const secondShotId = '67676767-6767-4676-8676-676767676767';
+    const secondReadinessId = 'cdcdcdcd-cdcd-4cdc-8dcd-cdcdcdcdcdcd';
+    const secondShot: CanvasShotView = {
+      ...createShot(),
+      shotId: secondShotId,
+      sequence: 2,
+      title: '招牌套餐',
+      scriptText: '接下来看看今天的招牌套餐。',
+      storyboardText: '俯拍咖啡与甜点，手部入画。',
+      readiness: { ...createReadiness(), shotId: secondShotId, readinessId: secondReadinessId },
+    };
+    const document = createDocument();
+    document.shots.push({
+      shotId: secondShotId,
+      position: 1,
+      selectedOutputAssetId: null,
+      prompt: '俯拍招牌套餐，光线温暖。',
+      updatedAt: '2026-08-14T02:01:00.000Z',
+    });
+    document.playlist.shotIds.push(secondShotId);
+    render(<CanvasV1Page {...createProps({ document, shots: [createShot(), secondShot] })} />);
+
+    await user.click(screen.getByRole('button', { name: /02.*招牌套餐/ }));
+
+    expect(screen.getByRole('heading', { name: '招牌套餐', level: 1 })).toBeInTheDocument();
+    expect(screen.getByDisplayValue('俯拍招牌套餐，光线温暖。')).toBeInTheDocument();
+    expect(screen.getByText('俯拍咖啡与甜点，手部入画。')).toBeInTheDocument();
+  });
+
+  it('uses the edited prompt in a browser-safe command', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    render(<CanvasV1Page {...createProps({ onCommand })} />);
+
+    const prompt = screen.getByRole('textbox', { name: '生成提示' });
+    await user.clear(prompt);
+    await user.type(prompt, '镜头缓慢推进，店员自然介绍招牌套餐。');
+    await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
+
+    const command = onCommand.mock.calls[0]?.[0];
+    expect(command.payload).toEqual(expect.objectContaining({ prompt: '镜头缓慢推进，店员自然介绍招牌套餐。' }));
+    expect(() => parseCanvasV1BrowserContract(command)).not.toThrow();
+  });
+
+  it('explains an authorization block and never dispatches generation', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    render(<CanvasV1Page {...createProps({ onCommand, shots: [createShot(false)] })} />);
+
+    expect(screen.getByText('等待真人授权')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '生成当前镜头' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
+    expect(onCommand).not.toHaveBeenCalled();
+  });
+
+  it('does not create a candidate asset when a task fails', () => {
+    render(<CanvasV1Page {...createProps({ taskEvents: { [shotId]: createEvent('failed') } })} />);
+
+    expect(screen.getByText('视频生成失败，请稍后重试。')).toBeInTheDocument();
+    expect(screen.queryByAltText('门店开场候选画面')).not.toBeInTheDocument();
+    expect(screen.getByText('生成后在这里选择候选画面')).toBeInTheDocument();
+  });
+
+  it('offers keyboard focus for the shot rail and primary action', async () => {
+    const user = userEvent.setup();
+    render(<CanvasV1Page {...createProps()} />);
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: /01.*门店开场/ })).toHaveFocus();
+    screen.getByRole('button', { name: '生成当前镜头' }).focus();
+    expect(screen.getByRole('button', { name: '生成当前镜头' })).toHaveFocus();
+  });
+
+  it('does not write browser storage, log payloads, or render forbidden markers', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    render(<CanvasV1Page {...createProps()} />);
+
+    const publicSurface = `${document.documentElement.outerHTML} ${window.location.href}`.toLowerCase();
+    expect(publicSurface).not.toMatch(/asset:\/\/|bearer\s|x-amz-|x-tos-|access_token=|idempotencykey|providerassetid|projectgrant/);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(consoleLog).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+
+    setItem.mockRestore();
+    consoleLog.mockRestore();
+    consoleError.mockRestore();
   });
 });
