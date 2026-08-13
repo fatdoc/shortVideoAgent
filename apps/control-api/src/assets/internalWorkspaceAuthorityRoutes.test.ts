@@ -105,4 +105,25 @@ describe('server-only Canvas workspace authority route', () => {
     });
     expect(JSON.stringify(blocked.body)).not.toMatch(/assets|packageSnapshot|digest|storage|provider/i);
   });
+
+  it('contains unsafe or malformed dependency responses behind a fixed safe error', async () => {
+    const h = harness();
+    h.service.read.mockResolvedValueOnce({
+      ...output,
+      internalToken: 'must-never-cross-boundary',
+    });
+    const result = await authorized(
+      request(h.app).post('/api/v1/internal/canvas-workspace-authorities'),
+    ).send(JSON.stringify(body));
+    expect(result.status).toBe(503);
+    expect(result.body).toEqual({
+      error: {
+        code: 'CANVAS_WORKSPACE_AUTHORITY_DEPENDENCY_UNAVAILABLE',
+        message: expect.any(String),
+        retryable: true,
+        requestId: body.requestId,
+      },
+    });
+    expect(JSON.stringify(result.body)).not.toContain('must-never-cross-boundary');
+  });
 });

@@ -58,6 +58,9 @@ import { PostgresCanvasAssetMaterializationRepository } from './assets/materiali
 import { CanvasAssetMaterializationService } from './assets/materializationService.js';
 import { LocalCanvasAssetStorageReader } from './assets/materializationStorage.js';
 import { createInternalCanvasAssetMaterializationRouter } from './assets/internalMaterializationRoutes.js';
+import { createInternalCanvasWorkspaceAuthorityRouter } from './assets/internalWorkspaceAuthorityRoutes.js';
+import { CanvasWorkspaceAuthorityService } from './assets/workspaceAuthorityService.js';
+import { PostgresCanvasWorkspaceAuthorityRepository } from './production/workspaceAuthorityRepository.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -176,6 +179,14 @@ const internalCanvasAssetMaterializationRouter = createInternalCanvasAssetMateri
     attempts: new PostgresCanvasAssetMaterializationRepository(database),
   }),
 });
+const internalCanvasWorkspaceAuthorityRouter = createInternalCanvasWorkspaceAuthorityRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: new CanvasWorkspaceAuthorityService({
+    sessionAuthority: canvasAssetSessionAuthorityService,
+    productionAuthority: new PostgresCanvasWorkspaceAuthorityRepository(database),
+    assets: canvasAssetAuthorityRepository,
+  }),
+});
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
   policy: projectPolicy,
@@ -248,6 +259,7 @@ const app = createApp({
   internalCanvasAssetSessionRouter,
   internalCanvasApprovalRouter,
   internalCanvasAssetMaterializationRouter,
+  internalCanvasWorkspaceAuthorityRouter,
   contentRouter,
   storyboardRouter,
   productionRouter,

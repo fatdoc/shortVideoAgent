@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CanvasWorkspaceAuthorityService } from './workspaceAuthorityService.js';
+import { canvasAssetError } from './errors.js';
+import { CanvasWorkspaceAuthorityLookupError } from './workspaceAuthorityTypes.js';
 
 const request = {
   objectType: 'CanvasWorkspaceAuthorityRequest' as const,
@@ -133,5 +135,38 @@ describe('CanvasWorkspaceAuthorityService', () => {
     for (const [records, code] of cases) {
       await expect(harness([...records]).service.read(request)).rejects.toMatchObject({ code });
     }
+  });
+
+  it('fails closed with stable session, Package/version and asset completeness errors', async () => {
+    const session = harness();
+    session.sessionAuthority.assertActiveSession.mockRejectedValueOnce(
+      canvasAssetError('CANVAS_SESSION_INVALID', 'private session detail'),
+    );
+    await expect(session.service.read(request)).rejects.toMatchObject({
+      code: 'CANVAS_WORKSPACE_AUTHORITY_SESSION_INVALID',
+    });
+    expect(session.productionAuthority.readExact).not.toHaveBeenCalled();
+    expect(session.assets.listAssets).not.toHaveBeenCalled();
+
+    for (const [kind, code] of [
+      ['package', 'CANVAS_WORKSPACE_AUTHORITY_PACKAGE_NOT_FOUND'],
+      ['project', 'CANVAS_WORKSPACE_AUTHORITY_PROJECT_UNAVAILABLE'],
+      ['script', 'CANVAS_WORKSPACE_AUTHORITY_SCRIPT_UNAVAILABLE'],
+      ['storyboard', 'CANVAS_WORKSPACE_AUTHORITY_STORYBOARD_UNAVAILABLE'],
+      ['dependency', 'CANVAS_WORKSPACE_AUTHORITY_DEPENDENCY_UNAVAILABLE'],
+    ] as const) {
+      const value = harness();
+      value.productionAuthority.readExact.mockRejectedValueOnce(
+        new CanvasWorkspaceAuthorityLookupError(kind),
+      );
+      await expect(value.service.read(request)).rejects.toMatchObject({ code });
+      expect(value.assets.listAssets).not.toHaveBeenCalled();
+    }
+
+    const incomplete = harness();
+    incomplete.assets.listAssets.mockRejectedValueOnce(new Error('private database detail'));
+    await expect(incomplete.service.read(request)).rejects.toMatchObject({
+      code: 'CANVAS_WORKSPACE_AUTHORITY_ASSETS_INCOMPLETE',
+    });
   });
 });

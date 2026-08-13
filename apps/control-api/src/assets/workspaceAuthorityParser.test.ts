@@ -119,4 +119,32 @@ describe('Canvas workspace authority strict parser', () => {
       );
     }
   });
+
+  it('rejects non-canonical nested facts, duplicate assets and every frozen server-only marker', () => {
+    expect(() =>
+      parseCanvasWorkspaceAuthorityResponse({
+        ...response(),
+        assets: [
+          {
+            ...response().assets[0],
+            provenance: {
+              ...response().assets[0]!.provenance,
+              declaredAt: '2026-02-30T01:40:00.000Z',
+            },
+          },
+        ],
+      }),
+    ).toThrow('CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID');
+    expect(() =>
+      parseCanvasWorkspaceAuthorityResponse({
+        ...response(),
+        assets: [response().assets[0], response().assets[0]],
+      }),
+    ).toThrow('CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID');
+    for (const key of ['contentBase64', 'internalId', 'signedUrl']) {
+      expect(() =>
+        parseCanvasWorkspaceAuthorityResponse({ ...response(), [key]: 'server-only' }),
+      ).toThrow('CANVAS_WORKSPACE_AUTHORITY_BROWSER_UNSAFE');
+    }
+  });
 });
