@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://videoagent.local/contracts/canvas-v1/activation-transport.schema.json",
+  "title": "Canvas V1 Activation Transport",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "canvasSessionId": {
+      "type": "string",
+      "pattern": "^pcs_[A-Za-z0-9_-]{24,128}$"
+    },
+    "canvasEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objectType",
+        "contractVersion",
+        "handle",
+        "tenantId",
+        "projectId",
+        "packageId",
+        "state",
+        "issuedAt",
+        "expiresAt"
+      ],
+      "properties": {
+        "objectType": { "const": "CanvasEntry" },
+        "contractVersion": { "const": "0.2" },
+        "handle": {
+          "type": "string",
+          "pattern": "^ce_[A-Za-z0-9_-]{32,64}$"
+        },
+        "tenantId": { "$ref": "#/$defs/uuid" },
+        "projectId": { "$ref": "#/$defs/uuid" },
+        "packageId": { "$ref": "#/$defs/uuid" },
+        "state": { "const": "active" },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "activationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["activationAttemptId"],
+      "properties": {
+        "activationAttemptId": { "$ref": "#/$defs/uuid" }
+      }
+    },
+    "activationResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry", "replayed", "requestId"],
+      "properties": {
+        "entry": { "$ref": "#/$defs/canvasEntry" },
+        "replayed": { "type": "boolean" },
+        "requestId": { "$ref": "#/$defs/requestId" }
+      }
+    },
+    "legacyOpenRequest": {
+      "$ref": "#/$defs/canvasEntry"
+    },
+    "legacyOpenResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "status",
+        "projectId",
+        "packageId",
+        "canvasSessionId",
+        "expiresAt",
+        "requestId"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "pilot-canvas-bootstrap.v1" },
+        "status": { "const": "ready" },
+        "projectId": { "$ref": "#/$defs/uuid" },
+        "packageId": { "$ref": "#/$defs/uuid" },
+        "canvasSessionId": { "$ref": "#/$defs/canvasSessionId" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "requestId": { "$ref": "#/$defs/requestId" }
+      }
+    },
+    "approvalPrepareRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageId",
+        "canvasSessionId",
+        "commandType",
+        "action",
+        "expiresInSeconds",
+        "replayPolicy"
+      ],
+      "properties": {
+        "packageId": { "$ref": "#/$defs/uuid" },
+        "canvasSessionId": { "$ref": "#/$defs/canvasSessionId" },
+        "commandType": {
+          "enum": [
+            "CREATE_VIRTUAL_CHARACTER",
+            "BIND_ASSET_TO_ENTITY",
+            "GENERATE_SHOT",
+            "SELECT_SHOT_OUTPUT",
+            "EXPORT_PLAYLIST"
+          ]
+        },
+        "action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["commandId", "payload"],
+          "properties": {
+            "commandId": { "$ref": "#/$defs/uuid" },
+            "payload": { "type": "object" }
+          }
+        },
+        "expiresInSeconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "replayPolicy": { "const": "single_use_replay_same_command" }
+      }
+    },
+    "approvalPrepareResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvalId", "status"],
+      "properties": {
+        "approvalId": { "$ref": "#/$defs/uuid" },
+        "status": { "const": "active" }
+      }
+    }
+  },
+  "required": [
+    "activationRequest",
+    "activationResponse",
+    "legacyOpenRequest",
+    "legacyOpenResponse",
+    "formalBootstrapResponse",
+    "approvalPrepareRequest",
+    "approvalPrepareResponse",
+    "commandDispatchRequest"
+  ],
+  "properties": {
+    "activationRequest": { "$ref": "#/$defs/activationRequest" },
+    "activationResponse": { "$ref": "#/$defs/activationResponse" },
+    "legacyOpenRequest": { "$ref": "#/$defs/legacyOpenRequest" },
+    "legacyOpenResponse": { "$ref": "#/$defs/legacyOpenResponse" },
+    "formalBootstrapResponse": {
+      "$ref": "canvas-v1.schema.json#/$defs/canvasBootstrap"
+    },
+    "approvalPrepareRequest": { "$ref": "#/$defs/approvalPrepareRequest" },
+    "approvalPrepareResponse": { "$ref": "#/$defs/approvalPrepareResponse" },
+    "commandDispatchRequest": {
+      "$ref": "canvas-v1.schema.json#/$defs/canvasCommand"
+    }
+  }
+}

@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "canvas-v1-activation-transport-negative-vectors.v1",
+  "fixture": "fixtures/activation-transport.json",
+  "vectors": [
+    {
+      "id": "canonical-route-package-query-required",
+      "surface": "browser-route",
+      "input": "/production/canvas/22222222-2222-4222-8222-222222222222",
+      "expectedCode": "CANVAS_ACTIVATION_PACKAGE_REQUIRED"
+    },
+    {
+      "id": "canonical-route-package-query-must-be-uuid",
+      "surface": "browser-route",
+      "input": "/production/canvas/22222222-2222-4222-8222-222222222222?packageId=latest",
+      "expectedCode": "CANVAS_ACTIVATION_PACKAGE_INVALID"
+    },
+    {
+      "id": "package-selection-never-uses-latest",
+      "surface": "package-selection",
+      "input": "latest",
+      "expectedCode": "CANVAS_ACTIVATION_PACKAGE_INVALID"
+    },
+    {
+      "id": "activation-attempt-not-in-url",
+      "surface": "browser-route",
+      "input": "/production/canvas/22222222-2222-4222-8222-222222222222?packageId=33333333-3333-4333-8333-333333333333&activationAttemptId=90909090-9090-4090-8090-909090909090",
+      "expectedCode": "CANVAS_ACTIVATION_INPUT_INVALID"
+    },
+    {
+      "id": "activation-attempt-not-in-storage",
+      "surface": "browser-storage",
+      "input": "activationAttemptId",
+      "expectedCode": "CANVAS_ACTIVATION_CONTAINMENT_VIOLATION"
+    },
+    {
+      "id": "activation-attempt-not-in-log",
+      "surface": "public-log",
+      "input": "90909090-9090-4090-8090-909090909090",
+      "expectedCode": "CANVAS_ACTIVATION_CONTAINMENT_VIOLATION"
+    },
+    {
+      "id": "browser-raw-idempotency-key-forbidden",
+      "surface": "activation-request",
+      "addField": {
+        "idempotencyKey": "raw-browser-key"
+      },
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "browser-idempotency-header-forbidden",
+      "surface": "activation-request-header",
+      "input": "Idempotency-Key",
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "activation-response-has-one-replay-authority",
+      "surface": "activation-response-header",
+      "input": "Idempotency-Replayed",
+      "expectedCode": "CANVAS_ACTIVATION_RESPONSE_INVALID"
+    },
+    {
+      "id": "activation-response-forbids-derived-key",
+      "surface": "activation-response",
+      "addField": {
+        "derivedIdempotencyKey": "server-only"
+      },
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "activation-project-package-exact-scope",
+      "surface": "activation-response",
+      "replaceField": {
+        "path": "entry.packageId",
+        "value": "30303030-3030-4030-8030-303030303030"
+      },
+      "expectedCode": "CANVAS_ACTIVATION_SCOPE_MISMATCH"
+    },
+    {
+      "id": "legacy-open-result-is-not-formal-bootstrap",
+      "surface": "legacy-open-response",
+      "replaceField": {
+        "path": "schemaVersion",
+        "value": "CanvasBootstrap/0.1"
+      },
+      "expectedCode": "PILOT_CANVAS_BOOTSTRAP_INVALID"
+    },
+    {
+      "id": "formal-bootstrap-rejects-legacy-open-result",
+      "surface": "formal-bootstrap-response",
+      "fixtureSection": "legacyOpenResponse",
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "formal-bootstrap-exact-package-binding",
+      "surface": "formal-bootstrap-response",
+      "replaceField": {
+        "path": "packageId",
+        "value": "30303030-3030-4030-8030-303030303030"
+      },
+      "expectedCode": "CANVAS_SCOPE_MISMATCH"
+    },
+    {
+      "id": "formal-bootstrap-requires-explicit-session-header",
+      "surface": "formal-bootstrap-request",
+      "removeHeader": "X-Canvas-Session-ID",
+      "expectedCode": "CANVAS_SESSION_INVALID"
+    },
+    {
+      "id": "formal-bootstrap-requires-exact-origin",
+      "surface": "formal-bootstrap-request",
+      "replaceHeader": {
+        "name": "Origin",
+        "value": "https://attacker.example"
+      },
+      "expectedCode": "CANVAS_SESSION_INVALID"
+    },
+    {
+      "id": "formal-bootstrap-no-latest-script-inference",
+      "surface": "formal-bootstrap-authority",
+      "input": "latest-script",
+      "expectedCode": "CANVAS_CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "id": "formal-bootstrap-no-latest-storyboard-inference",
+      "surface": "formal-bootstrap-authority",
+      "input": "latest-storyboard",
+      "expectedCode": "CANVAS_CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "id": "unsynchronized-assets-cannot-produce-ready-empty-summary",
+      "surface": "formal-bootstrap-aggregation",
+      "input": {
+        "assetSyncComplete": false,
+        "assetSummaries": [],
+        "status": "ready"
+      },
+      "expectedCode": "CANVAS_CAPABILITY_UNAVAILABLE"
+    },
+    {
+      "id": "approval-action-requires-command-id-and-payload",
+      "surface": "approval-prepare-request",
+      "replaceField": {
+        "path": "action",
+        "value": {
+          "payload": {}
+        }
+      },
+      "expectedCode": "CANVAS_ASSET_SCHEMA_INVALID"
+    },
+    {
+      "id": "approval-command-type-must-match-dispatch",
+      "surface": "approval-dispatch-binding",
+      "replaceField": {
+        "path": "commandDispatchRequest.commandType",
+        "value": "BIND_ASSET_TO_ENTITY"
+      },
+      "expectedCode": "CANVAS_APPROVAL_INVALID"
+    },
+    {
+      "id": "approval-command-id-must-match-dispatch",
+      "surface": "approval-dispatch-binding",
+      "replaceField": {
+        "path": "commandDispatchRequest.commandId",
+        "value": "abababab-abab-4bab-8bab-abababababab"
+      },
+      "expectedCode": "CANVAS_APPROVAL_INVALID"
+    },
+    {
+      "id": "approval-payload-must-match-dispatch",
+      "surface": "approval-dispatch-binding",
+      "replaceField": {
+        "path": "commandDispatchRequest.payload.prompt",
+        "value": "changed after confirmation"
+      },
+      "expectedCode": "CANVAS_APPROVAL_INVALID"
+    },
+    {
+      "id": "static-generic-approval-forbidden",
+      "surface": "approval-prepare-request",
+      "replaceField": {
+        "path": "action",
+        "value": {
+          "commandId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          "payload": {
+            "allowAny": true
+          }
+        }
+      },
+      "expectedCode": "CANVAS_APPROVAL_INVALID"
+    }
+  ]
+}
