@@ -10,7 +10,32 @@ const REQUIRED_SCOPES = [
 ] as const satisfies readonly DemoProjectGrant['scopes'][number][];
 
 export interface StoryCanvasAppProps {
+  /**
+   * 生产授权只允许通过内存注入；外部必须是 canonical grant。
+   */
   grant?: DemoProjectGrant | null;
+  /**
+   * StoryCanvas 编辑器的直接启动态，供测试与开发 harness 注入。
+   * 非 undefined 时允许 StoryCanvasApp 跳过自身 bootstrap 过程（便于纯编辑器验证）。
+   */
+  bootstrap?: {
+    production?: Record<string, unknown> | null;
+    continuity?: Record<string, unknown> | null;
+    capabilities?: Record<string, unknown> | null;
+    shots?: unknown[];
+    outputSettings?: {
+      resolution?: string;
+      defaultDuration?: number;
+    };
+    notice?: string;
+    serviceState?: string;
+    taskError?: string;
+    productionTasks?: unknown[];
+  };
+  /**
+   * 仅用于测试/开发直接注入会话，避免绑定 Demo Grant 与网络边界。
+   */
+  api?: Record<string, unknown>;
 }
 
 export type StoryCanvasGrantRejectionCode =

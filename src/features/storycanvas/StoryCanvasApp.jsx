@@ -38,8 +38,6 @@ import { createMvpClient } from "./mvpApi";
 import { validateEmbeddedStoryCanvasGrant } from "./StoryCanvasApp.types";
 import "./storycanvas.css";
 
-const mvpApi = createMvpClient();
-
 const initialShots = [
   {
     id: 0,
@@ -108,6 +106,46 @@ const defaultOutputSettings = {
   defaultDuration: 4,
 };
 
+function loadOutputSettings() {
+  return defaultOutputSettings;
+}
+
+function normalizeProductionBootstrap(data) {
+  const canonicalShots = productionShotsToCanvas(data.production);
+  const shotByExternalId = new Map(canonicalShots.map((shot) => [shot.externalId, shot]));
+  const normalizedTasks = (data.productionTasks || []).map((task) => ({
+    id: task.generationTaskId,
+    shotId: shotByExternalId.get(task.shotId)?.internalId,
+    kind: task.taskType === "image.generate" ? "image" : "video",
+    status: task.status,
+    progress: task.progress,
+    mediaType: task.output?.mediaType,
+    error: task.error?.message,
+    errorCode: task.error?.code,
+    truthMode: task.truthMode,
+  }));
+  const tasksByShot = new Map();
+  for (const task of normalizedTasks) {
+    if (!task.shotId) continue;
+    const tasks = tasksByShot.get(task.shotId) || [];
+    tasks.push(task);
+    tasksByShot.set(task.shotId, tasks);
+  }
+
+  return {
+    production: data.production,
+    continuity: data.continuity,
+    capabilities: data.capabilities,
+    shots: canonicalShots.map((shot) => {
+      const tasks = tasksByShot.get(shot.internalId) || [];
+      const visibleTask = tasks.find((task) => ["queued", "running"].includes(task.status))
+        || tasks.find((task) => task.status === "succeeded")
+        || tasks[0];
+      return visibleTask ? applyTaskToShots([shot], visibleTask)[0] : shot;
+    }),
+  };
+}
+
 function productionShotsToCanvas(production) {
   return recalculateShotRanges((production?.shots || []).map((shot) => ({
     id: shot.order,
@@ -117,12 +155,12 @@ function productionShotsToCanvas(production) {
     section: `镜头 ${String(shot.order).padStart(2, "0")}`,
     title: shot.description,
     shortTitle: shot.screenText || shot.description,
-    duration: shot.duration,
-    status: shot.matchStatus === "matched" ? "sample" : "waiting",
-    imagePrompt: shot.imagePrompt,
-    videoPrompt: shot.videoPrompt,
-    description: shot.narration,
-    screenText: shot.screenText,
+      duration: shot.duration,
+      status: shot.matchStatus === "matched" ? "sample" : "waiting",
+      imagePrompt: shot.imagePrompt,
+      videoPrompt: shot.videoPrompt,
+      description: shot.description || shot.narration || "",
+      screenText: shot.screenText,
     sourceType: shot.sourceType,
     riskLevel: shot.riskLevel,
     contractStatus: shot.status,
@@ -149,15 +187,6 @@ const emptyCharacterProfile = {
   wardrobe: "",
   setting: "",
 };
-
-function loadOutputSettings() {
-  try {
-    const stored = JSON.parse(window.localStorage.getItem("storycanvas:output-settings") || "null");
-    return stored ? { ...defaultOutputSettings, ...stored } : defaultOutputSettings;
-  } catch {
-    return defaultOutputSettings;
-  }
-}
 
 function formatTimestamp(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -290,8 +319,8 @@ function AppHeader({
       <div className="breadcrumb">
         <span>{projectName}</span><b>/</b><strong>{activeLabel}</strong>
         {packageInfo && (
-          <span title={`${packageInfo.packageId} · ${packageInfo.digest} · source ${packageInfo.sourceSuiteDigest}`}>
-            {packageInfo.packageId} v{packageInfo.packageVersion} · {packageInfo.digest.slice(7, 15)}…
+          <span>
+            {packageInfo.packageId} v{packageInfo.packageVersion}
           </span>
         )}
         {goldenTruth && <strong>{goldenTruth.mode}</strong>}
@@ -741,7 +770,7 @@ function ProjectWorkspace({ shots, onOpenShot, production, onFallbackExport, exp
             {truthModes.map((mode) => <span key={mode} style={{ marginRight: 8, fontWeight: 700 }}>{mode}</span>)}
           </p>
           <p style={{ fontSize: 11, color: "#777b83" }}>
-            {packageInfo?.packageId} v{packageInfo?.packageVersion} · digest {packageInfo?.digest}
+            {packageInfo?.packageId} v{packageInfo?.packageVersion}
           </p>
           <div className="project-metrics">
             <div><strong>{shots.length}</strong><span>镜头</span></div>
@@ -1161,7 +1190,7 @@ function CharacterAssetsWorkspace({ continuity, onContinuityChange, onNotice }) 
   const selectedAsset = workspace.assets.find((asset) => asset.id === selectedAssetId) || null;
 
   async function refreshCharacters(preferredAssetId) {
-    const next = await mvpApi.getCharacters();
+    const next = await apiClient.getCharacters();
     setWorkspace(next);
     setImageModel((current) => (
       next.imageModels?.some((model) => model.id === current && model.available)
@@ -1179,7 +1208,7 @@ function CharacterAssetsWorkspace({ continuity, onContinuityChange, onNotice }) 
 
   useEffect(() => {
     let cancelled = false;
-    mvpApi.getCharacters()
+    apiClient.getCharacters()
       .then((data) => {
         if (cancelled) return;
         setWorkspace(data);
@@ -1209,7 +1238,7 @@ function CharacterAssetsWorkspace({ continuity, onContinuityChange, onNotice }) 
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const next = await mvpApi.getCharacterTask(task.id);
+        const next = await apiClient.getCharacterTask(task.id);
         if (cancelled) return;
         setTask(next);
         if (next.status === "succeeded") {
@@ -1282,7 +1311,7 @@ function CharacterAssetsWorkspace({ continuity, onContinuityChange, onNotice }) 
     setAction("upload");
     setErrorMessage("");
     try {
-      const asset = await mvpApi.uploadCharacter({
+      const asset = await apiClient.uploadCharacter({
         profile,
         image: referenceImage,
         idempotencyKey: window.crypto.randomUUID(),
@@ -1321,7 +1350,7 @@ function CharacterAssetsWorkspace({ continuity, onContinuityChange, onNotice }) 
     setTask(null);
     setErrorMessage("");
     try {
-      const next = await mvpApi.generateCharacter({
+        const next = await apiClient.generateCharacter({
         profile,
         imageModel,
         additionalPrompt,
@@ -1347,7 +1376,7 @@ function CharacterAssetsWorkspace({ continuity, onContinuityChange, onNotice }) 
     setAction("bind");
     setErrorMessage("");
     try {
-      const nextContinuity = await mvpApi.bindCharacter(selectedAsset.id, selectedEntityId);
+      const nextContinuity = await apiClient.bindCharacter(selectedAsset.id, selectedEntityId);
       onContinuityChange(nextContinuity);
       const entityName = characterEntities.find((entity) => entity.id === selectedEntityId)?.name;
       onNotice(`${selectedAsset.name} 已绑定为${entityName || "人物"}的全局人物身份`);
@@ -1685,10 +1714,23 @@ function StatusBar({ shots, activeTask, batchState, exporting }) {
 /**
  * @param {import("./StoryCanvasApp.types").StoryCanvasAppProps} props
  */
-export function StoryCanvasApp({ grant: embeddedGrant = null }) {
-  const [shots, setShots] = useState(initialShots);
-  const [selectedId, setSelectedId] = useState(0);
-  const nextShotId = useRef(Math.max(...initialShots.map((shot) => shot.id)) + 1);
+export function StoryCanvasEditor({ api, bootstrap = {} }) {
+  const apiClient = useMemo(() => api || createMvpClient(), [api]);
+  const bootstrapState = useMemo(() => ({
+    serviceState: "loading",
+    taskError: "",
+    production: null,
+    continuity: null,
+    capabilities: null,
+    shots: initialShots,
+    outputSettings: loadOutputSettings(),
+    notice: "",
+    ...bootstrap,
+  }), [bootstrap]);
+  const bootstrapShots = bootstrapState.shots?.length ? bootstrapState.shots : initialShots;
+  const [shots, setShots] = useState(bootstrapShots);
+  const [selectedId, setSelectedId] = useState(bootstrapShots[0]?.id || 0);
+  const nextShotId = useRef(Math.max(...bootstrapShots.map((shot) => shot.id)) + 1);
   const [zoom, setZoom] = useState(84);
   const [lockedIds, setLockedIds] = useState(new Set());
   const [activeNav, setActiveNav] = useState("canvas");
@@ -1696,18 +1738,18 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
   const [generationSubmitting, setGenerationSubmitting] = useState(false);
   const [imageReplacement, setImageReplacement] = useState(null);
   const [activeTask, setActiveTask] = useState(null);
-  const [capabilities, setCapabilities] = useState(null);
-  const [continuity, setContinuity] = useState(null);
+  const [capabilities, setCapabilities] = useState(bootstrapState.capabilities);
+  const [continuity, setContinuity] = useState(bootstrapState.continuity);
   const [continuitySaving, setContinuitySaving] = useState(false);
-  const [serviceState, setServiceState] = useState("loading");
-  const [taskError, setTaskError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [serviceState, setServiceState] = useState(bootstrapState.serviceState);
+  const [taskError, setTaskError] = useState(bootstrapState.taskError);
+  const [notice, setNotice] = useState(bootstrapState.notice);
   const [batchState, setBatchState] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [fallbackRegistering, setFallbackRegistering] = useState(false);
   const [exportResult, setExportResult] = useState(null);
-  const [outputSettings, setOutputSettings] = useState(loadOutputSettings);
-  const [production, setProduction] = useState(null);
+  const [outputSettings, setOutputSettings] = useState(bootstrapState.outputSettings);
+  const [production, setProduction] = useState(bootstrapState.production);
 
   const selectedShot = useMemo(() => shots.find((shot) => shot.id === selectedId) ?? shots[0], [shots, selectedId]);
   const selectedContinuityShot = continuity?.shots?.[String(selectedShot?.internalId || selectedId)] || null;
@@ -1717,129 +1759,27 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
   );
 
   useEffect(() => {
-    let cancelled = false;
-    let bootstrapping = false;
-    let grantRequestTimer;
-    const controlPlaneUrl = import.meta.env.VITE_CONTROL_PLANE_URL || "http://localhost:5173";
-    const controlPlaneOrigin = new URL(controlPlaneUrl).origin;
-    const messageTarget = window.opener || (window.parent !== window ? window.parent : null);
-    const targetOrigin = window.location.protocol === "file:" ? "*" : controlPlaneOrigin;
-
-    async function bootstrapWithGrant(grant, readyTarget = null) {
-      if (bootstrapping || cancelled) return;
-      const validation = validateEmbeddedStoryCanvasGrant(grant);
-      if (!validation.ok) {
-        mvpApi.clearProductionGrant();
-        setServiceState("error");
-        setTaskError(validation.error.message);
-        return;
-      }
-      const validatedGrant = validation.grant;
-
-      bootstrapping = true;
-      if (grantRequestTimer) window.clearInterval(grantRequestTimer);
-      setServiceState("loading");
-      setTaskError("");
-      mvpApi.setProductionGrant(validatedGrant);
-      try {
-        const data = await mvpApi.bootstrap();
-        if (cancelled) return;
-        const canonicalShots = productionShotsToCanvas(data.production);
-        const shotByExternalId = new Map(canonicalShots.map((shot) => [shot.externalId, shot]));
-        const normalizedTasks = (data.productionTasks || []).map((task) => ({
-          id: task.generationTaskId,
-          shotId: shotByExternalId.get(task.shotId)?.internalId,
-          kind: task.taskType === "image.generate" ? "image" : "video",
-          status: task.status,
-          progress: task.progress,
-          mediaType: task.output?.mediaType,
-          error: task.error?.message,
-          errorCode: task.error?.code,
-          truthMode: task.truthMode,
-        }));
-        setProduction(data.production);
-        setCapabilities(data.capabilities);
-        setContinuity(data.continuity);
-        setServiceState("ready");
-        setSelectedId(canonicalShots[0]?.id || 0);
-        nextShotId.current = Math.max(0, ...canonicalShots.map((shot) => shot.id)) + 1;
-
-        const tasksByShot = new Map();
-        for (const task of normalizedTasks) {
-          if (!task.shotId) continue;
-          const tasks = tasksByShot.get(task.shotId) || [];
-          tasks.push(task);
-          tasksByShot.set(task.shotId, tasks);
-        }
-        setShots(canonicalShots.map((shot) => {
-          const tasks = tasksByShot.get(shot.internalId) || [];
-          const visibleTask = tasks.find((task) => ["queued", "running"].includes(task.status))
-            || tasks.find((task) => task.status === "succeeded")
-            || tasks[0];
-          return visibleTask ? applyTaskToShots([shot], visibleTask)[0] : shot;
-        }));
-        readyTarget?.source?.postMessage(
-          {
-            type: "storycanvas:d1-ready",
-            projectId: "demo-local-001",
-            packageId: "package-demo-local-001-v1",
-          },
-          readyTarget.origin,
-        );
-      } catch (error) {
-        if (cancelled) return;
-        mvpApi.clearProductionGrant();
-        setServiceState("error");
-        setTaskError(error.message);
-        bootstrapping = false;
-      }
-    }
-
-    async function handleGrantMessage(event) {
-      if (bootstrapping || cancelled || event.data?.type !== "storycanvas:d1-grant") return;
-      if (event.source !== messageTarget || (window.location.protocol !== "file:" && event.origin !== controlPlaneOrigin)) {
-        setServiceState("error");
-        setTaskError(`GRANT_BRIDGE_ORIGIN_REJECTED：拒绝 ${event.origin || "unknown"} 的授权消息`);
-        return;
-      }
-      const { grant, projectId, packageId } = event.data;
-      if (grant?.projectId !== projectId || grant?.packageId !== packageId) {
-        setServiceState("error");
-        setTaskError("GRANT_BRIDGE_SCOPE_MISMATCH：消息身份与 grant 不一致");
-        return;
-      }
-      await bootstrapWithGrant(grant, {
-        source: event.source,
-        origin: window.location.protocol === "file:" ? "*" : event.origin,
-      });
-    }
-
-    if (embeddedGrant) {
-      void bootstrapWithGrant(embeddedGrant);
-      return () => {
-        cancelled = true;
-        mvpApi.clearProductionGrant();
-      };
-    }
-
-    window.addEventListener("message", handleGrantMessage);
-    const requestGrant = () => messageTarget?.postMessage({
-        type: "storycanvas:d1-grant-request",
-        projectId: "demo-local-001",
-        packageId: "package-demo-local-001-v1",
-      }, targetOrigin);
-    requestGrant();
-    if (messageTarget) grantRequestTimer = window.setInterval(requestGrant, 500);
-    if (!messageTarget) {
-      setTaskError("EXPLICIT_GRANT_REQUIRED：请从控制平面深链打开，并通过 postMessage 提交当前 grant");
-    }
-    return () => {
-      cancelled = true;
-      if (grantRequestTimer) window.clearInterval(grantRequestTimer);
-      mvpApi.clearProductionGrant();
-      window.removeEventListener("message", handleGrantMessage);
-    };
-  }, [embeddedGrant]);
+    const activeShots = bootstrapShots?.length ? bootstrapShots : initialShots;
+    setShots((current) => (current === activeShots ? current : activeShots));
+    nextShotId.current = Math.max(...activeShots.map((shot) => shot.id)) + 1;
+    setSelectedId((current) => (activeShots[0]?.id || 0) === current ? current : activeShots[0]?.id || 0);
+    setProduction((current) => (current === bootstrapState.production ? current : bootstrapState.production));
+    setContinuity((current) => (current === bootstrapState.continuity ? current : bootstrapState.continuity));
+    setCapabilities((current) => (current === bootstrapState.capabilities ? current : bootstrapState.capabilities));
+    setServiceState((current) => (current === bootstrapState.serviceState ? current : bootstrapState.serviceState));
+    setTaskError((current) => (current === (bootstrapState.taskError || "") ? current : (bootstrapState.taskError || "")));
+    setNotice((current) => (current === (bootstrapState.notice || "") ? current : (bootstrapState.notice || "")));
+    setOutputSettings((current) => {
+      const next = bootstrapState.outputSettings || loadOutputSettings();
+      return current?.resolution === next.resolution && current?.defaultDuration === next.defaultDuration ? current : next;
+    });
+    setBatchState((current) => (current === null ? current : null));
+    setActiveTask((current) => (current === null ? current : null));
+    setExportResult((current) => (current === null ? current : null));
+    setImageReplacement((current) => (current === null ? current : null));
+    setLockedIds((current) => (current.size === 0 ? current : new Set()));
+    setGenerationSubmitting(false);
+  }, [bootstrapState.serviceState, bootstrapState.production, bootstrapState.continuity, bootstrapState.capabilities, bootstrapState.taskError, bootstrapState.notice, bootstrapState.outputSettings, bootstrapShots]);
 
   useEffect(() => {
     if (batchState?.running || !activeTask?.id || !["queued", "running"].includes(activeTask.status)) return undefined;
@@ -1848,7 +1788,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
 
     const poll = async () => {
       try {
-        const task = await mvpApi.getTask(activeTask.id);
+        const task = await apiClient.getTask(activeTask.id);
         if (cancelled) return;
         setActiveTask(task);
         setShots((items) => applyTaskToShots(items, task));
@@ -1884,10 +1824,6 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     const timer = window.setTimeout(() => setNotice(""), 2600);
     return () => window.clearTimeout(timer);
   }, [notice]);
-
-  useEffect(() => {
-    window.localStorage.setItem("storycanvas:output-settings", JSON.stringify(outputSettings));
-  }, [outputSettings]);
 
   function changeZoom(delta) {
     setZoom((value) => Math.max(60, Math.min(116, delta === 100 - value ? 100 : value + delta)));
@@ -1934,7 +1870,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
   async function createTaskForShot(shot, kind, replaceImageTaskId) {
     const referenceImage = kind === "video" ? await referenceImageForShot(shot) : undefined;
     const referenceImages = kind === "image" ? await memoryReferenceImagesForShot(shot.internalId || shot.id) : [];
-    return mvpApi.createTask({
+    return apiClient.createTask({
       kind,
       shotId: shot.internalId || shot.id,
       prompt: kind === "image" ? shot.imagePrompt : shot.videoPrompt,
@@ -1955,7 +1891,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     setTaskError("");
     try {
       const shot = shots.find((item) => item.id === shotId);
-      const next = await mvpApi.updateShotContinuity(shot?.internalId || shotId, patch);
+      const next = await apiClient.updateShotContinuity(shot?.internalId || shotId, patch);
       setContinuity(next);
       setNotice(`镜头 ${String(shotId).padStart(2, "0")} 的世界记忆已更新`);
     } catch (error) {
@@ -1970,7 +1906,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     let current = task;
     while (["queued", "running"].includes(current.status)) {
       await new Promise((resolve) => window.setTimeout(resolve, 2500));
-      current = await mvpApi.getTask(current.id);
+      current = await apiClient.getTask(current.id);
       setActiveTask(current);
       setShots((items) => applyTaskToShots(items, current));
     }
@@ -1981,7 +1917,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     setExporting(true);
     setTaskError("");
     try {
-      const result = await mvpApi.exportVideo(shotIds);
+      const result = await apiClient.exportVideo(shotIds);
       setExportResult(result);
       setNotice(`${shotIds.length} 个镜头已合并完成`);
       return result;
@@ -1998,7 +1934,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     setFallbackRegistering(true);
     setTaskError("");
     try {
-      const artifact = await mvpApi.createFallbackExport();
+      const artifact = await apiClient.createFallbackExport();
       setProduction((current) => current ? { ...current, artifact } : current);
       setNotice("本地纯合成 FALLBACK 已登记：可播放，技术 QA passed，编辑/品牌 QA 未评估");
     } catch (error) {
@@ -2059,7 +1995,7 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     try {
       const demoScenario = demoScenarioForShot(currentShot, kind);
       if (demoScenario) {
-        const result = await mvpApi.runDemoScenario(demoScenario);
+        const result = await apiClient.runDemoScenario(demoScenario);
         const receipt = result.task;
         const task = {
           id: receipt.generationTaskId,
@@ -2282,3 +2218,135 @@ export function StoryCanvasApp({ grant: embeddedGrant = null }) {
     </div>
   );
 }
+
+export function makeEditorBootstrapState(bootstrap) {
+  if (!bootstrap) {
+    return {
+      serviceState: "loading",
+      taskError: "bootstrap missing",
+      notice: "等待接入生产初始化数据。",
+      production: null,
+      continuity: null,
+      capabilities: null,
+      shots: initialShots,
+      outputSettings: loadOutputSettings(),
+    };
+  }
+
+  const normalized = bootstrap.production && bootstrap.production.shots
+    ? normalizeProductionBootstrap(bootstrap)
+    : null;
+
+  return {
+    serviceState: bootstrap.serviceState || "ready",
+    taskError: bootstrap.taskError || "",
+    production: bootstrap.production,
+    continuity: bootstrap.continuity,
+    capabilities: bootstrap.capabilities,
+    shots: normalized?.shots || (bootstrap.shots?.length ? bootstrap.shots : initialShots),
+    outputSettings: {
+      ...loadOutputSettings(),
+      ...bootstrap.outputSettings,
+    },
+    notice: bootstrap.notice || "",
+  };
+}
+
+/**
+ * 生产入口：仅接受内存 grant，并对失败/未就绪给出显式提示。
+ * 该组件不参与 dev-only harness 调用，且不会与本地路由系统耦合。
+ *
+ * @param {import("./StoryCanvasApp.types").StoryCanvasAppProps} props
+ */
+export function StoryCanvasApp({ grant, api, bootstrap }) {
+  const validation = validateEmbeddedStoryCanvasGrant(grant);
+  const [loadingState, setLoadingState] = useState(bootstrap ? "ready" : "loading");
+  const [bootstrapError, setBootstrapError] = useState("");
+  const [preparedBootstrap, setPreparedBootstrap] = useState(bootstrap || null);
+  const validatedGrant = validation.ok ? validation.grant : null;
+  const editorBootstrap = useMemo(
+    () => makeEditorBootstrapState(preparedBootstrap),
+    [preparedBootstrap],
+  );
+
+  const apiClient = useMemo(() => {
+    if (api) return api;
+    const client = createMvpClient();
+    if (validatedGrant) client.setProductionGrant(validatedGrant);
+    return client;
+  }, [api, validatedGrant]);
+
+  useEffect(() => {
+    if (!validation.ok) return undefined;
+    if (bootstrap) {
+      setPreparedBootstrap(bootstrap);
+      return undefined;
+    }
+    if (!apiClient?.bootstrap) {
+      setLoadingState("error");
+      setBootstrapError("StoryCanvas API 未提供 bootstrap 能力。");
+      return undefined;
+    }
+    let active = true;
+    setLoadingState("loading");
+    setBootstrapError("");
+    void (async () => {
+      try {
+        const next = await apiClient.bootstrap();
+        if (!active) return;
+        if (next?.recentTasks !== undefined) {
+          setPreparedBootstrap(next);
+        } else {
+          setPreparedBootstrap({ ...next, serviceState: "ready" });
+        }
+        setLoadingState("ready");
+        window.dispatchEvent(new Event("storycanvas:d1-ready"));
+      } catch (error) {
+        if (!active) return;
+        setLoadingState("error");
+        setBootstrapError(error instanceof Error ? error.message : "启动失败");
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [apiClient, bootstrap, validatedGrant, validation.ok]);
+
+  if (!validation.ok) {
+    return (
+      <section className="storycanvas-app" data-testid="storycanvas-app-forbidden">
+        <main style={{ padding: "24px", color: "#7a2b00" }}>
+          <h2>生产授权未通过</h2>
+          <p>{validation.error.message}</p>
+        </main>
+      </section>
+    );
+  }
+
+  if (loadingState === "loading") {
+    return (
+      <section className="storycanvas-app" data-testid="storycanvas-app-loading">
+        <main style={{ padding: "24px" }}>StoryCanvas 正在启动。</main>
+      </section>
+    );
+  }
+
+  if (loadingState === "error") {
+    return (
+      <section className="storycanvas-app" data-testid="storycanvas-app-error">
+        <main style={{ padding: "24px", color: "#7a2b00" }}>
+          <h2>生产能力启动失败</h2>
+          <p>{bootstrapError}</p>
+        </main>
+      </section>
+    );
+  }
+
+  return (
+    <section className="storycanvas-app-shell" data-testid="pilot-storycanvas-editor-loaded">
+      <StoryCanvasEditor api={apiClient} bootstrap={editorBootstrap} />
+    </section>
+  );
+}
+
+export { validateEmbeddedStoryCanvasGrant };
