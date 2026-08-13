@@ -1,0 +1,316 @@
+{
+  "contractSlice": "T0-CV1/G6 browser provenance and legacy open replay",
+  "policyVersion": "0.1",
+  "redEvidence": {
+    "coordinatorCommit": "8d2d3215d9af39006b4d5fde128484e314b7ae73",
+    "evidenceCommit": "155777d5a1f654306a6fcd82856ac4b3d327dca0",
+    "observed": {
+      "activationStatuses": [201, 200],
+      "activationReplayObserved": true,
+      "legacyOpenStatuses": [200, 409],
+      "formalGetStatuses": [401],
+      "approvalRequests": 0,
+      "commandRequests": 0,
+      "providerRequests": 0
+    }
+  },
+  "configuredOrigin": "https://pilot.example.test",
+  "formalReadPaths": [
+    "/api/production/pilot/canvas/v1/bootstrap",
+    "/api/production/pilot/canvas/v1/workspace"
+  ],
+  "browserReadVectors": [
+    {
+      "id": "read-origin-omitted-chrome-same-origin-fetch",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111?packageId=22222222-2222-4222-8222-222222222222",
+      "expected": "allow"
+    },
+    {
+      "id": "read-origin-present-exact-with-browser-provenance",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": "https://pilot.example.test",
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "allow"
+    },
+    {
+      "id": "read-origin-present-mismatch",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": "https://attacker.example.test",
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-fetch-site-cross-site",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": "https://pilot.example.test",
+      "secFetchSite": "cross-site",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://attacker.example.test/",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-fetch-site-same-site-is-not-same-origin",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-site",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://other.pilot.example.test/",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-fetch-site-none-navigation",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "none",
+      "secFetchMode": "navigate",
+      "secFetchDest": "document",
+      "referer": null,
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-navigation-even-with-exact-referer",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "navigate",
+      "secFetchDest": "document",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-nonempty-destination",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "image",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-missing-fetch-site",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": "https://pilot.example.test",
+      "secFetchSite": null,
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-missing-fetch-mode",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": null,
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-missing-fetch-destination",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": null,
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-missing-referer",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": "https://pilot.example.test",
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": null,
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-referer-origin-mismatch",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://attacker.example.test/",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-referer-malformed",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "not-a-url",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-automated-client-missing-provenance",
+      "session": "valid_http_only",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": null,
+      "secFetchMode": null,
+      "secFetchDest": null,
+      "referer": null,
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "read-session-missing",
+      "session": "missing",
+      "canvasSession": "exact_active_pcs",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_session"
+    },
+    {
+      "id": "read-pcs-missing",
+      "session": "valid_http_only",
+      "canvasSession": "missing",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_session"
+    },
+    {
+      "id": "read-pcs-scope-mismatch",
+      "session": "valid_http_only",
+      "canvasSession": "active_wrong_scope",
+      "origin": null,
+      "secFetchSite": "same-origin",
+      "secFetchMode": "cors",
+      "secFetchDest": "empty",
+      "referer": "https://pilot.example.test/production/canvas/11111111-1111-4111-8111-111111111111",
+      "expected": "reject_scope"
+    }
+  ],
+  "mutationVectors": [
+    {
+      "id": "mutation-control-exact-origin-and-session-csrf",
+      "origin": "exact",
+      "csrf": "exact_session_bound",
+      "expected": "allow"
+    },
+    {
+      "id": "mutation-story-open-exact-origin-and-fixed-csrf",
+      "origin": "exact",
+      "csrf": "exact_story_open_literal",
+      "expected": "allow"
+    },
+    {
+      "id": "mutation-origin-omitted",
+      "origin": "missing",
+      "csrf": "exact_session_bound",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "mutation-origin-mismatch",
+      "origin": "mismatch",
+      "csrf": "exact_session_bound",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "mutation-csrf-missing",
+      "origin": "exact",
+      "csrf": "missing",
+      "expected": "reject_forbidden"
+    },
+    {
+      "id": "mutation-csrf-mismatch",
+      "origin": "exact",
+      "csrf": "mismatch",
+      "expected": "reject_forbidden"
+    }
+  ],
+  "legacyOpenReplayVectors": [
+    {
+      "id": "open-concurrent-identical-strict-mode",
+      "relation": "same_actor_tenant_project_package_handle_and_exact_four_field_payload",
+      "timing": "concurrent_in_flight",
+      "expected": "one_execution_same_pcs_two_successes"
+    },
+    {
+      "id": "open-response-loss-identical-retry",
+      "relation": "same_actor_tenant_project_package_handle_and_exact_four_field_payload",
+      "timing": "retry_before_authority_expiry",
+      "expected": "replay_same_pcs_without_second_redemption_or_registration"
+    },
+    {
+      "id": "open-sequential-identical-strict-mode",
+      "relation": "same_actor_tenant_project_package_handle_and_exact_four_field_payload",
+      "timing": "second_after_first_success_before_expiry",
+      "expected": "replay_same_pcs"
+    },
+    {
+      "id": "open-same-handle-changed-project",
+      "relation": "same_actor_tenant_and_handle_changed_project",
+      "timing": "concurrent_or_sequential",
+      "expected": "reject_409_conflict_before_side_effect"
+    },
+    {
+      "id": "open-same-handle-changed-package",
+      "relation": "same_actor_tenant_project_and_handle_changed_package",
+      "timing": "concurrent_or_sequential",
+      "expected": "reject_409_conflict_before_side_effect"
+    },
+    {
+      "id": "open-same-handle-changed-tenant",
+      "relation": "same_actor_and_handle_changed_tenant",
+      "timing": "concurrent_or_sequential",
+      "expected": "reject_409_conflict_before_side_effect"
+    },
+    {
+      "id": "open-failed-attempt-is-not-cached",
+      "relation": "same_exact_request_after_fixed_safe_failure",
+      "timing": "retry_after_in_flight_settles",
+      "expected": "new_execution_no_failure_replay"
+    },
+    {
+      "id": "open-success-cache-expires-with-authority",
+      "relation": "same_exact_request_after_authority_expiry_or_eviction",
+      "timing": "after_registry_lifecycle_end",
+      "expected": "no_stale_pcs_replay"
+    },
+    {
+      "id": "open-replay-record-secret-containment",
+      "relation": "any_open_success_or_failure",
+      "timing": "all",
+      "expected": "cache_only_safe_digest_scope_and_browser_safe_result"
+    }
+  ]
+}
