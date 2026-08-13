@@ -6,7 +6,7 @@ import { Server } from "socket.io";
 import http from "node:http";
 import expressWs from "express-ws";
 import logger from "morgan";
-import cors from "cors";
+import cors, { type CorsOptionsDelegate } from "cors";
 import buildRoute from "@/core";
 import path from "path";
 import fs from "fs";
@@ -18,6 +18,7 @@ import { ensureThumbnail, ThumbnailSize } from "@/utils/image";
 import { databaseReady, db } from "@/utils/db";
 import { initializeModels } from "@/config/initializeModels";
 import { capturePilotV02RawBody } from "@/routes/production/v0.2";
+import { getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
 
 const app = express();
 const server = http.createServer(app);
@@ -48,6 +49,12 @@ async function checkPermissions() {
 
 export default async function startServe(randomPort: Boolean = false) {
   await checkPermissions();
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true") {
+    const capability = await getPilotCanvasRuntimeCapability();
+    if (capability.status !== "ready") {
+      throw new Error(capability.code);
+    }
+  }
   await databaseReady;
   await initializeModels(db);
 
@@ -60,7 +67,20 @@ export default async function startServe(randomPort: Boolean = false) {
   expressWs(app);
 
   app.use(logger("dev"));
-  app.use(cors({ origin: "*" }));
+  const corsOptions: CorsOptionsDelegate<Request> = (request, callback) => {
+    if (request.path.startsWith("/api/production/pilot/canvas/")) {
+      const allowedOrigin = process.env.STORYCANVAS_PILOT_ALLOWED_ORIGIN?.trim();
+      callback(null, {
+        origin: allowedOrigin || false,
+        credentials: true,
+        methods: ["GET", "POST", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "X-StoryCanvas-CSRF", "X-Request-ID"],
+      });
+      return;
+    }
+    callback(null, { origin: "*" });
+  };
+  app.use(cors(corsOptions));
   app.use(express.json({ limit: "100mb", verify: capturePilotV02RawBody }));
   app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
@@ -167,6 +187,7 @@ export default async function startServe(randomPort: Boolean = false) {
       req.path === "/api/login/login"
       || req.path.startsWith("/api/production/v0.1/")
       || req.path.startsWith("/api/production/v0.2/")
+      || req.path.startsWith("/api/production/pilot/canvas/")
     ) {
       return next();
     }
@@ -197,24 +218,39 @@ export default async function startServe(randomPort: Boolean = false) {
     res.status(err.status || 500).send(err);
   });
 
-  const port = randomPort ? 0 : 10588;
+  const configuredPort = process.env.STORYCANVAS_PORT?.trim();
+  const parsedPort = configuredPort ? Number(configuredPort) : 10588;
+  if (!randomPort && (!Number.isInteger(parsedPort) || parsedPort < 1 || parsedPort > 65535)) {
+    throw new Error("STORYCANVAS_PORT_INVALID");
+  }
+  const port = randomPort ? 0 : parsedPort;
   return await new Promise((resolve) => {
-    server.listen(port, async () => {
+    const onListening = async () => {
       const address = server.address();
       const realPort = typeof address === "string" ? address : address?.port;
-      console.log(`[服务启动成功]: http://localhost:${realPort}`);
+      const marker = process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true"
+        ? "PILOT_CANVAS_RUNTIME_READY"
+        : "STORYCANVAS_RUNTIME_READY";
+      console.log(`${marker} http://127.0.0.1:${realPort}`);
       resolve(realPort);
-    });
+    };
+    if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true") {
+      server.listen(port, "127.0.0.1", onListening);
+    } else {
+      server.listen(port, onListening);
+    }
   });
 }
 
 // 支持await关闭
-export function closeServe(): Promise<void> {
+export function closeServe(timeoutMs = 5000): Promise<void> {
   return new Promise((resolve, reject) => {
     if (server.listening) {
+      const timer = setTimeout(() => server.closeAllConnections(), timeoutMs);
       server.close((err?: Error) => {
+        clearTimeout(timer);
         if (err) return reject(err);
-        console.log("[服务已关闭]");
+        console.log("PILOT_CANVAS_RUNTIME_STOPPED");
         resolve();
       });
     } else {
@@ -226,4 +262,16 @@ export function closeServe(): Promise<void> {
 const isElectron =
   typeof process.versions?.electron !== "undefined" &&
   process.env.ELECTRON_RUN_AS_NODE !== "1";
-if (!isElectron) startServe();
+if (!isElectron) {
+  void startServe().catch(() => {
+    console.error("PILOT_CANVAS_RUNTIME_BLOCKED");
+    process.exitCode = 1;
+  });
+  const shutdown = () => {
+    void closeServe(5000).finally(() => {
+      process.exitCode = 0;
+    });
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+}
