@@ -143,6 +143,9 @@ test("a default aggregate router fails closed when runtime dependencies are not 
     const response = await fetch(`http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}/assets`);
     assert.equal(response.status, 503);
     assert.equal((await response.json() as Record<string, any>).error.code, "CANVAS_CAPABILITY_UNAVAILABLE");
+    const media = await fetch(`http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}/media/${assetId}/preview`);
+    assert.equal(media.status, 503);
+    assert.equal((await media.json() as Record<string, any>).error.code, "CANVAS_CAPABILITY_UNAVAILABLE");
   } finally {
     await new Promise<void>((resolve, reject) => local.close((error) => error ? reject(error) : resolve()));
   }

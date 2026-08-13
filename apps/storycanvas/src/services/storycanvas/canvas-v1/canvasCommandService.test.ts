@@ -461,3 +461,24 @@ test("public errors and persisted events never expose provider URI, token, diges
   assert.equal(serialized.includes("asset://"), false);
   assert.equal(/bearer|payloadDigest|ProjectGrant|provider raw/iu.test(serialized), false);
 });
+
+test("route-only workspace errors never widen the frozen CanvasEvent error union", async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  const service = new CanvasCommandService(options(db, {
+    syncProviderAsset: async () => { throw { code: "PRIMARY_VIRTUAL_CHARACTER_MISSING" }; },
+  }));
+  const sync = command({
+    commandId: "29292929-2929-4929-8929-292929292929",
+    commandType: "SYNC_PROVIDER_ASSET",
+    approvalId: null,
+    payload: { assetId },
+  });
+  await assert.rejects(
+    () => service.execute(sync),
+    (error: unknown) => error instanceof CanvasCommandServiceError && error.code === "CANVAS_PROVIDER_FAILED",
+  );
+  const persisted = JSON.parse(String((await db("sc_canvas_v1_events").first()).eventJson)) as CanvasEventV01;
+  assert.equal(persisted.status, "failed");
+  assert.equal(persisted.error?.code, "CANVAS_PROVIDER_FAILED");
+});

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
-import { CanvasCommandServiceError, toCanvasCommandServiceError } from "./errors";
+import { CanvasCommandServiceError, toCanvasHttpError } from "./errors";
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const FORBIDDEN_KEYS = new Set([
@@ -27,7 +27,7 @@ export function installCanvasResponseBoundary(request: Request, response: Respon
 }
 
 export function sendCanvasError(response: Response, error: unknown): void {
-  const safe = toCanvasCommandServiceError(error);
+  const safe = toCanvasHttpError(error);
   response.status(safe.status).json({
     error: {
       code: safe.code,

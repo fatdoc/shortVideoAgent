@@ -24,6 +24,51 @@ const shotId = "66666666-6666-4666-8666-666666666666";
 const occurredAt = "2026-08-14T02:00:00.000Z";
 const origin = "https://pilot.example.test";
 
+test("runtime aggregate wires controlled media into the formal preview route", async (context) => {
+  const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
+  context.after(() => database.destroy());
+  const authority = {
+    actorId,
+    redemption: { tenantId, projectId, packageId },
+    expiresAt: "2099-08-14T03:00:00.000Z",
+  } as unknown as PilotCanvasServerAuthority;
+  let opened = 0;
+  const application = express();
+  application.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
+    database,
+    allowedOrigin: origin,
+    verifySession: async () => ({ actorId, tenantId, organizationType: "TENANT", roles: ["content_operator"] }),
+    readAuthority: (id) => id === canvasSessionId ? authority : null,
+    acceptAuthority: async () => 42,
+    controlledMedia: { open: async (input) => {
+      opened += 1;
+      assert.equal(input.scope.canvasSessionId, canvasSessionId);
+      assert.equal(input.assetId, assetId);
+      assert.equal(input.range, "bytes=0-4");
+      return {
+        status: 206,
+        contentType: "video/mp4",
+        contentLength: 5,
+        contentRange: "bytes 0-4/5",
+        acceptRanges: "bytes",
+        body: new Response(Buffer.from("video")).body!,
+      };
+    } },
+  }));
+  const server = http.createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const response = await fetch(`http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/media/${assetId}/preview`, {
+    headers: { origin, cookie: "videoagent_session=valid", "x-canvas-session-id": canvasSessionId, range: "bytes=0-4" },
+  });
+  assert.equal(response.status, 206);
+  assert.equal(await response.text(), "video");
+  assert.equal(response.headers.get("content-range"), "bytes 0-4/5");
+  assert.equal(opened, 1);
+});
+
 const asset: AssetRecordV01 = {
   objectType: "AssetRecord",
   contractVersion: "0.1",

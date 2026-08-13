@@ -64,6 +64,7 @@ export interface CanvasV1RuntimeRouterOptions {
   capabilityAvailable?: () => boolean;
   assetMaterializationClient?: CanvasAssetMaterializationPort;
   projectsRoot?: string;
+  controlledMedia?: Pick<CanvasV1ControlledMediaService, "open">;
 }
 
 function sessionId(request: Request): string {
@@ -158,7 +159,8 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     projectsRoot: options.projectsRoot ?? getPath("projects"),
     now: options.now,
   }) : null;
-  const controlledMedia = new CanvasV1ControlledMediaService({ database: options.database, now: options.now });
+  const controlledMedia = options.controlledMedia
+    ?? new CanvasV1ControlledMediaService({ database: options.database, now: options.now });
 
   const resolveRequestScope = async (
     request: Request,
@@ -268,6 +270,6 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
         });
       },
     },
-    media: controlledMedia,
+    media: { media: controlledMedia },
   });
 }
