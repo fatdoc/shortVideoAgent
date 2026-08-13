@@ -1,6 +1,5 @@
 // import "./logger";
 import "./err";
-import "./env";
 import express, { Request, Response, NextFunction } from "express";
 import { Server } from "socket.io";
 import http from "node:http";
@@ -18,10 +17,19 @@ import { ensureThumbnail, ThumbnailSize } from "@/utils/image";
 import { databaseReady, db } from "@/utils/db";
 import { initializeModels } from "@/config/initializeModels";
 import { capturePilotV02RawBody } from "@/routes/production/v0.2";
-import { getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
+import { closePilotCanvasRuntimeResources, getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
+import pilotCanvasBootstrapRouter, { clearPilotCanvasAuthorityRegistry } from "@/routes/production/pilot/canvas/bootstrap";
+import pilotCanvasCapabilityRouter from "@/routes/production/pilot/canvas/capability";
 
 const app = express();
 const server = http.createServer(app);
+let socketServer: Server | null = null;
+let webSocketServer: ReturnType<typeof expressWs>["getWss"] extends () => infer T ? T | null : never = null;
+
+function installPilotCanvasRequestBoundary() {
+  app.use("/api/production/pilot/canvas/bootstrap", pilotCanvasBootstrapRouter);
+  app.use("/api/production/pilot/canvas/capability", pilotCanvasCapabilityRouter);
+}
 
 async function checkPermissions() {
   if (!isEletron()) return true;
@@ -56,17 +64,22 @@ export default async function startServe(randomPort: Boolean = false) {
     }
   }
   await databaseReady;
-  await initializeModels(db);
-
-  await u.writeVersion();
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") {
+    await initializeModels(db);
+    await u.writeVersion();
+  }
   const io = new Server(server, { cors: { origin: "*" } });
+  socketServer = io;
   socketInit(io);
 
   if (process.env.NODE_ENV == "dev") await buildRoute();
 
-  expressWs(app);
+  const ws = expressWs(app, server);
+  webSocketServer = ws.getWss();
 
-  app.use(logger("dev"));
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") {
+    app.use(logger("dev"));
+  }
   const corsOptions: CorsOptionsDelegate<Request> = (request, callback) => {
     if (request.path.startsWith("/api/production/pilot/canvas/")) {
       const allowedOrigin = process.env.STORYCANVAS_PILOT_ALLOWED_ORIGIN?.trim();
@@ -81,6 +94,7 @@ export default async function startServe(randomPort: Boolean = false) {
     callback(null, { origin: "*" });
   };
   app.use(cors(corsOptions));
+  installPilotCanvasRequestBoundary();
   app.use(express.json({ limit: "100mb", verify: capturePilotV02RawBody }));
   app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
@@ -89,7 +103,6 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(ossDir)) {
     fs.mkdirSync(ossDir, { recursive: true });
   }
-  console.log("文件目录:", ossDir);
   app.use(
     "/oss",
     (req, res, next) => {
@@ -147,7 +160,6 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(skillsDir)) {
     fs.mkdirSync(skillsDir, { recursive: true });
   }
-  console.log("文件目录:", skillsDir);
   // 只允许图片文件访问
   app.use(
     "/skills",
@@ -162,7 +174,6 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }
-  console.log("文件目录:", assetsDir);
   app.use("/assets", express.static(assetsDir, { acceptRanges: false }));
 
   // StoryCanvas UI is integrated into the root SaaS application. This process
@@ -175,6 +186,9 @@ export default async function startServe(randomPort: Boolean = false) {
   app.get("/favicon.ico", (_req, res) => res.status(204).end());
 
   app.use(async (req, res, next) => {
+    if (req.path.startsWith("/api/production/pilot/canvas/")) {
+      return next();
+    }
     const setting = await u.db("o_setting").where("key", "tokenKey").select("value").first();
     if (!setting) return res.status(444).send({ message: "服务器秘钥未配置，请联系管理员" });
     const { value: tokenKey } = setting;
@@ -187,7 +201,6 @@ export default async function startServe(randomPort: Boolean = false) {
       req.path === "/api/login/login"
       || req.path.startsWith("/api/production/v0.1/")
       || req.path.startsWith("/api/production/v0.2/")
-      || req.path.startsWith("/api/production/pilot/canvas/")
     ) {
       return next();
     }
@@ -214,7 +227,7 @@ export default async function startServe(randomPort: Boolean = false) {
   app.use((err: any, _: Request, res: Response, __: NextFunction) => {
     res.locals.message = err.message;
     res.locals.error = err;
-    console.error(err);
+    if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") console.error(err);
     res.status(err.status || 500).send(err);
   });
 
@@ -243,20 +256,19 @@ export default async function startServe(randomPort: Boolean = false) {
 }
 
 // 支持await关闭
-export function closeServe(timeoutMs = 5000): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (server.listening) {
-      const timer = setTimeout(() => server.closeAllConnections(), timeoutMs);
-      server.close((err?: Error) => {
-        clearTimeout(timer);
-        if (err) return reject(err);
-        console.log("PILOT_CANVAS_RUNTIME_STOPPED");
-        resolve();
-      });
-    } else {
-      resolve();
-    }
+export async function closeServe(timeoutMs = 5000, signal: "SIGTERM" | "SIGINT" = "SIGTERM"): Promise<void> {
+  await closePilotCanvasRuntimeResources({
+    signal,
+    timeoutMs,
+    registry: { clear: clearPilotCanvasAuthorityRegistry },
+    http: server,
+    socketIo: socketServer,
+    webSocket: webSocketServer,
   });
+  await db.destroy();
+  socketServer = null;
+  webSocketServer = null;
+  console.log("PILOT_CANVAS_RUNTIME_STOPPED");
 }
 
 const isElectron =
@@ -264,14 +276,19 @@ const isElectron =
   process.env.ELECTRON_RUN_AS_NODE !== "1";
 if (!isElectron) {
   void startServe().catch(() => {
-    console.error("PILOT_CANVAS_RUNTIME_BLOCKED");
+    console.log("PILOT_CANVAS_RUNTIME_BLOCKED");
     process.exitCode = 1;
   });
-  const shutdown = () => {
-    void closeServe(5000).finally(() => {
+  let shuttingDown = false;
+  const shutdown = (signal: "SIGTERM" | "SIGINT") => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    void closeServe(5000, signal).then(() => {
       process.exitCode = 0;
+    }).catch(() => {
+      process.exitCode = 1;
     });
   };
-  process.once("SIGTERM", shutdown);
-  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }
