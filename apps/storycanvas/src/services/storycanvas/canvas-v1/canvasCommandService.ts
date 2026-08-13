@@ -128,14 +128,19 @@ export class CanvasCommandService {
     const existing = await this.options.database<CommandRow>("sc_canvas_v1_commands")
       .where(commandScope(command)).first();
     if (existing) {
-      if (existing.payloadDigest !== digest) throw new CanvasCommandServiceError("CANVAS_COMMAND_IDEMPOTENCY_CONFLICT");
+      if (existing.commandId !== command.commandId || existing.payloadDigest !== digest) {
+        throw new CanvasCommandServiceError("CANVAS_COMMAND_IDEMPOTENCY_CONFLICT");
+      }
       if (!existing.resultEventJson) throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
       const event = parseCanvasV1Contract(JSON.parse(existing.resultEventJson));
       if (event.objectType !== "CanvasEvent") throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
+      if (command.commandType === "GENERATE_SHOT" && event.status === "accepted") {
+        return this.generate(command, scope, digest, event as CanvasEventV01);
+      }
       return { ...event, replayed: true };
     }
 
-    if (HIGH_COST_COMMANDS.has(command.commandType)) {
+    if (HIGH_COST_COMMANDS.has(command.commandType) && command.commandType !== "GENERATE_SHOT") {
       if (!command.approvalId) throw new CanvasCommandServiceError("CANVAS_APPROVAL_REQUIRED");
       if (!await this.options.validateApproval(command, scope)) throw new CanvasCommandServiceError("CANVAS_APPROVAL_INVALID");
     }
@@ -219,7 +224,12 @@ export class CanvasCommandService {
     });
   }
 
-  private async generate(command: CanvasCommandV01, scope: CanvasProductionScope, digest: string): Promise<CanvasEventV01> {
+  private async generate(
+    command: CanvasCommandV01,
+    scope: CanvasProductionScope,
+    digest: string,
+    recovering?: CanvasEventV01,
+  ): Promise<CanvasEventV01> {
     const payload = command.payload as Extract<CanvasCommandV01["payload"], { readinessId: string }>;
     const readiness = await this.options.getReadiness(payload.readinessId, scope);
     if (!readiness || readiness.readinessId !== payload.readinessId || readiness.shotId !== payload.shotId || !readiness.ready) {
@@ -234,9 +244,13 @@ export class CanvasCommandService {
       || referenceAssetUris.some((uri) => !uri.startsWith("asset://"))) {
       throw new CanvasCommandServiceError("CANVAS_PROVIDER_NOT_ACTIVE");
     }
+    if (!command.approvalId) throw new CanvasCommandServiceError("CANVAS_APPROVAL_REQUIRED");
+    if (!await this.options.validateApproval(command, scope)) {
+      throw new CanvasCommandServiceError("CANVAS_APPROVAL_INVALID");
+    }
 
-    const accepted = this.event(command, {});
-    await this.persist(command, digest, accepted);
+    const accepted = recovering ?? this.event(command, {});
+    if (!recovering) await this.persist(command, digest, accepted);
     try {
       const started = await this.options.startShotProduction({
         scope,
@@ -252,6 +266,7 @@ export class CanvasCommandService {
         providerSubmitted: true,
         taskCreated: true,
         taskId: started.taskId,
+        replayed: Boolean(recovering),
       });
       await this.updateEvent(command, taskCreated);
       return taskCreated;

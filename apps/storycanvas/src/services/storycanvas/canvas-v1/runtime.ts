@@ -10,7 +10,6 @@ import {
 } from "@/contracts/canvas-v1";
 import { createCanvasV1ProductionRouter } from "@/routes/production/pilot/canvas/commands";
 import type {
-  PilotCanvasRedemption,
   PilotCanvasSessionContext,
   PilotCanvasServerAuthority,
 } from "../pilotCanvasCapability";
@@ -18,10 +17,7 @@ import type { CanvasProductionScope } from "../assets-v1";
 import { CanvasCommandService } from "./canvasCommandService";
 import { CanvasDocumentStore } from "./documentStore";
 import { CanvasCommandServiceError } from "./errors";
-
-interface AcceptedPackageRow {
-  internalProjectId: number | null;
-}
+import { acceptCanvasV1RuntimeAuthority } from "./runtimeAuthorityAcceptance";
 
 interface ProjectionRow {
   projectionJson: string;
@@ -36,6 +32,10 @@ export interface CanvasV1RuntimeRouterOptions {
   allowedOrigin: string;
   verifySession(cookie: string): Promise<PilotCanvasSessionContext | null>;
   readAuthority(canvasSessionId: string): PilotCanvasServerAuthority | null;
+  acceptAuthority?(
+    database: Knex,
+    approvedPackage: PilotCanvasServerAuthority["redemption"]["productionPackage"],
+  ): Promise<number>;
   validateApproval?(command: CanvasCommandV01, scope: CanvasProductionScope): Promise<boolean>;
   startShotProduction?: ConstructorParameters<typeof CanvasCommandService>[0]["startShotProduction"];
 }
@@ -48,24 +48,6 @@ function sessionId(request: Request): string {
     throw new CanvasCommandServiceError("CANVAS_SESSION_INVALID");
   }
   return candidate;
-}
-
-async function localProjectId(database: Knex, redemption: PilotCanvasRedemption): Promise<number> {
-  const row = await database<AcceptedPackageRow>("sc_production_packages")
-    .where({
-      tenantId: redemption.tenantId,
-      externalProjectId: redemption.projectId,
-      packageId: redemption.packageId,
-      status: "accepted",
-    })
-    .whereNotNull("internalProjectId")
-    .orderBy("acceptedAt", "desc")
-    .first();
-  const value = Number(row?.internalProjectId);
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
-  }
-  return value;
 }
 
 async function serverScope(
@@ -83,7 +65,10 @@ async function serverScope(
     packageId: redemption.packageId,
     canvasSessionId,
     actorId: authority.actorId,
-    localProjectId: await localProjectId(options.database, redemption),
+    localProjectId: await (options.acceptAuthority ?? acceptCanvasV1RuntimeAuthority)(
+      options.database,
+      redemption.productionPackage,
+    ),
   };
 }
 

@@ -28,6 +28,11 @@ import pilotCanvasBootstrapRouter, {
 } from "@/routes/production/pilot/canvas/bootstrap";
 import pilotCanvasCapabilityRouter from "@/routes/production/pilot/canvas/capability";
 import { createCanvasV1RuntimeRouter } from "@/services/storycanvas/canvas-v1/runtime";
+import { ControlCanvasApprovalClient } from "@/services/storycanvas/canvas-v1/controlApprovalClient";
+import {
+  CanvasV1ShotProductionAdapter,
+  isCanvasV1ShotProductionConfigured,
+} from "@/services/storycanvas/canvas-v1/shotProductionAdapter";
 
 const app = express();
 const server = http.createServer(app);
@@ -40,11 +45,55 @@ function installPilotCanvasRequestBoundary() {
   if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true") {
     const controlApiBaseUrl = process.env.CONTROL_API_BASE_URL?.trim() ?? "";
     const allowedOrigin = process.env.STORYCANVAS_PILOT_ALLOWED_ORIGIN?.trim() ?? "";
+    const internalToken = process.env.PRODUCTION_PLANE_INTERNAL_TOKEN?.trim() ?? "";
+    const approvalClient = new ControlCanvasApprovalClient({
+      controlApiBaseUrl,
+      internalToken,
+    });
+    const production = new CanvasV1ShotProductionAdapter({
+      database: db,
+      readiness: () => isCanvasV1ShotProductionConfigured(),
+      resolveApprovedPackage: (scope) => {
+        const authority = readPilotCanvasServerAuthority(scope.canvasSessionId);
+        if (
+          !authority ||
+          authority.actorId !== scope.actorId ||
+          authority.redemption.tenantId !== scope.tenantId ||
+          authority.redemption.projectId !== scope.projectId ||
+          authority.redemption.packageId !== scope.packageId
+        ) return null;
+        return authority.redemption.productionPackage;
+      },
+    });
     app.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
       database: db,
       allowedOrigin,
       verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
       readAuthority: readPilotCanvasServerAuthority,
+      validateApproval: (command, scope) => {
+        if (!isCanvasV1ShotProductionConfigured()) return Promise.resolve(false);
+        const authority = readPilotCanvasServerAuthority(scope.canvasSessionId);
+        const payload = command.payload as { shotId?: unknown };
+        if (
+          !authority ||
+          authority.actorId !== scope.actorId ||
+          authority.redemption.tenantId !== scope.tenantId ||
+          authority.redemption.projectId !== scope.projectId ||
+          authority.redemption.packageId !== scope.packageId ||
+          !["16:9", "9:16"].includes(
+            authority.redemption.productionPackage.target.aspectRatio,
+          ) ||
+          !authority.redemption.productionPackage.capabilityRequirements.includes(
+            "video.generate",
+          ) ||
+          typeof payload.shotId !== "string" ||
+          !authority.redemption.productionPackage.storyboard.some(
+            (shot) => shot.shotId === payload.shotId,
+          )
+        ) return Promise.resolve(false);
+        return approvalClient.consume(command, scope);
+      },
+      startShotProduction: (input) => production.start(input),
     }));
   }
 }
