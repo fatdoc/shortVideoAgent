@@ -220,9 +220,9 @@ test("browser bootstrap enforces Session, Origin and CSRF and returns only a saf
   application.use("/api/production/pilot/canvas/bootstrap", createPilotCanvasBootstrapRouter({
     allowedOrigin: "https://pilot.example.test",
     verifySession: async (cookie) => cookie === "videoagent_session=session-value"
-      ? { tenantId, organizationType: "TENANT" as const, roles: ["content_operator" as const] }
+      ? { actorId: tenantId, tenantId, organizationType: "TENANT" as const, roles: ["content_operator" as const] }
       : cookie === "videoagent_session=no-production-role"
-        ? { tenantId, organizationType: "TENANT" as const, roles: ["pilot_support" as const] }
+        ? { actorId: tenantId, tenantId, organizationType: "TENANT" as const, roles: ["pilot_support" as const] }
         : null,
     redeem: async () => ({ authorityId: "server-authority-1", expiresAt: "2026-08-12T01:30:00.000Z", requestId: "request-bootstrap" }),
   }));
@@ -320,11 +320,17 @@ test("authority registry and shutdown expose bounded lifecycle semantics", async
       return redemption() as never;
     },
   } as never, { capacity: 2, now: () => clock });
-  const first = await registry.openEntry(entry);
-  assert.equal((await registry.openEntry(entry)).authorityId, first.authorityId);
+  const first = await registry.openEntry(entry, userId);
+  assert.equal((await registry.openEntry(entry, userId)).authorityId, first.authorityId);
   assert.equal(calls, 1);
-  await registry.openEntry({ ...entry, handle: `ce_${"B".repeat(32)}` });
-  const third = await registry.openEntry({ ...entry, handle: `ce_${"C".repeat(32)}` });
+  const secondActorId = "99999999-9999-4999-8999-999999999999";
+  const secondActor = await registry.openEntry(entry, secondActorId);
+  assert.notEqual(secondActor.authorityId, first.authorityId);
+  assert.equal(registry.readServerSessionAuthority(first.authorityId)?.actorId, userId);
+  assert.equal(registry.readServerSessionAuthority(secondActor.authorityId)?.actorId, secondActorId);
+  assert.equal(calls, 2);
+  await registry.openEntry({ ...entry, handle: `ce_${"B".repeat(32)}` }, userId);
+  const third = await registry.openEntry({ ...entry, handle: `ce_${"C".repeat(32)}` }, userId);
   assert.equal(registry.activeCount(), 2);
   assert.equal(registry.readServerAuthority(first.authorityId), null);
 

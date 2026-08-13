@@ -3,6 +3,7 @@ import coreMigration from "../../migrations/001_storycanvas_core";
 import continuityMemoryMigration from "../../migrations/002_storycanvas_continuity_memory";
 import productionContractMigration from "../../migrations/003_storycanvas_production_contract";
 import pilotContractV02ReceiverMigration from "../../migrations/004_pilot_contract_v02_receiver";
+import canvasV1AssetCommandMigration from "../../migrations/005_canvas_v1_asset_command";
 import type { StoryCanvasMigration } from "../../migrations/types";
 
 export const storyCanvasMigrations: StoryCanvasMigration[] = [
@@ -10,6 +11,7 @@ export const storyCanvasMigrations: StoryCanvasMigration[] = [
   continuityMemoryMigration,
   productionContractMigration,
   pilotContractV02ReceiverMigration,
+  canvasV1AssetCommandMigration,
 ];
 
 export async function ensureMigrationRegistry(knex: Knex) {
@@ -49,10 +51,11 @@ export async function runStoryCanvasMigrations(knex: Knex, migrations = storyCan
 
 export async function rollbackLatestStoryCanvasMigration(knex: Knex, migrations = storyCanvasMigrations): Promise<string | null> {
   await ensureMigrationRegistry(knex);
-  const rows = await knex("sc_migrations").orderBy("appliedAt", "desc");
-  const latest = rows.find((row) => migrations.some((migration) => migration.version === row.version));
-  if (!latest) return null;
-  const migration = migrations.find((candidate) => candidate.version === latest.version)!;
+  const rows = await knex("sc_migrations").select("version", "checksum", "appliedAt");
+  const appliedByVersion = new Map(rows.map((row) => [row.version, row]));
+  const migration = [...migrations].reverse().find((candidate) => appliedByVersion.has(candidate.version));
+  const latest = migration ? appliedByVersion.get(migration.version) : undefined;
+  if (!migration || !latest) return null;
   if (latest.checksum !== migration.checksum) throw new Error(`Migration ${migration.version} checksum 不一致，拒绝回滚`);
 
   await knex.transaction(async (transaction) => {

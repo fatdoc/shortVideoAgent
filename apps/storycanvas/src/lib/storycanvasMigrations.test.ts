@@ -26,10 +26,11 @@ test("StoryCanvas migrations create the core and continuity tables idempotently"
     "002_storycanvas_continuity_memory",
     "003_storycanvas_production_contract",
     "004_pilot_contract_v02_receiver",
+    "005_canvas_v1_asset_command",
   ]);
-  assert.equal((await storyCanvasTables(database)).length, 28);
+  assert.equal((await storyCanvasTables(database)).length, 36);
   assert.deepEqual(await runStoryCanvasMigrations(database), []);
-  assert.equal((await database("sc_migrations")).length, 4);
+  assert.equal((await database("sc_migrations")).length, 5);
 });
 
 test("checksum drift is rejected", async (context) => {
@@ -46,6 +47,8 @@ test("rollback removes StoryCanvas domain tables without touching upstream table
   const database = await createDatabase();
   context.after(() => database.destroy());
   await runStoryCanvasMigrations(database);
+  assert.equal(await rollbackLatestStoryCanvasMigration(database), "005_canvas_v1_asset_command");
+  assert.equal((await storyCanvasTables(database)).length, 28);
   assert.equal(await rollbackLatestStoryCanvasMigration(database), "004_pilot_contract_v02_receiver");
   assert.equal((await storyCanvasTables(database)).length, 23);
   assert.equal(await rollbackLatestStoryCanvasMigration(database), "003_storycanvas_production_contract");

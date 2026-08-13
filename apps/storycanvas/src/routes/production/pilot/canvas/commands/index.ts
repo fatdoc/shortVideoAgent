@@ -20,23 +20,33 @@ import {
 } from "../documents";
 
 export interface CanvasV1ProductionRouterOptions {
-  resolveRequestScope(request: express.Request): Promise<CanvasProductionScope>;
+  resolveRequestScope(
+    request: express.Request,
+    response?: express.Response,
+  ): Promise<CanvasProductionScope>;
   commandService: Pick<CanvasCommandService, "execute">;
   assets: CanvasV1AssetRouteService;
   documents: CanvasV1DocumentRouteService;
   bodyLimit?: string | number;
 }
 
-export function createCanvasV1CommandsRouter(
-  service?: Pick<CanvasCommandService, "execute">,
-): express.Router {
+export function createCanvasV1CommandsRouter(options?: {
+  service: Pick<CanvasCommandService, "execute">;
+  resolveRequestScope(
+    request: express.Request,
+    response?: express.Response,
+  ): Promise<CanvasProductionScope>;
+}): express.Router {
   const router = express.Router();
   router.post("/", asyncCanvasRoute(async (request, response) => {
-    if (!service) {
+    if (!options) {
       const { CanvasCommandServiceError } = await import("@/services/storycanvas/canvas-v1");
       throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
     }
-    const event: CanvasEventV01 = await service.execute(request.body);
+    // Resolve the authenticated HTTP Session/Origin authority before allowing
+    // the body-level command service to inspect or persist a command.
+    await options.resolveRequestScope(request, response);
+    const event: CanvasEventV01 = await options.service.execute(request.body);
     response.status(event.replayed ? 200 : 202).json({
       event: parseCanvasV1BrowserContract(event),
       requestId: response.locals.canvasRequestId,
@@ -56,7 +66,10 @@ export function createCanvasV1ProductionRouter(options?: CanvasV1ProductionRoute
     resolveRequestScope: options.resolveRequestScope,
     assets: options.assets,
   } : undefined));
-  router.use("/commands", createCanvasV1CommandsRouter(options?.commandService));
+  router.use("/commands", createCanvasV1CommandsRouter(options ? {
+    service: options.commandService,
+    resolveRequestScope: options.resolveRequestScope,
+  } : undefined));
   router.use("/documents", createCanvasV1DocumentsRouter(options ? {
     resolveRequestScope: options.resolveRequestScope,
     documents: options.documents,

@@ -19,6 +19,10 @@ export function clearPilotCanvasAuthorityRegistry(): void {
   delegate = null;
 }
 
+export function readPilotCanvasServerAuthority(authorityId: string) {
+  return authorityRegistry?.readServerSessionAuthority(authorityId) ?? null;
+}
+
 function loadDelegate(): express.Router | null {
   if (delegate) return delegate;
   if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") return null;
@@ -33,7 +37,7 @@ function loadDelegate(): express.Router | null {
     delegate = createPilotCanvasSafeBootstrapRouter({
       allowedOrigin,
       verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
-      redeem: (entry) => authorityRegistry!.openEntry(entry),
+      redeem: (entry, session) => authorityRegistry!.openEntry(entry, session.actorId),
     });
     return delegate;
   } catch (error) {

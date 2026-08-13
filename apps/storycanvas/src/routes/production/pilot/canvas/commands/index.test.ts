@@ -97,7 +97,11 @@ test("commands require CSRF and use the common command service", async () => {
   assert.equal(executed, 0);
   const accepted = await fetch(`${baseUrl}/commands`, {
     method: "POST",
-    headers: { "content-type": "application/json", "x-storycanvas-csrf": "pilot-canvas-v1" },
+    headers: {
+      "content-type": "application/json",
+      "x-storycanvas-csrf": "pilot-canvas-v1",
+      "x-canvas-session-id": scope.canvasSessionId,
+    },
     body: JSON.stringify({ safe: true }),
   });
   assert.equal(accepted.status, 202);

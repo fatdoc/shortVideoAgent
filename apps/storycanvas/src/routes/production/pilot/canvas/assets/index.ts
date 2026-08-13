@@ -15,7 +15,10 @@ export interface CanvasV1AssetRouteService {
 }
 
 export interface CanvasV1AssetsRouterOptions {
-  resolveRequestScope(request: express.Request): Promise<CanvasProductionScope>;
+  resolveRequestScope(
+    request: express.Request,
+    response?: express.Response,
+  ): Promise<CanvasProductionScope>;
   assets: CanvasV1AssetRouteService;
 }
 
@@ -23,7 +26,7 @@ export function createCanvasV1AssetsRouter(options?: CanvasV1AssetsRouterOptions
   const router = express.Router();
   router.get("/", asyncCanvasRoute(async (request, response) => {
     if (!options) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
-    const scope = await options.resolveRequestScope(request);
+    const scope = await options.resolveRequestScope(request, response);
     const assets = await options.assets.list(scope);
     response.json({
       assets: assets.map((asset) => parseCanvasV1BrowserContract(asset)),
@@ -32,7 +35,7 @@ export function createCanvasV1AssetsRouter(options?: CanvasV1AssetsRouterOptions
   }));
   router.get("/readiness/:shotId", asyncCanvasRoute(async (request, response) => {
     if (!options) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
-    const scope = await options.resolveRequestScope(request);
+    const scope = await options.resolveRequestScope(request, response);
     const readiness = await options.assets.getReadiness(String(request.params.shotId), scope);
     if (!readiness) throw new CanvasCommandServiceError("CANVAS_SHOT_NOT_READY");
     response.json({ readiness: parseCanvasV1BrowserContract(readiness), requestId: response.locals.canvasRequestId });

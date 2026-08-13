@@ -188,7 +188,7 @@ test("four-layer readiness is ordered and fails closed for rights, provider, bin
   assert.equal(normalizeProviderAssetStatus(undefined), "unavailable");
 });
 
-test("a missing entity binding remains the exact additive-contract RED until CV1 amendment lands", () => {
+test("a missing entity binding uses the amended exact null status and stable reason", () => {
   const readiness = evaluateShotReadiness({
     scope,
     requirement: requirement(),

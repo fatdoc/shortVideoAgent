@@ -164,9 +164,9 @@ export class PilotCanvasRedemptionClient {
 }
 
 type PilotRole = "platform_admin" | "channel_admin" | "tenant_admin" | "content_operator" | "pilot_support";
-export interface PilotCanvasSessionContext { tenantId: string; organizationType: "TENANT"; roles: readonly PilotRole[]; setCookie?: string; }
+export interface PilotCanvasSessionContext { actorId: string; tenantId: string; organizationType: "TENANT"; roles: readonly PilotRole[]; setCookie?: string; }
 export interface BrowserSafeCanvasBootstrap { schemaVersion: "pilot-canvas-bootstrap.v1"; status: "ready"; projectId: string; packageId: string; canvasSessionId: string; expiresAt: string; requestId: string; }
-export interface PilotCanvasBootstrapRouterOptions { allowedOrigin: string; verifySession(cookie: string): Promise<PilotCanvasSessionContext | null>; redeem(entry: PilotCanvasEntryReference): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }>; }
+export interface PilotCanvasBootstrapRouterOptions { allowedOrigin: string; verifySession(cookie: string): Promise<PilotCanvasSessionContext | null>; redeem(entry: PilotCanvasEntryReference, session: PilotCanvasSessionContext): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }>; }
 function requestId(request: Request): string { const supplied = request.header("x-request-id"); return supplied && REQUEST_ID_PATTERN.test(supplied) ? supplied : crypto.randomUUID(); }
 function safeBrowserError(response: ExpressResponse, status: number, code: string, retryable: boolean, id: string): void { response.setHeader("cache-control", "no-store"); response.setHeader("x-request-id", id); response.status(status).json({ error: { code, message: "Pilot Canvas could not be opened.", retryable, requestId: id } }); }
 function safeRequestBodyError(response: ExpressResponse, status: 400 | 413, code: string, message: string, id: string): void {
@@ -186,7 +186,7 @@ export function createPilotCanvasBootstrapRouter(options: PilotCanvasBootstrapRo
     if (session.organizationType !== "TENANT" || session.tenantId !== parsed.data.tenantId) { safeBrowserError(response, 404, "PILOT_CANVAS_NOT_FOUND", false, id); return; }
     if (!session.roles.some((role) => role === "tenant_admin" || role === "content_operator")) { safeBrowserError(response, 403, "PILOT_CANVAS_FORBIDDEN", false, id); return; }
     try {
-      const authority = await options.redeem(parsed.data); const output: BrowserSafeCanvasBootstrap = { schemaVersion: "pilot-canvas-bootstrap.v1", status: "ready", projectId: parsed.data.projectId, packageId: parsed.data.packageId, canvasSessionId: authority.authorityId, expiresAt: authority.expiresAt, requestId: authority.requestId ?? id };
+      const authority = await options.redeem(parsed.data, session); const output: BrowserSafeCanvasBootstrap = { schemaVersion: "pilot-canvas-bootstrap.v1", status: "ready", projectId: parsed.data.projectId, packageId: parsed.data.packageId, canvasSessionId: authority.authorityId, expiresAt: authority.expiresAt, requestId: authority.requestId ?? id };
       if (session.setCookie) response.setHeader("set-cookie", session.setCookie); response.setHeader("x-request-id", output.requestId); response.status(200).json(output);
     } catch (error) {
       if (error instanceof PilotCanvasRedemptionError) { const status = [401, 404, 409, 410, 422, 500, 503].includes(error.status) ? error.status : 500; safeBrowserError(response, status, error.code, error.retryable, error.requestId ?? id); return; }
@@ -215,7 +215,7 @@ export function createPilotCanvasSafeBootstrapRouter(options: PilotCanvasBootstr
   return router;
 }
 
-const sessionResponseSchema = z.object({ session: z.object({ activeContext: z.object({ organizationType: z.literal("TENANT"), tenantId: uuid, roles: z.array(z.enum(["platform_admin", "channel_admin", "tenant_admin", "content_operator", "pilot_support"])) }).passthrough() }).passthrough() }).passthrough();
+const sessionResponseSchema = z.object({ session: z.object({ user: z.object({ id: uuid }).passthrough(), activeContext: z.object({ organizationType: z.literal("TENANT"), tenantId: uuid, roles: z.array(z.enum(["platform_admin", "channel_admin", "tenant_admin", "content_operator", "pilot_support"])) }).passthrough() }).passthrough() }).passthrough();
 export function createControlApiSessionVerifier(options: { controlApiBaseUrl: string; fetchImpl?: PilotCanvasFetch }) {
   const baseUrl = validBaseUrl(options.controlApiBaseUrl); if (!baseUrl) throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false); const fetchImpl = options.fetchImpl ?? fetch;
   return async (cookie: string): Promise<PilotCanvasSessionContext | null> => {
@@ -224,12 +224,18 @@ export function createControlApiSessionVerifier(options: { controlApiBaseUrl: st
     catch { throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true); }
     if (response.status === 401) return null; if (!response.ok) throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true, safeRequestId(response));
     const parsed = sessionResponseSchema.safeParse(await response.json().catch(() => null)); if (!parsed.success) throw new PilotCanvasRedemptionError("PILOT_CANVAS_INVALID_RESPONSE", 502, false, safeRequestId(response));
-    return { tenantId: parsed.data.session.activeContext.tenantId, organizationType: "TENANT", roles: parsed.data.session.activeContext.roles, setCookie: response.headers.get("set-cookie") ?? undefined };
+    return { actorId: parsed.data.session.user.id, tenantId: parsed.data.session.activeContext.tenantId, organizationType: "TENANT", roles: parsed.data.session.activeContext.roles, setCookie: response.headers.get("set-cookie") ?? undefined };
   };
 }
 
+export interface PilotCanvasServerAuthority {
+  actorId: string;
+  redemption: PilotCanvasRedemption;
+  expiresAt: string;
+}
+
 export class PilotCanvasAuthorityRegistry {
-  private readonly values = new Map<string, { redemption: PilotCanvasRedemption; expiresAt: string; entryKey: string }>();
+  private readonly values = new Map<string, { actorId: string; redemption: PilotCanvasRedemption; expiresAt: string; entryKey: string }>();
   private readonly authorityByEntry = new Map<string, string>();
   private readonly capacity: number;
   private readonly now: () => number;
@@ -245,9 +251,10 @@ export class PilotCanvasAuthorityRegistry {
       throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
     }
   }
-  async openEntry(entry: PilotCanvasEntryReference): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }> {
+  async openEntry(entry: PilotCanvasEntryReference, actorId = entry.tenantId): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }> {
     this.purgeExpired();
-    const entryKey = sha256(canonicalJson(entry));
+    if (!UUID_PATTERN.test(actorId)) throw new PilotCanvasRedemptionError("PILOT_CANVAS_UNAUTHORIZED", 401, false);
+    const entryKey = sha256(canonicalJson({ ...entry, actorId }));
     const existingId = this.authorityByEntry.get(entryKey);
     const existing = existingId ? this.values.get(existingId) : undefined;
     if (existing) {
@@ -267,7 +274,7 @@ export class PilotCanvasAuthorityRegistry {
     }
     const authorityId = `pcs_${crypto.randomBytes(24).toString("base64url")}`;
     const expiresAt = new Date(expiryTime).toISOString();
-    this.values.set(authorityId, { redemption, expiresAt, entryKey });
+    this.values.set(authorityId, { actorId, redemption, expiresAt, entryKey });
     this.authorityByEntry.set(entryKey, authorityId);
     this.emit(this.values.size === this.capacity ? "capacity-filled" : "authority-issued");
     return { authorityId, expiresAt, requestId: null };
@@ -282,6 +289,12 @@ export class PilotCanvasAuthorityRegistry {
       return null;
     }
     return found.redemption;
+  }
+  readServerSessionAuthority(authorityId: string): PilotCanvasServerAuthority | null {
+    const redemption = this.readServerAuthority(authorityId);
+    if (!redemption) return null;
+    const found = this.values.get(authorityId);
+    return found ? { actorId: found.actorId, redemption, expiresAt: found.expiresAt } : null;
   }
   purgeExpired(): number {
     const expired = [...this.values.entries()]

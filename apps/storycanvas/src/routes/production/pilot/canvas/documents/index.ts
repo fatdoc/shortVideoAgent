@@ -16,7 +16,10 @@ export interface CanvasV1DocumentRouteService {
 }
 
 export interface CanvasV1DocumentsRouterOptions {
-  resolveRequestScope(request: express.Request): Promise<CanvasProductionScope>;
+  resolveRequestScope(
+    request: express.Request,
+    response?: express.Response,
+  ): Promise<CanvasProductionScope>;
   documents: CanvasV1DocumentRouteService;
 }
 
@@ -24,7 +27,7 @@ export function createCanvasV1DocumentsRouter(options?: CanvasV1DocumentsRouterO
   const router = express.Router();
   router.get("/:documentId", asyncCanvasRoute(async (request, response) => {
     if (!options) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
-    const scope = await options.resolveRequestScope(request);
+    const scope = await options.resolveRequestScope(request, response);
     const document = await options.documents.read({ scope, documentId: String(request.params.documentId) });
     if (!document) throw new CanvasCommandServiceError("CANVAS_DOCUMENT_VERSION_CONFLICT");
     response.json({ document: parseCanvasV1BrowserContract(document), requestId: response.locals.canvasRequestId });
@@ -35,7 +38,7 @@ export function createCanvasV1DocumentsRouter(options?: CanvasV1DocumentsRouterO
     if (!body || typeof body.documentId !== "string" || !Array.isArray(body.shots) || !body.playlist) {
       throw new CanvasCommandServiceError("CANVAS_SCHEMA_INVALID");
     }
-    const scope = await options.resolveRequestScope(request);
+    const scope = await options.resolveRequestScope(request, response);
     const document = await options.documents.create({
       scope,
       documentId: body.documentId,
