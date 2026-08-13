@@ -23,6 +23,14 @@ import {
   createCanvasV1OutputAssetAssertion,
 } from "./runtimeAssetAdapters";
 import type { BytePlusAssetItem } from "../byteplusAssets";
+import { ControlCanvasWorkspaceAuthorityClient } from "./controlWorkspaceAuthorityClient";
+import {
+  CanvasV1WorkspacePreparer,
+  type CanvasWorkspaceAuthorityPort,
+} from "./workspacePrepare";
+import { CanvasV1WorkspaceReader } from "./workspaceProjection";
+import type { CanvasWorkspaceAuthorityV01 } from "@/contracts/canvas-v1/workspaceMaterialization";
+import { isCanvasV1ShotProductionConfigured } from "./shotProductionAdapter";
 
 interface ProjectionRow {
   projectionJson: string;
@@ -44,6 +52,9 @@ export interface CanvasV1RuntimeRouterOptions {
   validateApproval?(command: CanvasCommandV01, scope: CanvasProductionScope): Promise<boolean>;
   startShotProduction?: ConstructorParameters<typeof CanvasCommandService>[0]["startShotProduction"];
   queryProviderAsset?(providerAssetId: string): Promise<BytePlusAssetItem>;
+  workspaceAuthorityClient?: CanvasWorkspaceAuthorityPort;
+  now?: () => Date;
+  capabilityAvailable?: () => boolean;
 }
 
 function sessionId(request: Request): string {
@@ -102,6 +113,25 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     database: options.database,
     queryProviderAsset: options.queryProviderAsset,
   });
+  let authorityClient = options.workspaceAuthorityClient;
+  if (!authorityClient) {
+    try {
+      authorityClient = new ControlCanvasWorkspaceAuthorityClient({
+        controlApiBaseUrl: process.env.CONTROL_API_BASE_URL?.trim() ?? "",
+        internalToken: process.env.PRODUCTION_PLANE_INTERNAL_TOKEN?.trim() ?? "",
+      });
+    } catch {
+      authorityClient = undefined;
+    }
+  }
+  const preparedAuthorities = new Map<string, CanvasWorkspaceAuthorityV01>();
+  const preparer = authorityClient ? new CanvasV1WorkspacePreparer({
+    database: options.database,
+    authorityClient,
+    now: options.now,
+    capabilityAvailable: options.capabilityAvailable ?? (() => isCanvasV1ShotProductionConfigured()),
+  }) : null;
+  const workspaceReader = new CanvasV1WorkspaceReader({ database: options.database, now: options.now });
 
   const resolveRequestScope = async (
     request: Request,
@@ -175,5 +205,32 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
       },
     },
     documents,
+    formalBootstrap: {
+      prepare: async (scope, requestId) => {
+        if (!preparer) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+        const authority = options.readAuthority(scope.canvasSessionId);
+        if (!authority) throw new CanvasCommandServiceError("CANVAS_SESSION_INVALID");
+        const prepared = await preparer.prepare({
+          scope,
+          approvedPackage: authority.redemption.productionPackage,
+          requestId,
+        });
+        preparedAuthorities.set(scope.canvasSessionId, prepared.authority);
+        return prepared.bootstrap;
+      },
+    },
+    workspace: {
+      read: async (scope, requestId) => {
+        const authority = options.readAuthority(scope.canvasSessionId);
+        const workspaceAuthority = preparedAuthorities.get(scope.canvasSessionId);
+        if (!authority || !workspaceAuthority) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+        return workspaceReader.read({
+          scope,
+          approvedPackage: authority.redemption.productionPackage,
+          authority: workspaceAuthority,
+          requestId,
+        });
+      },
+    },
   });
 }

@@ -18,6 +18,14 @@ import {
   createCanvasV1DocumentsRouter,
   type CanvasV1DocumentRouteService,
 } from "../documents";
+import {
+  createCanvasV1FormalBootstrapRouter,
+  type CanvasV1FormalBootstrapRouterOptions,
+} from "../bootstrap-v1";
+import {
+  createCanvasV1WorkspaceRouter,
+  type CanvasV1WorkspaceRouterOptions,
+} from "../workspace";
 
 export interface CanvasV1ProductionRouterOptions {
   resolveRequestScope(
@@ -27,6 +35,8 @@ export interface CanvasV1ProductionRouterOptions {
   commandService: Pick<CanvasCommandService, "execute">;
   assets: CanvasV1AssetRouteService;
   documents: CanvasV1DocumentRouteService;
+  formalBootstrap?: Omit<CanvasV1FormalBootstrapRouterOptions, "resolveRequestScope">;
+  workspace?: Omit<CanvasV1WorkspaceRouterOptions, "resolveRequestScope">;
   bodyLimit?: string | number;
 }
 
@@ -62,6 +72,14 @@ export function createCanvasV1ProductionRouter(options?: CanvasV1ProductionRoute
   router.use(canvasJsonErrorBoundary);
   router.use(requireCanvasBrowserSafeBody);
   router.use(requireCanvasCsrf);
+  router.use("/bootstrap", createCanvasV1FormalBootstrapRouter(options?.formalBootstrap ? {
+    resolveRequestScope: options.resolveRequestScope,
+    ...options.formalBootstrap,
+  } : undefined));
+  router.use("/workspace", createCanvasV1WorkspaceRouter(options?.workspace ? {
+    resolveRequestScope: options.resolveRequestScope,
+    ...options.workspace,
+  } : undefined));
   router.use("/assets", createCanvasV1AssetsRouter(options ? {
     resolveRequestScope: options.resolveRequestScope,
     assets: options.assets,
