@@ -33,6 +33,7 @@ import {
   CanvasV1ShotProductionAdapter,
   isCanvasV1ShotProductionConfigured,
 } from "@/services/storycanvas/canvas-v1/shotProductionAdapter";
+import { createCanvasV1ApprovalValidator } from "@/services/storycanvas/canvas-v1/runtimeApprovalValidator";
 
 const app = express();
 const server = http.createServer(app);
@@ -65,34 +66,17 @@ function installPilotCanvasRequestBoundary() {
         return authority.redemption.productionPackage;
       },
     });
+    const validateApproval = createCanvasV1ApprovalValidator({
+      readAuthority: readPilotCanvasServerAuthority,
+      shotProductionConfigured: () => isCanvasV1ShotProductionConfigured(),
+      consume: (command, scope) => approvalClient.consume(command, scope),
+    });
     app.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
       database: db,
       allowedOrigin,
       verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
       readAuthority: readPilotCanvasServerAuthority,
-      validateApproval: (command, scope) => {
-        if (!isCanvasV1ShotProductionConfigured()) return Promise.resolve(false);
-        const authority = readPilotCanvasServerAuthority(scope.canvasSessionId);
-        const payload = command.payload as { shotId?: unknown };
-        if (
-          !authority ||
-          authority.actorId !== scope.actorId ||
-          authority.redemption.tenantId !== scope.tenantId ||
-          authority.redemption.projectId !== scope.projectId ||
-          authority.redemption.packageId !== scope.packageId ||
-          !["16:9", "9:16"].includes(
-            authority.redemption.productionPackage.target.aspectRatio,
-          ) ||
-          !authority.redemption.productionPackage.capabilityRequirements.includes(
-            "video.generate",
-          ) ||
-          typeof payload.shotId !== "string" ||
-          !authority.redemption.productionPackage.storyboard.some(
-            (shot) => shot.shotId === payload.shotId,
-          )
-        ) return Promise.resolve(false);
-        return approvalClient.consume(command, scope);
-      },
+      validateApproval,
       startShotProduction: (input) => production.start(input),
     }));
   }
