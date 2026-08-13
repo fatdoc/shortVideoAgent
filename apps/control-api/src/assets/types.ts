@@ -39,7 +39,6 @@ export type CanvasCommandType = (typeof CANVAS_COMMAND_TYPES)[number];
 
 export const HIGH_COST_COMMAND_TYPES = [
   'CREATE_VIRTUAL_CHARACTER',
-  'SYNC_PROVIDER_ASSET',
   'BIND_ASSET_TO_ENTITY',
   'GENERATE_SHOT',
   'SELECT_SHOT_OUTPUT',
