@@ -303,6 +303,7 @@ export interface PilotCanvasServerAuthority {
 export class PilotCanvasAuthorityRegistry {
   private readonly values = new Map<string, { actorId: string; redemption: PilotCanvasRedemption; expiresAt: string; entryKey: string }>();
   private readonly authorityByEntry = new Map<string, string>();
+  private readonly openingByEntry = new Map<string, Promise<{ authorityId: string; expiresAt: string; requestId: string | null }>>();
   private readonly capacity: number;
   private readonly now: () => number;
   private readonly onEvent?: (event: PilotCanvasAuthorityRegistryEvent) => void;
@@ -333,6 +334,25 @@ export class PilotCanvasAuthorityRegistry {
       return { authorityId: existingId!, expiresAt: existing.expiresAt, requestId: null };
     }
 
+    const inFlight = this.openingByEntry.get(entryKey);
+    if (inFlight) {
+      this.emit("authority-deduplicated");
+      return inFlight;
+    }
+    const opening = this.issueAuthority(entry, actorId, entryKey);
+    this.openingByEntry.set(entryKey, opening);
+    try {
+      return await opening;
+    } finally {
+      if (this.openingByEntry.get(entryKey) === opening) this.openingByEntry.delete(entryKey);
+    }
+  }
+
+  private async issueAuthority(
+    entry: PilotCanvasEntryReference,
+    actorId: string,
+    entryKey: string,
+  ): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }> {
     const redemption = await this.client.redeem(entry);
     const expiryTime = Math.min(Date.parse(redemption.grant.expiresAt), Date.parse(redemption.productionPackage.expiresAt));
     if (!Number.isFinite(expiryTime) || this.now() >= expiryTime) {
