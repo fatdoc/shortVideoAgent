@@ -18,6 +18,11 @@ import { CanvasCommandService } from "./canvasCommandService";
 import { CanvasDocumentStore } from "./documentStore";
 import { CanvasCommandServiceError } from "./errors";
 import { acceptCanvasV1RuntimeAuthority } from "./runtimeAuthorityAcceptance";
+import {
+  createCanvasV1AssetRuntimeAdapters,
+  createCanvasV1OutputAssetAssertion,
+} from "./runtimeAssetAdapters";
+import type { BytePlusAssetItem } from "../byteplusAssets";
 
 interface ProjectionRow {
   projectionJson: string;
@@ -38,6 +43,7 @@ export interface CanvasV1RuntimeRouterOptions {
   ): Promise<number>;
   validateApproval?(command: CanvasCommandV01, scope: CanvasProductionScope): Promise<boolean>;
   startShotProduction?: ConstructorParameters<typeof CanvasCommandService>[0]["startShotProduction"];
+  queryProviderAsset?(providerAssetId: string): Promise<BytePlusAssetItem>;
 }
 
 function sessionId(request: Request): string {
@@ -92,6 +98,10 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
   }
   const documents = new CanvasDocumentStore({ database: options.database });
+  const assetAdapters = createCanvasV1AssetRuntimeAdapters({
+    database: options.database,
+    queryProviderAsset: options.queryProviderAsset,
+  });
 
   const resolveRequestScope = async (
     request: Request,
@@ -140,6 +150,9 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     startShotProduction: options.startShotProduction ?? (async () => {
       throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
     }),
+    syncProviderAsset: assetAdapters.syncProviderAsset,
+    bindAssetToEntity: assetAdapters.bindAssetToEntity,
+    assertOutputAsset: createCanvasV1OutputAssetAssertion(options.database),
     documentStore: documents,
   });
 

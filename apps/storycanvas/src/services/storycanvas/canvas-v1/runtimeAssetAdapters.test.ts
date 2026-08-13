@@ -53,7 +53,7 @@ async function database() {
     table.string('id').primary(); table.integer('projectId'); table.integer('revision'); table.text('updatedAt');
   });
   await db.schema.createTable('sc_reference_bindings', (table) => {
-    table.string('id').primary(); table.integer('projectId'); table.string('entityId'); table.string('role'); table.string('assetId'); table.text('sourceUri'); table.string('view'); table.integer('priority'); table.boolean('approved'); table.text('createdAt');
+    table.string('id').primary(); table.integer('projectId'); table.string('entityId'); table.integer('shotId'); table.string('role'); table.string('assetId'); table.text('sourceUri'); table.string('view'); table.integer('priority'); table.boolean('approved'); table.text('createdAt');
   });
   await db.schema.createTable('sc_shot_contracts', (table) => { table.string('id').primary(); table.integer('projectId'); table.integer('worldRevision'); table.text('updatedAt'); });
   await db.schema.createTable('sc_tasks', (table) => { table.string('id').primary(); table.integer('projectId'); table.string('taskType'); table.string('status'); });
@@ -78,6 +78,15 @@ test('SYNC resolves exact server mappings and BIND persists approved continuity 
   const provider = await adapters.syncProviderAsset(assetId, scope);
   assert.equal(provider.assetId, assetId);
   assert.equal(provider.providerStatus, 'active');
+  await db('sc_canvas_v1_provider_bindings').insert({
+    bindingId: provider.bindingId,
+    assetId,
+    tenantId: scope.tenantId,
+    projectId: scope.projectId,
+    packageId: scope.packageId,
+    authorityJson: JSON.stringify(provider),
+    updatedAt: occurredAt,
+  });
   const binding = await adapters.bindAssetToEntity(assetId, entityId, scope);
   assert.equal(binding.continuityRevision, 2);
   assert.equal((await db('sc_continuity_profiles').first()).revision, 2);
