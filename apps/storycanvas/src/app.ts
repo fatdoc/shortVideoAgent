@@ -19,9 +19,16 @@ import { databaseReady, db } from "@/utils/db";
 import { initializeModels } from "@/config/initializeModels";
 import { capturePilotV02RawBody } from "@/routes/production/v0.2";
 import { getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
+import pilotCanvasBootstrapRouter from "@/routes/production/pilot/canvas/bootstrap";
+import pilotCanvasCapabilityRouter from "@/routes/production/pilot/canvas/capability";
 
 const app = express();
 const server = http.createServer(app);
+
+function installPilotCanvasRequestBoundary() {
+  app.use("/api/production/pilot/canvas/bootstrap", pilotCanvasBootstrapRouter);
+  app.use("/api/production/pilot/canvas/capability", pilotCanvasCapabilityRouter);
+}
 
 async function checkPermissions() {
   if (!isEletron()) return true;
@@ -81,6 +88,7 @@ export default async function startServe(randomPort: Boolean = false) {
     callback(null, { origin: "*" });
   };
   app.use(cors(corsOptions));
+  installPilotCanvasRequestBoundary();
   app.use(express.json({ limit: "100mb", verify: capturePilotV02RawBody }));
   app.use(express.urlencoded({ extended: true, limit: "100mb" }));
 
@@ -175,6 +183,9 @@ export default async function startServe(randomPort: Boolean = false) {
   app.get("/favicon.ico", (_req, res) => res.status(204).end());
 
   app.use(async (req, res, next) => {
+    if (req.path.startsWith("/api/production/pilot/canvas/")) {
+      return next();
+    }
     const setting = await u.db("o_setting").where("key", "tokenKey").select("value").first();
     if (!setting) return res.status(444).send({ message: "服务器秘钥未配置，请联系管理员" });
     const { value: tokenKey } = setting;
@@ -187,7 +198,6 @@ export default async function startServe(randomPort: Boolean = false) {
       req.path === "/api/login/login"
       || req.path.startsWith("/api/production/v0.1/")
       || req.path.startsWith("/api/production/v0.2/")
-      || req.path.startsWith("/api/production/pilot/canvas/")
     ) {
       return next();
     }

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { access, mkdir } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
-import express, { type Request, type Response as ExpressResponse } from "express";
+import express, { type NextFunction, type Request, type Response as ExpressResponse } from "express";
 import { z } from "zod";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -169,6 +169,11 @@ export interface BrowserSafeCanvasBootstrap { schemaVersion: "pilot-canvas-boots
 export interface PilotCanvasBootstrapRouterOptions { allowedOrigin: string; verifySession(cookie: string): Promise<PilotCanvasSessionContext | null>; redeem(entry: PilotCanvasEntryReference): Promise<{ authorityId: string; expiresAt: string; requestId: string | null }>; }
 function requestId(request: Request): string { const supplied = request.header("x-request-id"); return supplied && REQUEST_ID_PATTERN.test(supplied) ? supplied : crypto.randomUUID(); }
 function safeBrowserError(response: ExpressResponse, status: number, code: string, retryable: boolean, id: string): void { response.setHeader("cache-control", "no-store"); response.setHeader("x-request-id", id); response.status(status).json({ error: { code, message: "Pilot Canvas could not be opened.", retryable, requestId: id } }); }
+function safeRequestBodyError(response: ExpressResponse, status: 400 | 413, code: string, message: string, id: string): void {
+  response.setHeader("cache-control", "no-store");
+  response.setHeader("x-request-id", id);
+  response.status(status).json({ error: { code, message, requestId: id, retryable: false } });
+}
 export function createPilotCanvasBootstrapRouter(options: PilotCanvasBootstrapRouterOptions): express.Router {
   const allowed = validOrigin(options.allowedOrigin); if (!allowed) throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
   const router = express.Router(); router.post("/", async (request, response) => {
@@ -188,6 +193,26 @@ export function createPilotCanvasBootstrapRouter(options: PilotCanvasBootstrapRo
       safeBrowserError(response, 500, "PILOT_CANVAS_INTERNAL_ERROR", false, id);
     }
   }); return router;
+}
+
+export function createPilotCanvasSafeBootstrapRouter(options: PilotCanvasBootstrapRouterOptions): express.Router {
+  const router = express.Router();
+  router.use(express.json({ limit: "16kb", strict: true }));
+  router.use(createPilotCanvasBootstrapRouter(options));
+  router.use((error: unknown, request: Request, response: ExpressResponse, next: NextFunction) => {
+    const parserError = error as { status?: number; type?: string } | null;
+    const id = requestId(request);
+    if (parserError?.status === 413 || parserError?.type === "entity.too.large") {
+      safeRequestBodyError(response, 413, "PILOT_CANVAS_REQUEST_TOO_LARGE", "Pilot Canvas request body is too large.", id);
+      return;
+    }
+    if (parserError?.status === 400 || parserError?.type === "entity.parse.failed") {
+      safeRequestBodyError(response, 400, "PILOT_CANVAS_MALFORMED_JSON", "Pilot Canvas request body is invalid.", id);
+      return;
+    }
+    next(error);
+  });
+  return router;
 }
 
 const sessionResponseSchema = z.object({ session: z.object({ activeContext: z.object({ organizationType: z.literal("TENANT"), tenantId: uuid, roles: z.array(z.enum(["platform_admin", "channel_admin", "tenant_admin", "content_operator", "pilot_support"])) }).passthrough() }).passthrough() }).passthrough();
