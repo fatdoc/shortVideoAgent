@@ -96,6 +96,7 @@ describe('Canvas V1 frontend contract conformance', () => {
 
     const recoveryCase = matrix.positiveSemanticCases.find((item: any) => item.operation === 'restoreDocument');
     const document = parseCanvasV1Contract(loadFixture(recoveryCase.fixture));
+    if (document.objectType !== 'CanvasDocument') throw new Error('document recovery fixture has wrong objectType');
     const restored = restoreCanvasDocumentForSession(document, recoveryCase.newCanvasSessionId);
     expect(restored.documentId).toBe(document.documentId);
     expect(restored.version).toBe(document.version);
