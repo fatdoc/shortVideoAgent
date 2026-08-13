@@ -90,6 +90,33 @@ export class PostgresCanvasAssetSessionAuthorityRepository
           await transaction.raw('select pg_advisory_xact_lock(hashtextextended(?, 0))', [lock]);
         }
 
+        const existing = (await transaction('control_plane.canvas_asset_sessions as session')
+          .join('control_plane.canvas_entries as entry', 'entry.canvas_entry_id', 'session.canvas_entry_id')
+          .select(
+            'session.canvas_session_id',
+            'session.canvas_entry_id',
+            'entry.handle',
+            'session.tenant_id',
+            'session.project_id',
+            'session.package_id',
+            'session.actor_id',
+            'session.registered_at',
+            'session.expires_at',
+          )
+          .where('session.canvas_session_id', input.canvasSessionId)
+          .orWhere('entry.handle', input.handle)
+          .forUpdate('session')) as SessionRow[];
+        const exactExisting = existing.find(
+          (row) =>
+            row.canvas_session_id === input.canvasSessionId &&
+            row.handle === input.handle &&
+            row.tenant_id === input.tenantId &&
+            row.project_id === input.projectId &&
+            row.package_id === input.packageId &&
+            row.actor_id === input.actorId,
+        );
+        if (existing.length > 0 && !exactExisting) return { kind: 'conflict' };
+
         const entry = (await transaction('control_plane.canvas_entries as entry')
           .join('control_plane.production_packages as package', function joinPackage() {
             this.on('package.package_id', '=', 'entry.package_id')
@@ -155,35 +182,11 @@ export class PostgresCanvasAssetSessionAuthorityRepository
             date(entry.grant_expires_at).getTime(),
           ),
         );
-        const existing = (await transaction('control_plane.canvas_asset_sessions as session')
-          .join('control_plane.canvas_entries as entry', 'entry.canvas_entry_id', 'session.canvas_entry_id')
-          .select(
-            'session.canvas_session_id',
-            'session.canvas_entry_id',
-            'entry.handle',
-            'session.tenant_id',
-            'session.project_id',
-            'session.package_id',
-            'session.actor_id',
-            'session.registered_at',
-            'session.expires_at',
-          )
-          .where('session.canvas_session_id', input.canvasSessionId)
-          .orWhere('session.canvas_entry_id', entry.canvas_entry_id)
-          .forUpdate('session')) as SessionRow[];
-        if (existing.length > 0) {
-          const exact = existing.find(
-            (row) =>
-              row.canvas_session_id === input.canvasSessionId &&
-              row.canvas_entry_id === entry.canvas_entry_id &&
-              row.handle === input.handle &&
-              row.tenant_id === input.tenantId &&
-              row.project_id === input.projectId &&
-              row.package_id === input.packageId &&
-              row.actor_id === input.actorId &&
-              date(row.expires_at).getTime() === derivedExpiresAt.getTime(),
-          );
-          return exact ? { kind: 'replayed', value: valueFromRow(exact) } : { kind: 'conflict' };
+        if (exactExisting) {
+          return exactExisting.canvas_entry_id === entry.canvas_entry_id &&
+            date(exactExisting.expires_at).getTime() === derivedExpiresAt.getTime()
+            ? { kind: 'replayed', value: valueFromRow(exactExisting) }
+            : { kind: 'conflict' };
         }
 
         const rows = (await transaction('control_plane.canvas_asset_sessions')

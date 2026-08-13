@@ -166,6 +166,12 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresCanvasAssetSessionAuthorityRep
         actorId: '99999999-9999-4999-8999-999999999999',
       }),
     ).resolves.toEqual({ kind: 'conflict' });
+    await expect(
+      store.registerSession({
+        ...registration,
+        packageId: '99999999-9999-4999-8999-999999999999',
+      }),
+    ).resolves.toEqual({ kind: 'conflict' });
   });
 
   it('fails closed when exact actor/scope or current Grant authority is absent', async () => {
