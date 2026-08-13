@@ -2,10 +2,19 @@ import { Button, Result, Spin } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { DEMO_PROJECT_ID } from '../../domain/constants';
+import {
+  developmentEditorApi,
+  developmentEditorBootstrap,
+} from '../../features/storycanvas/developmentFixture';
 import { StoryCanvasApp } from '../../features/storycanvas/StoryCanvasApp';
+import { StoryCanvasEditorHarness } from '../../features/storycanvas/StoryCanvasEditorHarness';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 
-export function IntegratedStoryCanvasPage() {
+const useDirectDevelopmentEditor =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_STORYCANVAS_DIRECT_EDITOR === 'true';
+
+function AuthorizedStoryCanvasPage() {
   const { projectId } = useParams<{ projectId?: string }>();
   const [preparing, setPreparing] = useState(true);
   const initialDispatchPromise = useRef<Promise<unknown> | null>(null);
@@ -80,4 +89,19 @@ export function IntegratedStoryCanvasPage() {
       <StoryCanvasApp grant={grant} />
     </div>
   );
+}
+
+export function IntegratedStoryCanvasPage() {
+  if (useDirectDevelopmentEditor) {
+    return (
+      <div className="storycanvas-host" data-testid="storycanvas-direct-development-page">
+        <StoryCanvasEditorHarness
+          api={developmentEditorApi}
+          bootstrap={developmentEditorBootstrap}
+        />
+      </div>
+    );
+  }
+
+  return <AuthorizedStoryCanvasPage />;
 }

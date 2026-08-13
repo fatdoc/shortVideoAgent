@@ -27,6 +27,12 @@ vi.mock('../../features/storycanvas/StoryCanvasApp', () => ({
   ),
 }));
 
+vi.mock('../../features/storycanvas/StoryCanvasEditorHarness', () => ({
+  StoryCanvasEditorHarness: () => (
+    <div data-testid="storycanvas-editor-harness" />
+  ),
+}));
+
 function createGrant(): DemoProjectGrant {
   return {
     grantId: 'grant-demo-local-001-v1',
