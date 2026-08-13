@@ -9,12 +9,35 @@ import type { DB } from "@/types/database";
 import crypto from "crypto";
 import fixDB from "@/lib/fixDB";
 import { runStoryCanvasMigrations } from "@/lib/storycanvasMigrations";
+import dotenv from "dotenv";
+
+dotenv.config({ quiet: true });
+if (!process.env.NODE_ENV) process.env.NODE_ENV = "dev";
+
+const pilotRuntime = process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true";
+if (pilotRuntime) {
+  const writeSafeMarker = console.log.bind(console);
+  console.log = (...values: unknown[]) => {
+    const line = values.length === 1 && typeof values[0] === "string" ? values[0] : "";
+    if (
+      /^PILOT_CANVAS_RUNTIME_READY http:\/\/127\.0\.0\.1:\d{1,5}$/.test(line)
+      || line === "PILOT_CANVAS_RUNTIME_BLOCKED"
+      || line === "PILOT_CANVAS_RUNTIME_STOPPED"
+    ) {
+      writeSafeMarker(line);
+    }
+  };
+  console.info = console.log;
+  console.debug = () => undefined;
+  console.warn = () => undefined;
+  console.error = () => undefined;
+}
 
 type TableName = keyof DB & string;
 type RowType<TName extends TableName> = DB[TName];
 
 const dbPath = getPath("db2.sqlite");
-console.log("数据库目录:", dbPath);
+if (!pilotRuntime) console.log("数据库目录:", dbPath);
 const dbDir = path.dirname(dbPath);
 
 // 确保数据库目录存在
@@ -37,6 +60,7 @@ const db = knex({
 
 const databaseReady = (async () => {
   await db.raw("PRAGMA foreign_keys = ON");
+  if (pilotRuntime) return;
   await initDB(db);
   await fixDB(db);
   await runStoryCanvasMigrations(db);
