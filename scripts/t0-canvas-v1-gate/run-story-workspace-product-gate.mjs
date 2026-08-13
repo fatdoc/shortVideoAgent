@@ -16,6 +16,7 @@ if (!tsxCli) {
   process.stderr.write("[story-workspace-product-gate] ENVIRONMENT_FAILURE missing StoryCanvas tsx runtime\n");
   process.exit(2);
 }
+const storyNodeModules = path.resolve(path.dirname(tsxCli), "../..");
 const productSentinel = path.join(
   rootDir,
   "apps/storycanvas/src/services/storycanvas/canvas-v1/workspacePrepare.ts",
@@ -43,6 +44,7 @@ const phases = [
     name: "CV6 Story formal workspace public runtime harness",
     command: [process.execPath, tsxCli, "--test", "tests/e2e/canvas-v1/story-workspace-product.gate.test.ts"],
     expectedRed: allowExpectedRed,
+    env: { NODE_PATH: storyNodeModules },
   },
 ];
 
@@ -52,7 +54,7 @@ for (const phase of phases) {
   process.stdout.write(`\n[story-workspace-product-gate] ${phase.name}\n`);
   const result = spawnSync(phase.command[0], phase.command.slice(1), {
     cwd: rootDir,
-    env: { ...process.env, NODE_OPTIONS: "" },
+    env: { ...process.env, NODE_OPTIONS: "", ...phase.env },
     shell: false,
     stdio: "inherit",
   });
