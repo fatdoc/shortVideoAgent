@@ -58,6 +58,11 @@ const phases = [
     expectedRed: allowExpectedRed,
   },
   {
+    name: 'CV6 Shared G5 external-browser harness policy',
+    command: [process.execPath, '--test', 'tests/e2e/canvas-v1/shared-g5-browser-policy.gate.mjs'],
+    expectedRed: false,
+  },
+  {
     name: 'historical Shared exact 4-RED/real-product-GREEN attestation',
     command: [process.execPath, '--test', 'tests/e2e/canvas-v1/shared-g5-historical.gate.mjs'],
     expectedRed: false,

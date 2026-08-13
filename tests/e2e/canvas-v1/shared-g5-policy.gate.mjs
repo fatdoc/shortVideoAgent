@@ -18,6 +18,12 @@ test('policy freezes the public Shared G5 surface and same-origin sequence', () 
   assert.deepEqual(policy.canonicalRoute.requiredQueryKeys, ['packageId']);
   assert.ok(policy.canonicalRoute.forbiddenQueryKeys.includes('activationAttemptId'));
   assert.equal(policy.proxy.changeOrigin, false);
+  assert.match(policy.bridgePublicMethods.prepareApproval, /reacquires Control CSRF internally/u);
+  assert.match(policy.bridgePublicMethods.dispatch, /unchanged complete command/u);
+  assert.match(
+    policy.bridgePublicMethods.refresh,
+    /workspace, document, assets and shot readiness/u,
+  );
   assert.deepEqual(policy.proxy.requiredFlags, {
     PILOT_E2E: 'true',
     PILOT_E2E_AB_GOLDEN_PATH: 'true',
