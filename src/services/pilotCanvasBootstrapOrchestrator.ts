@@ -18,6 +18,12 @@ const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const SAFE_STATUSES = new Set([401, 403, 404, 409, 410, 422, 500, 503]);
 const PACKAGE_MAX_ATTEMPTS = 2;
+const PACKAGE_CAPABILITIES = new Set<PilotProductionCapability>([
+  'image.generate',
+  'video.generate',
+  'audio.tts',
+  'media.export',
+]);
 
 export interface PilotCanvasPackagePolicy {
   version: string;
@@ -100,6 +106,8 @@ function exactPolicy(policy: PilotCanvasPackagePolicy): PilotCanvasPackagePolicy
     !POLICY_VERSION_PATTERN.test(policy.version) ||
     !Array.isArray(policy.capabilityRequirements) ||
     policy.capabilityRequirements.length === 0 ||
+    policy.capabilityRequirements.length > PACKAGE_CAPABILITIES.size ||
+    !policy.capabilityRequirements.every((capability) => PACKAGE_CAPABILITIES.has(capability)) ||
     new Set(policy.capabilityRequirements).size !== policy.capabilityRequirements.length ||
     !Number.isInteger(policy.expiresInSeconds) ||
     policy.expiresInSeconds < 300 ||
@@ -190,12 +198,43 @@ function exactPackage(
   return value;
 }
 
+function fnv1a32(value: string, seed: number): string {
+  let hash = seed >>> 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+function packageIdentityDigest(
+  input: OpenPilotCanvasBootstrapInput,
+  authority: { scriptVersionId: string; storyboardVersionId: string },
+  policy: PilotCanvasPackagePolicy,
+): string {
+  const identity = JSON.stringify([
+    input.tenantId,
+    input.projectId,
+    authority.scriptVersionId,
+    authority.storyboardVersionId,
+    policy.version,
+    policy.capabilityRequirements,
+    policy.expiresInSeconds,
+    input.bootstrapCycleId,
+  ]);
+  return `${fnv1a32(identity, 0x811c9dc5)}${fnv1a32(identity, 0x9e3779b9)}`;
+}
+
 function packageIdempotencyKey(
   input: OpenPilotCanvasBootstrapInput,
   authority: { scriptVersionId: string; storyboardVersionId: string },
   policy: PilotCanvasPackagePolicy,
 ): string {
-  return `pilot-production-package-v1:${input.projectId}:${authority.scriptVersionId}:${authority.storyboardVersionId}:${policy.version}:${input.bootstrapCycleId}`;
+  return `pilot-production-package-v1:${input.projectId}:h_${packageIdentityDigest(
+    input,
+    authority,
+    policy,
+  )}`;
 }
 
 function normalizeError(error: unknown): PilotCanvasBootstrapOrchestratorError {
