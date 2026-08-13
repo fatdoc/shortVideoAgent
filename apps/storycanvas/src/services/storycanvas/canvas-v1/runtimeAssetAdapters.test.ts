@@ -106,6 +106,17 @@ test('SYNC/BIND fail closed for absent, ambiguous, pending or cross-scope facts 
   await assert.rejects(() => adapters.syncProviderAsset(assetId, scope));
 });
 
+test('SYNC/BIND reject provider identity drift from the frozen server mapping', async (context) => {
+  const db = await database(); context.after(() => db.destroy());
+  const drifting = createCanvasV1AssetRuntimeAdapters({ database: db, queryProviderAsset: async () => ({ Id: 'provider-drift', Status: 'Active' }), now: () => new Date(occurredAt) });
+  const unavailable = await drifting.syncProviderAsset(assetId, scope);
+  assert.equal(unavailable.providerStatus, 'unavailable');
+  const mismatched = { objectType: 'ProviderAssetBinding', contractVersion: '0.1', tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId, canvasSessionId: scope.canvasSessionId, bindingId: '99999999-9999-4999-8999-999999999999', assetId, provider: 'byteplus', providerStatus: 'active', providerAssetId: 'provider-drift', providerGroupId: 'provider-group-server-only-001', assetUri: 'asset://provider-drift', registeredAt: occurredAt, updatedAt: occurredAt, occurredAt } as ProviderAssetBindingV01;
+  await db('sc_canvas_v1_provider_bindings').insert({ bindingId: mismatched.bindingId, assetId, tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId, authorityJson: JSON.stringify(mismatched), updatedAt: occurredAt });
+  await assert.rejects(() => drifting.bindAssetToEntity(assetId, entityId, scope));
+  assert.equal((await db('sc_continuity_profiles').first()).revision, 1);
+});
+
 test('SELECT assertion accepts only a succeeded generated output registered to the exact project task', async (context) => {
   const db = await database(); context.after(() => db.destroy());
   const check = createCanvasV1OutputAssetAssertion(db);

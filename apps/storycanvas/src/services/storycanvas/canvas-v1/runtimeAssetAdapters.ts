@@ -93,7 +93,16 @@ export function createCanvasV1AssetRuntimeAdapters(options: {
         providerGroupId: local.providerGroupId,
         bindingId: stableId('canvas-v1-provider-binding', scope.tenantId, scope.projectId, scope.packageId, assetId),
         occurredAt: now().toISOString(),
-        queryAsset: options.queryProviderAsset,
+        queryAsset: options.queryProviderAsset
+          ? async (providerAssetId) => {
+            const value = await options.queryProviderAsset!(providerAssetId);
+            const returnedId = value.Id || value.AssetId || providerAssetId;
+            if (returnedId !== providerAssetId) {
+              throw new CanvasCommandServiceError('CANVAS_PROVIDER_NOT_ACTIVE');
+            }
+            return value;
+          }
+          : undefined,
       });
     },
     bindAssetToEntity: async (assetId: string, entityId: string, scope: CanvasProductionScope) => {
@@ -105,10 +114,16 @@ export function createCanvasV1AssetRuntimeAdapters(options: {
       if (assetRows.length !== 1 || providerRows.length !== 1) {
         throw new CanvasCommandServiceError('CANVAS_ENTITY_BINDING_NOT_APPROVED');
       }
+      const providerBinding = exactProviderBinding(providerRows[0].authorityJson, assetId, scope);
+      if (
+        providerBinding.providerAssetId !== local.providerAssetId ||
+        providerBinding.providerGroupId !== local.providerGroupId ||
+        providerBinding.assetUri !== `asset://${local.providerAssetId}`
+      ) throw new CanvasCommandServiceError('CANVAS_PROVIDER_NOT_ACTIVE');
       return bindActiveVirtualCharacter({
         scope,
         asset: exactAssetRecord(assetRows[0].projectionJson, assetId, scope),
-        providerBinding: exactProviderBinding(providerRows[0].authorityJson, assetId, scope),
+        providerBinding,
         entityId,
         bindingId: stableId('canvas-v1-entity-binding', scope.tenantId, scope.projectId, scope.packageId, entityId),
         occurredAt: now().toISOString(),
