@@ -24,10 +24,13 @@ function body() {
     actorId,
     commandType: 'GENERATE_SHOT',
     action: {
-      shotId: '66666666-6666-4666-8666-666666666666',
-      readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
-      prompt: '门店入口讲解招牌套餐',
-      referenceAssetIds: ['88888888-8888-4888-8888-888888888888'],
+      commandId,
+      payload: {
+        shotId: '66666666-6666-4666-8666-666666666666',
+        readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        prompt: '门店入口讲解招牌套餐',
+        referenceAssetIds: ['88888888-8888-4888-8888-888888888888'],
+      },
     },
     commandId,
   } as const;
@@ -118,4 +121,3 @@ describe('internal Canvas approval consumption boundary', () => {
     expect(JSON.stringify(response.body)).not.toMatch(/referenceAssetIds|prompt|asset:\/\//iu);
   });
 });
-

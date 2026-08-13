@@ -52,6 +52,7 @@ import { createCanvasAssetRouter } from './assets/routes.js';
 import { createInternalCanvasAssetSessionRouter } from './assets/internalSessionRoutes.js';
 import { PostgresCanvasAssetSessionAuthorityRepository } from './assets/sessionRepository.js';
 import { CanvasAssetSessionAuthorityService } from './assets/sessionService.js';
+import { createInternalCanvasApprovalRouter } from './assets/internalApprovalRoutes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -156,6 +157,10 @@ const internalCanvasAssetSessionRouter = createInternalCanvasAssetSessionRouter(
   internalToken: config.productionPlaneInternalToken,
   service: canvasAssetSessionAuthorityService,
 });
+const internalCanvasApprovalRouter = createInternalCanvasApprovalRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: canvasAssetAuthorityService,
+});
 const assetRouter = createCanvasAssetRouter({
   service: canvasAssetAuthorityService,
   policy: projectPolicy,
@@ -221,6 +226,7 @@ const app = createApp({
   internalProductionRouter,
   internalCanvasEntryRouter,
   internalCanvasAssetSessionRouter,
+  internalCanvasApprovalRouter,
   contentRouter,
   storyboardRouter,
   productionRouter,

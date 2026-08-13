@@ -371,6 +371,12 @@ export class CanvasAssetAuthorityService {
     inputValue: ConsumeHighCostApprovalInput,
   ): Promise<HighCostApprovalProjection & { replayed: boolean }> {
     const input = parseConsumeHighCostApprovalInput(inputValue);
+    await this.assertActiveSession(
+      { userId: input.actorId, tenantId: input.tenantId },
+      input.projectId,
+      input.packageId,
+      input.canvasSessionId,
+    );
     const current = await this.store.getHighCostApproval({
       tenantId: input.tenantId,
       projectId: input.projectId,
