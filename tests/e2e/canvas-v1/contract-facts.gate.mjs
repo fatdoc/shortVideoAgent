@@ -10,6 +10,7 @@ const fixtureDir = path.join(contractDir, "fixtures");
 const amendmentFixtureFile = "shot-readiness-binding-missing.json";
 const independentTransportFixtureFile = "activation-transport.json";
 const additiveWorkspaceFixtureFile = "workspace-materialization.json";
+const additiveAuthorityFixtureFile = "workspace-authority.json";
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 const schema = readJson(path.join(contractDir, "canvas-v1.schema.json"));
@@ -117,7 +118,8 @@ test("nine aggregate fixtures plus the additive amendment fixture are exhaustive
     fs.readdirSync(fixtureDir)
       .filter((name) => name.endsWith(".json")
         && name !== independentTransportFixtureFile
-        && name !== additiveWorkspaceFixtureFile)
+        && name !== additiveWorkspaceFixtureFile
+        && name !== additiveAuthorityFixtureFile)
       .sort(),
     expectedFixtureFiles,
   );

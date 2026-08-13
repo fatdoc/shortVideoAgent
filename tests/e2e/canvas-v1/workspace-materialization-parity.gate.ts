@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import * as storyNamespace from "../../../apps/storycanvas/src/contracts/canvas-v1/workspaceMaterialization.js";
-import { parseCanvasWorkspaceV01 as parseBrowserWorkspace } from "../../../src/features/canvas-v1/model/workspaceContract.js";
+import * as browserNamespace from "../../../src/features/canvas-v1/model/workspaceContract.js";
 
 type Mutation = { op: "add" | "replace" | "remove"; path: string; value?: unknown };
 type Vector = {
@@ -19,7 +19,10 @@ type Vector = {
 const contractDir = path.resolve(process.cwd(), "docs/program/contracts/canvas-v1");
 const fixture = JSON.parse(fs.readFileSync(path.join(contractDir, "fixtures/workspace-materialization.json"), "utf8"));
 const matrix = JSON.parse(fs.readFileSync(path.join(contractDir, "workspace-materialization-negative-vectors.json"), "utf8")) as { vectors: Vector[] };
+const authorityFixture = JSON.parse(fs.readFileSync(path.join(contractDir, "fixtures/workspace-authority.json"), "utf8"));
+const authorityMatrix = JSON.parse(fs.readFileSync(path.join(contractDir, "workspace-authority-negative-vectors.json"), "utf8")) as { vectors: Vector[] };
 const story = ((storyNamespace as any).default ?? storyNamespace) as typeof storyNamespace;
+const browser = ((browserNamespace as any).default ?? browserNamespace) as typeof browserNamespace;
 const {
   assertCanvasAssetMaterializationMatchesRequest,
   decideCanvasAssetMaterializationReplay,
@@ -27,6 +30,7 @@ const {
   parseCanvasAssetMaterializationV01,
   parseCanvasWorkspaceV01: parseStoryWorkspace,
 } = story;
+const { parseCanvasWorkspaceV01: parseBrowserWorkspace } = browser;
 
 function mutate<T>(source: T, mutations: Mutation[] = []): T {
   const output = structuredClone(source) as unknown;
@@ -181,6 +185,59 @@ test("browser parser cannot accept any server-only materialization envelope", ()
     assert.notEqual(codeOf(() => parseBrowserWorkspace(input)), null);
   }
   assert.equal(codeOf(() => parseBrowserWorkspace(fixture.materializationResponse)), "CANVAS_WORKSPACE_BROWSER_UNSAFE");
+});
+
+test("Story and browser preserve authority fixtures and all 30 executable vectors with exact stable codes", () => {
+  assert.equal(authorityMatrix.vectors.length, 30);
+  const storyRequest = story.parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest);
+  const browserRequest = browser.parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest);
+  const storyAuthority = story.parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+  const browserAuthority = browser.parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+  assert.deepEqual(storyRequest, browserRequest);
+  assert.deepEqual(storyAuthority, browserAuthority);
+
+  for (const vector of authorityMatrix.vectors) {
+    for (const [plane, api] of [["Story", story], ["browser", browser]] as const) {
+      let actual: string | null | undefined;
+      if (vector.operation === "parse-authority-request") {
+        actual = codeOf(() => api.parseCanvasWorkspaceAuthorityRequestV01(mutate(authorityFixture.authorityRequest, vector.mutations)));
+      } else if (vector.operation === "parse-authority-response") {
+        actual = codeOf(() => api.parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)));
+      } else if (vector.operation === "authority-response-match") {
+        actual = codeOf(() => api.assertCanvasWorkspaceAuthorityMatchesRequest(
+          api.parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)),
+          api.parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest),
+        ));
+      } else if (vector.operation === "select-primary-virtual-character") {
+        const authority = api.parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations));
+        if (vector.expectedCode) actual = codeOf(() => api.selectPrimaryVirtualCharacter(authority));
+        else {
+          assert.equal(api.selectPrimaryVirtualCharacter(authority).assetId, authorityFixture.authorityResponse.assets[0].assetId, `${vector.id}: ${plane}`);
+          continue;
+        }
+      } else {
+        continue;
+      }
+      assert.equal(actual, vector.expectedCode, `${vector.id}: ${plane}`);
+    }
+  }
+});
+
+test("Story and browser derive the same public UUIDv5 casting IDs and reject invalid derivation facts", () => {
+  const storyAuthority = story.parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+  const browserAuthority = browser.parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+  const assetId = authorityFixture.authorityResponse.assets[0].assetId;
+  const shotId = fixture.workspaceResponse.shots[0].shotId;
+  const expectedTarget = "c1d64353-4315-535e-aa18-9948be4a5d25";
+  const expectedRequirement = "a1795f30-1ab9-5faf-8c6a-14533f30b29f";
+  assert.equal(story.deriveCanvasTargetEntityId(storyAuthority, assetId), expectedTarget);
+  assert.equal(browser.deriveCanvasTargetEntityId(browserAuthority, assetId), expectedTarget);
+  assert.equal(story.deriveCanvasShotRequirementId(storyAuthority, shotId, assetId), expectedRequirement);
+  assert.equal(browser.deriveCanvasShotRequirementId(browserAuthority, shotId, assetId), expectedRequirement);
+  for (const api of [story, browser]) {
+    assert.equal(codeOf(() => api.deriveCanvasTargetEntityId(api.parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse), "99999999-9999-4999-8999-999999999999")), "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+    assert.equal(codeOf(() => api.deriveCanvasShotRequirementId(api.parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse), "not-a-uuid", assetId)), "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  }
 });
 
 test("independent adversarial parity: regex-shaped impossible timestamps fail closed", () => {

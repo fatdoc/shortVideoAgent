@@ -39,6 +39,7 @@ test("additive schema is strict, references the nine-object domain, and classifi
     "materializationError",
     "materializationRequest",
     "materializationResponse",
+    "workspaceError",
     "workspaceResponse",
   ]);
   assert.equal(schema.$defs.canvasWorkspace.additionalProperties, false);
@@ -134,10 +135,10 @@ test("materialization fixture derives exact magic MIME, byte size, checksum and 
   assert.equal(Buffer.byteLength(JSON.stringify(fixture.materializationRequest), "utf8") < 16 * 1024, true);
 });
 
-test("all 61 vectors uniquely freeze parser, auth ordering, bytes, replay, no-store and persistence", () => {
+test("all 69 vectors uniquely freeze parser, auth ordering, bytes, replay, no-store and persistence", () => {
   assert.equal(matrix.schemaVersion, "canvas-v1-workspace-materialization-negative-vectors.v1");
-  assert.equal(matrix.vectors.length, 61);
-  assert.equal(new Set(matrix.vectors.map(({ id }) => id)).size, 61);
+  assert.equal(matrix.vectors.length, 69);
+  assert.equal(new Set(matrix.vectors.map(({ id }) => id)).size, 69);
   const operations = new Set(matrix.vectors.map(({ operation }) => operation));
   assert.deepEqual(operations, new Set([
     "parse-workspace",
@@ -147,6 +148,8 @@ test("all 61 vectors uniquely freeze parser, auth ordering, bytes, replay, no-st
     "parse-materialization-response",
     "materialization-response-match",
     "materialization-replay-same",
+    "materialization-boundary",
+    "parse-workspace-error",
     "persistence-only",
   ]));
   const byId = new Map(matrix.vectors.map((vector) => [vector.id, vector]));

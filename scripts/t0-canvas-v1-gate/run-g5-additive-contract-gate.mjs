@@ -29,7 +29,11 @@ const phases = [
     command: [process.execPath, "--test", "docs/program/contracts/canvas-v1/validate-workspace-materialization.mjs"],
   },
   {
-    name: "CV6 independent additive schema, fixture, security and 58-vector facts",
+    name: "CV1 workspace authority amendment self-check",
+    command: [process.execPath, "--test", "docs/program/contracts/canvas-v1/validate-workspace-authority.mjs"],
+  },
+  {
+    name: "CV6 independent additive schema, fixture, security and 69-vector facts",
     command: [process.execPath, "--test", "tests/e2e/canvas-v1/workspace-materialization-contract.gate.mjs"],
   },
   {

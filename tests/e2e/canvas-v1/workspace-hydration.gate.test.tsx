@@ -49,7 +49,7 @@ describe("G5 additive workspace real CanvasV1Page hydration", () => {
     expect(screen.queryByText("门店探店视频", { exact: true })).not.toBeInTheDocument();
     expect(screen.getAllByText("镜头 01").length).toBeGreaterThan(0);
     expect(screen.getByText("今天带你探一家适合朋友聚餐的门店，先看招牌套餐。")).toBeInTheDocument();
-    expect(screen.getByText("门店讲解员站在明亮入口，向镜头介绍招牌套餐。")).toBeInTheDocument();
+    expect(screen.getAllByText("门店讲解员站在明亮入口，向镜头介绍招牌套餐。").length).toBeGreaterThan(0);
     expect(screen.getByText("虚拟人物")).toBeInTheDocument();
     expect(screen.getByText("已保存")).toBeInTheDocument();
     expect(screen.getAllByLabelText("生成中").length).toBeGreaterThan(0);
