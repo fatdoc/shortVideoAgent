@@ -106,4 +106,3 @@ G3 remains `BLOCKED`. CV4 remediation must gate every high-cost command on the
 correct approval, replace stale local prompt state when a newer authoritative
 document arrives, and validate all media view URLs before rendering. This
 report does not change the Master Plan and does not claim `ACCEPTED`.
-

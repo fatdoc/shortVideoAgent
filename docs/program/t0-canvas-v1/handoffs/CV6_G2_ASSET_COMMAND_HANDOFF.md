@@ -148,4 +148,3 @@ actor/tenant/project/Canvas Entry/package/session validator on both Control mint
 paths, plus a real server-only approval consumption and Provider wiring path.
 The current default fail-closed behavior must remain while those dependencies
 are absent. This report does not modify product code or claim `ACCEPTED`.
-

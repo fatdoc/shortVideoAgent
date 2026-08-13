@@ -83,4 +83,3 @@ reason is rejected as `CANVAS_READINESS_INCONSISTENT` on both planes.
 
 The G1 amendment is independently `READY_FOR_GATE_REVALIDATION`. This report
 does not change the Master Plan and does not claim `ACCEPTED`.
-
