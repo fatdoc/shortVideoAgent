@@ -172,6 +172,7 @@ const packageResponse = {
 const packageProjection: PilotProductionPackage = {
   objectType: 'ProjectProductionPackage',
   contractVersion: '0.3',
+  tenantId,
   projectId,
   packageId,
   packageVersion: 1,
