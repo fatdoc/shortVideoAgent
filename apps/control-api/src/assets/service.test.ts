@@ -45,7 +45,10 @@ class MemoryStore implements CanvasAssetAuthorityStore {
     return structuredClone(record);
   }
 
-  async listAssets(input: { tenantId: string; projectId: string }): Promise<AssetAuthorityRecord[]> {
+  async listAssets(input: {
+    tenantId: string;
+    projectId: string;
+  }): Promise<AssetAuthorityRecord[]> {
     return [...this.assets.values()]
       .filter((asset) => asset.tenantId === input.tenantId && asset.projectId === input.projectId)
       .map((asset) => structuredClone(asset));
@@ -80,6 +83,7 @@ class MemoryStore implements CanvasAssetAuthorityStore {
       rightsStatus: input.toStatus,
       rightsValidFrom: input.validFrom,
       rightsValidUntil: input.validUntil,
+      rightsReviewedByActorId: input.reviewedByActorId,
       rightsReviewedAt: input.reviewedAt,
       updatedAt: input.reviewedAt,
     };
@@ -137,13 +141,29 @@ class MemoryStore implements CanvasAssetAuthorityStore {
     tenantId: string;
     projectId: string;
     approvalId: string;
+    packageId: string;
+    canvasSessionId: string;
+    actorId: string;
+    commandType: HighCostCommandApprovalAuthority['commandType'];
+    actionFingerprint: string;
     commandId: string;
     consumedAt: Date;
   }): Promise<{ value: HighCostCommandApprovalAuthority; replayed: boolean } | null> {
     const record = await this.getHighCostApproval(input);
     if (!record) return null;
+    if (
+      record.packageId !== input.packageId ||
+      record.canvasSessionId !== input.canvasSessionId ||
+      record.actorId !== input.actorId ||
+      record.commandType !== input.commandType ||
+      record.actionFingerprint !== input.actionFingerprint
+    ) {
+      return null;
+    }
     if (record.consumedByCommandId === input.commandId) return { value: record, replayed: true };
-    if (record.status !== 'active') return null;
+    if (record.status !== 'active' || record.expiresAt.getTime() <= input.consumedAt.getTime()) {
+      return null;
+    }
     const consumed = {
       ...record,
       status: 'consumed' as const,
@@ -211,7 +231,9 @@ describe('Canvas Asset authority service', () => {
       status: 'approved',
     });
     expect(approved.approval.status).toBe('approved');
-    expect(JSON.stringify(approved)).not.toMatch(/storageReference|checksum|providerAsset|asset:\/\//i);
+    expect(JSON.stringify(approved)).not.toMatch(
+      /storageReference|checksum|providerAsset|asset:\/\//i,
+    );
     const revoked = await authority.transitionRights(actor, ids.projectId, ids.assetId, {
       status: 'revoked',
       validFrom: '2026-08-14T01:00:00.000Z',
@@ -243,7 +265,6 @@ describe('Canvas Asset authority service', () => {
     });
     expect(created).toEqual({ approvalId: ids.approvalId, status: 'active' });
 
-    const fingerprint = authority.actionFingerprint('GENERATE_SHOT', action);
     await expect(
       authority.consumeHighCostApproval({
         approvalId: ids.approvalId,
@@ -251,8 +272,22 @@ describe('Canvas Asset authority service', () => {
         projectId: ids.otherProjectId,
         packageId: ids.packageId,
         canvasSessionId,
+        actorId: ids.actorId,
         commandType: 'GENERATE_SHOT',
-        actionFingerprint: fingerprint,
+        action,
+        commandId: ids.commandId,
+      }),
+    ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
+    await expect(
+      authority.consumeHighCostApproval({
+        approvalId: ids.approvalId,
+        tenantId: ids.tenantId,
+        projectId: ids.projectId,
+        packageId: ids.packageId,
+        canvasSessionId,
+        actorId: ids.otherCommandId,
+        commandType: 'GENERATE_SHOT',
+        action,
         commandId: ids.commandId,
       }),
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
@@ -263,8 +298,9 @@ describe('Canvas Asset authority service', () => {
         projectId: ids.projectId,
         packageId: ids.packageId,
         canvasSessionId: otherCanvasSessionId,
+        actorId: ids.actorId,
         commandType: 'GENERATE_SHOT',
-        actionFingerprint: fingerprint,
+        action,
         commandId: ids.commandId,
       }),
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
@@ -275,8 +311,9 @@ describe('Canvas Asset authority service', () => {
       projectId: ids.projectId,
       packageId: ids.packageId,
       canvasSessionId,
+      actorId: ids.actorId,
       commandType: 'GENERATE_SHOT',
-      actionFingerprint: fingerprint,
+      action,
       commandId: ids.commandId,
     });
     expect(first).toEqual({ approvalId: ids.approvalId, status: 'consumed', replayed: false });
@@ -287,8 +324,22 @@ describe('Canvas Asset authority service', () => {
         projectId: ids.projectId,
         packageId: ids.packageId,
         canvasSessionId,
+        actorId: ids.actorId,
         commandType: 'GENERATE_SHOT',
-        actionFingerprint: fingerprint,
+        action,
+        commandId: ids.commandId,
+      }),
+    ).resolves.toEqual({ approvalId: ids.approvalId, status: 'consumed', replayed: true });
+    await expect(
+      authority.consumeHighCostApproval({
+        approvalId: ids.approvalId,
+        tenantId: ids.tenantId,
+        projectId: ids.projectId,
+        packageId: ids.packageId,
+        canvasSessionId,
+        actorId: ids.actorId,
+        commandType: 'GENERATE_SHOT',
+        action,
         commandId: ids.otherCommandId,
       }),
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
@@ -299,8 +350,9 @@ describe('Canvas Asset authority service', () => {
         projectId: ids.projectId,
         packageId: ids.packageId,
         canvasSessionId,
+        actorId: ids.actorId,
         commandType: 'GENERATE_SHOT',
-        actionFingerprint: `sha256:${'b'.repeat(64)}`,
+        action: { ...action, readinessId: 'abababab-abab-4bab-8bab-abababababab' },
         commandId: ids.commandId,
       }),
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
@@ -333,10 +385,53 @@ describe('Canvas Asset authority service', () => {
         projectId: ids.projectId,
         packageId: ids.packageId,
         canvasSessionId,
+        actorId: ids.actorId,
         commandType: 'EXPORT_PLAYLIST',
-        actionFingerprint: authority.actionFingerprint('EXPORT_PLAYLIST', action),
+        action,
         commandId: ids.commandId,
       }),
+    ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
+  });
+
+  it('replays persisted same-command consumption after expiry without authorizing a new command', async () => {
+    const store = new MemoryStore();
+    let clock = new Date('2026-08-14T02:00:00.000Z');
+    const authority = new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
+      now: () => new Date(clock),
+      newId: () => ids.approvalId,
+    });
+    const action = { shotId: '66666666-6666-4666-8666-666666666666' };
+    await authority.createHighCostApproval(actor, ids.projectId, {
+      packageId: ids.packageId,
+      canvasSessionId,
+      commandType: 'GENERATE_SHOT',
+      action,
+      expiresInSeconds: 120,
+      replayPolicy: 'single_use_replay_same_command',
+    });
+    clock = new Date('2026-08-14T02:01:00.000Z');
+    const input = {
+      approvalId: ids.approvalId,
+      tenantId: ids.tenantId,
+      projectId: ids.projectId,
+      packageId: ids.packageId,
+      canvasSessionId,
+      actorId: ids.actorId,
+      commandType: 'GENERATE_SHOT' as const,
+      action,
+      commandId: ids.commandId,
+    };
+    await expect(authority.consumeHighCostApproval(input)).resolves.toMatchObject({
+      status: 'consumed',
+      replayed: false,
+    });
+    clock = new Date('2026-08-14T02:03:00.000Z');
+    await expect(authority.consumeHighCostApproval(input)).resolves.toMatchObject({
+      status: 'consumed',
+      replayed: true,
+    });
+    await expect(
+      authority.consumeHighCostApproval({ ...input, commandId: ids.otherCommandId }),
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
   });
 

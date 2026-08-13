@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  assertBrowserSafeAssetProjection,
   parseAssetRecordProjection,
   parseCreateAssetInput,
   parseCreateHighCostApprovalInput,
@@ -68,15 +67,14 @@ describe('Canvas Asset strict parsing and projection safety', () => {
       'signed storage URL',
       {
         ...projection(),
-        controlledPreviewUrl:
-          'https://storage.example.test/preview.png?X-Amz-Signature=secret',
+        controlledPreviewUrl: 'https://storage.example.test/preview.png?X-Amz-Signature=secret',
       },
     ],
     ['provider identifier', { ...projection(), providerAssetId: 'provider-secret-id' }],
     ['storage reference', { ...projection(), storageReference: 'tenant/private/file.png' }],
     ['checksum', { ...projection(), checksum: `sha256:${'a'.repeat(64)}` }],
   ])('rejects %s from a browser projection', (_label, value) => {
-    expect(() => assertBrowserSafeAssetProjection(value)).toThrow();
+    expect(() => parseAssetRecordProjection(value)).toThrow();
   });
 
   it('accepts only bounded server-safe storage references and checksums on create', () => {
@@ -104,6 +102,42 @@ describe('Canvas Asset strict parsing and projection safety', () => {
     expect(() =>
       parseCreateAssetInput({ ...value, storageReference: '../storycanvas/data.sqlite' }),
     ).toThrow();
+    expect(() =>
+      parseCreateAssetInput({ ...value, storageReference: 'tenant-assets/provider-token.txt' }),
+    ).toThrow();
+  });
+
+  it.each([
+    'remoteAssetId',
+    'assetUri',
+    'groupId',
+    'providerAssetId',
+    'providerGroupId',
+    'providerTaskId',
+    'accessToken',
+    'authorization',
+    'cookie',
+    'grant',
+    'projectGrant',
+    'productionPackage',
+    'packageSnapshot',
+    'payloadDigest',
+    'approvedScriptDigest',
+    'approvedStoryboardDigest',
+    'idempotencyKey',
+    'internalToken',
+    'credential',
+    'secret',
+    'password',
+    'localPath',
+    'databaseId',
+    'providerRawBody',
+    'providerRawMessage',
+    'userConfirmed',
+  ])('rejects frozen forbidden browser key %s before unknown-field stripping', (key) => {
+    expect(() => parseAssetRecordProjection({ ...projection(), [key]: 'forbidden' })).toThrow(
+      expect.objectContaining({ code: 'CANVAS_BROWSER_PROJECTION_UNSAFE' }),
+    );
   });
 
   it('does not let the browser mint approval authority or submit userConfirmed', () => {
@@ -126,6 +160,9 @@ describe('Canvas Asset strict parsing and projection safety', () => {
     ).toThrow();
     expect(() =>
       parseCreateHighCostApprovalInput({ ...input, confirmedAt: '2026-08-14T02:00:00.000Z' }),
+    ).toThrow();
+    expect(() =>
+      parseCreateHighCostApprovalInput({ ...input, commandType: 'SAVE_CANVAS_DOCUMENT' }),
     ).toThrow();
   });
 });

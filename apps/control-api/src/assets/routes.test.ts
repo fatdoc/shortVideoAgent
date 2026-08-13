@@ -55,13 +55,47 @@ function createBody() {
   };
 }
 
-function harness(options: { resolve?: boolean; projectAccess?: 'viewer' | 'editor' | 'manager' | null } = {}) {
+function safeAsset() {
+  return {
+    objectType: 'AssetRecord',
+    contractVersion: '0.1',
+    tenantId: session.tenant!.id,
+    projectId,
+    packageId,
+    canvasSessionId,
+    assetId,
+    category: 'image',
+    displayName: '门店外景',
+    provenance: {
+      kind: 'customer_upload',
+      sourceAssetId: null,
+      declaredByActorId: actorId,
+      declaredAt: '2026-08-14T02:00:00.000Z',
+    },
+    rights: {
+      status: 'pending',
+      basis: 'customer_owned',
+      validFrom: null,
+      validUntil: null,
+      reviewedAt: null,
+    },
+    approval: { status: 'pending', reviewedByActorId: null, reviewedAt: null },
+    controlledPreviewUrl: `/api/canvas-v1/assets/${assetId}/preview`,
+    createdAt: '2026-08-14T02:00:00.000Z',
+    updatedAt: '2026-08-14T02:00:00.000Z',
+    occurredAt: '2026-08-14T02:00:00.000Z',
+  };
+}
+
+function harness(
+  options: { resolve?: boolean; projectAccess?: 'viewer' | 'editor' | 'manager' | null } = {},
+) {
   const service = {
-    createAsset: vi.fn(async () => ({ ...createBody(), assetId })),
+    createAsset: vi.fn(async () => safeAsset()),
     listAssets: vi.fn(async () => []),
-    getAsset: vi.fn(async () => ({ assetId })),
-    transitionRights: vi.fn(async () => ({ assetId })),
-    transitionApproval: vi.fn(async () => ({ assetId })),
+    getAsset: vi.fn(async () => safeAsset()),
+    transitionRights: vi.fn(async () => safeAsset()),
+    transitionApproval: vi.fn(async () => safeAsset()),
     createHighCostApproval: vi.fn(async () => ({
       approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
       status: 'active',
@@ -76,7 +110,8 @@ function harness(options: { resolve?: boolean; projectAccess?: 'viewer' | 'edito
     policy: {
       canCreateProject: async () => true,
       listVisibleProjectIds: async () => null,
-      resolveProjectAccess: async () => options.projectAccess ?? 'manager',
+      resolveProjectAccess: async () =>
+        options.projectAccess === undefined ? 'manager' : options.projectAccess,
     },
     resolveSession: async () => (options.resolve === false ? null : { session }),
     secureCookies: true,
@@ -189,6 +224,34 @@ describe('Canvas Asset browser route gates', () => {
     expect(service.createAsset).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(response.body)).not.toMatch(
       /storageReference|checksum|providerAssetId|asset:\/\//i,
+    );
+  });
+
+  it('returns only approvalId/status when authenticated actor confirms a high-cost action', async () => {
+    const { app, service } = harness({ projectAccess: 'editor' });
+    const response = await unsafe(
+      request(app)
+        .post(`/api/v1/projects/${projectId}/canvas-command-approvals`)
+        .send({
+          packageId,
+          canvasSessionId,
+          commandType: 'GENERATE_SHOT',
+          action: {
+            shotId: '66666666-6666-4666-8666-666666666666',
+            readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+          },
+          expiresInSeconds: 120,
+          replayPolicy: 'single_use_replay_same_command',
+        }),
+    );
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active',
+    });
+    expect(service.createHighCostApproval).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(response.body)).not.toMatch(
+      /actor|tenant|project|package|session|command|fingerprint|confirmed|expires|replay/i,
     );
   });
 });
