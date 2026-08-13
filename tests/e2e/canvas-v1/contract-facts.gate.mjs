@@ -108,9 +108,13 @@ test("schema index and aggregate schema resolve the same nine frozen authorities
   }
 });
 
-test("all nine canonical fixtures retain exact identity, scope, version and schema authority", () => {
+test("nine aggregate fixtures plus the additive amendment fixture are exhaustively catalogued", () => {
   assert.deepEqual(Object.keys(matrix.fixtureFiles), expectedDefinitions);
-  assert.deepEqual(Object.values(matrix.fixtureFiles).sort(), fs.readdirSync(fixtureDir).filter((name) => name.endsWith(".json")).sort());
+  const expectedFixtureFiles = [...Object.values(matrix.fixtureFiles), amendmentFixtureFile].sort();
+  assert.deepEqual(
+    fs.readdirSync(fixtureDir).filter((name) => name.endsWith(".json")).sort(),
+    expectedFixtureFiles,
+  );
 
   for (const [objectType, fileName] of Object.entries(matrix.fixtureFiles)) {
     const fixture = loadFixture(fileName);
@@ -162,7 +166,10 @@ test("all frozen negative vectors are unique, executable mutations with stable f
   for (const vector of matrix.vectors) {
     assert.match(vector.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
     assert.ok(allowedOperations.has(vector.operation), `${vector.id}: unknown operation`);
-    assert.ok(Object.values(matrix.fixtureFiles).includes(vector.fixture), `${vector.id}: unknown fixture`);
+    assert.ok(
+      [...Object.values(matrix.fixtureFiles), amendmentFixtureFile].includes(vector.fixture),
+      `${vector.id}: unknown fixture`,
+    );
     assert.match(vector.expectedCode, /^CANVAS_[A-Z0-9_]+$/);
 
     const mutations = vector.mutations ?? [];

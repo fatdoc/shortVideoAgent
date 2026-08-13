@@ -24,7 +24,6 @@ function resolveDependency(relativePath) {
 
 const tsxCli = resolveDependency("apps/storycanvas/node_modules/tsx/dist/cli.mjs");
 const storyCanvasNodeModules = path.resolve(path.dirname(tsxCli), "../..");
-const electron = resolveDependency("apps/storycanvas/node_modules/.bin/electron");
 const vitest = resolveDependency("node_modules/.bin/vitest");
 const phases = [
   {
@@ -37,8 +36,8 @@ const phases = [
   },
   {
     name: "StoryCanvas backend contract conformance",
-    command: [electron, tsxCli, "--test", "apps/storycanvas/src/contracts/canvas-v1/contracts.test.ts"],
-    env: { ELECTRON_RUN_AS_NODE: "1", NODE_PATH: storyCanvasNodeModules },
+    command: [process.execPath, tsxCli, "--test", "apps/storycanvas/src/contracts/canvas-v1/contracts.test.ts"],
+    env: { NODE_PATH: storyCanvasNodeModules },
   },
   {
     name: "frontend contract conformance",
@@ -52,9 +51,9 @@ const phases = [
     ],
   },
   {
-    name: "CV6 independent 37-vector parser parity",
-    command: [electron, tsxCli, "--test", "tests/e2e/canvas-v1/parser-parity.gate.ts"],
-    env: { ELECTRON_RUN_AS_NODE: "1", NODE_PATH: storyCanvasNodeModules },
+    name: "CV6 independent 38-vector parser parity",
+    command: [process.execPath, tsxCli, "--test", "tests/e2e/canvas-v1/parser-parity.gate.ts"],
+    env: { NODE_PATH: storyCanvasNodeModules },
   },
 ];
 
