@@ -123,5 +123,23 @@ describe('Control server-only Canvas asset session authority', () => {
     expect(JSON.stringify(response.body)).not.toMatch(
       /handle|tenant|project|package|session|actor|grant|token|digest|snapshot/i,
     );
+
+    const sentinel = 'RAW_HANDLE_GRANT_TOKEN_DIGEST_PACKAGE_SNAPSHOT';
+    const malformed = await request(application)
+      .post('/api/v1/internal/canvas-asset-sessions')
+      .set('content-type', 'application/json')
+      .set('x-production-plane-internal-token', internalToken)
+      .send(`{"handle":"${sentinel}"`);
+    expect(malformed.status).toBe(400);
+    expect(malformed.body.error.code).toBe('CANVAS_SESSION_REQUEST_INVALID');
+    expect(JSON.stringify(malformed.body)).not.toContain(sentinel);
+
+    const oversized = await request(application)
+      .post('/api/v1/internal/canvas-asset-sessions')
+      .set('x-production-plane-internal-token', internalToken)
+      .send({ ...scope, unexpected: sentinel.repeat(2_000) });
+    expect(oversized.status).toBe(413);
+    expect(oversized.body.error.code).toBe('CANVAS_SESSION_REQUEST_TOO_LARGE');
+    expect(JSON.stringify(oversized.body)).not.toContain(sentinel);
   });
 });

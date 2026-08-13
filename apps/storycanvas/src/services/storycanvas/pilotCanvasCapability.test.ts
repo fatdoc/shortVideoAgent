@@ -231,6 +231,25 @@ test("does not save raw redemption or return pcs authority when Control registra
   assert.equal(registry.activeCount(), 0);
 });
 
+test("rejects Control expiry drift without saving raw redemption or pcs authority", async () => {
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => redemption() as never,
+  } as never, {
+    registrar: {
+      register: async () => ({
+        status: "active" as const,
+        expiresAt: "2026-08-12T01:29:59.000Z",
+        replayed: false,
+      }),
+    },
+    now: () => Date.parse(now),
+  });
+  await assert.rejects(() => registry.openEntry(entry, userId), (error: unknown) =>
+    error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_INVALID_RESPONSE",
+  );
+  assert.equal(registry.activeCount(), 0);
+});
+
 test("fails closed for strict response, scope, changed-handle binding and unsafe errors", async () => {
   for (const invalid of [
     redemption({ projectId: "99999999-9999-4999-8999-999999999999" }),

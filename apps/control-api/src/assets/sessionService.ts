@@ -63,7 +63,8 @@ export class CanvasAssetSessionAuthorityService {
 
   async registerSession(inputValue: unknown): Promise<CanvasAssetSessionRegistrationResult> {
     const input = parseCanvasAssetSessionRegistration(inputValue);
-    const outcome = await this.store.registerSession({ ...input, registeredAt: now(this.now) });
+    const registeredAt = now(this.now);
+    const outcome = await this.store.registerSession({ ...input, registeredAt });
     if (outcome.kind === 'conflict') {
       throw canvasAssetError(
         'CANVAS_SESSION_CONFLICT',
@@ -71,7 +72,7 @@ export class CanvasAssetSessionAuthorityService {
       );
     }
     if (
-      outcome.value.expiresAt.getTime() <= outcome.value.registeredAt.getTime() ||
+      outcome.value.expiresAt.getTime() <= registeredAt.getTime() ||
       !Number.isFinite(outcome.value.expiresAt.getTime())
     ) {
       throw canvasAssetError('CANVAS_SESSION_INVALID', 'Canvas session authority is inactive.');

@@ -24,4 +24,24 @@ describe('Control API Canvas Asset router registration', () => {
     expect(unversioned.status).toBe(404);
     expect(unversioned.body.error.code).toBe('ROUTE_NOT_FOUND');
   });
+
+  it('mounts the session registrar only under the internal boundary', async () => {
+    const internalCanvasAssetSessionRouter = Router();
+    internalCanvasAssetSessionRouter.post('/canvas-asset-sessions', (_request, response) => {
+      response.status(201).json({ mounted: true });
+    });
+    const app = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      internalCanvasAssetSessionRouter,
+    });
+    await expect(
+      request(app).post('/api/v1/internal/canvas-asset-sessions').send({}),
+    ).resolves.toMatchObject({ status: 201, body: { mounted: true } });
+    await expect(request(app).post('/api/v1/canvas-asset-sessions').send({})).resolves.toMatchObject({
+      status: 404,
+      body: { error: { code: 'ROUTE_NOT_FOUND' } },
+    });
+  });
 });
