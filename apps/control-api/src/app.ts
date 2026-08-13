@@ -16,6 +16,7 @@ export type ControlApiDependencies = {
   storyboardRouter?: Router;
   productionRouter?: Router;
   canvasEntryRouter?: Router;
+  assetRouter?: Router;
   paymentRouter?: Router;
   commercialChannelRouter?: Router;
   commissionAuditRouter?: Router;
@@ -76,6 +77,7 @@ export function createApp(dependencies: ControlApiDependencies) {
   if (dependencies.storyboardRouter) app.use('/api/v1', dependencies.storyboardRouter);
   if (dependencies.productionRouter) app.use('/api/v1', dependencies.productionRouter);
   if (dependencies.canvasEntryRouter) app.use('/api/v1', dependencies.canvasEntryRouter);
+  if (dependencies.assetRouter) app.use('/api/v1', dependencies.assetRouter);
   if (dependencies.paymentRouter) app.use('/api/v1', dependencies.paymentRouter);
   if (dependencies.commercialChannelRouter) {
     app.use('/api/v1', dependencies.commercialChannelRouter);
