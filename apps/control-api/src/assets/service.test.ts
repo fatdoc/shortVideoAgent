@@ -388,6 +388,74 @@ describe('Canvas Asset authority service', () => {
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
   });
 
+  it('requires the exact Canvas session to remain active before first consume and replay', async () => {
+    const store = new MemoryStore();
+    let active = true;
+    const authority = new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
+      now: () => new Date(now),
+      newId: () => ids.approvalId,
+      sessionAuthority: {
+        assertActiveSession: async (input) => {
+          expect(input).toEqual({
+            tenantId: ids.tenantId,
+            projectId: ids.projectId,
+            packageId: ids.packageId,
+            canvasSessionId,
+            actorId: ids.actorId,
+          });
+          if (!active) {
+            throw new CanvasAssetDomainError(
+              'CANVAS_SESSION_INVALID',
+              'Canvas session authority is invalid.',
+            );
+          }
+        },
+      },
+    });
+    const action = {
+      commandId: ids.commandId,
+      payload: { shotId: '66666666-6666-4666-8666-666666666666' },
+    };
+    await authority.createHighCostApproval(actor, ids.projectId, {
+      packageId: ids.packageId,
+      canvasSessionId,
+      commandType: 'GENERATE_SHOT',
+      action,
+      expiresInSeconds: 120,
+      replayPolicy: 'single_use_replay_same_command',
+    });
+    const input = {
+      approvalId: ids.approvalId,
+      tenantId: ids.tenantId,
+      projectId: ids.projectId,
+      packageId: ids.packageId,
+      canvasSessionId,
+      actorId: ids.actorId,
+      commandType: 'GENERATE_SHOT' as const,
+      action,
+      commandId: ids.commandId,
+    };
+
+    active = false;
+    await expect(authority.consumeHighCostApproval(input)).rejects.toMatchObject({
+      code: 'CANVAS_SESSION_INVALID',
+    });
+    expect(store.approvals.get(ids.approvalId)).toMatchObject({
+      status: 'active',
+      consumedByCommandId: null,
+    });
+
+    active = true;
+    await expect(authority.consumeHighCostApproval(input)).resolves.toMatchObject({
+      status: 'consumed',
+      replayed: false,
+    });
+    active = false;
+    await expect(authority.consumeHighCostApproval(input)).rejects.toMatchObject({
+      code: 'CANVAS_SESSION_INVALID',
+    });
+  });
+
   it('rejects an expired approval before consumption', async () => {
     const store = new MemoryStore();
     const authority = new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
