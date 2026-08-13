@@ -60,6 +60,22 @@ async function createSchema(database: Knex): Promise<void> {
       consumed_at timestamptz,
       expires_at timestamptz not null
     );
+    create table control_plane.canvas_asset_records (
+      asset_id uuid primary key,
+      tenant_id uuid not null,
+      project_id uuid not null,
+      package_id uuid not null,
+      canvas_session_id text not null,
+      declared_by_actor_id uuid not null
+    );
+    create table control_plane.high_cost_command_approvals (
+      approval_id uuid primary key,
+      tenant_id uuid not null,
+      project_id uuid not null,
+      package_id uuid not null,
+      canvas_session_id text not null,
+      actor_id uuid not null
+    );
   `);
   await addCanvasAssetSessionAuthority(database);
   await database('control_plane.tenants').insert({ tenant_id: tenantId });

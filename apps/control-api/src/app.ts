@@ -45,6 +45,9 @@ export function createApp(dependencies: ControlApiDependencies) {
   app.disable('x-powered-by');
   if (dependencies.trustProxy) app.set('trust proxy', 1);
   app.use(requestContext());
+  if (dependencies.internalCanvasAssetSessionRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasAssetSessionRouter);
+  }
   app.use(express.json({ limit: '1mb', strict: true }));
 
   app.get('/health/live', (_request, response) => {
@@ -73,9 +76,6 @@ export function createApp(dependencies: ControlApiDependencies) {
   }
   if (dependencies.internalCanvasEntryRouter) {
     app.use('/api/v1/internal', dependencies.internalCanvasEntryRouter);
-  }
-  if (dependencies.internalCanvasAssetSessionRouter) {
-    app.use('/api/v1/internal', dependencies.internalCanvasAssetSessionRouter);
   }
   if (dependencies.contentRouter) app.use('/api/v1', dependencies.contentRouter);
   if (dependencies.storyboardRouter) app.use('/api/v1', dependencies.storyboardRouter);

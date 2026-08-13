@@ -1,6 +1,6 @@
-import express from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
+import { createApp } from '../app.js';
 import { createInternalCanvasAssetSessionRouter } from './internalSessionRoutes.js';
 import { CanvasAssetSessionAuthorityService } from './sessionService.js';
 import type {
@@ -95,11 +95,15 @@ describe('Control server-only Canvas asset session authority', () => {
         replayed: false,
       })),
     };
-    const application = express();
-    application.use(
-      '/api/v1/internal',
-      createInternalCanvasAssetSessionRouter({ internalToken, service }),
-    );
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      internalCanvasAssetSessionRouter: createInternalCanvasAssetSessionRouter({
+        internalToken,
+        service,
+      }),
+    });
 
     const unauthorized = await request(application)
       .post('/api/v1/internal/canvas-asset-sessions')

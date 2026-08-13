@@ -44,42 +44,56 @@ export function createInternalCanvasAssetSessionRouter(
     throw new Error('Internal Canvas asset session token must contain at least 32 bytes.');
   }
   const router = Router();
-  router.use(json({ limit: MAX_BODY_BYTES, strict: true }));
-  router.post('/canvas-asset-sessions', async (request, response) => {
-    const id = requestId(request, response);
-    response.setHeader('cache-control', 'no-store');
-    response.setHeader('x-request-id', id);
-    if (
-      !sameToken(
-        options.internalToken,
-        request.header('x-production-plane-internal-token') ?? undefined,
-      )
-    ) {
-      fail(response, 401, 'CANVAS_SESSION_UNAUTHORIZED', 'Internal authentication failed.', id);
-      return;
-    }
-    const contentLength = Number(request.header('content-length') ?? '0');
-    if (
-      (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) ||
-      Buffer.byteLength(JSON.stringify(request.body ?? null), 'utf8') > MAX_BODY_BYTES
-    ) {
-      fail(response, 413, 'CANVAS_SESSION_REQUEST_TOO_LARGE', 'Request body is too large.', id);
-      return;
-    }
-    try {
-      const result = await options.service.registerSession(
-        parseCanvasAssetSessionRegistration(request.body),
-      );
-      response.setHeader('idempotency-replayed', String(result.replayed));
-      response.status(result.replayed ? 200 : 201).json(result);
-    } catch (error) {
-      if (error instanceof CanvasAssetDomainError) {
-        fail(response, CANVAS_ASSET_ERROR_STATUS[error.code], error.code, error.message, id);
+  router.post(
+    '/canvas-asset-sessions',
+    (request, response, next) => {
+      const id = requestId(request, response);
+      response.locals.requestId = id;
+      response.setHeader('cache-control', 'no-store');
+      response.setHeader('x-request-id', id);
+      if (
+        !sameToken(
+          options.internalToken,
+          request.header('x-production-plane-internal-token') ?? undefined,
+        )
+      ) {
+        fail(response, 401, 'CANVAS_SESSION_UNAUTHORIZED', 'Internal authentication failed.', id);
         return;
       }
-      fail(response, 503, 'CANVAS_SESSION_UNAVAILABLE', 'Canvas session authority is unavailable.', id);
-    }
-  });
+      next();
+    },
+    json({ limit: MAX_BODY_BYTES, strict: true }),
+    async (request, response) => {
+      const id = requestId(request, response);
+      const contentLength = Number(request.header('content-length') ?? '0');
+      if (
+        (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) ||
+        Buffer.byteLength(JSON.stringify(request.body ?? null), 'utf8') > MAX_BODY_BYTES
+      ) {
+        fail(response, 413, 'CANVAS_SESSION_REQUEST_TOO_LARGE', 'Request body is too large.', id);
+        return;
+      }
+      try {
+        const result = await options.service.registerSession(
+          parseCanvasAssetSessionRegistration(request.body),
+        );
+        response.setHeader('idempotency-replayed', String(result.replayed));
+        response.status(result.replayed ? 200 : 201).json(result);
+      } catch (error) {
+        if (error instanceof CanvasAssetDomainError) {
+          fail(response, CANVAS_ASSET_ERROR_STATUS[error.code], error.code, error.message, id);
+          return;
+        }
+        fail(
+          response,
+          503,
+          'CANVAS_SESSION_UNAVAILABLE',
+          'Canvas session authority is unavailable.',
+          id,
+        );
+      }
+    },
+  );
   router.use((error: unknown, request: Request, response: Response, next: NextFunction) => {
     const parser = error as { status?: number; type?: string } | null;
     const id = requestId(request, response);
