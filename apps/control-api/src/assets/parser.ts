@@ -167,17 +167,23 @@ const jsonValue: z.ZodType<unknown> = z.lazy(() =>
   ]),
 );
 
+const highCostApprovalActionSchema = z
+  .object({
+    commandId: uuid,
+    payload: z.record(z.string().min(1).max(100), jsonValue),
+  })
+  .strict();
+
 const createHighCostApprovalSchema = z
   .object({
     packageId: uuid,
     canvasSessionId,
     commandType: z.enum(HIGH_COST_COMMAND_TYPES),
-    action: z.record(z.string().min(1).max(100), jsonValue),
+    action: highCostApprovalActionSchema,
     expiresInSeconds: z.number().int().min(30).max(300),
     replayPolicy: z.literal('single_use_replay_same_command'),
   })
   .strict()
-  .refine((value) => Object.keys(value.action).length > 0)
   .refine((value) => Buffer.byteLength(JSON.stringify(value.action), 'utf8') <= 64 * 1024);
 
 const consumeHighCostApprovalSchema = z
@@ -189,11 +195,11 @@ const consumeHighCostApprovalSchema = z
     canvasSessionId,
     actorId: uuid,
     commandType: z.enum(HIGH_COST_COMMAND_TYPES),
-    action: z.record(z.string().min(1).max(100), jsonValue),
+    action: highCostApprovalActionSchema,
     commandId: uuid,
   })
   .strict()
-  .refine((value) => Object.keys(value.action).length > 0)
+  .refine((value) => value.commandId === value.action.commandId)
   .refine((value) => Buffer.byteLength(JSON.stringify(value.action), 'utf8') <= 64 * 1024);
 
 const highCostApprovalProjectionSchema = z

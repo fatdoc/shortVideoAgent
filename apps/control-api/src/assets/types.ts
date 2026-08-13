@@ -157,11 +157,16 @@ export type CreateAssetAuthorityRecord = Omit<
 export type ApprovalReplayPolicy = 'single_use_replay_same_command';
 export type HighCostApprovalStatus = 'active' | 'consumed' | 'expired' | 'revoked';
 
+export type HighCostApprovalAction = {
+  commandId: string;
+  payload: Record<string, unknown>;
+};
+
 export type CreateHighCostApprovalInput = {
   packageId: string;
   canvasSessionId: string;
   commandType: HighCostCommandType;
-  action: Record<string, unknown>;
+  action: HighCostApprovalAction;
   expiresInSeconds: number;
   replayPolicy: ApprovalReplayPolicy;
 };
@@ -201,7 +206,7 @@ export type ConsumeHighCostApprovalInput = {
   canvasSessionId: string;
   actorId: string;
   commandType: HighCostCommandType;
-  action: Record<string, unknown>;
+  action: HighCostApprovalAction;
   commandId: string;
 };
 

@@ -228,7 +228,10 @@ describe('Canvas Asset authority service', () => {
         packageId: ids.packageId,
         canvasSessionId,
         commandType: 'GENERATE_SHOT',
-        action: { shotId: '66666666-6666-4666-8666-666666666666' },
+        action: {
+          commandId: ids.commandId,
+          payload: { shotId: '66666666-6666-4666-8666-666666666666' },
+        },
         expiresInSeconds: 120,
         replayPolicy: 'single_use_replay_same_command',
       }),
@@ -282,8 +285,11 @@ describe('Canvas Asset authority service', () => {
   it('binds a high-cost approval to authenticated actor and exact action scope', async () => {
     const { authority } = service();
     const action = {
-      shotId: '66666666-6666-4666-8666-666666666666',
-      readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      commandId: ids.commandId,
+      payload: {
+        shotId: '66666666-6666-4666-8666-666666666666',
+        readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      },
     };
     const created = await authority.createHighCostApproval(actor, ids.projectId, {
       packageId: ids.packageId,
@@ -372,7 +378,7 @@ describe('Canvas Asset authority service', () => {
         action,
         commandId: ids.otherCommandId,
       }),
-    ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
+    ).rejects.toMatchObject({ code: 'CANVAS_SCHEMA_INVALID' });
     await expect(
       authority.consumeHighCostApproval({
         approvalId: ids.approvalId,
@@ -382,7 +388,10 @@ describe('Canvas Asset authority service', () => {
         canvasSessionId,
         actorId: ids.actorId,
         commandType: 'GENERATE_SHOT',
-        action: { ...action, readinessId: 'abababab-abab-4bab-8bab-abababababab' },
+        action: {
+          ...action,
+          payload: { ...action.payload, readinessId: 'abababab-abab-4bab-8bab-abababababab' },
+        },
         commandId: ids.commandId,
       }),
     ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
@@ -463,7 +472,10 @@ describe('Canvas Asset authority service', () => {
       newId: () => ids.approvalId,
       sessionAuthority: { assertActiveSession: async () => undefined },
     });
-    const action = { documentId: '77777777-7777-4777-8777-777777777777' };
+    const action = {
+      commandId: ids.commandId,
+      payload: { documentId: '77777777-7777-4777-8777-777777777777' },
+    };
     await store.createHighCostApproval({
       approvalId: ids.approvalId,
       tenantId: ids.tenantId,
@@ -500,7 +512,10 @@ describe('Canvas Asset authority service', () => {
       newId: () => ids.approvalId,
       sessionAuthority: { assertActiveSession: async () => undefined },
     });
-    const action = { shotId: '66666666-6666-4666-8666-666666666666' };
+    const action = {
+      commandId: ids.commandId,
+      payload: { shotId: '66666666-6666-4666-8666-666666666666' },
+    };
     await authority.createHighCostApproval(actor, ids.projectId, {
       packageId: ids.packageId,
       canvasSessionId,
@@ -532,7 +547,7 @@ describe('Canvas Asset authority service', () => {
     });
     await expect(
       authority.consumeHighCostApproval({ ...input, commandId: ids.otherCommandId }),
-    ).rejects.toMatchObject({ code: 'CANVAS_APPROVAL_INVALID' });
+    ).rejects.toMatchObject({ code: 'CANVAS_SCHEMA_INVALID' });
   });
 
   it('uses bounded domain errors rather than reflecting secret inputs', () => {

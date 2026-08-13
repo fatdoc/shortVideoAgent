@@ -237,8 +237,11 @@ describe('Canvas Asset browser route gates', () => {
           canvasSessionId,
           commandType: 'GENERATE_SHOT',
           action: {
-            shotId: '66666666-6666-4666-8666-666666666666',
-            readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            commandId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            payload: {
+              shotId: '66666666-6666-4666-8666-666666666666',
+              readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            },
           },
           expiresInSeconds: 120,
           replayPolicy: 'single_use_replay_same_command',
