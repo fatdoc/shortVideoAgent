@@ -15,15 +15,18 @@ dotenv.config({ quiet: true });
 if (!process.env.NODE_ENV) process.env.NODE_ENV = "dev";
 
 const pilotRuntime = process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true";
+function isSafePilotRuntimeMarker(line: string): boolean {
+  if (line === "PILOT_CANVAS_RUNTIME_BLOCKED" || line === "PILOT_CANVAS_RUNTIME_STOPPED") return true;
+  const ready = /^PILOT_CANVAS_RUNTIME_READY http:\/\/127\.0\.0\.1:(\d{1,5})$/.exec(line);
+  if (!ready) return false;
+  const port = Number(ready[1]);
+  return Number.isSafeInteger(port) && port >= 1 && port <= 65_535;
+}
 if (pilotRuntime) {
   const writeSafeMarker = console.log.bind(console);
   console.log = (...values: unknown[]) => {
     const line = values.length === 1 && typeof values[0] === "string" ? values[0] : "";
-    if (
-      /^PILOT_CANVAS_RUNTIME_READY http:\/\/127\.0\.0\.1:\d{1,5}$/.test(line)
-      || line === "PILOT_CANVAS_RUNTIME_BLOCKED"
-      || line === "PILOT_CANVAS_RUNTIME_STOPPED"
-    ) {
+    if (isSafePilotRuntimeMarker(line)) {
       writeSafeMarker(line);
     }
   };
