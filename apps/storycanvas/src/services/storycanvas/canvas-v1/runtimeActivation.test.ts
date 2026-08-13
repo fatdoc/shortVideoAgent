@@ -414,6 +414,7 @@ test('provider completion without task-created hook fails deterministically inst
 test('provider task-created hook is same-id idempotent and rejects a changed id without overwrite', async (context) => {
   const db = await database();
   context.after(() => db.destroy());
+  let persistedOutputs = 0;
   const adapter = new CanvasV1ShotProductionAdapter({
     database: db,
     readiness: () => true,
@@ -423,8 +424,15 @@ test('provider task-created hook is same-id idempotent and rejects a changed id 
         await hooks.onTaskCreated('provider-task-server-only');
         await hooks.onTaskCreated('provider-task-server-only');
         await assert.rejects(() => hooks.onTaskCreated('provider-task-changed'));
-        throw new Error('fixed provider failure');
+        return {
+          externalTaskId: 'provider-task-server-only',
+          videoUrl: 'https://provider.invalid/result',
+        };
       },
+    },
+    persistOutput: async () => {
+      persistedOutputs += 1;
+      return { outputAssetId: assetId };
     },
     newId: () => '18181818-1818-4818-8818-181818181818',
   });
@@ -440,6 +448,7 @@ test('provider task-created hook is same-id idempotent and rejects a changed id 
   const row = await db('sc_tasks').first();
   assert.equal(row.externalTaskId, 'provider-task-server-only');
   assert.equal(row.status, 'failed');
+  assert.equal(persistedOutputs, 0);
 });
 
 test('provider failure persists only a fixed safe error and remains non-repeatable', async (context) => {
