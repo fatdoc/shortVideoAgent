@@ -1,6 +1,5 @@
 // import "./logger";
 import "./err";
-import "./env";
 import express, { Request, Response, NextFunction } from "express";
 import { Server } from "socket.io";
 import http from "node:http";
@@ -65,9 +64,10 @@ export default async function startServe(randomPort: Boolean = false) {
     }
   }
   await databaseReady;
-  await initializeModels(db);
-
-  await u.writeVersion();
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") {
+    await initializeModels(db);
+    await u.writeVersion();
+  }
   const io = new Server(server, { cors: { origin: "*" } });
   socketServer = io;
   socketInit(io);
@@ -77,7 +77,9 @@ export default async function startServe(randomPort: Boolean = false) {
   const ws = expressWs(app, server);
   webSocketServer = ws.getWss();
 
-  app.use(logger("dev"));
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") {
+    app.use(logger("dev"));
+  }
   const corsOptions: CorsOptionsDelegate<Request> = (request, callback) => {
     if (request.path.startsWith("/api/production/pilot/canvas/")) {
       const allowedOrigin = process.env.STORYCANVAS_PILOT_ALLOWED_ORIGIN?.trim();
@@ -101,7 +103,6 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(ossDir)) {
     fs.mkdirSync(ossDir, { recursive: true });
   }
-  console.log("文件目录:", ossDir);
   app.use(
     "/oss",
     (req, res, next) => {
@@ -159,7 +160,6 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(skillsDir)) {
     fs.mkdirSync(skillsDir, { recursive: true });
   }
-  console.log("文件目录:", skillsDir);
   // 只允许图片文件访问
   app.use(
     "/skills",
@@ -174,7 +174,6 @@ export default async function startServe(randomPort: Boolean = false) {
   if (!fs.existsSync(assetsDir)) {
     fs.mkdirSync(assetsDir, { recursive: true });
   }
-  console.log("文件目录:", assetsDir);
   app.use("/assets", express.static(assetsDir, { acceptRanges: false }));
 
   // StoryCanvas UI is integrated into the root SaaS application. This process
@@ -228,7 +227,7 @@ export default async function startServe(randomPort: Boolean = false) {
   app.use((err: any, _: Request, res: Response, __: NextFunction) => {
     res.locals.message = err.message;
     res.locals.error = err;
-    console.error(err);
+    if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") console.error(err);
     res.status(err.status || 500).send(err);
   });
 
@@ -266,6 +265,7 @@ export async function closeServe(timeoutMs = 5000, signal: "SIGTERM" | "SIGINT" 
     socketIo: socketServer,
     webSocket: webSocketServer,
   });
+  await db.destroy();
   socketServer = null;
   webSocketServer = null;
   console.log("PILOT_CANVAS_RUNTIME_STOPPED");
@@ -276,7 +276,7 @@ const isElectron =
   process.env.ELECTRON_RUN_AS_NODE !== "1";
 if (!isElectron) {
   void startServe().catch(() => {
-    console.error("PILOT_CANVAS_RUNTIME_BLOCKED");
+    console.log("PILOT_CANVAS_RUNTIME_BLOCKED");
     process.exitCode = 1;
   });
   let shuttingDown = false;
