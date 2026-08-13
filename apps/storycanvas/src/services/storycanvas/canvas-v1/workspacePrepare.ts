@@ -103,13 +103,115 @@ function reasonCodes(input: ShotReadinessV01["requirements"][number]) {
   return CANVAS_V1_REASON_CODES.filter((code) => reasons.has(code));
 }
 
-function parseOptionalProjection<T extends ProviderAssetBindingV01 | EntityBindingV01>(raw: unknown): T | null {
+function parseOptionalProjection<T extends ProviderAssetBindingV01 | EntityBindingV01>(
+  raw: unknown,
+  objectType: T["objectType"],
+): T | null {
   if (typeof raw !== "string") return null;
   try {
-    return parseCanvasV1Contract(JSON.parse(raw)) as T;
+    const parsed = parseCanvasV1Contract(JSON.parse(raw));
+    return parsed.objectType === objectType ? parsed as T : null;
   } catch {
     return null;
   }
+}
+
+function currentAssetAuthorityValid(
+  asset: AssetRecordV01,
+  scope: CanvasProductionScope,
+  occurredAt: string,
+): boolean {
+  const now = Date.parse(occurredAt);
+  const validFrom = asset.rights.validFrom === null ? null : Date.parse(asset.rights.validFrom);
+  const validUntil = asset.rights.validUntil === null ? null : Date.parse(asset.rights.validUntil);
+  return asset.tenantId === scope.tenantId
+    && asset.projectId === scope.projectId
+    && asset.packageId === scope.packageId
+    && asset.canvasSessionId === scope.canvasSessionId
+    && asset.rights.status === "authorized"
+    && asset.approval.status === "approved"
+    && (validFrom === null || validFrom <= now)
+    && (validUntil === null || validUntil > now);
+}
+
+async function resolveSessionBindings(input: {
+  transaction: Knex.Transaction;
+  scope: CanvasProductionScope;
+  asset: AssetRecordV01;
+  entityId: string;
+  occurredAt: string;
+}): Promise<{ provider: ProviderAssetBindingV01 | null; entity: EntityBindingV01 | null }> {
+  const stableScope = projectionScope(input.scope);
+  const providerRows = await input.transaction("sc_canvas_v1_provider_bindings")
+    .where({ ...stableScope, assetId: input.asset.assetId }).limit(2);
+  const entityRows = await input.transaction("sc_canvas_v1_entity_bindings")
+    .where({ ...stableScope, entityId: input.entityId, assetId: input.asset.assetId }).limit(2);
+  if (providerRows.length !== 1 || entityRows.length !== 1) return { provider: null, entity: null };
+
+  const providerRow = providerRows[0];
+  const entityRow = entityRows[0];
+  const provider = parseOptionalProjection<ProviderAssetBindingV01>(providerRow.authorityJson, "ProviderAssetBinding");
+  const entity = parseOptionalProjection<EntityBindingV01>(entityRow.projectionJson, "EntityBinding");
+  if (!provider || !entity
+    || provider.bindingId !== String(providerRow.bindingId)
+    || provider.assetId !== String(providerRow.assetId)
+    || provider.tenantId !== String(providerRow.tenantId)
+    || provider.projectId !== String(providerRow.projectId)
+    || provider.packageId !== String(providerRow.packageId)
+    || provider.updatedAt !== String(providerRow.updatedAt)
+    || entity.bindingId !== String(entityRow.bindingId)
+    || entity.assetId !== String(entityRow.assetId)
+    || entity.entityId !== String(entityRow.entityId)
+    || entity.tenantId !== String(entityRow.tenantId)
+    || entity.projectId !== String(entityRow.projectId)
+    || entity.packageId !== String(entityRow.packageId)
+    || entity.updatedAt !== String(entityRow.updatedAt)
+    || provider.assetId !== input.asset.assetId
+    || entity.assetId !== input.asset.assetId
+    || entity.entityId !== input.entityId
+    || entity.entityType !== "virtual_character"
+    || provider.provider !== "byteplus"
+    || (provider.providerStatus === "active"
+      && provider.assetUri !== `asset://${provider.providerAssetId}`)) {
+    return { provider: null, entity: null };
+  }
+
+  if (provider.canvasSessionId === input.scope.canvasSessionId
+    && entity.canvasSessionId === input.scope.canvasSessionId) return { provider, entity };
+  if (!currentAssetAuthorityValid(input.asset, input.scope, input.occurredAt)
+    || provider.canvasSessionId !== entity.canvasSessionId
+    || provider.canvasSessionId === input.scope.canvasSessionId
+    || provider.providerStatus !== "active"
+    || entity.status !== "approved"
+    || entity.approvedByActorId !== input.scope.actorId
+    || entity.continuityRevision === null
+    || !Number.isSafeInteger(entity.continuityRevision + 1)) {
+    return { provider: null, entity: null };
+  }
+
+  const rotatedProvider = parseCanvasV1Contract({
+    ...provider,
+    canvasSessionId: input.scope.canvasSessionId,
+    updatedAt: input.occurredAt,
+    occurredAt: input.occurredAt,
+  }) as ProviderAssetBindingV01;
+  const rotatedEntity = parseCanvasV1Contract({
+    ...entity,
+    canvasSessionId: input.scope.canvasSessionId,
+    continuityRevision: entity.continuityRevision + 1,
+    updatedAt: input.occurredAt,
+    occurredAt: input.occurredAt,
+  }) as EntityBindingV01;
+  const providerUpdated = await input.transaction("sc_canvas_v1_provider_bindings")
+    .where({ bindingId: provider.bindingId, updatedAt: provider.updatedAt })
+    .update({ authorityJson: JSON.stringify(rotatedProvider), updatedAt: input.occurredAt });
+  const entityUpdated = await input.transaction("sc_canvas_v1_entity_bindings")
+    .where({ bindingId: entity.bindingId, updatedAt: entity.updatedAt })
+    .update({ projectionJson: JSON.stringify(rotatedEntity), updatedAt: input.occurredAt });
+  if (providerUpdated !== 1 || entityUpdated !== 1) {
+    throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+  }
+  return { provider: rotatedProvider, entity: rotatedEntity };
 }
 
 export class CanvasV1WorkspacePreparer {
@@ -180,12 +282,13 @@ export class CanvasV1WorkspacePreparer {
 
       await transaction("sc_canvas_v1_requirements").where(scope).delete();
       await transaction("sc_canvas_v1_readiness").where(scope).delete();
-      const providerRow = await transaction("sc_canvas_v1_provider_bindings")
-        .where({ ...scope, assetId: primary.assetId }).first();
-      const entityRow = await transaction("sc_canvas_v1_entity_bindings")
-        .where({ ...scope, entityId: targetEntityId, assetId: primary.assetId }).first();
-      const provider = parseOptionalProjection<ProviderAssetBindingV01>(providerRow?.authorityJson);
-      const entity = parseOptionalProjection<EntityBindingV01>(entityRow?.projectionJson);
+      const { provider, entity } = await resolveSessionBindings({
+        transaction,
+        scope: input.scope,
+        asset: primary,
+        entityId: targetEntityId,
+        occurredAt,
+      });
       const providerStatus = provider?.canvasSessionId === input.scope.canvasSessionId
         ? provider.providerStatus : "unavailable";
       const entityStatus = entity?.canvasSessionId === input.scope.canvasSessionId ? entity.status : null;
