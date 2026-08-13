@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -112,5 +113,45 @@ test("browser workspace parser never accepts the server-only materialization env
   assert.equal(
     codeOf(() => parseCanvasWorkspaceV01(fixture.materializationResponse)),
     "CANVAS_WORKSPACE_BROWSER_UNSAFE",
+  );
+});
+
+function materializationForBytes(bytes: Buffer, mimeType: "image/jpeg" | "image/png" | "image/webp") {
+  return {
+    ...fixture.materializationResponse,
+    mimeType,
+    byteSize: bytes.length,
+    checksum: `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`,
+    contentBase64: bytes.toString("base64"),
+  };
+}
+
+test("materialization parser has bounded canonical base64 and decoded-byte boundaries", () => {
+  const minimalJpeg = Buffer.from([0xff, 0xd8, 0xff]);
+  const exactLimit = Buffer.alloc(8 * 1024 * 1024);
+  exactLimit.set(minimalJpeg);
+  assert.doesNotThrow(() => parseCanvasAssetMaterializationV01(materializationForBytes(exactLimit, "image/jpeg")));
+
+  const oneByte = Buffer.from([0xff]);
+  assert.equal(
+    codeOf(() => parseCanvasAssetMaterializationV01(materializationForBytes(oneByte, "image/jpeg"))),
+    "CANVAS_MATERIALIZATION_MIME_UNSUPPORTED",
+  );
+
+  assert.doesNotThrow(() => parseCanvasAssetMaterializationV01(materializationForBytes(minimalJpeg, "image/jpeg")));
+
+  const overLimit = Buffer.alloc(8 * 1024 * 1024 + 1);
+  overLimit.set(minimalJpeg);
+  assert.equal(
+    codeOf(() => parseCanvasAssetMaterializationV01(materializationForBytes(overLimit, "image/jpeg"))),
+    "CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE",
+  );
+
+  assert.equal(
+    codeOf(() => parseCanvasAssetMaterializationV01({
+      ...materializationForBytes(minimalJpeg, "image/jpeg"),
+      contentBase64: "/9j",
+    })),
+    "CANVAS_MATERIALIZATION_RESPONSE_INVALID",
   );
 });

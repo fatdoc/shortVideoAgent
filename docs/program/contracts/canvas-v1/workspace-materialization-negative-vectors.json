@@ -361,6 +361,36 @@
       "expectedCode": "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
     },
     {
+      "id": "materialization-one-byte-codec-is-canonical-but-mime-unsupported",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 1,
+      "expectedCode": "CANVAS_MATERIALIZATION_MIME_UNSUPPORTED"
+    },
+    {
+      "id": "materialization-minimal-three-byte-jpeg-magic-passes",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 3,
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "materialization-exact-eight-mib-valid-jpeg-passes-without-parser-overflow",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 8388608,
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "materialization-eight-mib-plus-one-fails-before-persistence",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 8388609,
+      "expectedCode": "CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE"
+    },
+    {
+      "id": "materialization-noncanonical-padding-fails-fixed",
+      "operation": "materialization-boundary",
+      "contentBase64": "/9j",
+      "expectedCode": "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
+    },
+    {
       "id": "materialization-preview-url-cannot-replace-bytes",
       "operation": "parse-materialization-response",
       "mutations": [
