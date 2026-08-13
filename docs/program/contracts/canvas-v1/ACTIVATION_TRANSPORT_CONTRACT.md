@@ -153,6 +153,12 @@ existing strict `pilot-canvas-bootstrap.v1` open result containing the safe
 authority is open. It is not `CanvasBootstrap/0.1`, does not prove the editor
 loaded and must not be parsed, named or reported as the formal aggregate.
 
+Identical concurrent and response-loss retries of this four-field open follow
+`LegacyCanvasOpenReplay/0.1` in
+`BROWSER_PROVENANCE_AND_LEGACY_OPEN_REPLAY_AMENDMENT.md`: they converge on the
+same active `pcs_*`; changed payload for the same handle is a fixed 409 and
+failed operations are not cached.
+
 ### 4.2 Story formal bootstrap
 
 The browser then reads:
@@ -160,15 +166,18 @@ The browser then reads:
 ```http
 GET /api/production/pilot/canvas/v1/bootstrap
 Cookie: <HttpOnly Control Session through the same-origin proxy>
-Origin: <exact configured SaaS origin>
+Origin: <optional on this GET; exact configured SaaS origin when present>
 X-Canvas-Session-ID: pcs_*
 Accept: application/json
 ```
 
-GET has no request body and needs no CSRF token. It still requires the exact
-Origin, valid HttpOnly Session, actor/tenant match, active `pcs_*` authority and
-exact project/package binding. The response is the already frozen strict
-browser-safe `CanvasBootstrap/0.1` object.
+GET has no request body and needs no CSRF token. Real same-origin Chrome may
+omit Origin, so this read follows the exact Fetch Metadata/Referer policy in
+`BROWSER_PROVENANCE_AND_LEGACY_OPEN_REPLAY_AMENDMENT.md`. It still requires a
+valid HttpOnly Session, actor/tenant match, active `pcs_*` authority and exact
+project/package binding. The response is the already frozen strict
+browser-safe `CanvasBootstrap/0.1` object. This GET-only correction does not
+relax exact Origin or CSRF on any mutation.
 
 The server authority Package supplies the exact approved script version ID and
 storyboard version ID. The aggregate layer must map those IDs to the matching

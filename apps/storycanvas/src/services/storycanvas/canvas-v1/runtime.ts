@@ -4,6 +4,7 @@ import type { Knex } from "knex";
 import {
   parseCanvasV1Contract,
   type AssetRecordV01,
+  type CanvasBootstrapV01,
   type CanvasCommandV01,
   type ProviderAssetBindingV01,
   type ShotReadinessV01,
@@ -135,6 +136,24 @@ function hasTrustedBrowserProvenance(request: Request, allowedOrigin: string): b
     || (fetchSite === "same-origin" && exactRefererOrigin(referer, allowedOrigin));
 }
 
+function formalPreparationKey(scope: CanvasProductionScope, authority: PilotCanvasServerAuthority): string {
+  const productionPackage = authority.redemption.productionPackage;
+  return [
+    scope.tenantId,
+    scope.projectId,
+    scope.packageId,
+    scope.canvasSessionId,
+    scope.actorId,
+    String(scope.localProjectId),
+    authority.expiresAt,
+    authority.redemption.handle,
+    productionPackage.payloadDigest,
+    String(productionPackage.packageVersion),
+    productionPackage.scriptVersionId,
+    productionPackage.storyboardVersionId,
+  ].join("\u001f");
+}
+
 function parseProjection<T extends AssetRecordV01 | ShotReadinessV01>(value: string): T {
   const parsed = parseCanvasV1Contract(JSON.parse(value));
   return parsed as T;
@@ -161,6 +180,7 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     }
   }
   const preparedAuthorities = new Map<string, CanvasWorkspaceAuthorityV01>();
+  const preparingBootstraps = new Map<string, Promise<CanvasBootstrapV01>>();
   const preparer = authorityClient ? new CanvasV1WorkspacePreparer({
     database: options.database,
     authorityClient,
@@ -265,22 +285,35 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
         if (!preparer) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
         const authority = options.readAuthority(scope.canvasSessionId);
         if (!authority) throw new CanvasCommandServiceError("CANVAS_SESSION_INVALID");
-        const prepared = await preparer.prepare({
-          scope,
-          approvedPackage: authority.redemption.productionPackage,
-          requestId,
-        });
-        const primaryAssets = prepared.authority.assets.filter(({ category }) => category === "virtual_character");
-        const primary = primaryAssets[0];
-        if (materializer && primary && primary.rights.status === "authorized" && primary.approval.status === "approved") {
-          try {
-            await materializer.materialize({ scope, asset: primary, requestId });
-          } catch {
-            throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+        const preparationKey = formalPreparationKey(scope, authority);
+        const existing = preparingBootstraps.get(preparationKey);
+        if (existing) return existing;
+        const preparing = (async () => {
+          const prepared = await preparer.prepare({
+            scope,
+            approvedPackage: authority.redemption.productionPackage,
+            requestId,
+          });
+          const primaryAssets = prepared.authority.assets.filter(({ category }) => category === "virtual_character");
+          const primary = primaryAssets[0];
+          if (materializer && primary && primary.rights.status === "authorized" && primary.approval.status === "approved") {
+            try {
+              await materializer.materialize({ scope, asset: primary, requestId });
+            } catch {
+              throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+            }
+          }
+          preparedAuthorities.set(scope.canvasSessionId, prepared.authority);
+          return prepared.bootstrap;
+        })();
+        preparingBootstraps.set(preparationKey, preparing);
+        try {
+          return await preparing;
+        } finally {
+          if (preparingBootstraps.get(preparationKey) === preparing) {
+            preparingBootstraps.delete(preparationKey);
           }
         }
-        preparedAuthorities.set(scope.canvasSessionId, prepared.authority);
-        return prepared.bootstrap;
       },
     },
     workspace: {
