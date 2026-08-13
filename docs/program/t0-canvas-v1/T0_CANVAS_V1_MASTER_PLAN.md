@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.11`
+> 版本：`v0.12`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -76,6 +76,9 @@ f9a894d3ea582b8a733120dd7ba84b73af90a01a
 
 G5 Story Workspace/Materialization independent QA integrated head:
 1865e7da703d4147ab16e22b481daaf5fa11d0a7
+
+G5 Shared Bridge/Router/Proxy independent QA integrated head:
+6032b2e56423ad586d7d38638a4cf81abf8be83b
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -438,8 +441,8 @@ raw Idempotency-Key
 | CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `ACCEPTED` | G2 与 G5 Story Workspace/物化/受控媒体已独立验收；付费 smoke 留给 G6 |
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | Control 与 Story 前置已通过；进入 Shared Bridge/Router/Proxy |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 additive 合同已独立验收；等待 Story/Control/Shared 产品切片 |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `ACCEPTED` | Control、Story 与 Shared Bridge/Router/Proxy 已独立验收 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 已独立验收；进入 G6 外部真实浏览器 Golden Path |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -574,8 +577,8 @@ Gate 状态：
 | G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
-| G5 | `IN_PROGRESS` | additive 合同、Control Materialization/Authority、Story Workspace/本地映射/受控媒体已独立放行；Shared 待完成 |
-| G6 | `NOT_STARTED` | 依赖 G5 |
+| G5 | `ACCEPTED` | Control、Story、Shared 同源 API/Bridge/Router/Proxy 均通过独立 Gate；历史 4 个 Shared RED 以真实产品实现转绿 |
+| G6 | `READY` | G5 已放行；待启动三服务、真实浏览器、真实项目与受控付费 smoke |
 
 状态词只使用：
 
@@ -610,6 +613,7 @@ CANVAS_V1_ASSET_GATE_READY
 CANVAS_V1_COMMAND_READY
 CANVAS_V1_UI_READY
 CANVAS_V1_AGENT_READY
+CANVAS_V1_BUSINESS_INTEGRATED
 B_REMEDIATION_ACCEPTED
 SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
@@ -803,7 +807,7 @@ G6 最少需要：
 
 用户已正式启动 T0-CV1。G0 已由 CV6 完成并由 CV0 以
 `ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行；G1（含 additive amendment）、
-G2、G3 和 G4 已由 CV0 验收。当前进入 Wave 3 / G5 业务融合：
+G2、G3、G4 和 G5 已由 CV0 验收。当前进入 Wave 4 / G6 Delivery：
 
 ```text
 1. CV2 已完成资产门禁、Document、Canvas Command Service、受信审批消费与 Seedance runtime adapter
@@ -811,8 +815,9 @@ G2、G3 和 G4 已由 CV0 验收。当前进入 Wave 3 / G5 业务融合：
 3. CV4 UI 和动态 exact-action approval 已通过独立 Gate
 4. CV3 已完成 12 个白名单 Agent tools，只读分析、资产计划和单镜头命令全部经同一 CanvasCommand Service
 5. CV1 冻结 browser-safe `CanvasWorkspace/0.1` 与 server-only `CanvasAssetMaterialization/0.1`
-6. CV2 后续实现 formal bootstrap/workspace/materialization；CV5 实现 Activation/Bridge/Proxy/Router
-7. CV6 对 G5 additive 合同和业务融合产品线执行独立 Gate
+6. CV2 已完成 formal bootstrap/workspace/materialization；CV5 已完成 Activation/Bridge/Proxy/Router
+7. CV6 已完成 G5 独立 Gate；下一步启动 Control、StoryCanvas、Vite 三服务执行真实浏览器链路
+8. 真实付费 Seedance smoke 只能在明确受控确认后执行；当前仍未调用 Provider
 ```
 
 G1 证据：
@@ -844,7 +849,9 @@ G4 owner targeted:         11/11 PASS
 G4 status:                 ACCEPTED; no paid Seedance and no bulk production
 G5 additive validators:   domain 38 + activation 25 + workspace 69 + authority 30 PASS
 G5 additive parser Gate:  facts 7; Story 7; parity/boundary 11; browser/UI 6 PASS
-G5 additive status:       ACCEPTED for implementation; G5 product Gate remains IN_PROGRESS
+G5 Shared Gate:           activation 6/6; static 7/7; runtime 7/7; historical 37/37 PASS
+G5 owner/root:            Shared owner 67/67; root 521/521 PASS
+G5 product status:        ACCEPTED; external browser and paid Provider remain G6
 ```
 
 G0 已知基线事实：
@@ -864,6 +871,14 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.12 · 2026-08-14
+
+- 集成正式 Canvas V1 same-origin API、Activation/Legacy Open/Formal Bootstrap/Workspace Bridge、动态审批与权威刷新；
+- Pilot Router 仅在 canonical `projectId + packageId` 入口加载 Canvas V1，缺失、重复、畸形或越权 Package 均 fail-closed，不回退 Demo/generic handoff；
+- test-only 双开关代理保持浏览器原始 Origin，非法端口和非测试环境固定拒绝；历史 4 个 Shared RED 未删除或弱化，现以真实产品能力全部转绿；
+- CV6 独立验证 Activation 6/6、Shared static 7/7、runtime 7/7、browser harness policy 3/3、历史 Shared 37/37，Owner 67/67、Root 521/521 以及合同、Control/Story、构建和治理全部通过；
+- CV0 接受 G5 并登记 `CANVAS_V1_BUSINESS_INTEGRATED`；G6 进入 READY，但三服务、外部真实浏览器、截图和付费 Seedance 均尚未执行。
 
 ### v0.11 · 2026-08-14
 
