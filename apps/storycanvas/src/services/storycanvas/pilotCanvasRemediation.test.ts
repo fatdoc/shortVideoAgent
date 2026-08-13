@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import http from "node:http";
+import path from "node:path";
 import { test } from "node:test";
 import express from "express";
 import {
@@ -130,10 +131,14 @@ test("authority registry deduplicates, purges expiry, bounds capacity and clears
       };
     },
   };
-  const registry = new PilotCanvasAuthorityRegistry(fakeClient as never, {
+  const Registry = PilotCanvasAuthorityRegistry as unknown as new (
+    client: unknown,
+    options: { capacity: number; now(): number },
+  ) => PilotCanvasAuthorityRegistry;
+  const registry = new Registry(fakeClient, {
     capacity: 2,
     now: () => currentTime,
-  } as never);
+  });
 
   const first = await registry.openEntry(entry);
   const duplicate = await registry.openEntry(entry);
@@ -156,13 +161,17 @@ test("authority registry deduplicates, purges expiry, bounds capacity and clears
   assert.equal((registry as unknown as { activeCount(): number }).activeCount(), 0);
 });
 
-test("Pilot routes are mounted before the legacy tokenKey gate and runtime logs contain no data paths", async () => {
-  const appSource = await readFile(new URL("../../app.ts", import.meta.url), "utf8");
+test("Pilot routes are mounted before the legacy tokenKey gate", async () => {
+  const appSource = await readFile(path.resolve(process.cwd(), "src/app.ts"), "utf8");
   const pilotBoundary = appSource.indexOf("installPilotCanvasRequestBoundary");
   const legacyTokenKey = appSource.indexOf('where("key", "tokenKey")');
   assert.ok(pilotBoundary >= 0);
   assert.ok(legacyTokenKey >= 0);
   assert.ok(pilotBoundary < legacyTokenKey);
+});
+
+test("Pilot runtime logs contain no data paths", async () => {
+  const appSource = await readFile(path.resolve(process.cwd(), "src/app.ts"), "utf8");
   assert.equal(appSource.includes('console.log("文件目录:", ossDir)'), false);
   assert.equal(appSource.includes('console.log("文件目录:", skillsDir)'), false);
   assert.equal(appSource.includes('console.log("文件目录:", assetsDir)'), false);

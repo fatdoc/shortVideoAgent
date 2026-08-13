@@ -5,7 +5,7 @@ import {
   PilotCanvasRedemptionClient,
   PilotCanvasRedemptionError,
   createControlApiSessionVerifier,
-  createPilotCanvasBootstrapRouter,
+  createPilotCanvasSafeBootstrapRouter,
 } from "@/services/storycanvas/pilotCanvasCapability";
 
 const router = express.Router();
@@ -23,7 +23,7 @@ function loadDelegate(): express.Router | null {
       controlApiBaseUrl,
       internalToken,
     }));
-    delegate = createPilotCanvasBootstrapRouter({
+    delegate = createPilotCanvasSafeBootstrapRouter({
       allowedOrigin,
       verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
       redeem: (entry) => authorityRegistry.openEntry(entry),
