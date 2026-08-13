@@ -154,7 +154,7 @@ describe('Canvas Asset strict parsing and projection safety', () => {
           readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
         },
       },
-      expiresInSeconds: 120,
+      expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     };
     expect(parseCreateHighCostApprovalInput(input)).toEqual(input);
@@ -179,7 +179,7 @@ describe('Canvas Asset strict parsing and projection safety', () => {
       canvasSessionId,
       commandType: 'GENERATE_SHOT',
       action,
-      expiresInSeconds: 120,
+      expiresInSeconds: 60,
       replayPolicy: 'single_use_replay_same_command',
     };
     const consume = {
@@ -209,5 +209,8 @@ describe('Canvas Asset strict parsing and projection safety', () => {
       ...consume,
       commandId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     })).toThrow();
+    for (const expiresInSeconds of [59, 61, 300]) {
+      expect(() => parseCreateHighCostApprovalInput({ ...create, expiresInSeconds })).toThrow();
+    }
   });
 });
