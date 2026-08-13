@@ -1,4 +1,4 @@
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { json, Router } from 'express';
 import { CANVAS_ASSET_ERROR_STATUS, CanvasAssetDomainError } from './errors.js';
@@ -18,10 +18,8 @@ export type InternalCanvasAssetSessionRouterOptions = {
 };
 
 function sameToken(expected: string, supplied: string | undefined): boolean {
-  if (!supplied) return false;
-  const left = Buffer.from(expected);
-  const right = Buffer.from(supplied);
-  return left.length === right.length && timingSafeEqual(left, right);
+  const digest = (value: string) => createHash('sha256').update(value, 'utf8').digest();
+  return timingSafeEqual(digest(expected), digest(supplied ?? ''));
 }
 
 function requestId(request: Request, response: Response): string {
