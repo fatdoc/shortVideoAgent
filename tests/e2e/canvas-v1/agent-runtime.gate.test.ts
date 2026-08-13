@@ -278,8 +278,33 @@ test("scope/provider/extra and batch arguments fail before every read or write",
       executeCanvasCommand: async (command) => { calls += 1; return event(command); },
     },
   }));
+  const validInputs = {
+    list_project_assets: {},
+    inspect_asset_readiness: { shotId },
+    analyze_script_entities: { shotId },
+    propose_missing_assets: { shotId },
+    create_virtual_character: { assetId, entityId, prompt: "门店讲解员" },
+    sync_provider_asset: { assetId },
+    bind_asset_to_entity: { assetId, entityId },
+    generate_shot: { shotId, readinessId, prompt: "单镜头", referenceAssetIds: [assetId] },
+    get_generation_task: { commandId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd" },
+    select_shot_output: { documentId, expectedVersion: 4, outputAssetId, shotId },
+    save_canvas_document: {
+      documentId,
+      expectedVersion: 4,
+      shots: [{ shotId, position: 0, selectedOutputAssetId: null, prompt: "单镜头", updatedAt: occurredAt }],
+      playlist: { shotIds: [shotId] },
+    },
+    export_playlist: { documentId, expectedVersion: 4 },
+  } as const;
+  for (const name of CANVAS_AGENT_TOOL_NAMES) {
+    await assert.rejects(
+      () => runtime.invokeTool(name, { ...validInputs[name], tenantId: authority.tenantId, requestedByActorId: authority.actorId }),
+      assertPolicyCode("CANVAS_AGENT_TOOL_INPUT_INVALID"),
+      `${name} accepted host-bound scope/actor arguments`,
+    );
+  }
   for (const [name, input] of [
-    ["list_project_assets", { projectId: authority.projectId }],
     ["inspect_asset_readiness", { shotId, unexpected: true }],
     ["sync_provider_asset", { assetId, providerAssetId: "server-internal" }],
     ["generate_shot", { shotIds: [shotId], readinessId, prompt: "batch", referenceAssetIds: [assetId] }],
@@ -312,6 +337,10 @@ test("response-loss retry preserves the complete command byte-for-data", async (
   assert.equal(first.status, "failed");
   assert.equal(retry.status, "dispatched");
   assert.deepEqual(attempts[1], attempts[0]);
+  assert.deepEqual(
+    (({ tenantId, projectId, packageId, canvasSessionId, requestedByActorId }) => ({ tenantId, projectId, packageId, canvasSessionId, requestedByActorId }))(attempts[0]),
+    { ...scope, requestedByActorId: authority.actorId },
+  );
   assert.equal(JSON.stringify(first).includes("providerRawBody"), false);
 });
 

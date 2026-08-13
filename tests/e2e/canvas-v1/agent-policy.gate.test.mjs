@@ -73,7 +73,7 @@ test("G4 UI, Story and Agent command parsers preserve one exact command enum", (
   const productFiles = sourceFiles(agentRoot);
   assert.ok(productFiles.length > 0, "EXPECTED_RED: apps/storycanvas/src/agents/canvas-v1 has not been implemented");
   const productSource = productFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
-  assert.match(productSource, /parseCanvasV1Contract/u, "Agent must use the strict Story CanvasCommand parser");
+  assert.match(productSource, /parseCanvasV1(?:Browser)?Contract/u, "Agent must use a strict Story CanvasCommand parser");
 });
 
 test("G4 Agent source and skill surface are whitelist-only and isolated from legacy authority", () => {
