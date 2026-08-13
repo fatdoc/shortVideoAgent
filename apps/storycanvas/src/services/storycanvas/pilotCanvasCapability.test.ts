@@ -443,6 +443,78 @@ test("authority registry and shutdown expose bounded lifecycle semantics", async
   });
 });
 
+test("authority registry shares one in-flight open and evicts a failed attempt before retry", async () => {
+  let redeemCalls = 0;
+  let registerCalls = 0;
+  let releaseRedeem!: () => void;
+  let signalRedeemStarted!: () => void;
+  const redeemStarted = new Promise<void>((resolve) => { signalRedeemStarted = resolve; });
+  const redeemReleased = new Promise<void>((resolve) => { releaseRedeem = resolve; });
+  let fail = false;
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => {
+      redeemCalls += 1;
+      signalRedeemStarted();
+      await redeemReleased;
+      if (fail) throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      return redemption() as never;
+    },
+  } as never, {
+    registrar: {
+      register: async () => {
+        registerCalls += 1;
+        return { status: "active" as const, expiresAt: "2026-08-12T01:30:00.000Z", replayed: false };
+      },
+    },
+    now: () => Date.parse(now),
+  });
+
+  const first = registry.openEntry(entry, userId);
+  await redeemStarted;
+  const concurrentReplay = registry.openEntry(entry, userId);
+  releaseRedeem();
+  const [firstResult, replayResult] = await Promise.all([first, concurrentReplay]);
+  assert.deepEqual(replayResult, firstResult);
+  assert.equal(redeemCalls, 1);
+  assert.equal(registerCalls, 1);
+
+  let releaseFailure!: () => void;
+  let signalFailureStarted!: () => void;
+  const failureStarted = new Promise<void>((resolve) => { signalFailureStarted = resolve; });
+  const failureReleased = new Promise<void>((resolve) => { releaseFailure = resolve; });
+  fail = true;
+  const changedEntry = { ...entry, handle: `ce_${"D".repeat(32)}` };
+  const failedRegistry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => {
+      redeemCalls += 1;
+      signalFailureStarted();
+      await failureReleased;
+      if (fail) throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      return redemption({ handle: changedEntry.handle }) as never;
+    },
+  } as never, {
+    registrar: {
+      register: async () => {
+        registerCalls += 1;
+        return { status: "active" as const, expiresAt: "2026-08-12T01:30:00.000Z", replayed: false };
+      },
+    },
+    now: () => Date.parse(now),
+  });
+  const failed = failedRegistry.openEntry(changedEntry, userId);
+  await failureStarted;
+  const failedReplay = failedRegistry.openEntry(changedEntry, userId);
+  releaseFailure();
+  await assert.rejects(() => Promise.all([failed, failedReplay]), (error: unknown) =>
+    error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_DEPENDENCY_UNAVAILABLE",
+  );
+  fail = false;
+  const recovered = await failedRegistry.openEntry(changedEntry, userId);
+  assert.match(recovered.authorityId, /^pcs_/u);
+  assert.equal(redeemCalls, 3);
+  assert.equal(registerCalls, 2);
+});
+
 test("reports a dedicated deterministic capability without exposing configuration values", async () => {
   const capability = await getPilotCanvasRuntimeCapability({
     env: {
