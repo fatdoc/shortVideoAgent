@@ -210,6 +210,42 @@ test("document saves use stable ownership, optimistic versioning and recover thr
   assert.equal(rotated?.shots[0].prompt, "saved after refresh");
 });
 
+test("UI and Agent use the same SAVE_CANVAS_DOCUMENT command path and response-loss replay does not resave", async (context) => {
+  for (const requestSource of ["user", "agent"] as const) {
+    const db = await database();
+    context.after(() => db.destroy());
+    const store = new CanvasDocumentStore({ database: db, now: () => new Date(occurredAt) });
+    await store.create({
+      scope,
+      documentId,
+      shots: [{ shotId, position: 0, selectedOutputAssetId: null, prompt: "original", updatedAt: occurredAt }],
+      playlist: { shotIds: [shotId] },
+    });
+    const service = new CanvasCommandService(options(db, { documentStore: store }));
+    const save = command({
+      commandId: requestSource === "user"
+        ? "23232323-2323-4323-8323-232323232323"
+        : "24242424-2424-4424-8424-242424242424",
+      commandType: "SAVE_CANVAS_DOCUMENT",
+      requestSource,
+      approvalId: null,
+      payload: {
+        documentId,
+        expectedVersion: 1,
+        shots: [{ shotId, position: 0, selectedOutputAssetId: null, prompt: `saved by ${requestSource}`, updatedAt: occurredAt }],
+        playlist: { shotIds: [shotId] },
+      },
+    });
+    const first = await service.execute(save);
+    const replay = await service.execute({ ...save, commandId: "25252525-2525-4525-8525-252525252525" });
+    assert.equal(first.status, "accepted");
+    assert.equal(replay.replayed, true);
+    const restored = await store.read({ scope, documentId });
+    assert.equal(restored?.version, 2);
+    assert.equal(restored?.shots[0].prompt, `saved by ${requestSource}`);
+  }
+});
+
 test("public errors and persisted events never expose provider URI, token, digest, grant or raw provider body", async (context) => {
   const db = await database();
   context.after(() => db.destroy());
