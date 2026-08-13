@@ -43,8 +43,12 @@ git clone --recurse-submodules https://github.com/fatdoc/shortVideoAgent.git
 cd shortVideoAgent
 npm install
 npm run storycanvas:install
-npm run dev
+npm run dev:storycanvas
 ```
+
+`dev:storycanvas` 会固定设置本地 `demo` 模式和仅开发环境生效的画布直达开关，
+避免裸跑 Vite 时因缺少 `VITE_APP_MODE` 被运行配置门禁阻断。它与 SaaS 共用
+同一个 `5173` 前端，不会另起独立 StoryCanvas Web 页面。
 
 另开一个终端启动 StoryCanvas 内部 API：
 

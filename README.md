@@ -108,6 +108,17 @@ npm install
 npm run dev
 ```
 
+`npm run dev` 已固定使用本地 `demo` 运行模式，不需要手工设置
+`VITE_APP_MODE`。工程师 B 开发 StoryCanvas 时使用：
+
+```bash
+npm run dev:storycanvas
+```
+
+该命令仍只启动同一个 `5173` 根前端，并让现有
+`/production/canvas/:projectId` 路由在开发环境直接挂载 StoryCanvas 编辑器；
+不会额外启动第二套前端，也不会改变生产环境的授权校验。
+
 安装 StoryCanvas 内部 API：
 
 ```bash

@@ -4,8 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:saas": "vite",
+    "dev": "VITE_APP_MODE=demo vite",
+    "dev:saas": "VITE_APP_MODE=demo vite",
+    "dev:storycanvas": "VITE_APP_MODE=demo VITE_STORYCANVAS_DIRECT_EDITOR=true vite",
     "storycanvas:install": "npm --prefix apps/storycanvas install",
     "storycanvas:api": "npm --prefix apps/storycanvas run dev",
     "build": "tsc -b && vite build",
