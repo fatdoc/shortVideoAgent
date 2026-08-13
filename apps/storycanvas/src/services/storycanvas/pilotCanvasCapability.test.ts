@@ -5,6 +5,7 @@ import express from "express";
 import http from "node:http";
 import {
   PilotCanvasRedemptionClient,
+  PilotCanvasSessionRegistrationClient,
   PilotCanvasRedemptionError,
   PilotCanvasAuthorityRegistry,
   closePilotCanvasRuntimeResources,
@@ -172,6 +173,64 @@ test("redeems server-side with a stable key and exact response-loss replay", asy
   assert.equal(firstHeaders.get("x-production-plane-internal-token"), internalToken);
 });
 
+test("registers the minted pcs authority with Control using exact response-loss replay", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  let attempt = 0;
+  const registrar = new PilotCanvasSessionRegistrationClient({
+    controlApiBaseUrl: "https://control.example.test",
+    internalToken,
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      attempt += 1;
+      if (attempt === 1) throw new Error("response lost");
+      return new Response(JSON.stringify({
+        status: "active",
+        expiresAt: "2026-08-12T01:30:00.000Z",
+        replayed: true,
+      }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "idempotency-replayed": "true",
+          "x-request-id": "register-replay",
+        },
+      });
+    },
+  });
+  const registration = {
+    ...entry,
+    canvasSessionId: "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+    actorId: userId,
+  };
+  const result = await registrar.register(registration);
+  assert.equal(result.replayed, true);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.url, "https://control.example.test/api/v1/internal/canvas-asset-sessions");
+  assert.equal(calls[0]?.init?.body, JSON.stringify(registration));
+  assert.equal(calls[1]?.init?.body, calls[0]?.init?.body);
+  assert.equal(
+    new Headers(calls[0]?.init?.headers).get("x-production-plane-internal-token"),
+    internalToken,
+  );
+});
+
+test("does not save raw redemption or return pcs authority when Control registration fails", async () => {
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => redemption() as never,
+  } as never, {
+    registrar: {
+      register: async () => {
+        throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      },
+    },
+    now: () => Date.parse(now),
+  });
+  await assert.rejects(() => registry.openEntry(entry, userId), (error: unknown) =>
+    error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_DEPENDENCY_UNAVAILABLE",
+  );
+  assert.equal(registry.activeCount(), 0);
+});
+
 test("fails closed for strict response, scope, changed-handle binding and unsafe errors", async () => {
   for (const invalid of [
     redemption({ projectId: "99999999-9999-4999-8999-999999999999" }),
@@ -319,7 +378,13 @@ test("authority registry and shutdown expose bounded lifecycle semantics", async
       calls += 1;
       return redemption() as never;
     },
-  } as never, { capacity: 2, now: () => clock });
+  } as never, {
+    capacity: 2,
+    now: () => clock,
+    registrar: {
+      register: async () => ({ status: "active" as const, expiresAt: "2026-08-12T01:30:00.000Z", replayed: false }),
+    },
+  });
   const first = await registry.openEntry(entry, userId);
   assert.equal((await registry.openEntry(entry, userId)).authorityId, first.authorityId);
   assert.equal(calls, 1);

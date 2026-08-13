@@ -139,6 +139,13 @@ test("authority registry deduplicates, purges expiry, bounds capacity and clears
   const registry = new Registry(fakeClient, {
     capacity: 2,
     now: () => currentTime,
+    registrar: {
+      register: async () => ({
+        status: "active" as const,
+        expiresAt: new Date(currentTime + 10 * 60 * 1_000).toISOString(),
+        replayed: false,
+      }),
+    },
   });
 
   const first = await registry.openEntry(entry);

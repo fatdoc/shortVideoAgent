@@ -176,11 +176,15 @@ class MemoryStore implements CanvasAssetAuthorityStore {
 }
 
 function service(store = new MemoryStore()) {
+  const sessionAuthority = {
+    assertActiveSession: async () => undefined,
+  };
   return {
     store,
     authority: new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
       now: () => new Date(now),
       newId: (kind) => (kind === 'asset' ? ids.assetId : ids.approvalId),
+      sessionAuthority,
     }),
   };
 }
@@ -206,6 +210,32 @@ function createAsset(authority: CanvasAssetAuthorityService) {
 }
 
 describe('Canvas Asset authority service', () => {
+  it('rejects forged package/session scope before asset or approval persistence', async () => {
+    const store = new MemoryStore();
+    const assertActiveSession = async () => {
+      throw new CanvasAssetDomainError('CANVAS_SESSION_INVALID', 'Canvas session is invalid.');
+    };
+    const authority = new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
+      now: () => new Date(now),
+      newId: (kind) => (kind === 'asset' ? ids.assetId : ids.approvalId),
+      sessionAuthority: { assertActiveSession },
+    });
+
+    await expect(createAsset(authority)).rejects.toMatchObject({ code: 'CANVAS_SESSION_INVALID' });
+    expect(store.assets.size).toBe(0);
+    await expect(
+      authority.createHighCostApproval(actor, ids.projectId, {
+        packageId: ids.packageId,
+        canvasSessionId,
+        commandType: 'GENERATE_SHOT',
+        action: { shotId: '66666666-6666-4666-8666-666666666666' },
+        expiresInSeconds: 120,
+        replayPolicy: 'single_use_replay_same_command',
+      }),
+    ).rejects.toMatchObject({ code: 'CANVAS_SESSION_INVALID' });
+    expect(store.approvals.size).toBe(0);
+  });
+
   it('keeps tenant/project authority exact and returns not-found for either mismatch', async () => {
     const { authority } = service();
     await createAsset(authority);
@@ -363,6 +393,7 @@ describe('Canvas Asset authority service', () => {
     const authority = new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
       now: () => new Date('2026-08-14T02:03:00.000Z'),
       newId: () => ids.approvalId,
+      sessionAuthority: { assertActiveSession: async () => undefined },
     });
     const action = { documentId: '77777777-7777-4777-8777-777777777777' };
     await store.createHighCostApproval({
@@ -399,6 +430,7 @@ describe('Canvas Asset authority service', () => {
     const authority = new CanvasAssetAuthorityService(store, 'a'.repeat(32), {
       now: () => new Date(clock),
       newId: () => ids.approvalId,
+      sessionAuthority: { assertActiveSession: async () => undefined },
     });
     const action = { shotId: '66666666-6666-4666-8666-666666666666' };
     await authority.createHighCostApproval(actor, ids.projectId, {
