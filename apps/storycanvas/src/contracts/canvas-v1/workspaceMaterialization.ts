@@ -17,6 +17,7 @@ const REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
 const CONTROLLED_MEDIA = /^\/(?:api\/canvas-v1|api\/production\/pilot\/canvas\/v1\/media)\/[A-Za-z0-9_./%-]+$/;
 const OUTPUT_MEDIA = /^\/api\/production\/pilot\/canvas\/v1\/media\/[A-Za-z0-9_./%-]+$/;
 const MAX_MATERIALIZATION_BYTES = 8 * 1024 * 1024;
+const MAX_MATERIALIZATION_BASE64_CHARS = 11_184_812;
 
 export const CANVAS_WORKSPACE_REASON_CODES = [
   "WORKSPACE_CAPABILITY_BLOCKED",
@@ -181,7 +182,7 @@ const materializationResponseSchema = z.object({
   byteSize: z.number().int().min(1).max(MAX_MATERIALIZATION_BYTES),
   checksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
   contentEncoding: z.literal("base64"),
-  contentBase64: z.string().min(4).max(11_184_812).regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/),
+  contentBase64: z.string().min(4).max(MAX_MATERIALIZATION_BASE64_CHARS),
   replayed: z.boolean(),
   requestId,
   occurredAt: timestamp,
@@ -416,7 +417,32 @@ function magicMime(bytes: Buffer): CanvasAssetMaterializationV01["mimeType"] | n
   return null;
 }
 
-export function parseCanvasAssetMaterializationV01(input: unknown): CanvasAssetMaterializationV01 {
+function isBase64Alphabet(code: number): boolean {
+  return (code >= 0x41 && code <= 0x5a)
+    || (code >= 0x61 && code <= 0x7a)
+    || (code >= 0x30 && code <= 0x39)
+    || code === 0x2b
+    || code === 0x2f;
+}
+
+function decodeCanonicalBase64(value: string): Buffer | null {
+  if (value.length < 4 || value.length % 4 !== 0) return null;
+  const padding = value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0;
+  const contentLength = value.length - padding;
+  if ((padding === 0 && contentLength % 4 !== 0)
+    || (padding === 1 && contentLength % 4 !== 3)
+    || (padding === 2 && contentLength % 4 !== 2)) return null;
+  for (let index = 0; index < contentLength; index += 1) {
+    if (!isBase64Alphabet(value.charCodeAt(index))) return null;
+  }
+  for (let index = contentLength; index < value.length; index += 1) {
+    if (value.charCodeAt(index) !== 0x3d) return null;
+  }
+  const bytes = Buffer.from(value, "base64");
+  return bytes.toString("base64") === value ? bytes : null;
+}
+
+function parseCanvasAssetMaterializationInternal(input: unknown): CanvasAssetMaterializationV01 {
   scan(input, FORBIDDEN_MATERIALIZATION_KEYS, ["bearer ", "x-tos-signature=", "x-amz-signature="], "CANVAS_MATERIALIZATION_RESPONSE_INVALID");
   const candidate = record(input);
   if (candidate?.category !== undefined && candidate.category !== "virtual_character") {
@@ -429,17 +455,37 @@ export function parseCanvasAssetMaterializationV01(input: unknown): CanvasAssetM
   if (candidate?.mimeType !== undefined && !["image/jpeg", "image/png", "image/webp"].includes(String(candidate.mimeType))) {
     fail("CANVAS_MATERIALIZATION_MIME_UNSUPPORTED");
   }
+  if (candidate && typeof candidate.contentBase64 === "string"
+    && candidate.contentBase64.length > MAX_MATERIALIZATION_BASE64_CHARS) {
+    fail("CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE");
+  }
+  const decoded = candidate && typeof candidate.contentBase64 === "string"
+    ? decodeCanonicalBase64(candidate.contentBase64)
+    : null;
+  if (candidate && typeof candidate.contentBase64 === "string" && decoded === null) {
+    fail("CANVAS_MATERIALIZATION_RESPONSE_INVALID");
+  }
   const parsed = materializationResponseSchema.safeParse(input);
   if (!parsed.success) fail("CANVAS_MATERIALIZATION_RESPONSE_INVALID");
-  const bytes = Buffer.from(parsed.data.contentBase64, "base64");
+  const bytes = decoded!;
   if (bytes.length === 0) fail("CANVAS_MATERIALIZATION_SOURCE_EMPTY");
   if (bytes.length > MAX_MATERIALIZATION_BYTES) fail("CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE");
-  if (bytes.toString("base64") !== parsed.data.contentBase64) fail("CANVAS_MATERIALIZATION_RESPONSE_INVALID");
+  const derivedMime = magicMime(bytes);
+  if (derivedMime === null) fail("CANVAS_MATERIALIZATION_MIME_UNSUPPORTED");
   const checksum = `sha256:${crypto.createHash("sha256").update(bytes).digest("hex")}`;
-  if (parsed.data.byteSize !== bytes.length || parsed.data.mimeType !== magicMime(bytes) || parsed.data.checksum !== checksum) {
+  if (parsed.data.byteSize !== bytes.length || parsed.data.mimeType !== derivedMime || parsed.data.checksum !== checksum) {
     fail("CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED");
   }
   return parsed.data;
+}
+
+export function parseCanvasAssetMaterializationV01(input: unknown): CanvasAssetMaterializationV01 {
+  try {
+    return parseCanvasAssetMaterializationInternal(input);
+  } catch (error) {
+    if (error instanceof CanvasWorkspaceContractError) throw error;
+    fail("CANVAS_MATERIALIZATION_RESPONSE_INVALID");
+  }
 }
 
 export function assertCanvasAssetMaterializationMatchesRequest(
