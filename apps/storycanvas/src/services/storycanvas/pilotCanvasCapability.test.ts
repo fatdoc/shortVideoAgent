@@ -7,6 +7,7 @@ import {
   PilotCanvasRedemptionClient,
   PilotCanvasRedemptionError,
   createPilotCanvasBootstrapRouter,
+  createPilotCanvasSafeBootstrapRouter,
   getPilotCanvasRuntimeCapability,
   parseCanvasEntryRedemptionV01,
   parseProjectGrantV02,
@@ -254,6 +255,55 @@ test("browser bootstrap enforces Session, Origin and CSRF and returns only a saf
     assert.deepEqual(Object.keys(body).sort(), ["canvasSessionId", "expiresAt", "packageId", "projectId", "requestId", "schemaVersion", "status"]);
     const serialized = JSON.stringify(body);
     for (const marker of [internalToken, accessToken, grantId, "digest", "productionPackage"]) assert.equal(serialized.includes(marker), false);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("safe bootstrap parser returns fixed malformed and oversized envelopes", async () => {
+  const application = express();
+  application.use("/api/production/pilot/canvas/bootstrap", createPilotCanvasSafeBootstrapRouter({
+    allowedOrigin: "https://pilot.example.test",
+    verifySession: async () => null,
+    redeem: async () => { throw new Error("invalid JSON must not redeem"); },
+  }));
+  const server = http.createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/bootstrap`;
+  try {
+    for (const fixture of [
+      {
+        body: '{"unsafe":"SECRET_SENTINEL"',
+        status: 400,
+        code: "PILOT_CANVAS_MALFORMED_JSON",
+        message: "Pilot Canvas request body is invalid.",
+      },
+      {
+        body: JSON.stringify({ unsafe: "X".repeat(20_000) }),
+        status: 413,
+        code: "PILOT_CANVAS_REQUEST_TOO_LARGE",
+        message: "Pilot Canvas request body is too large.",
+      },
+    ]) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-request-id": "safe-parser-request" },
+        body: fixture.body,
+      });
+      assert.equal(response.status, fixture.status);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(response.headers.get("x-request-id"), "safe-parser-request");
+      assert.deepEqual(await response.json(), {
+        error: {
+          code: fixture.code,
+          message: fixture.message,
+          requestId: "safe-parser-request",
+          retryable: false,
+        },
+      });
+    }
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
