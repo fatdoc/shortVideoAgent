@@ -120,6 +120,8 @@
 | 2026-08-11 | 冻结 A-BIZ-06E.4P/06E.5：A/B baseline 已共同对齐 `a7f8021`，但 B redemption consumer/page 未实现；细分 06E.4A—C、06E.5A—C 与 06E.6，首个 RED 修复 Pilot seed migration 19→24，真实 Gate要求 Chrome/PostgreSQL与零 SKIP                                    | A_BIZ_06E_4P_PLAN_FROZEN / READY_FOR_06E_5A_RED     |
 | 2026-08-11 | A-BIZ-06E.5A 与 06E.5B fail-closed runner skeleton 完成：fixture、security/preflight/report/process/config/no-skip Oracle、shared baseline validator、runner 与 manifest wiring 已落地；B capability 未证明时 reset/spawn 前阻断                          | A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_BLOCKED   |
 
+| 2026-08-13 | A 以 merge commit `228c211` 将 B Shared Canvas capability baseline `6fd901f` 纳入 business-plane 祖先链，修正此前已验收但无法 `--ff-only` 同步的历史合同；remediation、Shared activation 与联合 Gate 状态不变 | B_BASELINE_ANCESTOR_CORRECTED / REMEDIATION_STILL_BLOCKED |
+
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
 - 新增 `A_BIZ_03_3B_ATOMIC_COMMISSION_ACCRUAL_PLAN.md`，冻结 TEST succeeded Payment 同事务 Calculation Outcome/Accrual 的事务顺序、决策矩阵、整数计算、RED 合同与 Gate。
@@ -520,3 +522,11 @@
 - `5885c5b` 添加 exact dependency container、单次失败调用和真实 thenable adversarial RED；`ee50356` 在 callback 执行前验证四个 exact own data-property function。
 - extra/symbol/accessor/inherited/Proxy-trapped dependencies 现在固定 fail closed；既有阶段顺序、成功 DTO 和非 Gate 语义保持不变。
 - 七组 A-side acceptance `82/82 PASS`；Root Build、Governance、ESLint、Prettier 与 diff-check PASS；StoryCanvas tracked 文件和 B-owned untracked `byteplus.ts` 未触碰。
+
+## 2026-08-13 · Shared Canvas Baseline Ancestor Chain Corrected
+
+- `228c211` 以独立 merge commit 合并 B baseline `6fd901f`，merge parents 为 `a7de44f` 与 `6fd901f`；`git merge-base --is-ancestor 6fd901f 228c211` 返回 0。
+- 该提交只修正 A/B baseline ancestor 与 B 后续 `--ff-only` 同步合同，不新增业务能力，也不改变此前对 B baseline 的安全审计结果。
+- 集成回归：A acceptance `82/82`、B capability `5/5`、Pilot pages `4/4`、StoryCanvas v0.2 `13/13`、Media/TTS/Storage Node targeted `27/27`、Root/StoryCanvas Build、Governance、diff-check PASS。
+- 当前仍为 `B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；不记录 remediation accepted、真实编辑器加载、Golden Path complete 或 Joint Gate PASS。
+- StoryCanvas build artifact 已恢复；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。

@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-12
+- 最近更新：2026-08-13
 
 ## 2026-07-30 单前端收口
 
@@ -1403,3 +1403,13 @@
 - 七组 A-side acceptance 回归 `82/82 PASS`；changed-file ESLint、Prettier、Root Build、Governance 与 diff-check PASS。StoryCanvas tracked diff 为零，B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
 - 该 hardening 仍只表示 `A_REM_VAL_5_CANDIDATE_COORDINATOR_READY`；不表示 B remediation accepted、Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
 - 当前状态：`A_REM_VAL_5A_COORDINATOR_HARDENED / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Baseline 祖先链修正
+
+- B 正确指出此前 A 的通知把“已审计 B `6fd901f`”错误表述为“B 可直接 fast-forward 到 A HEAD”；实际 `a7de44f` 与 `6fd901f` 从 `c015823` 分叉，B-only 3 commits、A-only 29 commits。
+- A 未要求 B rebase、reset、cherry-pick 或 force push，而是创建独立 merge commit `228c211accc33e886aa851af20ef4a0a16bfc9db`，parents 为 `a7de44fb624df8f135b5c90dc142707c22b6a6f1` 与 `6fd901f56c1bd8aa37d04740e02e7c14e93f304b`。
+- `git merge-base --is-ancestor 6fd901f... 228c211...` 返回 0；B 的 RED `7afd692`、GREEN `ec48e76` 与回执 `6fd901f` 均已进入 A 祖先链。
+- 合并后验证：A acceptance `82/82 PASS`、B capability `5/5 PASS`、Pilot pages `4/4 PASS`、StoryCanvas v0.2 `13/13 PASS`、Media/TTS/Storage Node targeted `27/27 PASS`、Root Build、StoryCanvas Build、Governance 与 diff-check PASS。Electron 直接运行 storage suite 曾因本机 `better-sqlite3` ABI 127/143 不匹配失败；使用与 native module 匹配的 Node ABI 127 复跑 `6/6 PASS`，未据此改动依赖或业务源码。
+- StoryCanvas build 生成的 tracked `apps/storycanvas/data/serve/app.js` 已恢复；B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 仍是唯一工作区文件，未修改、删除、暂存或提交。
+- 本次只修正 baseline ancestor/fast-forward 合同，不表示 `B_REMEDIATION_ACCEPTED`、`SHARED_ACTIVATION_GREEN`、`REAL_EDITOR_LOADED`、`GOLDEN_PATH_COMPLETE` 或 `JOINT_GATE_PASS`。
+- 当前状态：`B_BASELINE_ANCESTOR_CORRECTED / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

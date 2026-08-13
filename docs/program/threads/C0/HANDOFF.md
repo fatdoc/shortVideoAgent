@@ -1049,3 +1049,13 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 新测试覆盖 rejecting callback 单次调用与 later-stage suppression，以及真实 rejecting thenable 和 hostile `then` getter；阶段错误仍固定、stack/cause 不透传、最终结果不增加任何 candidate/Gate 字段。
 - 七组 A-side acceptance `82/82 PASS`，Root Build、Governance、changed-file ESLint、Prettier、diff-check PASS；该结果仅加固 A-side Coordinator，不代表已运行或接受 B remediation candidate。
 - 现有冻结计划中，下一项功能性工作必须等待 B remediation candidate；在此之前不得实现 Shared transport/proxy、Bridge、Router 或 Golden Path Green。保留 `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Baseline Ancestor 修正交接
+
+- B 在 `dev/production-plane@6fd901f56c1bd8aa37d04740e02e7c14e93f304b` 停止了不安全同步：当时 `origin/dev/business-plane@a7de44fb624df8f135b5c90dc142707c22b6a6f1` 不包含 B 三提交链，双方共同祖先为 `c015823aeec18db95990e6fd3a1037f973fc5264`。
+- A 已以普通 `--no-ff` merge commit `228c211accc33e886aa851af20ef4a0a16bfc9db` 纳入 B baseline；其第一 parent 为 A `a7de44f`，第二 parent 为 B `6fd901f`，未 squash、rebase、reset、cherry-pick 或 force push。
+- B 下一步只需 fetch 后验证 `git merge-base --is-ancestor 6fd901f... origin/dev/business-plane` 返回 0，再执行 `git merge --ff-only origin/dev/business-plane`；无需重写 B 已有三提交链。
+- A 集成验证：acceptance `82/82`、capability `5/5`、Pilot pages `4/4`、v0.2 `13/13`、Media/TTS/Storage Node targeted `27/27`、双 Build、Governance、diff-check 均 PASS。一次 Electron storage 运行只暴露本机 native ABI 不匹配，匹配 ABI 的 Node 复跑 `6/6 PASS`。
+- 同步完成后 B 继续原 Shared Canvas capability remediation；A 的 acceptance infrastructure 与本次 baseline merge 均不改变原整改合同，也不解锁 Shared transport/Bridge/Router Green。
+- 停止线不变：`B_REMEDIATION_ACCEPTED`、`SHARED_ACTIVATION_GREEN`、`REAL_EDITOR_LOADED`、`GOLDEN_PATH_COMPLETE`、`JOINT_GATE_PASS` 均未达成；`AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED` 保留。
+- `apps/storycanvas/data/vendor/byteplus.ts` 继续作为 B-owned untracked 文件排除，禁止修改、清理、暂存或提交。
