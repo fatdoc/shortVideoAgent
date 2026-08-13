@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import http from "node:http";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
@@ -122,6 +124,19 @@ function approvedPackage() {
 async function database(): Promise<any> {
   const value = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
   await canvasV1Migration.up(value);
+  await value.schema.createTable("sc_external_mappings", (table: any) => {
+    table.string("id").primary(); table.string("system"); table.string("entityType"); table.string("externalId");
+    table.string("localId"); table.text("metadataJson"); table.string("createdAt");
+  });
+  await value.schema.createTable("sc_media_assets", (table: any) => {
+    table.string("id").primary(); table.integer("projectId"); table.string("type"); table.string("source");
+    table.string("originalName"); table.string("mimeType"); table.integer("byteSize"); table.string("localPath");
+    table.string("remoteUrl"); table.string("provider"); table.string("sha256"); table.string("rightsNote");
+    table.text("metadataJson"); table.string("createdAt");
+  });
+  await value.schema.createTable("sc_tasks", (table: any) => {
+    table.string("id").primary(); table.integer("projectId"); table.string("status"); table.text("outputJson");
+  });
   return value;
 }
 
@@ -203,7 +218,7 @@ test("workspace authority dependency failure is fixed and cannot echo internal a
   });
 });
 
-test("Control materialization client sends and validates the exact stable attempt envelope", async () => {
+test("Control materialization client retries response loss with the exact stable attempt envelope", async () => {
   const module = await import(
     "../../../apps/storycanvas/src/services/storycanvas/canvas-v1/controlAssetMaterializationClient.js"
   );
@@ -215,17 +230,17 @@ test("Control materialization client sends and validates the exact stable attemp
     internalToken: "m".repeat(48),
     fetch: async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init });
-      return new Response(JSON.stringify(materializationFixture.materializationResponse), {
+      if (calls.length === 1) throw new Error("response lost after dispatch");
+      return new Response(JSON.stringify({ ...materializationFixture.materializationResponse, replayed: true }), {
         status: 200,
         headers: { "content-type": "application/json", "cache-control": "no-store" },
       });
     },
   });
-  assert.deepEqual(
-    await client.materialize(materializationFixture.materializationRequest),
-    materializationFixture.materializationResponse,
-  );
-  assert.equal(calls.length, 1);
+  const replayed = await client.materialize(materializationFixture.materializationRequest);
+  assert.equal(replayed.replayed, true);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.init?.body, calls[1]?.init?.body);
   assert.equal(calls[0]?.url, "https://control.example.test/api/v1/internal/canvas-assets/materializations");
   assert.equal(calls[0]?.init?.method, "POST");
   const headers = new Headers(calls[0]?.init?.headers);
@@ -248,6 +263,142 @@ test("Control materialization client sends and validates the exact stable attemp
     assert.notEqual(codeOf(error), null);
     return true;
   });
+});
+
+test("workspace projection is SELECT-only and derives every shot from exact prepared Package facts", async (context) => {
+  const [{ CanvasV1WorkspacePreparer }, { CanvasV1WorkspaceReader }] = await Promise.all([
+    import("../../../apps/storycanvas/src/services/storycanvas/canvas-v1/workspacePrepare.js"),
+    import("../../../apps/storycanvas/src/services/storycanvas/canvas-v1/workspaceProjection.js"),
+  ]);
+  const db = await database();
+  context.after(() => db.destroy());
+  const packageValue = approvedPackage();
+  const prepared = await new CanvasV1WorkspacePreparer({
+    database: db,
+    authorityClient: { fetch: async () => structuredClone(authorityFixture.authorityResponse) },
+    now: () => new Date("2026-08-14T02:03:00.000Z"),
+  }).prepare({ scope, approvedPackage: packageValue, requestId: "req-cv6-projection-prepare" });
+  const statements: string[] = [];
+  db.on("query", ({ sql }: { sql: string }) => statements.push(sql));
+  const workspace = await new CanvasV1WorkspaceReader({
+    database: db,
+    now: () => new Date("2026-08-14T02:04:00.000Z"),
+  }).read({
+    scope,
+    approvedPackage: packageValue,
+    authority: prepared.authority,
+    requestId: "req-cv6-workspace-read",
+  });
+  assert.equal(statements.some((sql) => /^\s*(?:insert|update|delete|replace|alter|drop|create)\b/iu.test(sql)), false);
+  assert.deepEqual(workspace.shots.map(({ shotId, sequence, storyboardText }: any) => ({ shotId, sequence, storyboardText })),
+    (packageValue.storyboard as any[]).map(({ shotId, sequence, description }) => ({ shotId, sequence, storyboardText: description })));
+  assert.equal(workspace.shots.every(({ scriptText }: any) => scriptText === packageValue.approvedScript.content), true);
+  assert.equal(workspace.assets.length, prepared.authority.assets.length);
+  assert.equal(JSON.stringify(workspace).match(/asset:\/\/|contentBase64|storageReference|providerAssetId|localPath|signedUrl/iu), null);
+});
+
+test("formal bootstrap and workspace GET routes authenticate before data and reject request bodies without mutation", async (context) => {
+  const express = requireFromStory("express");
+  const { createCanvasV1ProductionRouter } = await import(
+    "../../../apps/storycanvas/src/routes/production/pilot/canvas/commands/index.js"
+  );
+  const calls: string[] = [];
+  const app = express();
+  app.use("/api/production/pilot/canvas/v1", createCanvasV1ProductionRouter({
+    resolveRequestScope: async (request: any) => {
+      calls.push(`auth:${request.path}`);
+      assert.equal(request.header("origin"), "https://story.example.test");
+      assert.equal(request.header("cookie"), "session=trusted");
+      assert.equal(request.header("x-canvas-session-id"), scope.canvasSessionId);
+      return scope;
+    },
+    commandService: { execute: async () => { throw new Error("not reached"); } },
+    assets: { list: async () => [], getReadiness: async () => null },
+    documents: { read: async () => null, create: async () => { throw new Error("not reached"); } },
+    formalBootstrap: {
+      prepare: async () => { calls.push("prepare"); return materializationFixture.workspaceResponse.bootstrap; },
+    },
+    workspace: {
+      read: async () => { calls.push("read"); return materializationFixture.workspaceResponse; },
+    },
+  }));
+  const server = http.createServer(app);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const base = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1`;
+  const headers = {
+    origin: "https://story.example.test",
+    cookie: "session=trusted",
+    "x-canvas-session-id": scope.canvasSessionId,
+    "x-request-id": "req-cv6-formal-read",
+  };
+  for (const endpoint of ["bootstrap", "workspace"] as const) {
+    const response = await fetch(`${base}/${endpoint}`, { headers });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  }
+  assert.deepEqual(calls, ["auth:/", "prepare", "auth:/", "read"]);
+  const denied = await new Promise<{ status: number; body: any }>((resolve, reject) => {
+    const request = http.request(`${base}/workspace`, {
+      method: "GET",
+      headers: { ...headers, "content-type": "application/json", "content-length": "2" },
+    }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
+      response.on("end", () => resolve({
+        status: response.statusCode ?? 0,
+        body: JSON.parse(Buffer.concat(chunks).toString("utf8")),
+      }));
+    });
+    request.on("error", reject);
+    request.end("{}");
+  });
+  assert.equal(denied.status, 422);
+  assert.equal(denied.body.error.code, "CANVAS_SCHEMA_INVALID");
+  assert.deepEqual(calls, ["auth:/", "prepare", "auth:/", "read"]);
+});
+
+test("asset materializer publishes verified bytes atomically and fails changed content without overwriting mapping", async (context) => {
+  const { CanvasV1AssetMaterializer } = await import(
+    "../../../apps/storycanvas/src/services/storycanvas/canvas-v1/assetMaterialization.js"
+  );
+  const db = await database();
+  const projectsRoot = await fs.promises.mkdtemp(path.join(os.tmpdir(), "cv6-story-materialization-"));
+  context.after(async () => { await db.destroy(); await fs.promises.rm(projectsRoot, { recursive: true, force: true }); });
+  const asset = structuredClone(authorityFixture.authorityResponse.assets[0]);
+  let changed = false;
+  const materializer = new CanvasV1AssetMaterializer({
+    database: db,
+    projectsRoot,
+    now: () => new Date(materializationFixture.materializationRequest.occurredAt),
+    client: {
+      materialize: async () => changed
+        ? { ...structuredClone(materializationFixture.materializationResponse), contentBase64: "/9j/", byteSize: 3,
+          mimeType: "image/jpeg", checksum: `sha256:${crypto.createHash("sha256").update(Buffer.from([0xff, 0xd8, 0xff])).digest("hex")}` }
+        : structuredClone(materializationFixture.materializationResponse),
+    },
+  });
+  const input = {
+    scope,
+    asset,
+    requestId: materializationFixture.materializationRequest.requestId,
+    materializationAttemptId: materializationFixture.materializationRequest.materializationAttemptId,
+  };
+  const first = await materializer.materialize(input);
+  assert.deepEqual(await fs.promises.readFile(first.localPath), Buffer.from(materializationFixture.materializationResponse.contentBase64, "base64"));
+  assert.equal((await db("sc_media_assets")).length, 1);
+  assert.equal((await db("sc_external_mappings")).length, 1);
+  const replay = await materializer.materialize(input);
+  assert.equal(replay.localMediaId, first.localMediaId);
+  assert.equal(replay.replayed, true);
+  changed = true;
+  await assert.rejects(() => materializer.materialize(input), (error: unknown) =>
+    codeOf(error) === "CANVAS_MATERIALIZATION_CONFLICT");
+  assert.deepEqual(await fs.promises.readFile(first.localPath), Buffer.from(materializationFixture.materializationResponse.contentBase64, "base64"));
+  assert.equal((await db("sc_media_assets")).length, 1);
+  assert.equal((await db("sc_external_mappings")).length, 1);
 });
 
 test("trusted prepare is idempotent and creates exact UUIDv5 requirements and storyboard prompts", async (context) => {

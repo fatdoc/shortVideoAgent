@@ -41,9 +41,9 @@
   ],
   "routePolicy": {
     "formalBootstrap": {
-      "method": "POST",
+      "method": "GET",
       "path": "/api/production/pilot/canvas/v1/bootstrap",
-      "requires": ["exact origin", "HttpOnly session", "CSRF", "active canvas session", "exact actor/tenant/project/package scope"],
+      "requires": ["exact origin", "HttpOnly session", "active canvas session", "exact actor/tenant/project/package scope"],
       "mutationAuthority": "CanvasV1WorkspacePreparer.prepare"
     },
     "workspace": {

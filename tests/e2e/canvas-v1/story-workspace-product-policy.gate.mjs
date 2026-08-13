@@ -22,6 +22,8 @@ test("policy freezes the exact Story G5 public surface and all independent runti
     workspaceMaterialization: 69,
     workspaceAuthority: 30,
   });
+  assert.equal(policy.routePolicy.formalBootstrap.method, "GET");
+  assert.equal(policy.routePolicy.formalBootstrap.requires.includes("CSRF"), false);
   assert.equal(policy.routePolicy.workspace.method, "GET");
   assert.ok(policy.routePolicy.workspace.forbids.includes("prepare"));
   assert.ok(policy.routePolicy.media.forbids.includes("redirect"));
