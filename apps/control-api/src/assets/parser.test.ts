@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseAssetRecordProjection,
+  parseConsumeHighCostApprovalInput,
   parseCreateAssetInput,
   parseCreateHighCostApprovalInput,
 } from './parser.js';
@@ -141,13 +142,17 @@ describe('Canvas Asset strict parsing and projection safety', () => {
   });
 
   it('does not let the browser mint approval authority or submit userConfirmed', () => {
+    const commandId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
     const input = {
       packageId: ids.packageId,
       canvasSessionId,
       commandType: 'GENERATE_SHOT',
       action: {
-        shotId: '66666666-6666-4666-8666-666666666666',
-        readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        commandId,
+        payload: {
+          shotId: '66666666-6666-4666-8666-666666666666',
+          readinessId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        },
       },
       expiresInSeconds: 120,
       replayPolicy: 'single_use_replay_same_command',
@@ -164,5 +169,45 @@ describe('Canvas Asset strict parsing and projection safety', () => {
     expect(() =>
       parseCreateHighCostApprovalInput({ ...input, commandType: 'SAVE_CANVAS_DOCUMENT' }),
     ).toThrow();
+  });
+
+  it('freezes approval action as exact commandId plus object payload for create and consume', () => {
+    const commandId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    const action = { commandId, payload: { shotId: ids.assetId } };
+    const create = {
+      packageId: ids.packageId,
+      canvasSessionId,
+      commandType: 'GENERATE_SHOT',
+      action,
+      expiresInSeconds: 120,
+      replayPolicy: 'single_use_replay_same_command',
+    };
+    const consume = {
+      approvalId: ids.assetId,
+      tenantId: ids.tenantId,
+      projectId: ids.projectId,
+      packageId: ids.packageId,
+      canvasSessionId,
+      actorId: ids.actorId,
+      commandType: 'GENERATE_SHOT',
+      action,
+      commandId,
+    };
+    expect(parseCreateHighCostApprovalInput(create)).toEqual(create);
+    expect(parseConsumeHighCostApprovalInput(consume)).toEqual(consume);
+    for (const invalidAction of [
+      { payload: action.payload },
+      { commandId },
+      { commandId, payload: 'not-an-object' },
+      { commandId, payload: action.payload, extra: true },
+      { arbitrary: true },
+    ]) {
+      expect(() => parseCreateHighCostApprovalInput({ ...create, action: invalidAction })).toThrow();
+      expect(() => parseConsumeHighCostApprovalInput({ ...consume, action: invalidAction })).toThrow();
+    }
+    expect(() => parseConsumeHighCostApprovalInput({
+      ...consume,
+      commandId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    })).toThrow();
   });
 });
