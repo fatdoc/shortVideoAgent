@@ -23,7 +23,7 @@ function body() {
   };
 }
 
-function response() {
+function responseForBytes(bytes = jpeg) {
   return {
     objectType: 'CanvasAssetMaterialization',
     contractVersion: '0.1',
@@ -36,18 +36,20 @@ function response() {
     materializationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     category: 'virtual_character',
     mimeType: 'image/jpeg',
-    byteSize: 3,
-    checksum: `sha256:${createHash('sha256').update(jpeg).digest('hex')}`,
+    byteSize: bytes.length,
+    checksum: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
     contentEncoding: 'base64',
-    contentBase64: jpeg.toString('base64'),
+    contentBase64: bytes.toString('base64'),
     replayed: false,
     requestId: body().requestId,
     occurredAt: body().occurredAt,
   };
 }
 
-function harness() {
-  const service = { materialize: vi.fn(async () => response()) };
+const response = () => responseForBytes();
+
+function harness(output = response()) {
+  const service = { materialize: vi.fn(async () => output) };
   const router = createInternalCanvasAssetMaterializationRouter({ internalToken, service });
   const app = express();
   app.use('/api/v1/internal', router);
@@ -116,5 +118,19 @@ describe('server-only Canvas asset materialization route', () => {
     expect(result.headers['cache-control']).toBe('no-store');
     expect(result.headers).not.toHaveProperty('idempotency-replayed');
     expect(service.materialize).toHaveBeenCalledWith(body());
+  });
+
+  it('returns an exact 8 MiB JPEG without parser failure', async () => {
+    const exactLimit = Buffer.alloc(8 * 1024 * 1024);
+    exactLimit.set(jpeg);
+    const output = responseForBytes(exactLimit);
+    const { app } = harness(output);
+    const result = await authorized(
+      request(app).post('/api/v1/internal/canvas-assets/materializations'),
+    ).send(JSON.stringify(body()));
+    expect(result.status).toBe(201);
+    expect(result.body.byteSize).toBe(exactLimit.length);
+    expect(result.body.checksum).toBe(output.checksum);
+    expect(result.body.contentBase64.length).toBe(11_184_812);
   });
 });

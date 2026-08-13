@@ -23,7 +23,7 @@ function request() {
   };
 }
 
-function response() {
+function responseForBytes(bytes = jpeg) {
   const { actorId: _actorId, objectType: _objectType, ...common } = request();
   return {
     objectType: 'CanvasAssetMaterialization',
@@ -31,13 +31,15 @@ function response() {
     materializationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     category: 'virtual_character',
     mimeType: 'image/jpeg',
-    byteSize: jpeg.length,
-    checksum: `sha256:${createHash('sha256').update(jpeg).digest('hex')}`,
+    byteSize: bytes.length,
+    checksum: `sha256:${createHash('sha256').update(bytes).digest('hex')}`,
     contentEncoding: 'base64',
-    contentBase64: jpeg.toString('base64'),
+    contentBase64: bytes.toString('base64'),
     replayed: false,
   };
 }
+
+const response = () => responseForBytes();
 
 describe('Canvas materialization strict parsers', () => {
   it('accepts only the frozen request and canonical UTC timestamps', () => {
@@ -72,6 +74,27 @@ describe('Canvas materialization strict parsers', () => {
       expect(() => parseCanvasAssetMaterializationResponse(value)).toThrow(
         `CANVAS_MATERIALIZATION_${code}`,
       );
+    }
+  });
+
+  it('parses canonical base64 at decoded byte boundaries without uncaught runtime errors', () => {
+    const exactLimit = Buffer.alloc(8 * 1024 * 1024);
+    exactLimit.set(jpeg);
+    expect(() => parseCanvasAssetMaterializationResponse(responseForBytes(exactLimit))).not.toThrow();
+
+    const cases = [
+      [responseForBytes(Buffer.from([0xff])), 'CANVAS_MATERIALIZATION_MIME_UNSUPPORTED'],
+      [responseForBytes(Buffer.concat([exactLimit, Buffer.from([0])])), 'CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE'],
+      [{ ...response(), contentBase64: '%%%%' }, 'CANVAS_MATERIALIZATION_RESPONSE_INVALID'],
+      [{ ...response(), contentBase64: '/9j=' }, 'CANVAS_MATERIALIZATION_RESPONSE_INVALID'],
+    ] as const;
+    for (const [value, code] of cases) {
+      try {
+        parseCanvasAssetMaterializationResponse(value);
+        throw new Error('expected Canvas materialization parsing to fail');
+      } catch (error) {
+        expect(error).toMatchObject({ name: 'CanvasMaterializationError', code });
+      }
     }
   });
 });
