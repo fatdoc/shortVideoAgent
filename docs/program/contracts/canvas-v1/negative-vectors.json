@@ -1,0 +1,394 @@
+{
+  "schemaVersion": "canvas-v1-negative-vectors.v1",
+  "fixtureFiles": {
+    "CanvasBootstrap": "canvas-bootstrap.json",
+    "CanvasDocument": "canvas-document.json",
+    "AssetRecord": "asset-record.json",
+    "ProviderAssetBinding": "provider-asset-binding.json",
+    "EntityBinding": "entity-binding.json",
+    "ShotAssetRequirement": "shot-asset-requirement.json",
+    "ShotReadiness": "shot-readiness.json",
+    "CanvasCommand": "canvas-command.json",
+    "CanvasEvent": "canvas-event.json"
+  },
+  "browserSafeObjectTypes": [
+    "CanvasBootstrap",
+    "CanvasDocument",
+    "AssetRecord",
+    "EntityBinding",
+    "ShotAssetRequirement",
+    "ShotReadiness",
+    "CanvasCommand",
+    "CanvasEvent"
+  ],
+  "serverOnlyObjectTypes": ["ProviderAssetBinding"],
+  "forbiddenBrowserKeys": [
+    "remoteAssetId",
+    "assetUri",
+    "groupId",
+    "providerAssetId",
+    "providerGroupId",
+    "providerTaskId",
+    "accessToken",
+    "authorization",
+    "cookie",
+    "grant",
+    "projectGrant",
+    "productionPackage",
+    "packageSnapshot",
+    "payloadDigest",
+    "approvedScriptDigest",
+    "approvedStoryboardDigest",
+    "idempotencyKey",
+    "internalToken",
+    "credential",
+    "secret",
+    "password",
+    "localPath",
+    "databaseId",
+    "providerRawBody",
+    "providerRawMessage"
+  ],
+  "forbiddenBrowserValuePatterns": [
+    "asset://",
+    "bearer ",
+    "x-amz-credential=",
+    "x-amz-signature=",
+    "x-tos-signature=",
+    "access_token="
+  ],
+  "reasonCodeOrder": [
+    "SCOPE_MISMATCH",
+    "REQUIRED_ASSET_MISSING",
+    "RIGHTS_PENDING",
+    "RIGHTS_REJECTED",
+    "RIGHTS_REVOKED",
+    "RIGHTS_EXPIRED",
+    "ASSET_APPROVAL_PENDING",
+    "ASSET_APPROVAL_REJECTED",
+    "ASSET_APPROVAL_REVOKED",
+    "PROVIDER_PROCESSING",
+    "PROVIDER_REJECTED",
+    "PROVIDER_FAILED",
+    "PROVIDER_UNAVAILABLE",
+    "ENTITY_BINDING_MISSING",
+    "ENTITY_BINDING_PENDING",
+    "ENTITY_BINDING_REJECTED",
+    "ENTITY_BINDING_REVOKED",
+    "CAPABILITY_UNAVAILABLE",
+    "SCRIPT_NOT_CURRENT",
+    "STORYBOARD_NOT_CURRENT"
+  ],
+  "vectors": [
+    {
+      "id": "unknown-top-level-field",
+      "operation": "parse",
+      "fixture": "canvas-bootstrap.json",
+      "mutations": [{ "op": "add", "path": "/unexpected", "value": true }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "unknown-nested-field",
+      "operation": "parse",
+      "fixture": "asset-record.json",
+      "mutations": [{ "op": "add", "path": "/rights/rawLicense", "value": "secret" }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "generic-id-is-not-canonical-uuid",
+      "operation": "parse",
+      "fixture": "canvas-document.json",
+      "mutations": [{ "op": "replace", "path": "/documentId", "value": "document-pilot-01" }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "integer-id-is-server-only",
+      "operation": "parse",
+      "fixture": "asset-record.json",
+      "mutations": [{ "op": "replace", "path": "/assetId", "value": 42 }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "noncanonical-timestamp",
+      "operation": "parse",
+      "fixture": "canvas-event.json",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-08-14T02:02:00Z" }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "canvas-session-must-use-pcs-handle",
+      "operation": "parse",
+      "fixture": "canvas-command.json",
+      "mutations": [{ "op": "replace", "path": "/canvasSessionId", "value": "ce_ABCDEFGHIJKLMNOPQRSTUVWX12345678" }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "tenant-scope-mismatch",
+      "operation": "assertScope",
+      "fixture": "canvas-command.json",
+      "expectedScope": {
+        "tenantId": "10101010-1010-4010-8010-101010101010",
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "packageId": "33333333-3333-4333-8333-333333333333",
+        "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678"
+      },
+      "expectedCode": "CANVAS_SCOPE_MISMATCH"
+    },
+    {
+      "id": "project-scope-mismatch",
+      "operation": "assertScope",
+      "fixture": "canvas-command.json",
+      "expectedScope": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "projectId": "20202020-2020-4020-8020-202020202020",
+        "packageId": "33333333-3333-4333-8333-333333333333",
+        "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678"
+      },
+      "expectedCode": "CANVAS_SCOPE_MISMATCH"
+    },
+    {
+      "id": "package-scope-mismatch",
+      "operation": "assertScope",
+      "fixture": "canvas-command.json",
+      "expectedScope": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "packageId": "30303030-3030-4030-8030-303030303030",
+        "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678"
+      },
+      "expectedCode": "CANVAS_SCOPE_MISMATCH"
+    },
+    {
+      "id": "session-scope-mismatch",
+      "operation": "assertScope",
+      "fixture": "canvas-command.json",
+      "expectedScope": {
+        "tenantId": "11111111-1111-4111-8111-111111111111",
+        "projectId": "22222222-2222-4222-8222-222222222222",
+        "packageId": "33333333-3333-4333-8333-333333333333",
+        "canvasSessionId": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321"
+      },
+      "expectedCode": "CANVAS_SCOPE_MISMATCH"
+    },
+    {
+      "id": "old-workspace-remote-asset-id-forbidden",
+      "operation": "parseBrowser",
+      "fixture": "canvas-bootstrap.json",
+      "mutations": [{ "op": "add", "path": "/assetSummaries/0/remoteAssetId", "value": "old-provider-id" }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "old-workspace-group-id-forbidden",
+      "operation": "parseBrowser",
+      "fixture": "asset-record.json",
+      "mutations": [{ "op": "add", "path": "/groupId", "value": "old-provider-group" }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "asset-uri-forbidden-in-browser",
+      "operation": "parseBrowser",
+      "fixture": "asset-record.json",
+      "mutations": [{ "op": "replace", "path": "/controlledPreviewUrl", "value": "asset://provider-secret" }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "signed-provider-url-forbidden-in-browser",
+      "operation": "parseBrowser",
+      "fixture": "asset-record.json",
+      "mutations": [{ "op": "replace", "path": "/controlledPreviewUrl", "value": "https://storage.example.test/preview.png?X-Amz-Signature=secret" }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "package-digest-forbidden-in-bootstrap-network-payload",
+      "operation": "parseBrowser",
+      "fixture": "canvas-bootstrap.json",
+      "mutations": [{ "op": "add", "path": "/payloadDigest", "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "project-grant-forbidden-in-bootstrap-network-payload",
+      "operation": "parseBrowser",
+      "fixture": "canvas-bootstrap.json",
+      "mutations": [{ "op": "add", "path": "/grant", "value": { "accessToken": "secret" } }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "provider-binding-is-server-only",
+      "operation": "parseBrowser",
+      "fixture": "provider-asset-binding.json",
+      "mutations": [],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "provider-unknown-rejected",
+      "operation": "parse",
+      "fixture": "provider-asset-binding.json",
+      "mutations": [{ "op": "replace", "path": "/providerStatus", "value": "unknown" }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "provider-local-rejected",
+      "operation": "parse",
+      "fixture": "provider-asset-binding.json",
+      "mutations": [{ "op": "replace", "path": "/providerStatus", "value": "local" }],
+      "expectedCode": "CANVAS_SCHEMA_INVALID"
+    },
+    {
+      "id": "rights-pending-cannot-be-ready",
+      "operation": "parse",
+      "fixture": "shot-readiness.json",
+      "mutations": [{ "op": "replace", "path": "/requirements/0/rightsStatus", "value": "pending" }],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
+    },
+    {
+      "id": "rights-revoked-cannot-be-ready",
+      "operation": "parse",
+      "fixture": "shot-readiness.json",
+      "mutations": [{ "op": "replace", "path": "/requirements/0/rightsStatus", "value": "revoked" }],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
+    },
+    {
+      "id": "rights-expired-cannot-be-ready",
+      "operation": "parse",
+      "fixture": "shot-readiness.json",
+      "mutations": [{ "op": "replace", "path": "/requirements/0/rightsStatus", "value": "expired" }],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
+    },
+    {
+      "id": "provider-processing-cannot-be-ready",
+      "operation": "parse",
+      "fixture": "shot-readiness.json",
+      "mutations": [{ "op": "replace", "path": "/requirements/0/providerStatus", "value": "processing" }],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
+    },
+    {
+      "id": "provider-rejected-cannot-be-ready",
+      "operation": "parse",
+      "fixture": "shot-readiness.json",
+      "mutations": [{ "op": "replace", "path": "/requirements/0/providerStatus", "value": "rejected" }],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
+    },
+    {
+      "id": "entity-bind-does-not-auto-approve",
+      "operation": "parse",
+      "fixture": "entity-binding.json",
+      "mutations": [{ "op": "replace", "path": "/status", "value": "pending" }],
+      "expectedCode": "CANVAS_BINDING_INCONSISTENT"
+    },
+    {
+      "id": "reason-codes-must-be-stably-ordered",
+      "operation": "parse",
+      "fixture": "shot-readiness.json",
+      "mutations": [
+        { "op": "replace", "path": "/ready", "value": false },
+        { "op": "replace", "path": "/reasonCodes", "value": ["PROVIDER_FAILED", "RIGHTS_EXPIRED"] },
+        { "op": "replace", "path": "/requirements/0/ready", "value": false },
+        { "op": "replace", "path": "/requirements/0/rightsStatus", "value": "expired" },
+        { "op": "replace", "path": "/requirements/0/providerStatus", "value": "failed" },
+        { "op": "replace", "path": "/requirements/0/reasonCodes", "value": ["PROVIDER_FAILED", "RIGHTS_EXPIRED"] }
+      ],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
+    },
+    {
+      "id": "high-cost-command-requires-approval-id",
+      "operation": "parse",
+      "fixture": "canvas-command.json",
+      "mutations": [{ "op": "replace", "path": "/approvalId", "value": null }],
+      "expectedCode": "CANVAS_APPROVAL_REQUIRED"
+    },
+    {
+      "id": "bare-user-confirmed-is-forbidden",
+      "operation": "parseBrowser",
+      "fixture": "canvas-command.json",
+      "mutations": [{ "op": "add", "path": "/userConfirmed", "value": true }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "command-payload-must-match-command-type",
+      "operation": "parse",
+      "fixture": "canvas-command.json",
+      "mutations": [{ "op": "replace", "path": "/commandType", "value": "SYNC_PROVIDER_ASSET" }],
+      "expectedCode": "CANVAS_COMMAND_PAYLOAD_MISMATCH"
+    },
+    {
+      "id": "same-scope-changed-payload-conflicts",
+      "operation": "decideReplay",
+      "fixture": "canvas-command.json",
+      "relatedMutations": [{ "op": "replace", "path": "/payload/prompt", "value": "changed semantic prompt" }],
+      "expectedCode": "CANVAS_COMMAND_IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "id": "raw-idempotency-key-forbidden",
+      "operation": "parseBrowser",
+      "fixture": "canvas-command.json",
+      "mutations": [{ "op": "add", "path": "/idempotencyKey", "value": "raw-transport-secret" }],
+      "expectedCode": "CANVAS_BROWSER_PROJECTION_UNSAFE"
+    },
+    {
+      "id": "stale-document-version-conflicts",
+      "operation": "assertDocumentVersion",
+      "fixture": "canvas-document.json",
+      "expectedVersion": 3,
+      "expectedCode": "CANVAS_DOCUMENT_VERSION_CONFLICT"
+    },
+    {
+      "id": "expired-session-cannot-save-document",
+      "operation": "assertSessionActive",
+      "fixture": "canvas-document.json",
+      "sessionActive": false,
+      "expectedCode": "CANVAS_SESSION_INVALID"
+    },
+    {
+      "id": "accepted-event-cannot-claim-provider-submission",
+      "operation": "parse",
+      "fixture": "canvas-event.json",
+      "mutations": [{ "op": "replace", "path": "/providerSubmitted", "value": true }],
+      "expectedCode": "CANVAS_EVENT_FACTS_INCONSISTENT"
+    },
+    {
+      "id": "task-created-requires-real-task-id",
+      "operation": "parse",
+      "fixture": "canvas-event.json",
+      "mutations": [
+        { "op": "replace", "path": "/status", "value": "task_created" },
+        { "op": "replace", "path": "/providerSubmitted", "value": true },
+        { "op": "replace", "path": "/taskCreated", "value": true }
+      ],
+      "expectedCode": "CANVAS_EVENT_FACTS_INCONSISTENT"
+    },
+    {
+      "id": "receipt-cannot-precede-output-registration",
+      "operation": "parse",
+      "fixture": "canvas-event.json",
+      "mutations": [
+        { "op": "replace", "path": "/status", "value": "receipt_recorded" },
+        { "op": "replace", "path": "/receiptRecorded", "value": true },
+        { "op": "replace", "path": "/receiptId", "value": "14141414-1414-4414-8414-141414141414" }
+      ],
+      "expectedCode": "CANVAS_EVENT_FACTS_INCONSISTENT"
+    },
+    {
+      "id": "failed-event-requires-safe-error",
+      "operation": "parse",
+      "fixture": "canvas-event.json",
+      "mutations": [{ "op": "replace", "path": "/status", "value": "failed" }],
+      "expectedCode": "CANVAS_EVENT_FACTS_INCONSISTENT"
+    }
+  ],
+  "positiveSemanticCases": [
+    {
+      "id": "same-command-replays-without-provider-side-effect",
+      "operation": "decideReplay",
+      "fixture": "canvas-command.json",
+      "relatedMutations": [],
+      "expected": "replay"
+    },
+    {
+      "id": "new-valid-session-restores-stable-document",
+      "operation": "restoreDocument",
+      "fixture": "canvas-document.json",
+      "newCanvasSessionId": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321",
+      "expected": "allowed"
+    }
+  ]
+}
