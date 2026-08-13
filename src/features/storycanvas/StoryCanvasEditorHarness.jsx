@@ -3,8 +3,7 @@ import { useMemo } from "react";
 
 const isDevelopmentOrTest =
   import.meta.env.DEV ||
-  import.meta.env.MODE === "test" ||
-  process.env.NODE_ENV === "test";
+  import.meta.env.MODE === "test";
 
 /**
  * 开发/测试专用直接编辑器入口，不经过生产入口和 Router。
