@@ -212,5 +212,9 @@ describe('Canvas Asset strict parsing and projection safety', () => {
     for (const expiresInSeconds of [59, 61, 300]) {
       expect(() => parseCreateHighCostApprovalInput({ ...create, expiresInSeconds })).toThrow();
     }
+    expect(() => parseCreateHighCostApprovalInput({
+      ...create,
+      commandType: 'SYNC_PROVIDER_ASSET',
+    })).toThrow();
   });
 });

@@ -168,6 +168,63 @@ test("same scope/same payload replays persisted truth; changed payload conflicts
   assert.equal(starts, 1);
 });
 
+test("SYNC_PROVIDER_ASSET is low-cost while the frozen five commands still require approval", async (context) => {
+  const syncDb = await database();
+  context.after(() => syncDb.destroy());
+  let approvals = 0;
+  let syncs = 0;
+  const syncService = new CanvasCommandService(options(syncDb, {
+    validateApproval: async () => { approvals += 1; return true; },
+    syncProviderAsset: async () => {
+      syncs += 1;
+      return {
+        objectType: "ProviderAssetBinding",
+        contractVersion: "0.1",
+        tenantId: scope.tenantId,
+        projectId: scope.projectId,
+        packageId: scope.packageId,
+        canvasSessionId: scope.canvasSessionId,
+        bindingId: "99999999-9999-4999-8999-999999999999",
+        assetId,
+        provider: "byteplus",
+        providerStatus: "active",
+        providerAssetId: "provider-server-only",
+        providerGroupId: "provider-group-server-only",
+        assetUri: "asset://provider-server-only",
+        registeredAt: occurredAt,
+        updatedAt: occurredAt,
+        occurredAt,
+      };
+    },
+  }));
+  const synced = await syncService.execute(command({
+    commandId: "29292929-2929-4929-8929-292929292929",
+    commandType: "SYNC_PROVIDER_ASSET",
+    approvalId: null,
+    payload: { assetId },
+  }));
+  assert.equal(synced.status, "accepted");
+  assert.equal(syncs, 1);
+  assert.equal(approvals, 0);
+
+  const highCost = [
+    command({ commandType: "CREATE_VIRTUAL_CHARACTER", approvalId: null, payload: { assetId, entityId: "16161616-1616-4616-8616-161616161616", prompt: "门店讲解员" } }),
+    command({ commandType: "BIND_ASSET_TO_ENTITY", approvalId: null, payload: { assetId, entityId: "16161616-1616-4616-8616-161616161616" } }),
+    command({ approvalId: null }),
+    command({ commandType: "SELECT_SHOT_OUTPUT", approvalId: null, payload: { shotId, outputAssetId: "19191919-1919-4919-8919-191919191919", documentId, expectedVersion: 1 } }),
+    command({ commandType: "EXPORT_PLAYLIST", approvalId: null, payload: { documentId, expectedVersion: 1 } }),
+  ];
+  for (const value of highCost) {
+    const db = await database();
+    context.after(() => db.destroy());
+    const service = new CanvasCommandService(options(db));
+    await assert.rejects(
+      () => service.execute(value),
+      (error: unknown) => error instanceof CanvasCommandServiceError && error.code === "CANVAS_APPROVAL_REQUIRED",
+    );
+  }
+});
+
 test("an accepted GENERATE_SHOT recovers only through exact approval replay and never resubmits an unknown provider outcome", async (context) => {
   const db = await database();
   context.after(() => db.destroy());
