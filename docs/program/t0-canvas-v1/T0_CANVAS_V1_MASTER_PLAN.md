@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.1`
+> 版本：`v0.2`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -32,29 +32,29 @@
 
 ### 1.1 Git 事实
 
-记录时状态：
+G0 放行时状态：
 
 ```text
-workspace:
-/Users/docfat/Desktop/个人/智能体社区/项目/短视频agent2/videoagent
+integration worktree:
+/Users/docfat/.codex/worktrees/t0-cv1-integration
 
-current branch:
-codex/pilot-v0-control-plane
+integration branch:
+codex/t0-cv1-integration
 
-current local HEAD:
-0144fad8c62924538facb498b141f719d7ace28f
+governance baseline:
+413322708b35da7a158f45bdb329416b39238e52
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
 ```
 
-当前本地 HEAD 是保护性混合提交，不是 T0-CV1 员工代码基线。T0-CV1 产品代码的拟议基线是：
+原始用户工作区继续作为受保护混合工作区，不是 T0-CV1 员工代码基线。T0-CV1 产品代码冻结基线是：
 
 ```text
 origin/main@19582cbf16e1414f884f9864f7c0d372640cb26a
 ```
 
-在正式招聘员工前，CV0 必须重新 fetch 并确认 `origin/main`；若远端发生变化，CV0 更新本文基线并重新执行 G0。
+CV0 已重新 fetch 并确认 `origin/main`，在独立 worktree 建立治理基线。若远端发生变化，不自动重置本轮冻结基线；由 CV0 先审计差异，再决定是否重新执行 G0。
 
 ### 1.2 当前必须保护的用户文件
 
@@ -401,12 +401,12 @@ raw Idempotency-Key
 | 员工 | 角色 | 任务书 | 初始状态 | 阻塞条件 |
 |---|---|---|---|---|
 | CV0 | 总控与集成负责人 | `tasks/CV0_MASTER_INTEGRATION_TASK.md` | `IN_PROGRESS` | 无 |
-| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `NOT_STARTED` | 等待正式招聘 |
+| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `IN_PROGRESS` | G0 已放行；进入 Wave 1 |
 | CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `NOT_STARTED` | G1 未通过 |
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `NOT_STARTED` | G2 未通过 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `NOT_STARTED` | G1 未通过 |
 | CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `NOT_STARTED` | G1 未通过 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `NOT_STARTED` | 可先做 G0 只读基线 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `IN_PROGRESS` | G0 已交付；进入 G1 conformance |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -536,8 +536,8 @@ Gate 状态：
 
 | Gate | 当前状态 | 证据/说明 |
 |---|---|---|
-| G0 | `IN_PROGRESS` | 总控文档正在建立；尚未 fetch/创建干净执行 worktree |
-| G1 | `NOT_STARTED` | CV1 尚未招聘 |
+| G0 | `ACCEPTED` | `handoffs/CV6_G0_BASELINE_HANDOFF.md`；带已知基线失败放行 |
+| G1 | `IN_PROGRESS` | CV1 Wave 0 审计完成；合同/fixture/parser/conformance 正在冻结 |
 | G2 | `NOT_STARTED` | 依赖 G1 |
 | G3 | `NOT_STARTED` | 依赖 G1 与 UI 实现 |
 | G4 | `NOT_STARTED` | 依赖 G2 |
@@ -763,20 +763,41 @@ G6 最少需要：
 
 ## 16. 当前执行入口
 
-当前只完成治理启动，不代表员工已招聘或产品开发已开始。
-
-下一步由 CV0 执行：
+用户已正式下达 Wave 0 启动指令。G0 已由 CV6 完成并由 CV0 以
+`ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行，当前进入 Wave 1：
 
 ```text
-1. 完成并校验本文与 CV0—CV6 七份任务书
-2. 将文档形成独立原子 commit
-3. 向用户汇报文档位置、基线和当前 G0 状态
-4. 等待用户正式下达“启动员工/开始执行”
-5. fetch 最新 origin/main，创建干净 worktree/分支
-6. 启动 Wave 0：CV1 + CV6，CV0 持续总控
+1. CV1 按 CV1-A → CV1-B → CV1-C → CV1-D 冻结 Canvas V1 合同
+2. CV6 建立独立 Canvas V1 conformance，保留历史 RED/失败原状
+3. CV0 验收 atomic commits、write set、negative vectors 和安全投影
+4. G1 ACCEPTED 前不启动 CV2/CV4/CV5 产品实现
 ```
 
+G0 已知基线事实：
+
+```text
+StoryCanvas:                         69/69 PASS
+StoryCanvas v0.2:                   13/13 PASS
+Media/TTS/Storage:                  17/17 PASS
+Root/Control/StoryCanvas builds:    PASS
+Governance/diff-check:              PASS
+Root suite:                         431 PASS / 4 historical Shared RED
+Historical contract gate:           outer 9/10; stale A3 child 4/10
+Control API without _test database: 447 PASS / 236 SKIP
+Full Joint Gate:                    BLOCKED as designed
+```
+
+这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
+
 ## 17. 变更记录
+
+### v0.2 · 2026-08-14
+
+- 用户正式启动 Wave 0；CV1、CV6 均以 `gpt-5.6-sol/high` 执行；
+- 冻结 `origin/main@19582cbf16e1414f884f9864f7c0d372640cb26a` 与治理基线 `413322708b35da7a158f45bdb329416b39238e52`；
+- CV6 完成 G0 baseline matrix，CV0 接受带已知基线失败放行；
+- CV1 完成零写入合同审计，识别并由 CV0 裁决八项 G1 必修边界；
+- G1 进入 `IN_PROGRESS`，G2—G6 保持未启动。
 
 ### v0.1 · 2026-08-14
 
