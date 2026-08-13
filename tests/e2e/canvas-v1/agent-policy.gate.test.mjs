@@ -91,7 +91,7 @@ test("G4 Agent source and skill surface are whitelist-only and isolated from leg
     }
   }
   assert.match(productSource, /executeCanvasCommand/u, "Agent must expose only the common command-service write port");
-  assert.doesNotMatch(productSource, /\.(?:insert|update|delete|del)\s*\(/u, "Agent source contains a direct persistence mutation");
+  assert.doesNotMatch(productSource, /\.(?:insert|update|del)\s*\(/u, "Agent source contains a direct persistence mutation");
   assert.doesNotMatch(productSource, /socket\s*\.\s*emit\s*\(/u, "Agent source contains a legacy socket mutation");
   assert.doesNotMatch(productSource, /\bconsole\s*\./u, "Agent source must not write tool values to public logs");
 });

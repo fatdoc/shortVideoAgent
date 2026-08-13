@@ -1,20 +1,21 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import {
-  parseCanvasV1BrowserContract,
-  type AssetRecordV01,
-  type CanvasCommandV01,
-  type CanvasEventV01,
-  type ShotAssetRequirementV01,
-  type ShotReadinessV01,
+import * as contractNamespace from "../../../apps/storycanvas/src/contracts/canvas-v1/index.js";
+import type {
+  AssetRecordV01,
+  CanvasCommandV01,
+  CanvasEventV01,
+  ShotAssetRequirementV01,
+  ShotReadinessV01,
 } from "../../../apps/storycanvas/src/contracts/canvas-v1/index.js";
-import {
-  CANVAS_AGENT_TOOL_NAMES,
-  CanvasAgentPolicyError,
-  CanvasAgentRuntime,
-  type CanvasAgentRuntimeOptions,
-} from "../../../apps/storycanvas/src/agents/canvas-v1/index.js";
+import * as agentNamespace from "../../../apps/storycanvas/src/agents/canvas-v1/index.js";
+import type { CanvasAgentRuntimeOptions } from "../../../apps/storycanvas/src/agents/canvas-v1/index.js";
+
+const agentApi = ((agentNamespace as { default?: typeof agentNamespace }).default ?? agentNamespace);
+const { CANVAS_AGENT_TOOL_NAMES, CanvasAgentPolicyError, CanvasAgentRuntime } = agentApi;
+const contractApi = ((contractNamespace as { default?: typeof contractNamespace }).default ?? contractNamespace);
+const { parseCanvasV1BrowserContract } = contractApi;
 
 const authority = {
   tenantId: "11111111-1111-4111-8111-111111111111",
