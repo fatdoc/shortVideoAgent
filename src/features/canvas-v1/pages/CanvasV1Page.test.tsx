@@ -145,6 +145,21 @@ function createShot(ready = true): CanvasShotView {
   };
 }
 
+function createBindableAsset(overrides: Partial<NonNullable<CanvasV1PageProps['assets']>[number]> = {}) {
+  return {
+    assetId,
+    category: 'virtual_character' as const,
+    displayName: '门店讲解员',
+    rightsStatus: 'authorized' as const,
+    approvalStatus: 'approved' as const,
+    providerStatus: 'active' as const,
+    entityBindingStatus: 'pending' as const,
+    controlledPreviewUrl: null,
+    targetEntityId: '16161616-1616-4616-8616-161616161616',
+    ...overrides,
+  };
+}
+
 function createEvent(status: CanvasEventV01['status']): CanvasEventV01 {
   const failed = status === 'failed';
   const providerSubmitted = ['provider_submitted', 'task_created', 'output_registered', 'receipt_recorded'].includes(status);
@@ -310,6 +325,107 @@ describe('CanvasV1Page interactions and safety', () => {
     expect(screen.getByRole('button', { name: '生成当前镜头' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
     expect(onCommand).not.toHaveBeenCalled();
+  });
+
+  it('fails closed in the drawer and handler when high-cost asset binding approval is missing', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    const view = render(
+      <CanvasV1Page
+        {...createProps({
+          assets: [createBindableAsset()],
+          onCommand,
+          commandContext: {
+            requestedByActorId: '12121212-1212-4212-8212-121212121212',
+            approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+          },
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
+    view.rerender(
+      <CanvasV1Page
+        {...createProps({
+          assets: [createBindableAsset()],
+          onCommand,
+          commandContext: {
+            requestedByActorId: '12121212-1212-4212-8212-121212121212',
+            approvalId: null,
+          },
+        })}
+      />,
+    );
+
+    const bindButton = screen.getByRole('button', { name: '绑定到当前镜头' });
+    expect(bindButton).toBeDisabled();
+    await user.click(bindButton);
+    expect(onCommand).not.toHaveBeenCalled();
+    expect(screen.getByText('绑定审批尚未确认。')).toBeInTheDocument();
+  });
+
+  it('restores the authority prompt when the same shot receives a newer document version', async () => {
+    const user = userEvent.setup();
+    const initialProps = createProps();
+    const view = render(<CanvasV1Page {...initialProps} />);
+    const prompt = screen.getByRole('textbox', { name: '生成提示' });
+
+    await user.clear(prompt);
+    await user.type(prompt, '当前版本内的本地编辑');
+    view.rerender(<CanvasV1Page {...initialProps} saveState="saving" />);
+    expect(screen.getByRole('textbox', { name: '生成提示' })).toHaveValue('当前版本内的本地编辑');
+
+    const refreshedDocument = createDocument();
+    refreshedDocument.version = 5;
+    refreshedDocument.shots[0].prompt = '服务端刷新恢复提示';
+    view.rerender(<CanvasV1Page {...initialProps} document={refreshedDocument} />);
+    expect(screen.getByRole('textbox', { name: '生成提示' })).toHaveValue('服务端刷新恢复提示');
+  });
+
+  it.each([
+    ['server asset URI', 'asset://server-only-preview'],
+    ['data URI', 'data:image/svg+xml;base64,PHN2Zy8+'],
+    ['blob URI', 'blob:https://example.test/private'],
+    ['script URI', 'javascript:alert(1)'],
+    ['signed URL', 'https://cdn.example.test/preview.jpg?X-Amz-Signature=secret'],
+    ['credential URL', 'https://user:password@cdn.example.test/preview.jpg'],
+  ])('keeps every media sink free of an unsafe %s', (_label, unsafeUrl) => {
+    const shot = {
+      ...createShot(),
+      thumbnailUrl: unsafeUrl,
+      outputs: [{
+        assetId: '19191919-1919-4919-8919-191919191919',
+        kind: 'image' as const,
+        previewUrl: unsafeUrl,
+        selected: true,
+      }],
+    };
+    const asset = createBindableAsset({ controlledPreviewUrl: unsafeUrl });
+    render(<CanvasV1Page {...createProps({ shots: [shot], assets: [asset] })} />);
+
+    expect(document.querySelectorAll('img')).toHaveLength(0);
+    expect(document.documentElement.outerHTML).not.toContain(unsafeUrl);
+  });
+
+  it('renders only same-origin absolute paths in every media sink', async () => {
+    const user = userEvent.setup();
+    const controlledUrl = '/api/canvas-v1/media/preview-safe.jpg';
+    const shot = {
+      ...createShot(),
+      thumbnailUrl: controlledUrl,
+      outputs: [{
+        assetId: '19191919-1919-4919-8919-191919191919',
+        kind: 'image' as const,
+        previewUrl: controlledUrl,
+        selected: true,
+      }],
+    };
+    const asset = createBindableAsset({ controlledPreviewUrl: controlledUrl });
+    render(<CanvasV1Page {...createProps({ shots: [shot], assets: [asset] })} />);
+
+    expect(document.querySelectorAll(`img[src="${controlledUrl}"]`)).toHaveLength(4);
+    await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
+    expect(document.querySelectorAll(`img[src="${controlledUrl}"]`)).toHaveLength(5);
   });
 
   it('does not create a candidate asset when a task fails', () => {
