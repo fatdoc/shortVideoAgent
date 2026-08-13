@@ -30,7 +30,7 @@ const shotId = "66666666-6666-4666-8666-666666666666";
 const occurredAt = "2026-08-14T02:00:00.000Z";
 const origin = "https://pilot.example.test";
 
-test("runtime accepts Chromium same-origin GET provenance without Origin and rejects ambiguous or contradictory provenance", async (context) => {
+test("runtime keeps non-formal reads bound to exact Origin", async (context) => {
   const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
   context.after(() => database.destroy());
   await canvasV1Migration.up(database);
@@ -62,27 +62,12 @@ test("runtime accepts Chromium same-origin GET provenance without Origin and rej
     "x-canvas-session-id": canvasSessionId,
   };
 
-  const chromiumGet = await fetch(url, {
-    headers: {
-      ...authorityHeaders,
-      referer: `${origin}/canvas/${projectId}`,
-      "sec-fetch-site": "same-origin",
-    },
-  });
-  assert.equal(chromiumGet.status, 200);
+  const exactOriginRead = await fetch(url, { headers: { ...authorityHeaders, origin } });
+  assert.equal(exactOriginRead.status, 200);
 
   for (const headers of [
     authorityHeaders,
-    { ...authorityHeaders, referer: `${origin}/canvas/${projectId}` },
-    { ...authorityHeaders, "sec-fetch-site": "same-origin" },
-    { ...authorityHeaders, referer: "https://attacker.example.test/canvas", "sec-fetch-site": "same-origin" },
-    { ...authorityHeaders, referer: `${origin}/canvas/${projectId}`, "sec-fetch-site": "cross-site" },
-    {
-      ...authorityHeaders,
-      origin: "https://attacker.example.test",
-      referer: `${origin}/canvas/${projectId}`,
-      "sec-fetch-site": "same-origin",
-    },
+    { ...authorityHeaders, origin: "https://attacker.example.test" },
   ]) {
     const blocked = await fetch(url, { headers });
     assert.equal(blocked.status, 401);
@@ -247,11 +232,21 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
   const address = server.address();
   assert.ok(address && typeof address !== "string");
   const url = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/bootstrap`;
+  const workspaceUrl = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/workspace`;
+  const requestStatus = (target: string, requestHeaders: Record<string, string>) => new Promise<number>((resolve, reject) => {
+    const request = http.get(target, { headers: requestHeaders }, (response) => {
+      response.resume();
+      response.once("end", () => resolve(response.statusCode ?? 0));
+    });
+    request.once("error", reject);
+  });
   const headers = {
     cookie: "videoagent_session=valid",
     "x-canvas-session-id": canvasSessionId,
     referer: `${origin}/canvas/${projectId}`,
     "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
   };
 
   const failedFirst = fetch(url, { headers });
@@ -268,7 +263,7 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
   started = new Promise<void>((resolve) => { authorityStarted = resolve; });
   const first = fetch(url, { headers: { ...headers, "x-request-id": "req-formal-first" } });
   await started;
-  const replay = fetch(url, { headers: { ...headers, "x-request-id": "req-formal-replay" } });
+  const replay = fetch(url, { headers: { ...headers, origin, "x-request-id": "req-formal-replay" } });
   const changedScope = await fetch(url, {
     headers: { ...headers, "x-canvas-session-id": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321" },
   });
@@ -284,6 +279,38 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
     "sc_canvas_v1_documents", "sc_canvas_v1_requirements", "sc_canvas_v1_readiness",
     "sc_media_assets", "sc_external_mappings",
   ]) assert.equal((await database(table)).length, 1, table);
+  assert.equal((await fetch(workspaceUrl, { headers })).status, 200);
+  const workspaceMissingDestination = { ...headers } as Record<string, string>;
+  delete workspaceMissingDestination["sec-fetch-dest"];
+  assert.equal(await requestStatus(workspaceUrl, workspaceMissingDestination), 401);
+
+  for (const poisoned of [
+    { referer: undefined },
+    { "sec-fetch-site": undefined },
+    { "sec-fetch-mode": undefined },
+    { "sec-fetch-dest": undefined },
+    { origin: "null" },
+    { origin: `${origin}/` },
+    { referer: "https://attacker.example.test/canvas" },
+    { "sec-fetch-site": "same-site" },
+    { "sec-fetch-site": "none" },
+    { "sec-fetch-site": "cross-site" },
+    { "sec-fetch-mode": "navigate" },
+    { "sec-fetch-mode": "no-cors" },
+    { "sec-fetch-dest": "document" },
+    { "sec-fetch-dest": "iframe" },
+    { "sec-fetch-site": "same-origin, same-origin" },
+    { referer: `https://user:password@pilot.example.test/canvas/${projectId}` },
+  ]) {
+    const poisonedHeaders = { ...headers } as Record<string, string | undefined>;
+    for (const [name, value] of Object.entries(poisoned)) {
+      if (value === undefined) delete poisonedHeaders[name];
+      else poisonedHeaders[name] = value;
+    }
+    assert.equal(await requestStatus(url, poisonedHeaders as Record<string, string>), 401, JSON.stringify(poisoned));
+  }
+  assert.equal(authorityCalls, 2);
+  assert.equal(materializationCalls, 1);
 });
 
 const generateCommand: CanvasCommandV01 = {

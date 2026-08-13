@@ -125,15 +125,24 @@ function exactRefererOrigin(value: string | undefined, allowedOrigin: string): b
 
 function hasTrustedBrowserProvenance(request: Request, allowedOrigin: string): boolean {
   const origin = request.header("origin");
+  const formalBrowserRead = request.method === "GET"
+    && (request.baseUrl.endsWith("/bootstrap") || request.baseUrl.endsWith("/workspace"));
+  if (!formalBrowserRead) return origin === allowedOrigin;
   const fetchSite = request.header("sec-fetch-site");
+  const fetchMode = request.header("sec-fetch-mode");
+  const fetchDest = request.header("sec-fetch-dest");
   const referer = request.header("referer");
   if ((origin !== undefined && origin !== allowedOrigin)
     || (fetchSite !== undefined && fetchSite !== "same-origin")
+    || (fetchMode !== undefined && fetchMode !== "cors")
+    || (fetchDest !== undefined && fetchDest !== "empty")
     || (referer !== undefined && !exactRefererOrigin(referer, allowedOrigin))) {
     return false;
   }
-  return origin === allowedOrigin
-    || (fetchSite === "same-origin" && exactRefererOrigin(referer, allowedOrigin));
+  return fetchSite === "same-origin"
+    && fetchMode === "cors"
+    && fetchDest === "empty"
+    && exactRefererOrigin(referer, allowedOrigin);
 }
 
 function formalPreparationKey(scope: CanvasProductionScope, authority: PilotCanvasServerAuthority): string {
