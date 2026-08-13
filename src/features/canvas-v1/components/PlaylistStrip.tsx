@@ -8,7 +8,10 @@ import { controlledMediaSrc } from './controlledMedia';
 interface PlaylistStripProps {
   shots: CanvasShotView[];
   orderedShotIds: string[];
+  exportAvailable: boolean;
+  commandPending: boolean;
   onReorder: (shotIds: string[]) => void;
+  onExport: () => void;
 }
 
 function SortableShot({ shot }: { shot: CanvasShotView }) {
@@ -25,7 +28,7 @@ function SortableShot({ shot }: { shot: CanvasShotView }) {
   );
 }
 
-export function PlaylistStrip({ shots, orderedShotIds, onReorder }: PlaylistStripProps) {
+export function PlaylistStrip({ shots, orderedShotIds, exportAvailable, commandPending, onReorder, onExport }: PlaylistStripProps) {
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const orderedShots = orderedShotIds.flatMap((shotId) => {
     const shot = shots.find((candidate) => candidate.shotId === shotId);
@@ -42,7 +45,11 @@ export function PlaylistStrip({ shots, orderedShotIds, onReorder }: PlaylistStri
 
   return (
     <section className="cv1-playlist" aria-label="Playlist 镜头顺序">
-      <header><div><span>PLAYLIST</span><strong>成片顺序</strong></div><small>{orderedShots.reduce((total, shot) => total + shot.durationSeconds, 0)} 秒</small></header>
+      <header>
+        <div><span>PLAYLIST</span><strong>成片顺序</strong></div>
+        <small>{orderedShots.reduce((total, shot) => total + shot.durationSeconds, 0)} 秒</small>
+        <button type="button" disabled={!exportAvailable || commandPending || orderedShots.length === 0} onClick={onExport}>导出成片</button>
+      </header>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedShotIds} strategy={horizontalListSortingStrategy}>
           <ol>{orderedShots.map((shot) => <SortableShot key={shot.shotId} shot={shot} />)}</ol>

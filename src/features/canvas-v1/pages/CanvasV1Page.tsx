@@ -3,11 +3,13 @@ import { useMemo } from 'react';
 import { AssetBindingDrawer } from '../components/AssetBindingDrawer';
 import { AssetDock } from '../components/AssetDock';
 import { CanvasHeader } from '../components/CanvasHeader';
+import { HighCostApprovalDialog } from '../components/HighCostApprovalDialog';
 import { NodeInspector } from '../components/NodeInspector';
 import { PlaylistStrip } from '../components/PlaylistStrip';
 import { ProductionCanvas } from '../components/ProductionCanvas';
 import { ShotRail } from '../components/ShotRail';
 import { useActiveCanvasShot } from '../hooks/useActiveCanvasShot';
+import { type PrepareHighCostApproval, useCanvasCommandApprovalFlow } from '../hooks/useCanvasCommandApprovalFlow';
 import type {
   CanvasBootstrapV01,
   CanvasCommandV01,
@@ -67,7 +69,12 @@ export interface CanvasV1PageProps {
   assets?: CanvasAssetView[];
   taskEvents: Record<string, CanvasEventV01 | undefined>;
   saveState: CanvasSaveState;
-  commandContext: { requestedByActorId: string; approvalId: string | null };
+  commandContext: {
+    requestedByActorId: string;
+    /** @deprecated Dynamic high-cost actions always prepare an exact-action approval. */
+    approvalId?: string | null;
+  };
+  prepareHighCostApproval?: PrepareHighCostApproval;
   onCommand: (command: CanvasCommandV01) => void | Promise<void>;
 }
 
@@ -100,6 +107,7 @@ export function CanvasV1Page({
   taskEvents,
   saveState,
   commandContext,
+  prepareHighCostApproval,
   onCommand,
   assets,
 }: CanvasV1PageProps) {
@@ -112,15 +120,26 @@ export function CanvasV1Page({
   const event = activeShot ? taskEvents[activeShot.shotId] : undefined;
   const assetViews = assets ?? bootstrap?.assetSummaries ?? [];
   const bindingAsset = assetViews.find((asset) => asset.assetId === bindingAssetId) ?? null;
+  const approvalFlow = useCanvasCommandApprovalFlow({
+    context: bootstrap ? {
+      tenantId: bootstrap.tenantId,
+      projectId: bootstrap.projectId,
+      packageId: bootstrap.packageId,
+      canvasSessionId: bootstrap.canvasSessionId,
+      requestedByActorId: commandContext.requestedByActorId,
+    } : null,
+    prepareHighCostApproval,
+    onCommand,
+  });
   const blockingReasons = useMemo(() => {
     const reasons = activeShot?.readiness.reasonCodes.map((reason) => reasonCopy[reason] ?? '当前镜头未通过生产检查') ?? [];
     if (bootstrap?.status === 'blocked') {
       const videoCapability = bootstrap.capabilities.find((entry) => entry.capability === 'video_generation');
       reasons.push(videoCapability?.reasonCode ? reasonCopy[videoCapability.reasonCode] ?? '视频生成能力当前不可用' : '项目生产入口尚未就绪');
     }
-    if (!commandContext.approvalId) reasons.push('生成审批尚未确认');
+    if (!prepareHighCostApproval) reasons.push('生成确认服务当前不可用');
     return [...new Set(reasons)];
-  }, [activeShot, bootstrap, commandContext.approvalId]);
+  }, [activeShot, bootstrap, prepareHighCostApproval]);
 
   if (loadState === 'loading') {
     return <div className="cv1-state-page" role="status"><IconLoader2 className="cv1-spin" /><strong>正在加载门店生产台</strong><span>同步已批准脚本、分镜和项目资产</span></div>;
@@ -135,55 +154,78 @@ export function CanvasV1Page({
   }
 
   const taskRunning = event && ['accepted', 'provider_submitted', 'task_created'].includes(event.status);
-  const canGenerate = bootstrap.status === 'ready' && activeShot.readiness.ready && Boolean(commandContext.approvalId) && !taskRunning;
+  const canGenerate = bootstrap.status === 'ready' && activeShot.readiness.ready && Boolean(prepareHighCostApproval) && !taskRunning && !approvalFlow.approvalPending;
+
+  const command = (commandType: CanvasCommandV01['commandType'], payload: CanvasCommandV01['payload']): CanvasCommandV01 => ({
+    objectType: 'CanvasCommand',
+    contractVersion: '0.1',
+    tenantId: bootstrap.tenantId,
+    projectId: bootstrap.projectId,
+    packageId: bootstrap.packageId,
+    canvasSessionId: bootstrap.canvasSessionId,
+    commandId: generatedUuid(),
+    commandType,
+    requestedByActorId: commandContext.requestedByActorId,
+    requestSource: 'user',
+    approvalId: null,
+    payload,
+    requestId: `req-canvas-${generatedUuid()}`,
+    occurredAt: new Date().toISOString(),
+  });
 
   const generateShot = (prompt: string) => {
     if (!canGenerate) return;
     const referenceAssetIds = activeShot.readiness.requirements.flatMap((requirement) => requirement.assetId ? [requirement.assetId] : []);
-    void onCommand({
-      objectType: 'CanvasCommand',
-      contractVersion: '0.1',
-      tenantId: bootstrap.tenantId,
-      projectId: bootstrap.projectId,
-      packageId: bootstrap.packageId,
-      canvasSessionId: bootstrap.canvasSessionId,
-      commandId: generatedUuid(),
-      commandType: 'GENERATE_SHOT',
-      requestedByActorId: commandContext.requestedByActorId,
-      requestSource: 'user',
-      approvalId: commandContext.approvalId,
-      payload: {
+    approvalFlow.requestCommand(
+      command('GENERATE_SHOT', {
         shotId: activeShot.shotId,
         readinessId: activeShot.readiness.readinessId,
         prompt,
         referenceAssetIds,
-      },
-      requestId: `req-canvas-${generatedUuid()}`,
-      occurredAt: new Date().toISOString(),
-    });
+      }),
+      { title: '确认生成当前镜头', summary: `镜头 ${String(activeShot.sequence).padStart(2, '0')} · ${activeShot.title}` },
+    );
   };
 
   const bindAsset = (asset: CanvasAssetView) => {
-    if (!commandContext.approvalId || !asset.targetEntityId) return;
-    void onCommand({
-      objectType: 'CanvasCommand', contractVersion: '0.1', tenantId: bootstrap.tenantId, projectId: bootstrap.projectId,
-      packageId: bootstrap.packageId, canvasSessionId: bootstrap.canvasSessionId, commandId: generatedUuid(),
-      commandType: 'BIND_ASSET_TO_ENTITY', requestedByActorId: commandContext.requestedByActorId, requestSource: 'user',
-      approvalId: commandContext.approvalId, payload: { assetId: asset.assetId, entityId: asset.targetEntityId },
-      requestId: `req-canvas-${generatedUuid()}`, occurredAt: new Date().toISOString(),
-    });
-    closeAssetBinding();
+    if (!prepareHighCostApproval || approvalFlow.approvalPending || !asset.targetEntityId || asset.rightsStatus !== 'authorized' || asset.approvalStatus !== 'approved' || asset.providerStatus !== 'active') return;
+    if (approvalFlow.requestCommand(
+      command('BIND_ASSET_TO_ENTITY', { assetId: asset.assetId, entityId: asset.targetEntityId }),
+      { title: '确认绑定项目资产', summary: `${asset.displayName} · 当前镜头` },
+    )) closeAssetBinding();
+  };
+
+  const createVirtualCharacter = (asset: CanvasAssetView, prompt: string) => {
+    if (!prepareHighCostApproval || approvalFlow.approvalPending || !asset.targetEntityId || asset.category !== 'virtual_character' || asset.rightsStatus !== 'authorized' || asset.approvalStatus !== 'approved' || asset.providerStatus === 'active' || !prompt) return;
+    if (approvalFlow.requestCommand(
+      command('CREATE_VIRTUAL_CHARACTER', { assetId: asset.assetId, entityId: asset.targetEntityId, prompt }),
+      { title: '确认创建虚拟人物', summary: `${asset.displayName} · 当前人物设定` },
+    )) closeAssetBinding();
+  };
+
+  const selectOutput = (outputAssetId: string) => {
+    if (!prepareHighCostApproval || approvalFlow.approvalPending) return;
+    approvalFlow.requestCommand(
+      command('SELECT_SHOT_OUTPUT', { shotId: activeShot.shotId, outputAssetId, documentId: document.documentId, expectedVersion: document.version }),
+      { title: '确认替换候选画面', summary: `镜头 ${String(activeShot.sequence).padStart(2, '0')} · ${activeShot.title}` },
+    );
+  };
+
+  const exportPlaylist = () => {
+    const exportAvailable = bootstrap.capabilities.some((entry) => entry.capability === 'playlist_export' && entry.available);
+    if (!prepareHighCostApproval || approvalFlow.approvalPending || !exportAvailable || document.playlist.shotIds.length === 0) return;
+    approvalFlow.requestCommand(
+      command('EXPORT_PLAYLIST', { documentId: document.documentId, expectedVersion: document.version }),
+      { title: '确认导出成片', summary: `${document.playlist.shotIds.length} 个镜头 · 当前成片顺序` },
+    );
   };
 
   const reorderPlaylist = (shotIds: string[]) => {
-    void onCommand({
-      objectType: 'CanvasCommand', contractVersion: '0.1', tenantId: bootstrap.tenantId, projectId: bootstrap.projectId,
-      packageId: bootstrap.packageId, canvasSessionId: bootstrap.canvasSessionId, commandId: generatedUuid(),
-      commandType: 'SAVE_CANVAS_DOCUMENT', requestedByActorId: commandContext.requestedByActorId, requestSource: 'user',
-      approvalId: null, payload: { documentId: document.documentId, expectedVersion: document.version, shots: document.shots, playlist: { shotIds } },
-      requestId: `req-canvas-${generatedUuid()}`, occurredAt: new Date().toISOString(),
-    });
+    approvalFlow.requestCommand(command('SAVE_CANVAS_DOCUMENT', { documentId: document.documentId, expectedVersion: document.version, shots: document.shots, playlist: { shotIds } }));
   };
+
+  const playlistExportAvailable = bootstrap.capabilities.some((entry) => entry.capability === 'playlist_export' && entry.available);
+  const creationPrompt = document.shots.find((shot) => shot.shotId === activeShot.shotId)?.prompt ?? activeShot.storyboardText;
 
   return (
     <div className="cv1-app">
@@ -192,9 +234,9 @@ export function CanvasV1Page({
       <div className="cv1-workspace">
         <ShotRail shots={shots} activeShotId={activeShotId} taskEvents={taskEvents} onSelect={setActiveShot} />
         <div className="cv1-center-stage">
-          <ProductionCanvas shot={activeShot} event={event} />
+          <ProductionCanvas shot={activeShot} event={event} selectionDisabled={!prepareHighCostApproval || approvalFlow.approvalPending} onSelectOutput={selectOutput} />
           <AssetDock assets={assetViews} open={assetDockOpen} onToggle={toggleAssetDock} onInspectBinding={openAssetBinding} />
-          <PlaylistStrip shots={shots} orderedShotIds={document.playlist.shotIds} onReorder={reorderPlaylist} />
+          <PlaylistStrip shots={shots} orderedShotIds={document.playlist.shotIds} exportAvailable={playlistExportAvailable && Boolean(prepareHighCostApproval)} commandPending={approvalFlow.approvalPending} onReorder={reorderPlaylist} onExport={exportPlaylist} />
         </div>
         <NodeInspector
           key={`${document.documentId}:${document.version}:${activeShot.shotId}`}
@@ -207,7 +249,8 @@ export function CanvasV1Page({
           onGenerate={generateShot}
         />
       </div>
-      <AssetBindingDrawer asset={bindingAsset} approvalGranted={Boolean(commandContext.approvalId)} onClose={closeAssetBinding} onBind={bindAsset} />
+      <AssetBindingDrawer asset={bindingAsset} approvalAvailable={Boolean(prepareHighCostApproval) && !approvalFlow.approvalPending} creationPrompt={creationPrompt} onClose={closeAssetBinding} onBind={bindAsset} onCreateVirtual={createVirtualCharacter} />
+      <HighCostApprovalDialog approval={approvalFlow.approval} onCancel={approvalFlow.cancelApproval} onConfirm={approvalFlow.confirmApproval} />
     </div>
   );
 }

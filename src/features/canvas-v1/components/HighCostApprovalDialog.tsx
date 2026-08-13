@@ -35,7 +35,7 @@ export function HighCostApprovalDialog({ approval, onCancel, onConfirm }: HighCo
         {approval.errorMessage ? <p className="cv1-approval-dialog__error" role="alert">{approval.errorMessage}</p> : null}
         <div className="cv1-approval-dialog__actions">
           {canCancel ? <button className="cv1-secondary-action" type="button" onClick={onCancel}>取消</button> : null}
-          <button className="cv1-primary-action" type="button" disabled={busy} onClick={onConfirm}>
+          <button className="cv1-primary-action" type="button" disabled={busy} onClick={onConfirm} autoFocus>
             {busy ? <IconLoader2 className="cv1-spin" size={16} aria-hidden="true" /> : null}
             {confirmCopy(approval.phase)}
           </button>

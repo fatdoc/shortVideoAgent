@@ -68,8 +68,12 @@
 .cv1-node__asset-line span { padding: 5px 8px; border: 1px solid var(--cv1-line); border-radius: 999px; display: inline-flex; gap: 5px; align-items: center; color: #4d4942; font-size: 11px; }
 .cv1-node__asset-line svg { color: var(--cv1-green); }
 .cv1-node__placeholder { min-height: 74px; display: grid; place-items: center; align-content: center; gap: 6px; color: #a09a90; font-size: 11px; }
-.cv1-node__preview { height: 108px; }
+.cv1-node__preview { position: relative; height: 108px; }
 .cv1-node__preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cv1-node__preview button, .cv1-node__selected { position: absolute; right: 9px; bottom: 9px; min-height: 28px; padding: 0 10px; border: 1px solid rgba(255, 255, 255, .72); border-radius: 4px; background: rgba(36, 35, 33, .86); color: white; font-size: 10px; font-weight: 700; }
+.cv1-node__preview button { cursor: pointer; }
+.cv1-node__preview button:disabled { cursor: not-allowed; opacity: .55; }
+.cv1-node__selected { display: inline-flex; align-items: center; }
 .cv1-node__progress, .cv1-node__video-copy { min-height: 52px; padding: 9px 14px; display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-content: center; }
 .cv1-node__progress > span { grid-row: 1 / 3; width: 7px; height: 38px; border-radius: 999px; background: linear-gradient(to bottom, var(--cv1-accent) 44%, #e8e3da 44%); }
 .cv1-node__progress p, .cv1-node__video-copy strong { margin: 0; font-size: 12px; }
@@ -98,7 +102,7 @@
 .cv1-action-explain { margin: 8px 14px; color: var(--cv1-red); font-size: 10px; line-height: 1.4; }
 .cv1-asset-readiness { margin: 18px 14px; padding-top: 14px; border-top: 1px solid var(--cv1-line); }
 .cv1-asset-readiness__heading { display: flex; align-items: flex-end; justify-content: space-between; }
-.cv1-asset-readiness__heading span, .cv1-playlist header span, .cv1-drawer header span { color: var(--cv1-muted); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+.cv1-asset-readiness__heading span, .cv1-playlist header span, .cv1-drawer header span, .cv1-approval-dialog header span { color: var(--cv1-muted); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
 .cv1-asset-readiness__heading h2 { margin: 3px 0 0; font-size: 12px; }
 .cv1-asset-readiness__heading small { color: var(--cv1-muted); font-size: 9px; }
 .cv1-asset-readiness ul { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
@@ -120,10 +124,12 @@
 .cv1-asset-dock__items strong { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv1-asset-dock__items small { color: var(--cv1-green); font-size: 9px; }
 .cv1-asset-dock__items article > button { width: 22px; height: 28px; border: 0; background: transparent; color: var(--cv1-muted); cursor: pointer; }
-.cv1-playlist { min-height: 100px; border-top: 1px solid var(--cv1-line); background: #efede7; display: grid; grid-template-columns: 104px minmax(0, 1fr); }
+.cv1-playlist { min-height: 100px; border-top: 1px solid var(--cv1-line); background: #efede7; display: grid; grid-template-columns: 120px minmax(0, 1fr); }
 .cv1-playlist header { padding: 14px; border-right: 1px solid var(--cv1-line); display: flex; flex-direction: column; justify-content: space-between; }
 .cv1-playlist header strong { display: block; margin-top: 3px; font-size: 11px; }
 .cv1-playlist header small { color: var(--cv1-muted); font-size: 10px; }
+.cv1-playlist header > button { min-height: 24px; padding: 0 8px; border: 1px solid var(--cv1-text); border-radius: 4px; background: transparent; color: var(--cv1-text); font-size: 9px; font-weight: 700; cursor: pointer; }
+.cv1-playlist header > button:disabled { border-color: var(--cv1-line); color: #9b958b; cursor: not-allowed; }
 .cv1-playlist ol { margin: 0; padding: 8px 10px; list-style: none; display: flex; gap: 7px; overflow-x: auto; }
 .cv1-playlist li { width: 106px; min-width: 106px; height: 82px; padding: 5px; box-sizing: border-box; background: var(--cv1-paper); border: 1px solid var(--cv1-line); border-radius: 5px; display: grid; grid-template-columns: 18px 18px 1fr; grid-template-rows: 40px 17px; align-items: center; transition: box-shadow .15s ease; }
 .cv1-playlist li.is-dragging { box-shadow: 0 8px 24px rgba(36, 35, 33, .16); }
@@ -149,6 +155,17 @@
 .cv1-secondary-action { width: 100%; min-height: 40px; margin-top: 16px; border: 1px solid var(--cv1-text); border-radius: 4px; background: transparent; font-weight: 700; cursor: pointer; }
 .cv1-secondary-action:disabled { border-color: var(--cv1-line); color: #9b958b; cursor: not-allowed; }
 .cv1-drawer__explain { display: block; margin-top: 8px; color: var(--cv1-red); font-size: 9px; }
+.cv1-approval-layer { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; }
+.cv1-approval-scrim { position: absolute; inset: 0; background: rgba(39, 35, 30, .34); }
+.cv1-approval-dialog { position: relative; z-index: 1; width: min(430px, 94vw); padding: 20px; box-sizing: border-box; border: 1px solid var(--cv1-line); border-radius: 8px; background: var(--cv1-paper); box-shadow: 0 18px 50px rgba(40, 35, 28, .2); }
+.cv1-approval-dialog header { display: flex; align-items: flex-start; justify-content: space-between; }
+.cv1-approval-dialog h2 { margin: 4px 0 0; font-size: 19px; }
+.cv1-approval-dialog header button { width: 32px; height: 32px; border: 1px solid var(--cv1-line); border-radius: 50%; background: transparent; cursor: pointer; }
+.cv1-approval-dialog__notice { margin-top: 20px; padding: 11px; display: flex; gap: 8px; align-items: center; background: #f8eee7; color: #7b3f28; font-size: 11px; }
+.cv1-approval-dialog > p { margin: 16px 0; color: var(--cv1-muted); font-size: 12px; line-height: 1.5; }
+.cv1-approval-dialog .cv1-approval-dialog__error { color: var(--cv1-red); }
+.cv1-approval-dialog__actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 9px; }
+.cv1-approval-dialog__actions .cv1-secondary-action, .cv1-approval-dialog__actions .cv1-primary-action { width: auto; min-width: 110px; margin: 0; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .cv1-state-page { min-height: 100svh; padding: 24px; background: var(--cv1-bg); display: grid; place-items: center; align-content: center; gap: 9px; color: var(--cv1-muted); text-align: center; }
 .cv1-state-page strong { color: var(--cv1-text); font-size: 17px; }
 .cv1-state-page span { font-size: 12px; }

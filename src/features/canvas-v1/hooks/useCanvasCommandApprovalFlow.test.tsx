@@ -193,10 +193,24 @@ describe('useCanvasCommandApprovalFlow', () => {
     expect(onCommand).not.toHaveBeenCalled();
   });
 
+  it('moves keyboard focus to the explicit confirmation action', async () => {
+    const user = userEvent.setup();
+    const prepare = vi.fn<PrepareHighCostApproval>(async () => ({ approvalId: preparedApprovalId, status: 'active' }));
+    const onCommand = vi.fn();
+    render(<Harness prepareHighCostApproval={prepare} onCommand={onCommand} />);
+
+    await chooseAndRequest(user, 'GENERATE_SHOT');
+    expect(screen.getByRole('button', { name: '确认并继续' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+  });
+
   it.each([
     ['cancelled', async () => null],
     ['expired', async () => ({ approvalId: preparedApprovalId, status: 'expired' as const })],
     ['invalid id', async () => ({ approvalId: 'not-a-uuid', status: 'active' as const })],
+    ['unsafe projection', async () => ({ approvalId: preparedApprovalId, status: 'active' as const, secret: 'must-not-enter-state' })],
     ['failed', async () => { throw new Error('provider secret should never render'); }],
   ])('fails closed when approval preparation is %s', async (_case, result) => {
     const user = userEvent.setup();

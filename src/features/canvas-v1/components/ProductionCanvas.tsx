@@ -8,6 +8,8 @@ import { controlledMediaSrc } from './controlledMedia';
 interface ProductionCanvasProps {
   shot: CanvasShotView;
   event?: CanvasEventV01;
+  selectionDisabled: boolean;
+  onSelectOutput: (outputAssetId: string) => void;
 }
 
 function ChainLink() {
@@ -27,7 +29,7 @@ function NodeShell({ eyebrow, icon, state, children }: { eyebrow: string; icon: 
   );
 }
 
-export function ProductionCanvas({ shot, event }: ProductionCanvasProps) {
+export function ProductionCanvas({ shot, event, selectionDisabled, onSelectOutput }: ProductionCanvasProps) {
   const taskRunning = event && ['accepted', 'provider_submitted', 'task_created'].includes(event.status);
   const output = shot.outputs[0];
   const outputPreviewSrc = controlledMediaSrc(output?.previewUrl);
@@ -61,9 +63,14 @@ export function ProductionCanvas({ shot, event }: ProductionCanvasProps) {
           </div>
         </NodeShell>
         <ChainLink />
-        <NodeShell eyebrow="候选画面" icon={<IconPhoto size={17} />} state={output ? '已选择' : '待生成'}>
+        <NodeShell eyebrow="候选画面" icon={<IconPhoto size={17} />} state={output?.selected ? '已选择' : output ? '待选择' : '待生成'}>
           {output && outputPreviewSrc ? (
-            <div className="cv1-node__preview"><img src={outputPreviewSrc} alt={`${shot.title}候选画面`} /></div>
+            <div className="cv1-node__preview">
+              <img src={outputPreviewSrc} alt={`${shot.title}候选画面`} />
+              {output.selected
+                ? <span className="cv1-node__selected">当前已选</span>
+                : <button type="button" disabled={selectionDisabled} onClick={() => onSelectOutput(output.assetId)}>选择此候选画面</button>}
+            </div>
           ) : (
             <div className="cv1-node__placeholder"><IconPhoto size={24} /><span>生成后在这里选择候选画面</span></div>
           )}

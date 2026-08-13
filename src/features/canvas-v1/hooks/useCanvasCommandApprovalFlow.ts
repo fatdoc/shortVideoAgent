@@ -73,6 +73,15 @@ interface UseCanvasCommandApprovalFlowOptions {
 const HIGH_COST_COMMAND_SET = new Set<CanvasCommandType>(HIGH_COST_CANVAS_COMMANDS);
 const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 
+function isActiveApprovalProjection(value: unknown): value is PreparedHighCostApproval {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  return Object.keys(record).length === 2
+    && typeof record.approvalId === 'string'
+    && CANONICAL_UUID.test(record.approvalId)
+    && record.status === 'active';
+}
+
 function freezeValue<T>(value: T): T {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.freeze(value);
@@ -193,7 +202,7 @@ export function useCanvasCommandApprovalFlow({
             pendingRef.current?.attemptId !== selected.attemptId
             || !matchesContext(selected.command, contextRef.current)
           ) return;
-          if (!approval || approval.status !== 'active' || !CANONICAL_UUID.test(approval.approvalId)) {
+          if (!isActiveApprovalProjection(approval)) {
             throw new Error('approval invalid');
           }
           approvedCommand = freezeValue(structuredClone({

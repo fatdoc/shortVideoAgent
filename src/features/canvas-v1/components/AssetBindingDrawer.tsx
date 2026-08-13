@@ -5,14 +5,17 @@ import { controlledMediaSrc } from './controlledMedia';
 
 interface AssetBindingDrawerProps {
   asset: CanvasAssetView | null;
-  approvalGranted: boolean;
+  approvalAvailable: boolean;
+  creationPrompt: string;
   onClose: () => void;
   onBind: (asset: CanvasAssetView) => void;
+  onCreateVirtual: (asset: CanvasAssetView, prompt: string) => void;
 }
 
-export function AssetBindingDrawer({ asset, approvalGranted, onClose, onBind }: AssetBindingDrawerProps) {
+export function AssetBindingDrawer({ asset, approvalAvailable, creationPrompt, onClose, onBind, onCreateVirtual }: AssetBindingDrawerProps) {
   const previewSrc = controlledMediaSrc(asset?.controlledPreviewUrl);
   const assetReady = Boolean(asset?.targetEntityId) && asset?.rightsStatus === 'authorized' && asset.approvalStatus === 'approved' && asset.providerStatus === 'active';
+  const canCreateVirtual = Boolean(asset?.targetEntityId) && asset?.category === 'virtual_character' && asset.rightsStatus === 'authorized' && asset.approvalStatus === 'approved' && asset.providerStatus !== 'active' && creationPrompt.trim().length > 0;
 
   return (
     <AnimatePresence>
@@ -29,9 +32,10 @@ export function AssetBindingDrawer({ asset, approvalGranted, onClose, onBind }: 
               <div><dt>项目绑定</dt><dd>{asset.entityBindingStatus === 'approved' ? '已批准' : '未批准'}</dd></div>
             </dl>
             {asset.entityBindingStatus === 'approved' ? <p className="cv1-drawer__notice"><IconCircleCheck size={16} />资产已绑定到当前项目实体。</p> : null}
-            <button className="cv1-secondary-action" type="button" disabled={!assetReady || !approvalGranted} onClick={() => onBind(asset)}>绑定到当前镜头</button>
+            {asset.category === 'virtual_character' && asset.providerStatus !== 'active' ? <button className="cv1-secondary-action" type="button" disabled={!canCreateVirtual || !approvalAvailable} onClick={() => onCreateVirtual(asset, creationPrompt.trim())}>创建虚拟人物</button> : null}
+            <button className="cv1-secondary-action" type="button" disabled={!assetReady || !approvalAvailable} onClick={() => onBind(asset)}>绑定到当前镜头</button>
             {!asset.targetEntityId ? <small className="cv1-drawer__explain">当前镜头没有可绑定的实体目标。</small> : null}
-            {!approvalGranted ? <small className="cv1-drawer__explain">绑定审批尚未确认。</small> : null}
+            {!approvalAvailable ? <small className="cv1-drawer__explain">操作确认服务当前不可用。</small> : null}
           </motion.aside>
         </motion.div>
       ) : null}

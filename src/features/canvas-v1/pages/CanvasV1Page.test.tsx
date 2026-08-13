@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -202,6 +202,10 @@ function createProps(overrides: Partial<CanvasV1PageProps> = {}): CanvasV1PagePr
       requestedByActorId: '12121212-1212-4212-8212-121212121212',
       approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
     },
+    prepareHighCostApproval: vi.fn<NonNullable<CanvasV1PageProps['prepareHighCostApproval']>>(async () => ({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active' as const,
+    })),
     onCommand: vi.fn(),
     ...overrides,
   };
@@ -229,11 +233,24 @@ describe('CanvasV1Page workspace states', () => {
   it('creates the frozen GENERATE_SHOT command payload from injected facts', async () => {
     const user = userEvent.setup();
     const onCommand = vi.fn();
-    render(<CanvasV1Page {...createProps({ onCommand })} />);
+    const prepareHighCostApproval = vi.fn<NonNullable<CanvasV1PageProps['prepareHighCostApproval']>>(async () => ({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active' as const,
+    }));
+    render(<CanvasV1Page {...createProps({ onCommand, prepareHighCostApproval })} />);
 
     await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
+    expect(onCommand).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: '确认并继续' }));
 
-    expect(onCommand).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    const dispatched = onCommand.mock.calls[0][0];
+    expect(prepareHighCostApproval).toHaveBeenCalledWith({
+      ...scope,
+      requestedByActorId: '12121212-1212-4212-8212-121212121212',
+      commandType: 'GENERATE_SHOT',
+      action: { commandId: dispatched.commandId, payload: dispatched.payload },
+    });
     expect(onCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         ...scope,
@@ -299,8 +316,10 @@ describe('CanvasV1Page interactions and safety', () => {
     await user.clear(prompt);
     await user.type(prompt, '镜头缓慢推进，店员自然介绍招牌套餐。');
     await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
+    await user.click(screen.getByRole('button', { name: '确认并继续' }));
 
-    const command = onCommand.mock.calls[0]?.[0];
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    const command = onCommand.mock.calls[0][0];
     expect(command.payload).toEqual(expect.objectContaining({ prompt: '镜头缓慢推进，店员自然介绍招牌套餐。' }));
     expect(() => parseCanvasV1BrowserContract(command)).not.toThrow();
   });
@@ -316,25 +335,30 @@ describe('CanvasV1Page interactions and safety', () => {
     expect(onCommand).not.toHaveBeenCalled();
   });
 
-  it('fails closed when high-cost generation approval is missing', async () => {
+  it('ignores a legacy static approval and fails closed when dynamic approval preparation is unavailable', async () => {
     const user = userEvent.setup();
     const onCommand = vi.fn();
-    render(<CanvasV1Page {...createProps({ onCommand, commandContext: { requestedByActorId: '12121212-1212-4212-8212-121212121212', approvalId: null } })} />);
+    render(<CanvasV1Page {...createProps({
+      onCommand,
+      prepareHighCostApproval: undefined,
+      commandContext: { requestedByActorId: '12121212-1212-4212-8212-121212121212', approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee' },
+    })} />);
 
-    expect(screen.getByText('生成审批尚未确认')).toBeInTheDocument();
+    expect(screen.getByText('生成确认服务当前不可用')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '生成当前镜头' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
     expect(onCommand).not.toHaveBeenCalled();
   });
 
-  it('fails closed in the drawer and handler when high-cost asset binding approval is missing', async () => {
+  it('fails closed in the drawer and handler when dynamic binding approval preparation is unavailable', async () => {
     const user = userEvent.setup();
     const onCommand = vi.fn();
-    const view = render(
+    render(
       <CanvasV1Page
         {...createProps({
           assets: [createBindableAsset()],
           onCommand,
+          prepareHighCostApproval: undefined,
           commandContext: {
             requestedByActorId: '12121212-1212-4212-8212-121212121212',
             approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
@@ -344,24 +368,121 @@ describe('CanvasV1Page interactions and safety', () => {
     );
 
     await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
-    view.rerender(
-      <CanvasV1Page
-        {...createProps({
-          assets: [createBindableAsset()],
-          onCommand,
-          commandContext: {
-            requestedByActorId: '12121212-1212-4212-8212-121212121212',
-            approvalId: null,
-          },
-        })}
-      />,
-    );
 
     const bindButton = screen.getByRole('button', { name: '绑定到当前镜头' });
     expect(bindButton).toBeDisabled();
     await user.click(bindButton);
     expect(onCommand).not.toHaveBeenCalled();
-    expect(screen.getByText('绑定审批尚未确认。')).toBeInTheDocument();
+    expect(screen.getByText('操作确认服务当前不可用。')).toBeInTheDocument();
+  });
+
+  it('prepares the exact immutable BIND_ASSET_TO_ENTITY draft before dispatch', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    const prepareHighCostApproval = vi.fn<NonNullable<CanvasV1PageProps['prepareHighCostApproval']>>(async () => ({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active' as const,
+    }));
+    render(<CanvasV1Page {...createProps({
+      assets: [createBindableAsset()],
+      onCommand,
+      prepareHighCostApproval,
+      commandContext: { requestedByActorId: '12121212-1212-4212-8212-121212121212', approvalId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' },
+    })} />);
+
+    await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
+    await user.click(screen.getByRole('button', { name: '绑定到当前镜头' }));
+    expect(onCommand).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: '确认并继续' }));
+
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    const dispatched = onCommand.mock.calls[0][0];
+    expect(dispatched).toMatchObject({
+      commandType: 'BIND_ASSET_TO_ENTITY',
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      payload: { assetId, entityId: '16161616-1616-4616-8616-161616161616' },
+    });
+    expect(prepareHighCostApproval.mock.calls[0][0].action).toEqual({
+      commandId: dispatched.commandId,
+      payload: dispatched.payload,
+    });
+  });
+
+  it('prepares CREATE_VIRTUAL_CHARACTER from the authority prompt without exposing IDs in confirmation copy', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    const prepareHighCostApproval = vi.fn<NonNullable<CanvasV1PageProps['prepareHighCostApproval']>>(async () => ({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active' as const,
+    }));
+    const asset = createBindableAsset({ providerStatus: 'processing' });
+    render(<CanvasV1Page {...createProps({ assets: [asset], onCommand, prepareHighCostApproval })} />);
+
+    await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
+    await user.click(screen.getByRole('button', { name: '创建虚拟人物' }));
+    const dialog = screen.getByRole('dialog', { name: '确认创建虚拟人物' });
+    expect(dialog).toHaveTextContent('门店讲解员 · 当前人物设定');
+    expect(dialog).not.toHaveTextContent(assetId);
+    await user.click(screen.getByRole('button', { name: '确认并继续' }));
+
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    const dispatched = onCommand.mock.calls[0][0];
+    expect(dispatched).toMatchObject({
+      commandType: 'CREATE_VIRTUAL_CHARACTER',
+      payload: {
+        assetId,
+        entityId: '16161616-1616-4616-8616-161616161616',
+        prompt: '店员在明亮的门店入口介绍招牌套餐。',
+      },
+    });
+    expect(prepareHighCostApproval.mock.calls[0][0].action).toEqual({ commandId: dispatched.commandId, payload: dispatched.payload });
+  });
+
+  it('prepares SELECT_SHOT_OUTPUT with the exact document version and candidate', async () => {
+    const user = userEvent.setup();
+    const outputAssetId = '19191919-1919-4919-8919-191919191919';
+    const onCommand = vi.fn();
+    const prepareHighCostApproval = vi.fn<NonNullable<CanvasV1PageProps['prepareHighCostApproval']>>(async () => ({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active' as const,
+    }));
+    const shot = createShot();
+    shot.outputs = [{ assetId: outputAssetId, kind: 'image', previewUrl: '/api/canvas-v1/media/candidate.jpg', selected: false }];
+    render(<CanvasV1Page {...createProps({ shots: [shot], onCommand, prepareHighCostApproval })} />);
+
+    await user.click(screen.getByRole('button', { name: '选择此候选画面' }));
+    await user.click(screen.getByRole('button', { name: '确认并继续' }));
+
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    const dispatched = onCommand.mock.calls[0][0];
+    expect(dispatched).toMatchObject({
+      commandType: 'SELECT_SHOT_OUTPUT',
+      payload: { shotId, outputAssetId, documentId: '77777777-7777-4777-8777-777777777777', expectedVersion: 4 },
+    });
+    expect(prepareHighCostApproval.mock.calls[0][0].action).toEqual({ commandId: dispatched.commandId, payload: dispatched.payload });
+  });
+
+  it('prepares EXPORT_PLAYLIST only when the bootstrap capability is available', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    const prepareHighCostApproval = vi.fn<NonNullable<CanvasV1PageProps['prepareHighCostApproval']>>(async () => ({
+      approvalId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      status: 'active' as const,
+    }));
+    const bootstrap = createBootstrap();
+    bootstrap.capabilities = bootstrap.capabilities.map((entry) => entry.capability === 'playlist_export' ? { ...entry, available: true, reasonCode: null } : entry);
+    render(<CanvasV1Page {...createProps({ bootstrap, onCommand, prepareHighCostApproval })} />);
+
+    await user.click(screen.getByRole('button', { name: '导出成片' }));
+    await user.click(screen.getByRole('button', { name: '确认并继续' }));
+
+    await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
+    const dispatched = onCommand.mock.calls[0][0];
+    expect(dispatched).toMatchObject({
+      commandType: 'EXPORT_PLAYLIST',
+      payload: { documentId: '77777777-7777-4777-8777-777777777777', expectedVersion: 4 },
+    });
+    expect(prepareHighCostApproval.mock.calls[0][0].action).toEqual({ commandId: dispatched.commandId, payload: dispatched.payload });
   });
 
   it('restores the authority prompt when the same shot receives a newer document version', async () => {
