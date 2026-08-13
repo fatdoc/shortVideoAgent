@@ -10,6 +10,8 @@ import type {
 import {
   CanvasAssetProductionError,
   bindActiveVirtualCharacter,
+  syncBytePlusProviderAsset,
+  type PersistVirtualCharacterBindingInput,
 } from "./productionAssetAdapter";
 import {
   evaluateShotReadiness,
@@ -159,7 +161,6 @@ test("four-layer readiness is ordered and fails closed for rights, provider, bin
     { asset: asset({ rights: { ...asset().rights, status: "expired" } }), reasons: ["RIGHTS_EXPIRED"] },
     { provider: provider({ providerStatus: "processing", providerAssetId: null, providerGroupId: null, assetUri: null, registeredAt: null }), reasons: ["PROVIDER_PROCESSING"] },
     { provider: provider({ providerStatus: "rejected", providerAssetId: null, providerGroupId: null, assetUri: null, registeredAt: null }), reasons: ["PROVIDER_REJECTED"] },
-    { entity: null, reasons: ["ENTITY_BINDING_MISSING"] },
     { entity: entity({ status: "pending", approvedByActorId: null, approvedAt: null, continuityRevision: null }), reasons: ["ENTITY_BINDING_PENDING"] },
     { capabilities: new Set<string>(), reasons: ["CAPABILITY_UNAVAILABLE"] },
     { asset: asset({ projectId: "20202020-2020-4020-8020-202020202020" }), reasons: ["SCOPE_MISMATCH"] },
@@ -187,8 +188,25 @@ test("four-layer readiness is ordered and fails closed for rights, provider, bin
   assert.equal(normalizeProviderAssetStatus(undefined), "unavailable");
 });
 
+test("a missing entity binding remains the exact additive-contract RED until CV1 amendment lands", () => {
+  const readiness = evaluateShotReadiness({
+    scope,
+    requirement: requirement(),
+    asset: asset(),
+    providerBinding: provider(),
+    entityBinding: null,
+    availableCapabilities: new Set(["video_generation"]),
+    approvedScript: { scriptId: requirement().source.scriptId, version: 3 },
+    approvedStoryboard: { storyboardId: requirement().source.storyboardId, version: 2 },
+    readinessId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    evaluatedAt: occurredAt,
+  });
+  assert.equal(readiness.requirements[0].entityBindingStatus, null);
+  assert.deepEqual(readiness.reasonCodes, ["ENTITY_BINDING_MISSING"]);
+});
+
 test("only an active approved virtual character can bind and continuity advances atomically", async () => {
-  const calls: Array<Record<string, unknown>> = [];
+  const calls: PersistVirtualCharacterBindingInput[] = [];
   const bound = await bindActiveVirtualCharacter({
     scope: { ...scope, actorId, localProjectId: 42 },
     asset: asset(),
@@ -218,4 +236,30 @@ test("only an active approved virtual character can bind and continuity advances
     }),
     (error: unknown) => error instanceof CanvasAssetProductionError && error.code === "CANVAS_PROVIDER_NOT_ACTIVE",
   );
+});
+
+test("the BytePlus adapter normalizes provider state and keeps the provider URI server-only", async () => {
+  const active = await syncBytePlusProviderAsset({
+    scope: { ...scope, actorId, localProjectId: 42 },
+    assetId,
+    providerAssetId: "provider-asset-server-only-001",
+    providerGroupId: "provider-group-server-only-001",
+    bindingId: "99999999-9999-4999-8999-999999999999",
+    occurredAt,
+    queryAsset: async () => ({ Id: "provider-asset-server-only-001", Status: "Active" }),
+  });
+  assert.equal(active.providerStatus, "active");
+  assert.equal(active.assetUri, "asset://provider-asset-server-only-001");
+
+  const unavailable = await syncBytePlusProviderAsset({
+    scope: { ...scope, actorId, localProjectId: 42 },
+    assetId,
+    providerAssetId: "provider-asset-server-only-001",
+    providerGroupId: "provider-group-server-only-001",
+    bindingId: "99999999-9999-4999-8999-999999999999",
+    occurredAt,
+    queryAsset: async () => ({ Status: "local" }),
+  });
+  assert.equal(unavailable.providerStatus, "unavailable");
+  assert.equal(unavailable.assetUri, null);
 });
