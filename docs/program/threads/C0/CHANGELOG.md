@@ -530,3 +530,12 @@
 - 集成回归：A acceptance `82/82`、B capability `5/5`、Pilot pages `4/4`、StoryCanvas v0.2 `13/13`、Media/TTS/Storage Node targeted `27/27`、Root/StoryCanvas Build、Governance、diff-check PASS。
 - 当前仍为 `B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；不记录 remediation accepted、真实编辑器加载、Golden Path complete 或 Joint Gate PASS。
 - StoryCanvas build artifact 已恢复；B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未暂存、未提交。
+
+## 2026-08-13 · Shared Canvas Remediation Accepted
+
+- 正式接受 B remediation candidate `b5f36f2e43e8c43a9fdc3b015ddd67e87d33297a`；A formal runner commit `5d78007` 已执行并 PASS。
+- `0d9319b` 以双 parent merge commit 纳入 candidate，保留双方原子提交历史与完整祖先关系。
+- 正式 Gate：A acceptance `68/68 PASS`、B targeted `12/12 PASS`、Pilot pages `4/4 PASS`、StoryCanvas v0.2 `13/13 PASS`、Media/TTS/Storage `17/17 PASS`、Root/StoryCanvas 双 Build、Governance、diff-check PASS。
+- Shared Router、Bridge、Proxy RED 继续保留；本次只接受 remediation，不记录 Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
+- B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰、未暂存、未提交。
+- 状态仅更新为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

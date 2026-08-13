@@ -1059,3 +1059,12 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 同步完成后 B 继续原 Shared Canvas capability remediation；A 的 acceptance infrastructure 与本次 baseline merge 均不改变原整改合同，也不解锁 Shared transport/Bridge/Router Green。
 - 停止线不变：`B_REMEDIATION_ACCEPTED`、`SHARED_ACTIVATION_GREEN`、`REAL_EDITOR_LOADED`、`GOLDEN_PATH_COMPLETE`、`JOINT_GATE_PASS` 均未达成；`AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED` 保留。
 - `apps/storycanvas/data/vendor/byteplus.ts` 继续作为 B-owned untracked 文件排除，禁止修改、清理、暂存或提交。
+
+## 2026-08-13 · Shared Canvas Remediation Acceptance Handoff
+
+- 已正式接受 B remediation candidate `b5f36f2e43e8c43a9fdc3b015ddd67e87d33297a`；A runner commit 为 `5d78007`，formal runner PASS。
+- 合并提交 `0d9319b` 为双 parent merge commit，candidate 已进入合并后祖先链；该合并不包含 Shared Router、Bridge 或 Proxy Green。
+- 正式验收证据：A acceptance `68/68 PASS`、B targeted `12/12 PASS`、Pilot pages `4/4 PASS`、StoryCanvas v0.2 `13/13 PASS`、Media/TTS/Storage `17/17 PASS`、Root/StoryCanvas 双 Build、Governance、diff-check PASS。
+- 下一阶段仅可基于已接受 remediation 规划 Shared activation Green；Shared Router、Bridge、Proxy RED 必须继续保留，未完成独立 Green 前不得宣称真实编辑器或联合 Golden Path 已打通。
+- `apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned untracked，未触碰、未暂存、未提交。
+- 当前状态仅为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
