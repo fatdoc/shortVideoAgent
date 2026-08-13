@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.10`
+> 版本：`v0.11`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -73,6 +73,9 @@ G5 Control Materialization independent QA integrated head:
 
 G5 Control Workspace Authority independent QA integrated head:
 f9a894d3ea582b8a733120dd7ba84b73af90a01a
+
+G5 Story Workspace/Materialization independent QA integrated head:
+1865e7da703d4147ab16e22b481daaf5fa11d0a7
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -432,10 +435,10 @@ raw Idempotency-Key
 |---|---|---|---|---|
 | CV0 | 总控与集成负责人 | `tasks/CV0_MASTER_INTEGRATION_TASK.md` | `IN_PROGRESS` | 无 |
 | CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `ACCEPTED` | G5 Workspace/Materialization/Authority additive 合同已独立验收 |
-| CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `ACCEPTED` | G2 已独立验收；真实付费 Seedance smoke 留给 G6 |
+| CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `ACCEPTED` | G2 与 G5 Story Workspace/物化/受控媒体已独立验收；付费 smoke 留给 G6 |
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | Activation/Control Materialization/Workspace Authority 已实现；Shared 待 Story Workspace |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | Control 与 Story 前置已通过；进入 Shared Bridge/Router/Proxy |
 | CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 additive 合同已独立验收；等待 Story/Control/Shared 产品切片 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
@@ -571,7 +574,7 @@ Gate 状态：
 | G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
-| G5 | `IN_PROGRESS` | additive 合同、Control Materialization/Workspace Authority 已独立放行；Story Workspace/本地映射和 Shared 待完成 |
+| G5 | `IN_PROGRESS` | additive 合同、Control Materialization/Authority、Story Workspace/本地映射/受控媒体已独立放行；Shared 待完成 |
 | G6 | `NOT_STARTED` | 依赖 G5 |
 
 状态词只使用：
@@ -861,6 +864,15 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.11 · 2026-08-14
+
+- 集成 Story formal Bootstrap/Workspace、trusted prepare、Control authority/materialization clients、原子本地媒体映射与 controlled media proxy；
+- trusted prepare 按公共 UUIDv5 创建稳定 document/requirement/readiness，casting 0/>1 全表零写，Workspace GET 保持只读；
+- output 只在 command→shot→event→task→media 完整事实链精确绑定后进入安全投影；
+- CV6 先后发现并关闭 persisted event/command authority poison 与 runtime media port 装配错误；
+- 独立动态 10/10、Story targeted 48/48（Owner 60/60）、G2/G4/合同/构建/治理全通过；G5-owned strict TypeScript 新错误为 0；
+- CV0 接受 Story G5 切片；G5 剩余为 Shared same-origin API/Bridge/Router/Proxy 和真实浏览器 Gate。
 
 ### v0.10 · 2026-08-14
 
