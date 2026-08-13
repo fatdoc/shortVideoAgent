@@ -14,6 +14,7 @@ export type ControlApiDependencies = {
   internalCanvasEntryRouter?: Router;
   internalCanvasAssetSessionRouter?: Router;
   internalCanvasApprovalRouter?: Router;
+  internalCanvasAssetMaterializationRouter?: Router;
   contentRouter?: Router;
   storyboardRouter?: Router;
   productionRouter?: Router;
@@ -51,6 +52,9 @@ export function createApp(dependencies: ControlApiDependencies) {
   }
   if (dependencies.internalCanvasApprovalRouter) {
     app.use('/api/v1/internal', dependencies.internalCanvasApprovalRouter);
+  }
+  if (dependencies.internalCanvasAssetMaterializationRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasAssetMaterializationRouter);
   }
   app.use(express.json({ limit: '1mb', strict: true }));
 

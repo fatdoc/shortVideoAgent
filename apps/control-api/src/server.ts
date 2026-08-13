@@ -54,6 +54,10 @@ import { PostgresCanvasAssetSessionAuthorityRepository } from './assets/sessionR
 import { CanvasAssetSessionAuthorityService } from './assets/sessionService.js';
 import { createInternalCanvasApprovalRouter } from './assets/internalApprovalRoutes.js';
 import { CanvasActivationService } from './assets/activationService.js';
+import { PostgresCanvasAssetMaterializationRepository } from './assets/materializationRepository.js';
+import { CanvasAssetMaterializationService } from './assets/materializationService.js';
+import { LocalCanvasAssetStorageReader } from './assets/materializationStorage.js';
+import { createInternalCanvasAssetMaterializationRouter } from './assets/internalMaterializationRoutes.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -149,8 +153,9 @@ const projectPolicy = new PostgresProjectPolicy(database);
 const canvasAssetSessionAuthorityService = new CanvasAssetSessionAuthorityService(
   new PostgresCanvasAssetSessionAuthorityRepository(database),
 );
+const canvasAssetAuthorityRepository = new PostgresCanvasAssetAuthorityRepository(database);
 const canvasAssetAuthorityService = new CanvasAssetAuthorityService(
-  new PostgresCanvasAssetAuthorityRepository(database),
+  canvasAssetAuthorityRepository,
   config.canvasApprovalFingerprintSecret,
   { sessionAuthority: canvasAssetSessionAuthorityService },
 );
@@ -161,6 +166,15 @@ const internalCanvasAssetSessionRouter = createInternalCanvasAssetSessionRouter(
 const internalCanvasApprovalRouter = createInternalCanvasApprovalRouter({
   internalToken: config.productionPlaneInternalToken,
   service: canvasAssetAuthorityService,
+});
+const internalCanvasAssetMaterializationRouter = createInternalCanvasAssetMaterializationRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: new CanvasAssetMaterializationService({
+    sessionAuthority: canvasAssetSessionAuthorityService,
+    assets: canvasAssetAuthorityRepository,
+    storage: new LocalCanvasAssetStorageReader(config.canvasAssetStorageRoot),
+    attempts: new PostgresCanvasAssetMaterializationRepository(database),
+  }),
 });
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
@@ -233,6 +247,7 @@ const app = createApp({
   internalCanvasEntryRouter,
   internalCanvasAssetSessionRouter,
   internalCanvasApprovalRouter,
+  internalCanvasAssetMaterializationRouter,
   contentRouter,
   storyboardRouter,
   productionRouter,

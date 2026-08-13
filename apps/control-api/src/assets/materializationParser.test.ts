@@ -24,10 +24,10 @@ function request() {
 }
 
 function response() {
+  const { actorId: _actorId, objectType: _objectType, ...common } = request();
   return {
     objectType: 'CanvasAssetMaterialization',
-    contractVersion: '0.1',
-    ...request(),
+    ...common,
     materializationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     category: 'virtual_character',
     mimeType: 'image/jpeg',

@@ -1,3 +1,4 @@
+import { isAbsolute, parse as parsePath, resolve } from 'node:path';
 import { z } from 'zod';
 
 const DEVELOPMENT_SESSION_SECRET = 'local-development-only-change-before-deploying';
@@ -46,6 +47,7 @@ const environmentSchema = z.object({
   CANVAS_APPROVAL_FINGERPRINT_SECRET: secretWithAtLeast32Bytes.optional(),
   CANVAS_ASSET_CSRF_SECRET: secretWithAtLeast32Bytes.optional(),
   CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: secretWithAtLeast32Bytes.optional(),
+  CANVAS_ASSET_STORAGE_ROOT: z.string().min(1).max(4096).optional(),
   CANVAS_ASSET_ALLOWED_ORIGINS: z.string().min(1).optional(),
   REGISTRATION_MAX_ATTEMPTS: z.coerce.number().int().min(2).max(1_000).default(5),
   REGISTRATION_WINDOW_SECONDS: z.coerce.number().int().min(10).max(86_400).default(900),
@@ -78,6 +80,7 @@ export type ControlApiConfig = {
   canvasApprovalFingerprintSecret: string;
   canvasAssetCsrfSecret: string;
   canvasActivationIdempotencySecret: string;
+  canvasAssetStorageRoot: string;
   canvasAssetAllowedOrigins: string[];
   registrationMaxAttempts: number;
   registrationWindowSeconds: number;
@@ -102,6 +105,16 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
   const canvasActivationIdempotencySecret =
     parsed.CANVAS_ACTIVATION_IDEMPOTENCY_SECRET ??
     DEVELOPMENT_CANVAS_ACTIVATION_IDEMPOTENCY_SECRET;
+  const canvasAssetStorageRoot =
+    parsed.CANVAS_ASSET_STORAGE_ROOT ?? resolve(process.cwd(), 'data', 'canvas-assets');
+  if (
+    !isAbsolute(canvasAssetStorageRoot) ||
+    resolve(canvasAssetStorageRoot) !== canvasAssetStorageRoot ||
+    parsePath(canvasAssetStorageRoot).root === canvasAssetStorageRoot ||
+    canvasAssetStorageRoot.includes('\0')
+  ) {
+    throw new Error('CANVAS_ASSET_STORAGE_ROOT must be a safe normalized absolute directory');
+  }
   const canvasAssetAllowedOrigins = (
     parsed.CANVAS_ASSET_ALLOWED_ORIGINS ?? DEVELOPMENT_CANVAS_ASSET_ALLOWED_ORIGINS
   )
@@ -162,6 +175,10 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     throw new Error(
       'CANVAS_ACTIVATION_IDEMPOTENCY_SECRET must be explicitly configured in production',
     );
+  }
+
+  if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_ASSET_STORAGE_ROOT) {
+    throw new Error('CANVAS_ASSET_STORAGE_ROOT must be explicitly configured in production');
   }
 
   if (parsed.NODE_ENV === 'production' && !parsed.CANVAS_ASSET_ALLOWED_ORIGINS) {
@@ -251,6 +268,7 @@ export function loadConfig(environment: NodeJS.ProcessEnv = process.env): Contro
     canvasApprovalFingerprintSecret,
     canvasAssetCsrfSecret,
     canvasActivationIdempotencySecret,
+    canvasAssetStorageRoot,
     canvasAssetAllowedOrigins,
     registrationMaxAttempts: parsed.REGISTRATION_MAX_ATTEMPTS,
     registrationWindowSeconds: parsed.REGISTRATION_WINDOW_SECONDS,
