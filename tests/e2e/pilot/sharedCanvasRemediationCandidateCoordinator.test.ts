@@ -44,7 +44,7 @@ function validDependencies(
       return {
         status: 'oracle-ready',
         code: 'A_REM_VAL_4_LIFECYCLE_ORACLE_READY',
-        registryEventCount: 8,
+        registryEventCount: 10,
         shutdownSignal: 'SIGTERM',
         boundedShutdown: true,
       };
@@ -216,7 +216,7 @@ test('rejects lifecycle evidence failure or overclaim after the first three stag
     async () => ({
       status: 'oracle-ready',
       code: 'A_REM_VAL_4_LIFECYCLE_ORACLE_READY',
-      registryEventCount: 8,
+      registryEventCount: 10,
       shutdownSignal: 'SIGTERM',
       boundedShutdown: false as true,
     }),
@@ -224,7 +224,7 @@ test('rejects lifecycle evidence failure or overclaim after the first three stag
       ({
         status: 'oracle-ready',
         code: 'A_REM_VAL_4_LIFECYCLE_ORACLE_READY',
-        registryEventCount: 8,
+        registryEventCount: 10,
         shutdownSignal: 'SIGTERM',
         boundedShutdown: true,
         sharedActivationGreen: true,

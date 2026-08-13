@@ -19,8 +19,10 @@ function registryEvents(capacity: number) {
     { kind: 'authority-issued', activeCount: 2 },
     { kind: 'expired-observed', activeCount: 2 },
     { kind: 'expired-purged', activeCount: 1 },
+    { kind: 'authority-issued', activeCount: 2 },
     { kind: 'capacity-filled', activeCount: capacity },
-    { kind: 'capacity-evicted', activeCount: capacity },
+    { kind: 'capacity-evicted', activeCount: capacity - 1 },
+    { kind: 'capacity-filled', activeCount: capacity },
     { kind: 'shutdown-cleared', activeCount: 0 },
   ] as const;
 }
@@ -30,8 +32,8 @@ function validEvidence(
 ): SharedCanvasRemediationLifecycleEvidence {
   return {
     registry: {
-      capacity: 2,
-      events: registryEvents(2).map((event) => ({ ...event })),
+      capacity: 3,
+      events: registryEvents(3).map((event) => ({ ...event })),
     },
     shutdown: {
       signal: 'SIGTERM',
@@ -89,7 +91,7 @@ test('accepts the exact bounded lifecycle scenario without declaring remediation
   assert.deepEqual(result, {
     status: 'oracle-ready',
     code: 'A_REM_VAL_4_LIFECYCLE_ORACLE_READY',
-    registryEventCount: 8,
+    registryEventCount: 10,
     shutdownSignal: 'SIGTERM',
     boundedShutdown: true,
   });
@@ -167,7 +169,7 @@ test('normalizes input getters and reflection traps to the fixed non-leaking evi
 test('rejects sparse or property-bearing registry event arrays before accepting lifecycle evidence', async () => {
   const sparse = validEvidence();
   sparse.registry.events = new Array(
-    8,
+    10,
   ) as SharedCanvasRemediationLifecycleEvidence['registry']['events'];
 
   const propertyBearing = validEvidence();
@@ -187,17 +189,12 @@ test('rejects sparse or property-bearing registry event arrays before accepting 
   }
 });
 
-test('accepts any explicit safe capacity while proving fill and deterministic eviction at that bound', () => {
-  for (const capacity of [2, 3, 64, 1_024, Number.MAX_SAFE_INTEGER]) {
-    const evidence = validEvidence();
-    evidence.registry.capacity = capacity;
-    evidence.registry.events = registryEvents(capacity).map((event) => ({ ...event }));
-    const result = assertSafeSharedCanvasRemediationLifecycleEvidence({ evidence });
-    assert.equal(result.registryEventCount, 8);
-  }
+test('accepts the minimal reachable capacity-three fill and deterministic eviction sequence', () => {
+  const result = assertSafeSharedCanvasRemediationLifecycleEvidence({ evidence: validEvidence() });
+  assert.equal(result.registryEventCount, 10);
 });
 
-test('requires the exact registry lifecycle sequence without guessing B production capacity', async () => {
+test('requires the exact reachable registry lifecycle sequence at capacity three', async () => {
   const mutations: Array<(evidence: SharedCanvasRemediationLifecycleEvidence) => void> = [
     (evidence) => {
       evidence.registry.capacity = 0;
@@ -212,10 +209,10 @@ test('requires the exact registry lifecycle sequence without guessing B producti
       evidence.registry.events[1] = { kind: 'authority-issued', activeCount: 1 };
     },
     (evidence) => {
-      evidence.registry.events[5] = { kind: 'capacity-filled', activeCount: 1 };
+      evidence.registry.events[6] = { kind: 'capacity-filled', activeCount: 2 };
     },
     (evidence) => {
-      evidence.registry.events[6] = { kind: 'capacity-evicted', activeCount: 1 };
+      evidence.registry.events[7] = { kind: 'capacity-evicted', activeCount: 3 };
     },
   ];
 
@@ -250,7 +247,7 @@ test('requires shutdown to clear the registry and make raw authority unreadable'
       evidence.shutdown.rawAuthorityReadableAfterShutdown = true;
     },
     (evidence) => {
-      evidence.registry.events[7] = { kind: 'shutdown-cleared', activeCount: 1 };
+      evidence.registry.events[9] = { kind: 'shutdown-cleared', activeCount: 1 };
     },
   ];
 

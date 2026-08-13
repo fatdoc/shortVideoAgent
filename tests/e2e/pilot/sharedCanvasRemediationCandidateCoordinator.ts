@@ -154,7 +154,7 @@ function assertLifecycleResult(value: unknown): void {
     result === null ||
     result.status !== 'oracle-ready' ||
     result.code !== 'A_REM_VAL_4_LIFECYCLE_ORACLE_READY' ||
-    result.registryEventCount !== 8 ||
+    result.registryEventCount !== 10 ||
     (result.shutdownSignal !== 'SIGTERM' && result.shutdownSignal !== 'SIGINT') ||
     result.boundedShutdown !== true
   ) {

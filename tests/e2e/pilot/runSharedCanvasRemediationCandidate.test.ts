@@ -129,7 +129,7 @@ test('runs Git, HTTP/log, no-PostgreSQL runtime, then lifecycle and exposes no G
       return {
         status: 'oracle-ready',
         code: 'A_REM_VAL_4_LIFECYCLE_ORACLE_READY',
-        registryEventCount: 8,
+        registryEventCount: 10,
         shutdownSignal: 'SIGTERM',
         boundedShutdown: true,
       };
