@@ -200,7 +200,7 @@ test("readiness reason precedence and positive recovery cases are deterministic"
   );
 });
 
-test("CV1-C execution-plane artifacts are present before behavioral conformance wiring", () => {
+test("CV1-C execution-plane artifacts remain mandatory for behavioral conformance", () => {
   const requiredArtifacts = [
     "apps/storycanvas/src/contracts/canvas-v1/index.ts",
     "src/features/canvas-v1/model/contracts.ts",
