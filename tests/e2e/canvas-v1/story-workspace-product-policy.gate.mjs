@@ -103,5 +103,4 @@ test("runtime supplies the aggregate media route its frozen nested service port"
     /media\s*:\s*\{\s*media\s*:\s*controlledMedia\s*\}/u,
     "EXPECTED_RED runtime must pass { media: controlledMedia } to CanvasV1ProductionRouter",
   );
-  assert.doesNotMatch(runtime, /media\s*:\s*controlledMedia\s*[,}]/u);
 });
