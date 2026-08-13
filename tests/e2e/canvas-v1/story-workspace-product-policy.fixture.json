@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "cv6-story-workspace-product-policy.v1",
+  "baseline": "311859cf64073fc208384cfe9224668a3b0f3a14",
+  "publicSurfaces": [
+    {
+      "path": "apps/storycanvas/src/services/storycanvas/canvas-v1/controlWorkspaceAuthorityClient.ts",
+      "export": "ControlCanvasWorkspaceAuthorityClient"
+    },
+    {
+      "path": "apps/storycanvas/src/services/storycanvas/canvas-v1/workspacePrepare.ts",
+      "export": "CanvasV1WorkspacePreparer"
+    },
+    {
+      "path": "apps/storycanvas/src/services/storycanvas/canvas-v1/workspaceProjection.ts",
+      "export": "CanvasV1WorkspaceReader"
+    },
+    {
+      "path": "apps/storycanvas/src/services/storycanvas/canvas-v1/controlAssetMaterializationClient.ts",
+      "export": "ControlCanvasAssetMaterializationClient"
+    },
+    {
+      "path": "apps/storycanvas/src/services/storycanvas/canvas-v1/assetMaterialization.ts",
+      "export": "CanvasV1AssetMaterializer"
+    },
+    {
+      "path": "apps/storycanvas/src/services/storycanvas/canvas-v1/controlledMedia.ts",
+      "export": "CanvasV1ControlledMediaService"
+    },
+    {
+      "path": "apps/storycanvas/src/routes/production/pilot/canvas/bootstrap-v1/index.ts",
+      "export": "createCanvasV1FormalBootstrapRouter"
+    },
+    {
+      "path": "apps/storycanvas/src/routes/production/pilot/canvas/workspace/index.ts",
+      "export": "createCanvasV1WorkspaceRouter"
+    },
+    {
+      "path": "apps/storycanvas/src/routes/production/pilot/canvas/media/index.ts",
+      "export": "createCanvasV1MediaRouter"
+    }
+  ],
+  "routePolicy": {
+    "formalBootstrap": {
+      "method": "POST",
+      "path": "/api/production/pilot/canvas/v1/bootstrap",
+      "requires": ["exact origin", "HttpOnly session", "CSRF", "active canvas session", "exact actor/tenant/project/package scope"],
+      "mutationAuthority": "CanvasV1WorkspacePreparer.prepare"
+    },
+    "workspace": {
+      "method": "GET",
+      "path": "/api/production/pilot/canvas/v1/workspace",
+      "requires": ["exact origin", "HttpOnly session", "X-Canvas-Session-ID", "active canvas session", "exact actor/tenant/project/package scope"],
+      "forbids": ["request body", "CSRF", "INSERT", "UPDATE", "DELETE", "repair", "prepare"]
+    },
+    "media": {
+      "method": "GET",
+      "path": "/api/production/pilot/canvas/v1/media/:assetId",
+      "requires": ["exact origin", "HttpOnly session", "X-Canvas-Session-ID", "exact output/project/package/session authority"],
+      "forbids": ["redirect", "signed URL", "local path", "provider URL", "raw object key"]
+    }
+  },
+  "behaviorCases": [
+    "workspace authority response is strictly parsed and exact-matched to the server request",
+    "casting count zero or greater than one returns the fixed 409 and writes no document, requirement, readiness or binding",
+    "unique pending virtual character remains the casting choice but never becomes an auto-approved EntityBinding",
+    "trusted prepare creates stable document and exactly one requirement/readiness per accepted Package shot in one transaction",
+    "target and requirement IDs use the frozen public RFC 4122 UUIDv5 namespace and exact names",
+    "initial document order and each prompt equal the accepted storyboard order and exact shot description",
+    "workspace GET performs SELECT-only reads and never creates or repairs trusted facts",
+    "workspace event is selected only through persisted GENERATE_SHOT command payload shotId and exact event scope",
+    "workspace output joins command to real task to registered sc_media_assets and application-controlled media mapping",
+    "selected output and thumbnail exactly match CanvasDocument selectedOutputAssetId",
+    "materialization response loss retries the same complete request and materializationAttemptId",
+    "materialization response is strictly reparsed and exact-matched before byte persistence",
+    "temporary file is application-created, fsynced and atomically renamed below the configured data root",
+    "same Control asset and exact local facts replay without overwrite; changed content, project, path or mapping conflicts",
+    "controlled media rejects redirects and exposes no asset URI, signed URL, local path, provider ID/body, token or storage reference",
+    "successful workspace and every error use no-store and fixed safe request-id-bearing envelopes"
+  ],
+  "requiredVectorCounts": {
+    "workspaceMaterialization": 69,
+    "workspaceAuthority": 30
+  },
+  "forbiddenProductMarkers": [
+    "demo-local-001",
+    "ensureMvpProject",
+    "/api/mvp/",
+    "localStorage",
+    "sessionStorage"
+  ],
+  "forbiddenBrowserMarkers": [
+    "asset://",
+    "storageReference",
+    "contentBase64",
+    "materializationAttemptId",
+    "materializationId",
+    "providerAssetId",
+    "providerGroupId",
+    "localPath",
+    "signedUrl",
+    "accessToken",
+    "internalToken",
+    "productionPackage",
+    "packageSnapshot",
+    "payloadDigest"
+  ]
+}
