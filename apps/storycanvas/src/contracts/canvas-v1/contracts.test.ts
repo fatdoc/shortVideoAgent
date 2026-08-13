@@ -67,6 +67,14 @@ test("backend parser accepts all nine canonical fixtures without transformation"
   }
 });
 
+test("backend parser accepts the canonical blocked readiness with a missing binding", () => {
+  const fileName = matrix.additionalPositiveFixtures.ShotReadinessBindingMissing;
+  const fixture = loadFixture(fileName);
+  assert.deepEqual(parseCanvasV1Contract(fixture), fixture);
+  assert.equal(fixture.requirements[0].entityBindingStatus, null);
+  assert.deepEqual(fixture.reasonCodes, ["ENTITY_BINDING_MISSING"]);
+});
+
 test("backend browser parser accepts only the eight safe projections", () => {
   for (const objectType of matrix.browserSafeObjectTypes as string[]) {
     const fixture = loadFixture(matrix.fixtureFiles[objectType]);

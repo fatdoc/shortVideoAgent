@@ -379,7 +379,7 @@
         "rightsStatus": { "$ref": "#/$defs/rightsStatus" },
         "approvalStatus": { "$ref": "#/$defs/approvalStatus" },
         "providerStatus": { "$ref": "#/$defs/providerStatus" },
-        "entityBindingStatus": { "$ref": "#/$defs/entityBindingStatus" },
+        "entityBindingStatus": { "oneOf": [{ "$ref": "#/$defs/entityBindingStatus" }, { "type": "null" }] },
         "capabilityAvailable": { "type": "boolean" },
         "ready": { "type": "boolean" },
         "reasonCodes": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reasonCode" } }

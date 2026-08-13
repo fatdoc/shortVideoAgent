@@ -67,6 +67,14 @@ describe('Canvas V1 frontend contract conformance', () => {
     }
   });
 
+  it('accepts the canonical blocked readiness with a missing binding', () => {
+    const fileName = matrix.additionalPositiveFixtures.ShotReadinessBindingMissing;
+    const fixture = loadFixture(fileName);
+    expect(parseCanvasV1Contract(fixture)).toEqual(fixture);
+    expect(fixture.requirements[0].entityBindingStatus).toBeNull();
+    expect(fixture.reasonCodes).toEqual(['ENTITY_BINDING_MISSING']);
+  });
+
   it('accepts only the eight browser-safe projections', () => {
     for (const objectType of matrix.browserSafeObjectTypes as string[]) {
       const fixture = loadFixture(matrix.fixtureFiles[objectType]);

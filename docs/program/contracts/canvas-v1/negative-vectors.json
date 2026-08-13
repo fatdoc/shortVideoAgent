@@ -22,6 +22,9 @@
     "CanvasEvent"
   ],
   "serverOnlyObjectTypes": ["ProviderAssetBinding"],
+  "additionalPositiveFixtures": {
+    "ShotReadinessBindingMissing": "shot-readiness-binding-missing.json"
+  },
   "forbiddenBrowserKeys": [
     "remoteAssetId",
     "assetUri",
@@ -274,6 +277,16 @@
       "fixture": "entity-binding.json",
       "mutations": [{ "op": "replace", "path": "/status", "value": "pending" }],
       "expectedCode": "CANVAS_BINDING_INCONSISTENT"
+    },
+    {
+      "id": "binding-missing-must-use-missing-reason",
+      "operation": "parse",
+      "fixture": "shot-readiness-binding-missing.json",
+      "mutations": [
+        { "op": "replace", "path": "/reasonCodes", "value": ["ENTITY_BINDING_PENDING"] },
+        { "op": "replace", "path": "/requirements/0/reasonCodes", "value": ["ENTITY_BINDING_PENDING"] }
+      ],
+      "expectedCode": "CANVAS_READINESS_INCONSISTENT"
     },
     {
       "id": "reason-codes-must-be-stably-ordered",

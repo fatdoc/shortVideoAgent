@@ -17,6 +17,12 @@ const fixtures = Object.fromEntries(
     readJson(path.join("fixtures", file)),
   ]),
 );
+const additionalPositiveFixtures = Object.fromEntries(
+  Object.entries(matrix.additionalPositiveFixtures).map(([caseName, file]) => [
+    caseName,
+    readJson(path.join("fixtures", file)),
+  ]),
+);
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const timestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
@@ -105,4 +111,20 @@ test("negative matrix covers every required G1 security and state boundary", () 
 test("ShotReadiness reason codes are unique and fixed in deterministic order", () => {
   assert.equal(new Set(matrix.reasonCodeOrder).size, matrix.reasonCodeOrder.length);
   assert.deepEqual(schema.$defs.reasonCode.enum, matrix.reasonCodeOrder);
+});
+
+test("binding-missing positive fixture uses null and only the deterministic missing reason", () => {
+  const fixture = additionalPositiveFixtures.ShotReadinessBindingMissing;
+  assert.equal(fixture.objectType, "ShotReadiness");
+  assert.equal(fixture.contractVersion, "0.1");
+  assert.equal(fixture.ready, false);
+  assert.deepEqual(fixture.reasonCodes, ["ENTITY_BINDING_MISSING"]);
+  assert.equal(fixture.requirements.length, 1);
+  assert.equal(fixture.requirements[0].entityBindingStatus, null);
+  assert.equal(fixture.requirements[0].ready, false);
+  assert.deepEqual(fixture.requirements[0].reasonCodes, ["ENTITY_BINDING_MISSING"]);
+
+  const schemaValue = schema.$defs.readinessRequirement.properties.entityBindingStatus;
+  assert.equal(schemaValue.oneOf.some((candidate) => candidate.type === "null"), true);
+  assert.equal(matrix.vectors.length, 38);
 });
