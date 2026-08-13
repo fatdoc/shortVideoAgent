@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.2`
+> 版本：`v0.3`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -43,6 +43,9 @@ codex/t0-cv1-integration
 
 governance baseline:
 413322708b35da7a158f45bdb329416b39238e52
+
+G1 integrated head:
+bbb475d0326b48b84941ca2a5daae4c15ec0ab5c
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -401,12 +404,12 @@ raw Idempotency-Key
 | 员工 | 角色 | 任务书 | 初始状态 | 阻塞条件 |
 |---|---|---|---|---|
 | CV0 | 总控与集成负责人 | `tasks/CV0_MASTER_INTEGRATION_TASK.md` | `IN_PROGRESS` | 无 |
-| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `IN_PROGRESS` | G0 已放行；进入 Wave 1 |
-| CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `NOT_STARTED` | G1 未通过 |
+| CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `ACCEPTED` | G1 已验收 |
+| CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `IN_PROGRESS` | G1 已放行；进入 Wave 2 |
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `NOT_STARTED` | G2 未通过 |
-| CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `NOT_STARTED` | G1 未通过 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `NOT_STARTED` | G1 未通过 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `IN_PROGRESS` | G0 已交付；进入 G1 conformance |
+| CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `IN_PROGRESS` | G1 已放行；进入 Wave 2 |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | 仅执行 05A；05B 等待 G2/G3/G4 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G0/G1 已交付；等待后续 Gate 复核 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -537,9 +540,9 @@ Gate 状态：
 | Gate | 当前状态 | 证据/说明 |
 |---|---|---|
 | G0 | `ACCEPTED` | `handoffs/CV6_G0_BASELINE_HANDOFF.md`；带已知基线失败放行 |
-| G1 | `IN_PROGRESS` | CV1 Wave 0 审计完成；合同/fixture/parser/conformance 正在冻结 |
-| G2 | `NOT_STARTED` | 依赖 G1 |
-| G3 | `NOT_STARTED` | 依赖 G1 与 UI 实现 |
+| G1 | `ACCEPTED` | CV1 四原子提交；CV6 Gate 60/60 PASS、37/37 negative-vector parity |
+| G2 | `IN_PROGRESS` | CV2 资产/命令 + CV5 Control 资产权威进入 Wave 2 |
+| G3 | `IN_PROGRESS` | CV4 基于冻结 fixture 实现 Canvas V1 UI |
 | G4 | `NOT_STARTED` | 依赖 G2 |
 | G5 | `NOT_STARTED` | 依赖 G2/G3/G4 |
 | G6 | `NOT_STARTED` | 依赖 G5 |
@@ -572,6 +575,7 @@ CANVAS_V1_GOLDEN_PATH_PASS
 当前继续保持：
 
 ```text
+CANVAS_V1_CONTRACT_FROZEN
 B_REMEDIATION_ACCEPTED
 SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
@@ -763,14 +767,30 @@ G6 最少需要：
 
 ## 16. 当前执行入口
 
-用户已正式下达 Wave 0 启动指令。G0 已由 CV6 完成并由 CV0 以
-`ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行，当前进入 Wave 1：
+用户已正式启动 T0-CV1。G0 已由 CV6 完成并由 CV0 以
+`ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行；G1 已由 CV1/CV6 完成并由
+CV0 验收，当前进入 Wave 2：
 
 ```text
-1. CV1 按 CV1-A → CV1-B → CV1-C → CV1-D 冻结 Canvas V1 合同
-2. CV6 建立独立 Canvas V1 conformance，保留历史 RED/失败原状
-3. CV0 验收 atomic commits、write set、negative vectors 和安全投影
-4. G1 ACCEPTED 前不启动 CV2/CV4/CV5 产品实现
+1. CV2 实现 StoryCanvas 资产门禁、Document 和 Canvas Command Service
+2. CV4 基于冻结 fixture 实现受控门店视频 Canvas V1 UI
+3. CV5 只实现 Control Plane tenant-scoped Asset Authority（05A）
+4. CV5 的 Shared Proxy/Bridge/Router（05B）继续等待 G2/G3/G4
+5. CV0 验收 G2/G3；G2 通过后再招聘 CV3
+```
+
+G1 证据：
+
+```text
+CV1-A inventory:        9690885765b2ffeb308e06e3a17b416439996578
+CV1-B fixtures/RED:     1f2b2abd47e9b0a92730f61cf8d1ca63e7a60e96
+CV1-C parsers/GREEN:    898b3067f4d82e302e67fa735baf80e61c7fabe7
+CV1-D handoff:          2f7939433dee7632b9e188ba4fbabc9365a79b7c
+CV6 RED:                a5b3ac79ac35ce8bff463f8b5525d4e8588df3f0
+CV6 GREEN:              a03432891d440c51d0906948adb84db6593fa50b
+CV6 handoff:            7dd0caed9b817b106d33e1be14f5777f8a52e074
+Contract Gate:          60 PASS / 0 FAIL / 0 SKIP/TODO
+Negative-vector parity: 37/37 frontend/backend stable-code PASS
 ```
 
 G0 已知基线事实：
@@ -790,6 +810,14 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.3 · 2026-08-14
+
+- CV0 集成 CV1 四个合同提交与 CV6 G1 RED/GREEN/证据提交；
+- 九个 Canvas V1 additive contracts、canonical fixtures、37 个 negative vectors、前后端 strict parser 已冻结；
+- CV6 独立 Gate 60/60 PASS，CV0 将 G1 标记为 `ACCEPTED`；
+- 新增联合状态 `CANVAS_V1_CONTRACT_FROZEN`；
+- 启动 Wave 2：CV2、CV4、CV5；CV5 当前只获准执行 05A。
 
 ### v0.2 · 2026-08-14
 
