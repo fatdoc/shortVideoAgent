@@ -28,6 +28,13 @@ CanvasEntryRedemption/0.1 or Pilot Production Contract/0.2.
 - `activation-transport-negative-vectors.json`: G5 transport RED matrix.
 - `validate-activation-transport.mjs`: dependency-free transport facts
   validator.
+- `BROWSER_PROVENANCE_AND_LEGACY_OPEN_REPLAY_AMENDMENT.md`: G6 additive
+  correction for real-Chrome bodyless GET provenance and identical concurrent
+  legacy-open replay; mutations retain exact Origin and CSRF.
+- `browser-provenance-replay-vectors.json`: pinned G6 RED facts plus formal
+  read, mutation and StrictMode/replay vectors.
+- `validate-browser-provenance-replay.mjs`: dependency-free validator for the
+  additive provenance and replay policy.
 - `WORKSPACE_MATERIALIZATION_CONTRACT.md`: proposed G5 formal workspace
   hydration and server-only Control-to-Story asset-byte transport.
 - `WORKSPACE_AUTHORITY_AMENDMENT.md`: exact Control workspace authority,

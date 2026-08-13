@@ -38,19 +38,24 @@ After successful legacy open and formal bootstrap, the browser reads:
 ```http
 GET /api/production/pilot/canvas/v1/workspace
 Cookie: <HttpOnly same-origin Session>
-Origin: <exact configured SaaS origin>
+Origin: <optional on this GET; exact configured SaaS origin when present>
 X-Canvas-Session-ID: pcs_*
 Accept: application/json
 ```
 
 This read has no request body and no CSRF header. It still requires, in order:
 
-1. exact Origin;
+1. exact Fetch Metadata/Referer browser provenance, with optional Origin exact
+   when present, as frozen in
+   `BROWSER_PROVENANCE_AND_LEGACY_OPEN_REPLAY_AMENDMENT.md`;
 2. valid HttpOnly Session;
 3. valid `X-Canvas-Session-ID` syntax;
 4. active server-side Canvas authority;
 5. exact actor/tenant/project/package binding;
 6. exact accepted Package authority.
+
+Missing/cross-site/navigation/automated provenance fails closed. This
+GET-only correction does not relax exact Origin or CSRF on any mutation.
 
 The trusted activation/materialization prepare phase described in
 `WORKSPACE_AUTHORITY_AMENDMENT.md` must already have committed the document,
