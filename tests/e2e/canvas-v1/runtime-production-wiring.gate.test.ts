@@ -16,6 +16,14 @@ const adapterPath = path.join(
   root,
   'apps/storycanvas/src/services/storycanvas/canvas-v1/shotProductionAdapter.ts',
 );
+const approvalValidatorPath = path.join(
+  root,
+  'apps/storycanvas/src/services/storycanvas/canvas-v1/runtimeApprovalValidator.ts',
+);
+const assetAdaptersPath = path.join(
+  root,
+  'apps/storycanvas/src/services/storycanvas/canvas-v1/runtimeAssetAdapters.ts',
+);
 
 function source(file: string): string {
   return fs.readFileSync(file, 'utf8');
@@ -42,20 +50,19 @@ describe('CV6 independent production runtime wiring gate', () => {
 
   it('wires the server-only Control consumer and paid Provider adapter in production', () => {
     const options = runtimeOptions(source(storyAppPath));
-    expect(options).toContain('validateApproval:');
-    expect(options).toContain('approvalClient.consume(command, scope)');
+    const application = source(storyAppPath);
+    expect(options).toMatch(/\bvalidateApproval\b/u);
+    expect(application).toContain('createCanvasV1ApprovalValidator({');
+    expect(application).toContain('approvalClient.consume(command, scope)');
     expect(options).toContain('startShotProduction:');
     expect(options).toContain('production.start(input)');
   });
 
   it('does not apply GENERATE_SHOT Seedance/package checks to other high-cost approvals', () => {
-    const application = source(storyAppPath);
-    const approvalStart = application.indexOf('validateApproval:');
-    const providerStart = application.indexOf('startShotProduction:', approvalStart);
-    const approval = application.slice(approvalStart, providerStart);
+    const approval = source(approvalValidatorPath);
 
     expect(approval).toMatch(/command\.commandType\s*===\s*["']GENERATE_SHOT["']/u);
-    expect(approval).toContain('approvalClient.consume(command, scope)');
+    expect(approval).toContain('options.consume(command, scope)');
   });
 
   it.each([
@@ -63,8 +70,8 @@ describe('CV6 independent production runtime wiring gate', () => {
     ['BIND_ASSET_TO_ENTITY', 'bindAssetToEntity:'],
     ['SELECT_SHOT_OUTPUT', 'assertOutputAsset:'],
   ])('wires the %s production adapter instead of relying on optional defaults', (_command, key) => {
-    const options = runtimeOptions(source(storyAppPath));
-    expect(options).toContain(key);
+    const runtime = source(runtimePath);
+    expect(runtime).toContain(key);
   });
 
   it('keeps SAVE_CANVAS_DOCUMENT on the durable document store and GENERATE_SHOT on the paid adapter', () => {
@@ -86,7 +93,8 @@ describe('CV6 independent production runtime wiring gate', () => {
     ]) {
       expect(adapter).toContain(`env.${variable}?.trim()`);
     }
-    expect(source(storyAppPath)).toContain('if (!isCanvasV1ShotProductionConfigured())');
+    expect(source(storyAppPath)).toContain('shotProductionConfigured: () => isCanvasV1ShotProductionConfigured()');
+    expect(source(approvalValidatorPath)).toContain('!options.shotProductionConfigured()');
   });
 
   it('projects a safe local task id while raw Provider facts remain in the server task row', () => {
@@ -97,5 +105,15 @@ describe('CV6 independent production runtime wiring gate', () => {
     expect(adapter).toContain("outputJson: JSON.stringify({ outputAssetId: output.outputAssetId })");
     expect(runtime).not.toMatch(/response\.(?:json|send)\([^)]*externalTaskId/u);
     expect(runtime).not.toMatch(/response\.(?:json|send)\([^)]*videoUrl/u);
+  });
+
+  it('resolves SYNC/BIND from unique server mappings and SELECT from exact succeeded generated task output', () => {
+    const adapters = source(assetAdaptersPath);
+    expect(adapters).toContain('if (rows.length !== 1)');
+    expect(adapters).toContain("entityType: 'canvas-v1-asset'");
+    expect(adapters).toContain("entityType: 'character-asset'");
+    expect(adapters).toContain("source: 'generated'");
+    expect(adapters).toContain("taskType: 'canvas_v1_video_generation'");
+    expect(adapters).toContain("status: 'succeeded'");
   });
 });

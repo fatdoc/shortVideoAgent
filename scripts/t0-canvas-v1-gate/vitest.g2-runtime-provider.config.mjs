@@ -22,11 +22,16 @@ export default {
     alias: {
       '@': path.join(rootDir, 'apps/storycanvas/src'),
       knex: storyDependency('knex'),
+      zod: storyDependency('zod'),
     },
   },
   test: {
     environment: 'node',
-    include: ['tests/e2e/canvas-v1/runtime-provider-recovery.gate.test.ts'],
+    include: [
+      'tests/e2e/canvas-v1/runtime-provider-recovery.gate.test.ts',
+      'tests/e2e/canvas-v1/runtime-asset-adapters.gate.test.ts',
+      'tests/e2e/canvas-v1/runtime-command-cost-parity.gate.test.ts',
+    ],
     setupFiles: [],
   },
 };
