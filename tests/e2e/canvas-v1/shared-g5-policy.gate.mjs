@@ -122,10 +122,22 @@ test('proxy keeps both explicit flags, loopback-only targets and changeOrigin fa
 
 test('Router has a dedicated Canvas V1 route and no generic or Demo Canvas fallback', () => {
   const source = read('src/app/Router.tsx');
-  assert.match(source, /CanvasV1RouteContainer/u);
-  assert.doesNotMatch(source, /IntegratedStoryCanvasPage/u);
+  const pilotManifestStart = source.indexOf('function PilotManifestRoute');
+  const pilotManifestEnd = source.indexOf('function PilotConfigurationBlock', pilotManifestStart);
+  assert.notEqual(pilotManifestStart, -1, 'PilotManifestRoute required');
+  assert.notEqual(pilotManifestEnd, -1, 'PilotManifestRoute boundary required');
+  const pilotManifest = source.slice(pilotManifestStart, pilotManifestEnd);
+  const canvasBranch =
+    /if\s*\(route\.key\s*===\s*['"]production-canvas['"]\)\s*return\s*<CanvasV1RouteContainer\s*\/>\s*;/u;
+  assert.match(pilotManifest, canvasBranch);
+  const branchOffset = pilotManifest.search(canvasBranch);
+  const handoffOffset = pilotManifest.indexOf("route.pilotReadiness === 'handoff-required'");
+  assert.ok(
+    branchOffset >= 0 && handoffOffset > branchOffset,
+    'Canvas return must precede generic handoff',
+  );
   assert.doesNotMatch(
-    source,
-    /production-canvas[\s\S]{0,1000}pilotReadiness\s*===?\s*["']handoff-required["']/u,
+    pilotManifest.slice(branchOffset, handoffOffset),
+    /IntegratedStoryCanvasPage|PilotStatePage|pilot-route-handoff/u,
   );
 });

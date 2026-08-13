@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   createCanvasActivationAttemptId,
   parseCanonicalCanvasRouteSelection,
-} from '../../../src/features/canvas-v1/api/index';
+} from '../../../src/features/canvas-v1/api/activation';
 import { createPilotStoryCanvasBridge } from '../../../src/services/pilotStoryCanvasBridge';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
