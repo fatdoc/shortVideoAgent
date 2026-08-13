@@ -210,7 +210,7 @@ export function createPilotCanvasSafeBootstrapRouter(options: PilotCanvasBootstr
       safeRequestBodyError(response, 400, "PILOT_CANVAS_MALFORMED_JSON", "Pilot Canvas request body is invalid.", id);
       return;
     }
-    next(error);
+    safeRequestBodyError(response, 400, "PILOT_CANVAS_MALFORMED_JSON", "Pilot Canvas request body is invalid.", id);
   });
   return router;
 }

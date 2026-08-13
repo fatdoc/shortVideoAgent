@@ -11,6 +11,8 @@ export default (io: Server) => {
   for (const [name, handler] of Object.entries(routes)) {
     const nsp = io.of(`/api/socket/${name}`);
     handler(nsp);
-    console.log(`[Socket] 注册命名空间: /api/socket/${name}`);
+    if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") {
+      console.log(`[Socket] 注册命名空间: /api/socket/${name}`);
+    }
   }
 };
