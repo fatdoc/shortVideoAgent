@@ -1,6 +1,10 @@
 import { IconAlertTriangle, IconLoader2 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { AssetBindingDrawer } from '../components/AssetBindingDrawer';
+import { AssetDock } from '../components/AssetDock';
+import { AssetReadinessPanel } from '../components/AssetReadinessPanel';
 import { CanvasHeader } from '../components/CanvasHeader';
+import { PlaylistStrip } from '../components/PlaylistStrip';
 import { ProductionCanvas } from '../components/ProductionCanvas';
 import { ShotRail } from '../components/ShotRail';
 import { useActiveCanvasShot } from '../hooks/useActiveCanvasShot';
@@ -9,8 +13,14 @@ import type {
   CanvasCommandV01,
   CanvasDocumentV01,
   CanvasEventV01,
+  AssetCategory,
+  ApprovalStatus,
+  EntityBindingStatus,
+  ProviderStatus,
+  RightsStatus,
   ShotReadinessV01,
 } from '../model/contracts';
+import { useCanvasV1ViewState } from '../model/viewState';
 import '../canvas-v1.css';
 
 export type CanvasLoadState = 'loading' | 'loaded' | 'failed';
@@ -36,12 +46,25 @@ export interface CanvasShotView {
   outputs: CanvasOutputView[];
 }
 
+export interface CanvasAssetView {
+  assetId: string;
+  category: AssetCategory;
+  displayName: string;
+  rightsStatus: RightsStatus;
+  approvalStatus: ApprovalStatus;
+  providerStatus: ProviderStatus;
+  entityBindingStatus: EntityBindingStatus;
+  controlledPreviewUrl: string | null;
+  targetEntityId?: string;
+}
+
 export interface CanvasV1PageProps {
   projectName?: string;
   loadState: CanvasLoadState;
   bootstrap: CanvasBootstrapV01 | null;
   document: CanvasDocumentV01 | null;
   shots: CanvasShotView[];
+  assets?: CanvasAssetView[];
   taskEvents: Record<string, CanvasEventV01 | undefined>;
   saveState: CanvasSaveState;
   commandContext: { requestedByActorId: string; approvalId: string | null };
@@ -78,9 +101,17 @@ export function CanvasV1Page({
   saveState,
   commandContext,
   onCommand,
+  assets,
 }: CanvasV1PageProps) {
   const { activeShot, activeShotId, setActiveShot } = useActiveCanvasShot(shots);
+  const assetDockOpen = useCanvasV1ViewState((state) => state.assetDockOpen);
+  const toggleAssetDock = useCanvasV1ViewState((state) => state.toggleAssetDock);
+  const bindingAssetId = useCanvasV1ViewState((state) => state.bindingAssetId);
+  const openAssetBinding = useCanvasV1ViewState((state) => state.openAssetBinding);
+  const closeAssetBinding = useCanvasV1ViewState((state) => state.closeAssetBinding);
   const event = activeShot ? taskEvents[activeShot.shotId] : undefined;
+  const assetViews = assets ?? bootstrap?.assetSummaries ?? [];
+  const bindingAsset = assetViews.find((asset) => asset.assetId === bindingAssetId) ?? null;
   const blockingReasons = useMemo(
     () => activeShot?.readiness.reasonCodes.map((reason) => reasonCopy[reason] ?? '当前镜头未通过生产检查') ?? [],
     [activeShot],
@@ -127,13 +158,39 @@ export function CanvasV1Page({
     });
   };
 
+  const bindAsset = (asset: CanvasAssetView) => {
+    if (!asset.targetEntityId) return;
+    void onCommand({
+      objectType: 'CanvasCommand', contractVersion: '0.1', tenantId: bootstrap.tenantId, projectId: bootstrap.projectId,
+      packageId: bootstrap.packageId, canvasSessionId: bootstrap.canvasSessionId, commandId: generatedUuid(),
+      commandType: 'BIND_ASSET_TO_ENTITY', requestedByActorId: commandContext.requestedByActorId, requestSource: 'user',
+      approvalId: commandContext.approvalId, payload: { assetId: asset.assetId, entityId: asset.targetEntityId },
+      requestId: `req-canvas-${generatedUuid()}`, occurredAt: new Date().toISOString(),
+    });
+    closeAssetBinding();
+  };
+
+  const reorderPlaylist = (shotIds: string[]) => {
+    void onCommand({
+      objectType: 'CanvasCommand', contractVersion: '0.1', tenantId: bootstrap.tenantId, projectId: bootstrap.projectId,
+      packageId: bootstrap.packageId, canvasSessionId: bootstrap.canvasSessionId, commandId: generatedUuid(),
+      commandType: 'SAVE_CANVAS_DOCUMENT', requestedByActorId: commandContext.requestedByActorId, requestSource: 'user',
+      approvalId: null, payload: { documentId: document.documentId, expectedVersion: document.version, shots: document.shots, playlist: { shotIds } },
+      requestId: `req-canvas-${generatedUuid()}`, occurredAt: new Date().toISOString(),
+    });
+  };
+
   return (
     <div className="cv1-app">
       <CanvasHeader projectName={projectName} documentVersion={document.version} saveState={saveState} />
       {saveState === 'conflict' ? <div className="cv1-conflict" role="alert"><IconAlertTriangle size={16} />画布版本已更新，刷新后再继续编辑。</div> : null}
       <div className="cv1-workspace">
         <ShotRail shots={shots} activeShotId={activeShotId} taskEvents={taskEvents} onSelect={setActiveShot} />
-        <ProductionCanvas shot={activeShot} event={event} />
+        <div className="cv1-center-stage">
+          <ProductionCanvas shot={activeShot} event={event} />
+          <AssetDock assets={assetViews} open={assetDockOpen} onToggle={toggleAssetDock} onInspectBinding={openAssetBinding} />
+          <PlaylistStrip shots={shots} orderedShotIds={document.playlist.shotIds} onReorder={reorderPlaylist} />
+        </div>
         <aside className="cv1-inspector" aria-label="镜头检查器">
           <div className="cv1-section-heading"><div><span>生产检查</span><small>镜头 {String(activeShot.sequence).padStart(2, '0')}</small></div></div>
           <section className={`cv1-readiness ${canGenerate ? 'is-ready' : 'is-blocked'}`}>
@@ -141,6 +198,7 @@ export function CanvasV1Page({
             <strong>{activeShot.readiness.ready ? '镜头已就绪，可以生成' : '当前镜头暂不可生成'}</strong>
             {blockingReasons.length ? <ul>{blockingReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : <p>权利、审批、Provider 和项目绑定均已通过。</p>}
           </section>
+          <AssetReadinessPanel assets={assetViews} />
           {event?.status === 'failed' && event.error ? <div className="cv1-task-error" role="alert"><strong>任务失败</strong><p>{event.error.message}</p></div> : null}
           {taskRunning ? <div className="cv1-task-running" role="status"><IconLoader2 className="cv1-spin" size={16} /><span>正在生成镜头</span></div> : null}
           <label className="cv1-field">
@@ -151,6 +209,7 @@ export function CanvasV1Page({
           {!canGenerate && blockingReasons.length ? <p className="cv1-action-explain">请先处理：{blockingReasons[0]}</p> : null}
         </aside>
       </div>
+      <AssetBindingDrawer asset={bindingAsset} onClose={closeAssetBinding} onBind={bindAsset} />
     </div>
   );
 }
