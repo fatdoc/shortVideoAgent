@@ -65,7 +65,18 @@
       }
     },
     "legacyOpenRequest": {
-      "$ref": "#/$defs/canvasEntry"
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handle", "tenantId", "projectId", "packageId"],
+      "properties": {
+        "handle": {
+          "type": "string",
+          "pattern": "^ce_[A-Za-z0-9_-]{32,64}$"
+        },
+        "tenantId": { "$ref": "#/$defs/uuid" },
+        "projectId": { "$ref": "#/$defs/uuid" },
+        "packageId": { "$ref": "#/$defs/uuid" }
+      }
     },
     "legacyOpenResponse": {
       "type": "object",

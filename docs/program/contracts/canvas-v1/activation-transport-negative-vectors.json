@@ -76,6 +76,14 @@
       "expectedCode": "CANVAS_ACTIVATION_SCOPE_MISMATCH"
     },
     {
+      "id": "legacy-open-request-rejects-full-entry-fields",
+      "surface": "legacy-open-request",
+      "addField": {
+        "objectType": "CanvasEntry"
+      },
+      "expectedCode": "PILOT_CANVAS_ENTRY_INVALID"
+    },
+    {
       "id": "legacy-open-result-is-not-formal-bootstrap",
       "surface": "legacy-open-response",
       "replaceField": {

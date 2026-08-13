@@ -57,7 +57,10 @@ test("activation facade freezes explicit package and one in-memory attempt", () 
 });
 
 test("legacy open is distinct from formal CanvasBootstrap/0.1", () => {
-  assert.deepEqual(fixture.legacyOpenRequest, fixture.activationResponse.entry);
+  exact(fixture.legacyOpenRequest, ["handle", "tenantId", "projectId", "packageId"]);
+  for (const key of ["handle", "tenantId", "projectId", "packageId"]) {
+    assert.equal(fixture.legacyOpenRequest[key], fixture.activationResponse.entry[key]);
+  }
   exact(fixture.legacyOpenResponse, [
     "schemaVersion", "status", "projectId", "packageId", "canvasSessionId",
     "expiresAt", "requestId",
@@ -124,6 +127,7 @@ test("transport RED matrix freezes every activation and approval boundary", () =
     "idempotency-header-forbidden",
     "one-replay-authority",
     "exact-scope",
+    "legacy-open-request-rejects-full-entry-fields",
     "legacy-open-result-is-not-formal-bootstrap",
     "formal-bootstrap-rejects-legacy",
     "explicit-session-header",
@@ -140,7 +144,7 @@ test("transport RED matrix freezes every activation and approval boundary", () =
   for (const fragment of required) {
     assert.ok(ids.some((id) => id.includes(fragment)), `missing ${fragment}`);
   }
-  assert.equal(negative.vectors.length, 24);
+  assert.equal(negative.vectors.length, 25);
 });
 
 test("schema references existing domain contracts without redefining them", () => {
