@@ -12,7 +12,7 @@
 # Error details
 
 ```
-Error: [{"path":"/api/production/pilot/canvas/bootstrap","status":200,"code":null},{"path":"/api/production/pilot/canvas/bootstrap","status":409,"code":"PILOT_CANVAS_CONFLICT"},{"path":"/api/production/pilot/canvas/v1/bootstrap","status":401,"code":"CANVAS_SESSION_INVALID"}]
+Error: [{"path":"/api/production/pilot/canvas/bootstrap","status":200,"code":null},{"path":"/api/production/pilot/canvas/bootstrap","status":200,"code":null},{"path":"/api/production/pilot/canvas/v1/bootstrap","status":502,"code":"CANVAS_PROVIDER_FAILED"},{"path":"/api/production/pilot/canvas/v1/bootstrap","status":502,"code":"CANVAS_PROVIDER_FAILED"}]
 
 expect(received).toBe(expected) // Object.is equality
 
@@ -101,11 +101,6 @@ Received: false
 # Test source
 
 ```ts
-  83  |   page,
-  84  | }, testInfo) => {
-  85  |   expect(projectId).toMatch(UUID);
-  86  |   expect(packageId).toMatch(UUID);
-  87  |   expect(baseUrl.origin).toBe('http://127.0.0.1:5177');
   88  | 
   89  |   const consoleOutput: string[] = [];
   90  |   const pageErrors: string[] = [];
@@ -201,13 +196,13 @@ Received: false
   180 |     transportFacts.filter(({ path }) => path === '/api/production/pilot/canvas/bootstrap')
   181 |       .every(({ status }) => status === 200),
   182 |     JSON.stringify(transportFacts),
-> 183 |   ).toBe(true);
-      |     ^ Error: [{"path":"/api/production/pilot/canvas/bootstrap","status":200,"code":null},{"path":"/api/production/pilot/canvas/bootstrap","status":409,"code":"PILOT_CANVAS_CONFLICT"},{"path":"/api/production/pilot/canvas/v1/bootstrap","status":401,"code":"CANVAS_SESSION_INVALID"}]
+  183 |   ).toBe(true);
   184 |   expect(
   185 |     transportFacts.filter(({ path }) => path === '/api/production/pilot/canvas/v1/bootstrap')
   186 |       .every(({ status }) => status === 200),
   187 |     JSON.stringify(transportFacts),
-  188 |   ).toBe(true);
+> 188 |   ).toBe(true);
+      |     ^ Error: [{"path":"/api/production/pilot/canvas/bootstrap","status":200,"code":null},{"path":"/api/production/pilot/canvas/bootstrap","status":200,"code":null},{"path":"/api/production/pilot/canvas/v1/bootstrap","status":502,"code":"CANVAS_PROVIDER_FAILED"},{"path":"/api/production/pilot/canvas/v1/bootstrap","status":502,"code":"CANVAS_PROVIDER_FAILED"}]
   189 |   await expect(page.getByRole('status')).toBeHidden();
   190 |   await Promise.all(responseReads);
   191 |   expect(
