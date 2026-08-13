@@ -20,6 +20,7 @@ const contractDir = path.join(rootDir, "docs/program/contracts/canvas-v1");
 const matrix = JSON.parse(fs.readFileSync(path.join(contractDir, "negative-vectors.json"), "utf8"));
 const loadFixture = (fileName: string) =>
   JSON.parse(fs.readFileSync(path.join(contractDir, "fixtures", fileName), "utf8"));
+const amendmentFixtureFile = "shot-readiness-binding-missing.json";
 
 type Mutation = { op: "add" | "replace" | "remove"; path: string; value?: unknown };
 type ContractApi = {
@@ -101,6 +102,17 @@ test("frontend and backend preserve all nine canonical fixtures byte-for-data", 
     assert.deepEqual(frontend.parseCanvasV1Contract(fixture), fixture, `frontend ${objectType}`);
     assert.deepEqual(backend.parseCanvasV1Contract(fixture), frontend.parseCanvasV1Contract(fixture), objectType);
   }
+});
+
+test("frontend and backend accept the blocked missing-binding amendment fixture byte-for-data", () => {
+  const fixture = loadFixture(amendmentFixtureFile);
+  assert.equal(fixture.ready, false);
+  assert.equal(fixture.requirements[0].entityBindingStatus, null);
+  assert.deepEqual(fixture.requirements[0].reasonCodes, ["ENTITY_BINDING_MISSING"]);
+  assert.deepEqual(fixture.reasonCodes, ["ENTITY_BINDING_MISSING"]);
+  assert.deepEqual(backend.parseCanvasV1Contract(fixture), fixture);
+  assert.deepEqual(frontend.parseCanvasV1Contract(fixture), fixture);
+  assert.deepEqual(backend.parseCanvasV1Contract(fixture), frontend.parseCanvasV1Contract(fixture));
 });
 
 test("frontend and backend enforce the same browser-safe/server-only boundary", () => {

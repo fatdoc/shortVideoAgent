@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const contractDir = path.join(rootDir, "docs/program/contracts/canvas-v1");
 const fixtureDir = path.join(contractDir, "fixtures");
+const amendmentFixtureFile = "shot-readiness-binding-missing.json";
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 const schema = readJson(path.join(contractDir, "canvas-v1.schema.json"));
@@ -147,7 +148,7 @@ test("browser-safe fixtures contain no recursively nested authority key or secre
 
 test("all frozen negative vectors are unique, executable mutations with stable fail-closed codes", () => {
   assert.equal(matrix.schemaVersion, "canvas-v1-negative-vectors.v1");
-  assert.equal(matrix.vectors.length, 37);
+  assert.equal(matrix.vectors.length, 38);
   assert.equal(new Set(matrix.vectors.map((vector) => vector.id)).size, matrix.vectors.length);
   const allowedOperations = new Set([
     "parse",
@@ -177,6 +178,16 @@ test("all frozen negative vectors are unique, executable mutations with stable f
       assert.notDeepEqual(applyMutations(original, vector.relatedMutations), original, vector.id);
     }
   }
+});
+
+test("missing-binding amendment fixture is blocked with the frozen deterministic reason", () => {
+  const fixture = loadFixture(amendmentFixtureFile);
+  assert.equal(fixture.objectType, "ShotReadiness");
+  assert.equal(fixture.ready, false);
+  assert.equal(fixture.requirements.length, 1);
+  assert.equal(fixture.requirements[0].entityBindingStatus, null);
+  assert.deepEqual(fixture.requirements[0].reasonCodes, ["ENTITY_BINDING_MISSING"]);
+  assert.deepEqual(fixture.reasonCodes, ["ENTITY_BINDING_MISSING"]);
 });
 
 test("readiness reason precedence and positive recovery cases are deterministic", () => {
