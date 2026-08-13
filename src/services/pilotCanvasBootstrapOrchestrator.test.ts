@@ -99,6 +99,7 @@ function dependencies(
       contentApi: { readProductionEligibility, createProductionPackage },
       storyCanvasBridge: { open: bridgeOpen },
       packagePolicy: policy,
+      now: () => new Date('2026-08-13T15:03:00.000Z'),
     },
   };
 }
@@ -146,6 +147,28 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
     expect(deps.readProductionEligibility).toHaveBeenCalledTimes(1);
     expect(deps.createProductionPackage).toHaveBeenCalledTimes(1);
     expect(deps.bridgeOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an eligibility Project mismatch before Package creation', async () => {
+    const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
+    const deps = dependencies({
+      eligibility: {
+        ...eligibility,
+        projectId: '99999999-9999-4999-8999-999999999999',
+      },
+    });
+    const orchestrator = createPilotCanvasBootstrapOrchestrator(deps.value);
+
+    await expect(
+      orchestrator.open({ tenantId, projectId, bootstrapCycleId: 'route-cycle-scope' }),
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'PILOT_CANVAS_ELIGIBILITY_SCOPE_INVALID',
+      retryable: false,
+      requestId: null,
+    });
+    expect(deps.createProductionPackage).not.toHaveBeenCalled();
+    expect(deps.bridgeOpen).not.toHaveBeenCalled();
   });
 
   it('stops before Package creation when current Script and Storyboard are not eligible', async () => {
@@ -206,7 +229,7 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
       readFileSync(ORCHESTRATOR_SOURCE_PATH, 'utf8'),
     );
     expect(source).not.toMatch(
-      /storyCanvasBridge|controlPlaneMockAdapter|localStorage|sessionStorage|X-StoryCanvas-Demo-Grant/u,
+      /(?:from\s+['"]\.\/storyCanvasBridge(?:\.[cm]?[jt]sx?)?['"]|controlPlaneMockAdapter|localStorage|sessionStorage|X-StoryCanvas-Demo-Grant)/u,
     );
   });
 });
