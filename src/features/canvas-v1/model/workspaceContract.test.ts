@@ -4,15 +4,32 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CanvasWorkspaceContractError,
+  assertCanvasWorkspaceAuthorityMatchesRequest,
+  deriveCanvasShotRequirementId,
+  deriveCanvasTargetEntityId,
+  parseCanvasWorkspaceAuthorityRequestV01,
+  parseCanvasWorkspaceAuthorityV01,
+  parseCanvasWorkspaceBlockedErrorV01,
   parseCanvasWorkspaceV01,
+  selectPrimaryVirtualCharacter,
 } from './workspaceContract';
 
 type Mutation = { op: 'add' | 'replace' | 'remove'; path: string; value?: unknown };
-type Vector = { id: string; operation: string; mutations?: Mutation[]; expectedCode?: string };
+type Vector = {
+  id: string;
+  operation: string;
+  mutations?: Mutation[];
+  expectedCode?: string;
+  expectedOutcome?: string;
+  expectedValue?: string;
+  shotId?: string;
+};
 
 const contractRoot = path.resolve(process.cwd(), 'docs/program/contracts/canvas-v1');
 const fixture = JSON.parse(fs.readFileSync(path.join(contractRoot, 'fixtures/workspace-materialization.json'), 'utf8'));
 const matrix = JSON.parse(fs.readFileSync(path.join(contractRoot, 'workspace-materialization-negative-vectors.json'), 'utf8')) as { vectors: Vector[] };
+const authorityFixture = JSON.parse(fs.readFileSync(path.join(contractRoot, 'fixtures/workspace-authority.json'), 'utf8'));
+const authorityMatrix = JSON.parse(fs.readFileSync(path.join(contractRoot, 'workspace-authority-negative-vectors.json'), 'utf8')) as { vectors: Vector[] };
 
 function mutate<T>(value: T, mutations: Mutation[] = []): T {
   const output = structuredClone(value) as unknown;
@@ -58,5 +75,35 @@ describe('CanvasWorkspace/0.1 browser parser', () => {
   it('cannot accept the server-only materialization response', () => {
     expect(codeOf(() => parseCanvasWorkspaceV01(fixture.materializationResponse)))
       .toBe('CANVAS_WORKSPACE_BROWSER_UNSAFE');
+  });
+
+  it('matches Story for the authority-safe aggregate, casting and deterministic IDs', () => {
+    const request = parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest);
+    const response = parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+    expect(() => assertCanvasWorkspaceAuthorityMatchesRequest(response, request)).not.toThrow();
+    expect(parseCanvasWorkspaceBlockedErrorV01(fixture.workspaceError)).toEqual(fixture.workspaceError);
+    for (const vector of authorityMatrix.vectors) {
+      let actual: string | null = null;
+      if (vector.operation === 'parse-authority-request') {
+        actual = codeOf(() => parseCanvasWorkspaceAuthorityRequestV01(mutate(authorityFixture.authorityRequest, vector.mutations)));
+      } else if (vector.operation === 'parse-authority-response') {
+        actual = codeOf(() => parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)));
+      } else if (vector.operation === 'authority-response-match') {
+        actual = codeOf(() => assertCanvasWorkspaceAuthorityMatchesRequest(
+          parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)),
+          parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest),
+        ));
+      } else if (vector.operation === 'select-primary-virtual-character') {
+        actual = codeOf(() => selectPrimaryVirtualCharacter(
+          parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)),
+        ));
+        if (vector.expectedOutcome === 'selected_but_readiness_blocked') actual = actual ?? 'selected_but_readiness_blocked';
+      } else if (vector.operation === 'derive-target-entity-id') {
+        actual = deriveCanvasTargetEntityId(response, selectPrimaryVirtualCharacter(response).assetId);
+      } else if (vector.operation === 'derive-shot-requirement-id') {
+        actual = deriveCanvasShotRequirementId(response, vector.shotId!, selectPrimaryVirtualCharacter(response).assetId);
+      } else continue;
+      expect(actual, vector.id).toBe(vector.expectedCode ?? vector.expectedValue ?? vector.expectedOutcome);
+    }
   });
 });

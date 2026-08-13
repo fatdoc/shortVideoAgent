@@ -48,10 +48,8 @@ function magicMime(content) {
 test("additive schema references the frozen nine-object Canvas V1 domain instead of redefining it", () => {
   assert.equal(schema.additionalProperties, false);
   assert.deepEqual(Object.keys(schema.properties).sort(), [
-    "materializationError",
-    "materializationRequest",
-    "materializationResponse",
-    "workspaceResponse",
+    "materializationError", "materializationRequest", "materializationResponse",
+    "workspaceError", "workspaceResponse",
   ]);
   assert.equal(
     schema.$defs.canvasWorkspace.properties.bootstrap.$ref,
@@ -99,6 +97,15 @@ test("CanvasWorkspace/0.1 is a complete, browser-safe CanvasV1Page hydration env
   assert.equal(workspace.document.objectType, "CanvasDocument");
   assert.equal(workspace.bootstrap.document.documentId, workspace.document.documentId);
   assert.equal(workspace.bootstrap.document.version, workspace.document.version);
+});
+
+test("casting-blocked workspace is a fixed 409 error envelope, never partial success", () => {
+  exact(fixture.workspaceError, ["error"]);
+  exact(fixture.workspaceError.error, ["code", "message", "retryable", "requestId"]);
+  assert.ok(["PRIMARY_VIRTUAL_CHARACTER_MISSING", "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"]
+    .includes(fixture.workspaceError.error.code));
+  assert.equal(fixture.workspaceError.error.retryable, false);
+  assert.equal("workspace" in fixture.workspaceError, false);
 });
 
 test("workspace shot views are deterministic projections of approved and persisted facts", () => {
@@ -239,7 +246,8 @@ test("negative vectors freeze workspace, transport, content integrity and persis
     "noncanonical-padding", "preview-url",
     "same-request-replays", "response-loss", "unreadable-source", "checksum-drift",
     "never-echoes", "no-store", "unique-control-asset-mapping", "does-not-overwrite",
-    "changed-content-never-overwrites",
+    "changed-content-never-overwrites", "unknown-casting-code", "fixed-nonretryable",
+    "never-returns-partial-success",
   ];
   for (const fragment of required) {
     assert.ok(ids.some((id) => id.includes(fragment)), `missing negative coverage: ${fragment}`);

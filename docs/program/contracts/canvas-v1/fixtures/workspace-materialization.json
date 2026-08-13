@@ -84,7 +84,7 @@
           "shotId": "66666666-6666-4666-8666-666666666666",
           "position": 0,
           "selectedOutputAssetId": "13131313-1313-4313-8313-131313131313",
-          "prompt": "店员在明亮的门店入口介绍招牌套餐。",
+          "prompt": "门店讲解员站在明亮入口，向镜头介绍招牌套餐。",
           "updatedAt": "2026-08-14T02:01:00.000Z"
         }
       ],
@@ -112,11 +112,11 @@
             "projectId": "22222222-2222-4222-8222-222222222222",
             "packageId": "33333333-3333-4333-8333-333333333333",
             "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
-            "requirementId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            "requirementId": "a1795f30-1ab9-5faf-8c6a-14533f30b29f",
             "shotId": "66666666-6666-4666-8666-666666666666",
             "assetCategory": "virtual_character",
-            "entityId": "16161616-1616-4616-8616-161616161616",
-            "status": "satisfied",
+            "entityId": "c1d64353-4315-535e-aa18-9948be4a5d25",
+            "status": "required",
             "source": {
               "scriptId": "44444444-4444-4444-8444-444444444444",
               "scriptVersion": 3,
@@ -152,7 +152,7 @@
           },
           "requirements": [
             {
-              "requirementId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+              "requirementId": "a1795f30-1ab9-5faf-8c6a-14533f30b29f",
               "assetId": "88888888-8888-4888-8888-888888888888",
               "scopeMatched": true,
               "rightsStatus": "authorized",
@@ -211,7 +211,7 @@
         "providerStatus": "active",
         "entityBindingStatus": "approved",
         "controlledPreviewUrl": "/api/canvas-v1/assets/88888888-8888-4888-8888-888888888888/preview",
-        "targetEntityId": "16161616-1616-4616-8616-161616161616",
+        "targetEntityId": "c1d64353-4315-535e-aa18-9948be4a5d25",
         "materialization": {
           "status": "ready",
           "reasonCode": null
@@ -254,6 +254,14 @@
     "replayed": false,
     "requestId": "req-canvas-materialization-001",
     "occurredAt": "2026-08-14T02:06:00.100Z"
+  },
+  "workspaceError": {
+    "error": {
+      "code": "PRIMARY_VIRTUAL_CHARACTER_MISSING",
+      "message": "A primary virtual character is required.",
+      "retryable": false,
+      "requestId": "req-canvas-workspace-blocked-001"
+    }
   },
   "materializationError": {
     "error": {

@@ -43,6 +43,30 @@
         "WORKSPACE_CONTROLLED_MEDIA_INCOMPLETE"
       ]
     },
+    "workspaceBlockedErrorCode": {
+      "enum": [
+        "PRIMARY_VIRTUAL_CHARACTER_MISSING",
+        "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"
+      ]
+    },
+    "workspaceError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message", "retryable", "requestId"],
+          "properties": {
+            "code": { "$ref": "#/$defs/workspaceBlockedErrorCode" },
+            "message": { "type": "string", "minLength": 1, "maxLength": 160 },
+            "retryable": { "const": false },
+            "requestId": { "$ref": "#/$defs/requestId" }
+          }
+        }
+      }
+    },
     "materializationStatus": {
       "enum": ["not_started", "ready", "blocked", "unsupported"]
     },
@@ -358,12 +382,14 @@
   },
   "required": [
     "workspaceResponse",
+    "workspaceError",
     "materializationRequest",
     "materializationResponse",
     "materializationError"
   ],
   "properties": {
     "workspaceResponse": { "$ref": "#/$defs/canvasWorkspace" },
+    "workspaceError": { "$ref": "#/$defs/workspaceError" },
     "materializationRequest": { "$ref": "#/$defs/materializationRequest" },
     "materializationResponse": { "$ref": "#/$defs/materializationResponse" },
     "materializationError": { "$ref": "#/$defs/materializationError" }

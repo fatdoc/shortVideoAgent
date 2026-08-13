@@ -79,6 +79,25 @@
       "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
     },
     {
+      "id": "workspace-blocked-error-rejects-unknown-casting-code",
+      "operation": "parse-workspace-error",
+      "mutations": [{ "op": "replace", "path": "/error/code", "value": "PRIMARY_CHARACTER_UNKNOWN" }],
+      "expectedCode": "CANVAS_WORKSPACE_ERROR_INVALID"
+    },
+    {
+      "id": "workspace-blocked-error-is-fixed-nonretryable",
+      "operation": "parse-workspace-error",
+      "mutations": [{ "op": "replace", "path": "/error/retryable", "value": true }],
+      "expectedCode": "CANVAS_WORKSPACE_ERROR_INVALID"
+    },
+    {
+      "id": "workspace-casting-block-never-returns-partial-success",
+      "operation": "transport-only",
+      "httpStatus": 409,
+      "forbiddenOutcome": "partial CanvasWorkspace/0.1",
+      "expectedOutcome": "fixed_error_envelope"
+    },
+    {
       "id": "workspace-rejects-legacy-open-bootstrap",
       "operation": "parse-workspace",
       "mutations": [{ "op": "replace", "path": "/bootstrap", "value": { "schemaVersion": "pilot-canvas-bootstrap.v1", "status": "ready" } }],

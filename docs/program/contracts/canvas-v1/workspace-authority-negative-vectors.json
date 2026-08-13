@@ -1,0 +1,213 @@
+{
+  "schemaVersion": "canvas-v1-workspace-authority-negative-vectors.v1",
+  "fixture": "fixtures/workspace-authority.json",
+  "uuidV5": {
+    "namespace": "0f88cfb6-eef3-5961-8e78-c6f5aa24af6c",
+    "namespaceDerivation": {
+      "parentNamespace": "6ba7b811-9dad-11d1-80b4-00c04fd430c8",
+      "name": "https://videoagent.local/canvas-v1/workspace-authority/0.1"
+    },
+    "targetEntityCanonicalName": "target-entity|tenant={tenantId}|project={projectId}|package={packageId}|asset={assetId}|category=virtual_character",
+    "requirementCanonicalName": "shot-requirement|tenant={tenantId}|project={projectId}|package={packageId}|shot={shotId}|asset={assetId}|capability=video_generation",
+    "fixtureTargetEntityId": "c1d64353-4315-535e-aa18-9948be4a5d25",
+    "fixtureRequirementId": "a1795f30-1ab9-5faf-8c6a-14533f30b29f"
+  },
+  "assetCategoryOrder": [
+    "human", "virtual_character", "store", "product", "brand", "prop", "voice", "image", "video"
+  ],
+  "forbiddenAuthorityKeys": [
+    "storageReference", "checksum", "contentBase64", "providerAssetId", "providerGroupId",
+    "assetUri", "internalId", "internalToken", "accessToken", "authorization",
+    "productionPackage", "packageSnapshot", "payloadDigest", "signedUrl", "localPath"
+  ],
+  "vectors": [
+    {
+      "id": "authority-request-rejects-unknown-field",
+      "operation": "parse-authority-request",
+      "mutations": [{ "op": "add", "path": "/unexpected", "value": true }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_REQUEST_INVALID"
+    },
+    {
+      "id": "authority-request-requires-canonical-timestamp",
+      "operation": "parse-authority-request",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-02-30T02:03:00.000Z" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_REQUEST_INVALID"
+    },
+    {
+      "id": "authority-internal-auth-runs-before-json-parser",
+      "operation": "transport-only",
+      "requiredOrder": ["internal-auth", "body-limit", "json-parser", "strict-contract"],
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "authority-request-body-limit-is-16kib",
+      "operation": "transport-only",
+      "requestBodyLimitBytes": 16384,
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_REQUEST_TOO_LARGE"
+    },
+    {
+      "id": "authority-response-rejects-unknown-field",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "add", "path": "/unexpected", "value": true }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID"
+    },
+    {
+      "id": "authority-response-rejects-scope-mismatch",
+      "operation": "authority-response-match",
+      "mutations": [{ "op": "replace", "path": "/packageId", "value": "30303030-3030-4030-8030-303030303030" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_SCOPE_MISMATCH"
+    },
+    {
+      "id": "authority-response-project-is-minimal",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "add", "path": "/project/internalId", "value": "project-row-1" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_BROWSER_UNSAFE"
+    },
+    {
+      "id": "authority-approved-script-is-exact-id-and-version",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "add", "path": "/approvedScript/status", "value": "approved" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID"
+    },
+    {
+      "id": "authority-approved-storyboard-version-is-positive",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "replace", "path": "/approvedStoryboard/version", "value": 0 }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID"
+    },
+    {
+      "id": "authority-versions-query-exact-package-never-latest",
+      "operation": "transport-only",
+      "forbiddenSelection": ["latest", "createdAt DESC", "updatedAt DESC"],
+      "expectedOutcome": "exact_package_authority_only"
+    },
+    {
+      "id": "authority-assets-must-be-deterministically-ordered",
+      "operation": "parse-authority-response",
+      "mutations": [
+        { "op": "replace", "path": "/assets/0/category", "value": "store" },
+        { "op": "replace", "path": "/assets/1/category", "value": "virtual_character" }
+      ],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_ASSET_ORDER_INVALID"
+    },
+    {
+      "id": "authority-assets-reject-storage-reference",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "add", "path": "/assets/0/storageReference", "value": "asset://private/character.png" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_BROWSER_UNSAFE"
+    },
+    {
+      "id": "authority-assets-reject-checksum",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "add", "path": "/assets/0/checksum", "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_BROWSER_UNSAFE"
+    },
+    {
+      "id": "authority-assets-must-be-asset-record",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "replace", "path": "/assets/0/objectType", "value": "ProviderAssetBinding" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID"
+    },
+    {
+      "id": "authority-assets-must-match-request-scope",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "replace", "path": "/assets/0/projectId", "value": "30303030-3030-4030-8030-303030303030" }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_SCOPE_MISMATCH"
+    },
+    {
+      "id": "authority-completeness-cannot-be-false",
+      "operation": "parse-authority-response",
+      "mutations": [{ "op": "replace", "path": "/completeness/assets", "value": false }],
+      "expectedCode": "CANVAS_WORKSPACE_AUTHORITY_INCOMPLETE"
+    },
+    {
+      "id": "casting-zero-virtual-character-is-missing",
+      "operation": "select-primary-virtual-character",
+      "mutations": [{ "op": "remove", "path": "/assets/0" }],
+      "expectedCode": "PRIMARY_VIRTUAL_CHARACTER_MISSING"
+    },
+    {
+      "id": "casting-multiple-virtual-character-is-ambiguous",
+      "operation": "select-primary-virtual-character",
+      "mutations": [{ "op": "replace", "path": "/assets/1/category", "value": "virtual_character" }],
+      "expectedCode": "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"
+    },
+    {
+      "id": "casting-never-selects-first-sort-latest-or-name",
+      "operation": "transport-only",
+      "forbiddenSelection": ["first", "sort", "latest", "displayName"],
+      "expectedOutcome": "exact_count_only"
+    },
+    {
+      "id": "casting-unique-pending-asset-is-still-deterministic",
+      "operation": "select-primary-virtual-character",
+      "mutations": [
+        { "op": "replace", "path": "/assets/0/rights/status", "value": "pending" },
+        { "op": "replace", "path": "/assets/0/rights/reviewedAt", "value": null },
+        { "op": "replace", "path": "/assets/0/approval/status", "value": "pending" },
+        { "op": "replace", "path": "/assets/0/approval/reviewedByActorId", "value": null },
+        { "op": "replace", "path": "/assets/0/approval/reviewedAt", "value": null }
+      ],
+      "expectedOutcome": "selected_but_readiness_blocked"
+    },
+    {
+      "id": "target-entity-uuidv5-is-public-and-deterministic",
+      "operation": "derive-target-entity-id",
+      "expectedValue": "c1d64353-4315-535e-aa18-9948be4a5d25"
+    },
+    {
+      "id": "shot-requirement-uuidv5-is-public-and-deterministic",
+      "operation": "derive-shot-requirement-id",
+      "shotId": "66666666-6666-4666-8666-666666666666",
+      "expectedValue": "a1795f30-1ab9-5faf-8c6a-14533f30b29f"
+    },
+    {
+      "id": "prepare-requirement-status-is-always-required",
+      "operation": "transport-only",
+      "requiredValue": "required",
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "prepare-requirement-source-uses-authority-exact-versions",
+      "operation": "transport-only",
+      "requiredSource": ["approvedScript.scriptId", "approvedScript.version", "approvedStoryboard.storyboardId", "approvedStoryboard.version"],
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "prepare-never-auto-approves-entity-binding",
+      "operation": "transport-only",
+      "forbiddenOutcome": "EntityBinding.status=approved",
+      "expectedOutcome": "binding_missing_or_existing_authority_only"
+    },
+    {
+      "id": "initial-document-prompt-is-exact-storyboard-description",
+      "operation": "transport-only",
+      "forbiddenTransformation": ["AI rewrite", "script split", "fallback prompt"],
+      "expectedOutcome": "exact_description"
+    },
+    {
+      "id": "trusted-prepare-is-one-transaction",
+      "operation": "transport-only",
+      "requiredWrites": ["CanvasDocument", "ShotAssetRequirement", "ShotReadiness"],
+      "expectedOutcome": "atomic_before_workspace_get"
+    },
+    {
+      "id": "workspace-get-is-read-only",
+      "operation": "transport-only",
+      "forbiddenWrites": ["CanvasDocument", "ShotAssetRequirement", "ShotReadiness", "EntityBinding"],
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "casting-missing-workspace-is-fixed-409-not-partial-success",
+      "operation": "workspace-error",
+      "httpStatus": 409,
+      "expectedCode": "PRIMARY_VIRTUAL_CHARACTER_MISSING"
+    },
+    {
+      "id": "casting-ambiguous-workspace-is-fixed-409-not-partial-success",
+      "operation": "workspace-error",
+      "httpStatus": 409,
+      "expectedCode": "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"
+    }
+  ]
+}

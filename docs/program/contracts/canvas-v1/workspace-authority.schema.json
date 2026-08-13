@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://videoagent.local/contracts/canvas-v1/workspace-authority.schema.json",
+  "title": "Canvas V1 server-only workspace authority transport",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+      "format": "date-time"
+    },
+    "requestId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "canvasSessionId": {
+      "type": "string",
+      "pattern": "^pcs_[A-Za-z0-9_-]{24,128}$"
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objectType", "contractVersion", "tenantId", "projectId", "packageId",
+        "canvasSessionId", "actorId", "requestId", "occurredAt"
+      ],
+      "properties": {
+        "objectType": { "const": "CanvasWorkspaceAuthorityRequest" },
+        "contractVersion": { "const": "0.1" },
+        "tenantId": { "$ref": "#/$defs/uuid" },
+        "projectId": { "$ref": "#/$defs/uuid" },
+        "packageId": { "$ref": "#/$defs/uuid" },
+        "canvasSessionId": { "$ref": "#/$defs/canvasSessionId" },
+        "actorId": { "$ref": "#/$defs/uuid" },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "occurredAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "approvedVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version"],
+      "properties": {
+        "scriptId": { "$ref": "#/$defs/uuid" },
+        "storyboardId": { "$ref": "#/$defs/uuid" },
+        "version": { "type": "integer", "minimum": 1 }
+      },
+      "oneOf": [
+        { "required": ["scriptId"], "not": { "required": ["storyboardId"] } },
+        { "required": ["storyboardId"], "not": { "required": ["scriptId"] } }
+      ]
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objectType", "contractVersion", "tenantId", "projectId", "packageId",
+        "canvasSessionId", "project", "approvedScript", "approvedStoryboard",
+        "assets", "completeness", "requestId", "occurredAt"
+      ],
+      "properties": {
+        "objectType": { "const": "CanvasWorkspaceAuthority" },
+        "contractVersion": { "const": "0.1" },
+        "tenantId": { "$ref": "#/$defs/uuid" },
+        "projectId": { "$ref": "#/$defs/uuid" },
+        "packageId": { "$ref": "#/$defs/uuid" },
+        "canvasSessionId": { "$ref": "#/$defs/canvasSessionId" },
+        "project": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["projectName"],
+          "properties": {
+            "projectName": { "type": "string", "minLength": 1, "maxLength": 200 }
+          }
+        },
+        "approvedScript": { "$ref": "#/$defs/approvedVersion" },
+        "approvedStoryboard": { "$ref": "#/$defs/approvedVersion" },
+        "assets": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": { "$ref": "canvas-v1.schema.json#/$defs/assetRecord" }
+        },
+        "completeness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["project", "approvedScript", "approvedStoryboard", "assets"],
+          "properties": {
+            "project": { "const": true },
+            "approvedScript": { "const": true },
+            "approvedStoryboard": { "const": true },
+            "assets": { "const": true }
+          }
+        },
+        "requestId": { "$ref": "#/$defs/requestId" },
+        "occurredAt": { "$ref": "#/$defs/timestamp" }
+      }
+    },
+    "errorCode": {
+      "enum": [
+        "CANVAS_WORKSPACE_AUTHORITY_INTERNAL_AUTH_INVALID",
+        "CANVAS_WORKSPACE_AUTHORITY_REQUEST_INVALID",
+        "CANVAS_WORKSPACE_AUTHORITY_REQUEST_TOO_LARGE",
+        "CANVAS_WORKSPACE_AUTHORITY_SESSION_INVALID",
+        "CANVAS_WORKSPACE_AUTHORITY_SCOPE_MISMATCH",
+        "CANVAS_WORKSPACE_AUTHORITY_PACKAGE_NOT_FOUND",
+        "CANVAS_WORKSPACE_AUTHORITY_PROJECT_UNAVAILABLE",
+        "CANVAS_WORKSPACE_AUTHORITY_SCRIPT_UNAVAILABLE",
+        "CANVAS_WORKSPACE_AUTHORITY_STORYBOARD_UNAVAILABLE",
+        "CANVAS_WORKSPACE_AUTHORITY_ASSETS_INCOMPLETE",
+        "CANVAS_WORKSPACE_AUTHORITY_DEPENDENCY_UNAVAILABLE"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message", "retryable", "requestId"],
+          "properties": {
+            "code": { "$ref": "#/$defs/errorCode" },
+            "message": { "type": "string", "minLength": 1, "maxLength": 160 },
+            "retryable": { "type": "boolean" },
+            "requestId": { "$ref": "#/$defs/requestId" }
+          }
+        }
+      }
+    }
+  },
+  "required": ["authorityRequest", "authorityResponse", "authorityError"],
+  "properties": {
+    "authorityRequest": { "$ref": "#/$defs/request" },
+    "authorityResponse": { "$ref": "#/$defs/response" },
+    "authorityError": { "$ref": "#/$defs/error" }
+  }
+}

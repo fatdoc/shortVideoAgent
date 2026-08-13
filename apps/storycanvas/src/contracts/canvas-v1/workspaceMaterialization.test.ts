@@ -6,11 +6,18 @@ import test from "node:test";
 
 import {
   assertCanvasAssetMaterializationMatchesRequest,
+  assertCanvasWorkspaceAuthorityMatchesRequest,
   CanvasWorkspaceContractError,
   decideCanvasAssetMaterializationReplay,
+  deriveCanvasShotRequirementId,
+  deriveCanvasTargetEntityId,
   parseCanvasAssetMaterializationRequestV01,
   parseCanvasAssetMaterializationV01,
+  parseCanvasWorkspaceAuthorityRequestV01,
+  parseCanvasWorkspaceAuthorityV01,
+  parseCanvasWorkspaceBlockedErrorV01,
   parseCanvasWorkspaceV01,
+  selectPrimaryVirtualCharacter,
 } from "./workspaceMaterialization.js";
 
 type Mutation = { op: "add" | "replace" | "remove"; path: string; value?: unknown };
@@ -20,6 +27,8 @@ type Vector = {
   mutations?: Mutation[];
   expectedCode?: string;
   expectedOutcome?: string;
+  expectedValue?: string;
+  shotId?: string;
 };
 
 const rootDir = process.cwd().endsWith(path.join("apps", "storycanvas"))
@@ -28,6 +37,8 @@ const rootDir = process.cwd().endsWith(path.join("apps", "storycanvas"))
 const contractRoot = path.join(rootDir, "docs/program/contracts/canvas-v1");
 const fixture = JSON.parse(fs.readFileSync(path.join(contractRoot, "fixtures/workspace-materialization.json"), "utf8"));
 const matrix = JSON.parse(fs.readFileSync(path.join(contractRoot, "workspace-materialization-negative-vectors.json"), "utf8")) as { vectors: Vector[] };
+const authorityFixture = JSON.parse(fs.readFileSync(path.join(contractRoot, "fixtures/workspace-authority.json"), "utf8"));
+const authorityMatrix = JSON.parse(fs.readFileSync(path.join(contractRoot, "workspace-authority-negative-vectors.json"), "utf8")) as { vectors: Vector[] };
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -114,6 +125,43 @@ test("browser workspace parser never accepts the server-only materialization env
     codeOf(() => parseCanvasWorkspaceV01(fixture.materializationResponse)),
     "CANVAS_WORKSPACE_BROWSER_UNSAFE",
   );
+});
+
+test("Story parser accepts the canonical workspace authority transport and fixed workspace error", () => {
+  const request = parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest);
+  const response = parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+  assert.doesNotThrow(() => assertCanvasWorkspaceAuthorityMatchesRequest(response, request));
+  assert.deepEqual(parseCanvasWorkspaceBlockedErrorV01(fixture.workspaceError), fixture.workspaceError);
+});
+
+test("Story parser rejects every executable workspace authority vector with its stable code", () => {
+  for (const vector of authorityMatrix.vectors) {
+    let actual: string | null = null;
+    if (vector.operation === "parse-authority-request") {
+      actual = codeOf(() => parseCanvasWorkspaceAuthorityRequestV01(mutate(authorityFixture.authorityRequest, vector.mutations)));
+    } else if (vector.operation === "parse-authority-response") {
+      actual = codeOf(() => parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)));
+    } else if (vector.operation === "authority-response-match") {
+      actual = codeOf(() => assertCanvasWorkspaceAuthorityMatchesRequest(
+        parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)),
+        parseCanvasWorkspaceAuthorityRequestV01(authorityFixture.authorityRequest),
+      ));
+    } else if (vector.operation === "select-primary-virtual-character") {
+      actual = codeOf(() => selectPrimaryVirtualCharacter(
+        parseCanvasWorkspaceAuthorityV01(mutate(authorityFixture.authorityResponse, vector.mutations)),
+      ));
+      if (vector.expectedOutcome === "selected_but_readiness_blocked") actual = actual ?? "selected_but_readiness_blocked";
+    } else if (vector.operation === "derive-target-entity-id") {
+      const authority = parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+      actual = deriveCanvasTargetEntityId(authority, selectPrimaryVirtualCharacter(authority).assetId);
+    } else if (vector.operation === "derive-shot-requirement-id") {
+      const authority = parseCanvasWorkspaceAuthorityV01(authorityFixture.authorityResponse);
+      actual = deriveCanvasShotRequirementId(authority, vector.shotId!, selectPrimaryVirtualCharacter(authority).assetId);
+    } else {
+      continue;
+    }
+    assert.equal(actual, vector.expectedCode ?? vector.expectedValue ?? vector.expectedOutcome, vector.id);
+  }
 });
 
 function materializationForBytes(bytes: Buffer, mimeType: "image/jpeg" | "image/png" | "image/webp") {
