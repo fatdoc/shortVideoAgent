@@ -4,7 +4,7 @@
 >
 > Status: frozen input for G1 implementation
 >
-> Master Plan: `T0_CANVAS_V1_MASTER_PLAN.md` v0.2
+> Master Plan at original freeze: `T0_CANVAS_V1_MASTER_PLAN.md` v0.2
 >
 > Baseline: `9432c54574cac9eb7f3d8e952d158b46c22f0c64`
 
@@ -88,6 +88,15 @@ Frozen status sets:
 - provider: `processing | active | rejected | failed | unavailable`
 - entity binding: `pending | approved | rejected | revoked`
 - requirement: `required | satisfied | waived`
+
+G1 additive amendment `REQ-T0CV1-CV2-002` keeps the EntityBinding record status
+closed set unchanged, while making only
+`ShotReadiness.requirements[].entityBindingStatus` nullable. `null` uniquely
+means that no EntityBinding record exists and deterministically yields
+`ENTITY_BINDING_MISSING`; `pending` means a binding exists but has not been
+approved and yields `ENTITY_BINDING_PENDING`. CanvasBootstrap asset summaries
+remain non-null and unchanged. The contract version remains `0.1` because CV0
+accepted this as a freeze-defect repair before downstream contract publication.
 
 Provider adapters normalize external status strings into the lowercase closed
 set. Unknown, local, processing, failed and rejected provider states all fail

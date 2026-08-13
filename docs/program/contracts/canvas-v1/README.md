@@ -6,7 +6,7 @@
 >
 > Task: `T0-CV1-01`
 >
-> Status: `READY_FOR_GATE` (not `G1 ACCEPTED`)
+> Status: `G1 ACCEPTED`; additive amendment awaiting CV0/CV6 revalidation
 
 Canvas V1 adds nine strict aggregate contracts without modifying
 ProjectProductionPackage/0.3, ProjectGrant/0.2,
@@ -75,6 +75,12 @@ Business approval and entity binding:
 ```text
 pending | approved | rejected | revoked
 ```
+
+For an EntityBinding record and a CanvasBootstrap asset summary, the status is
+always one of that non-null closed set. For a ShotReadiness requirement only,
+`entityBindingStatus` is `EntityBindingStatus | null`: `null` means no binding
+exists and maps only to `ENTITY_BINDING_MISSING`; `pending` means a binding
+exists but awaits approval and maps to `ENTITY_BINDING_PENDING`.
 
 Provider status:
 
@@ -212,4 +218,5 @@ entirety by the browser parser.
 
 See `AUTHORITY_INVENTORY.md` for the full authority boundary and all eight
 accepted Wave 0 decisions. See `G1_HANDOFF.md` for evidence and downstream
-implementation starts.
+implementation starts. See `G1_AMENDMENT_REQ_T0CV1_CV2_002.md` for the additive
+missing-binding repair and revalidation evidence.
