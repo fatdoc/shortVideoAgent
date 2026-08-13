@@ -8,10 +8,17 @@ import { createAuthRouter } from './auth/routes.js';
 import { PostgresProjectPolicy } from './projects/policy.js';
 import { PostgresContentStore } from './projects/repository.js';
 import { createContentRouter } from './projects/routes.js';
+import { PostgresStoryboardAuthorityStore } from './storyboards/repository.js';
+import { createStoryboardRouter } from './storyboards/routes.js';
+import { StoryboardAuthorityService } from './storyboards/service.js';
 import { ProjectGrantTokenService } from './production/grantToken.js';
 import { PostgresProductionStore } from './production/repository.js';
 import { createProductionRouter } from './production/routes.js';
 import { createInternalProjectGrantRouter } from './production/internalRoutes.js';
+import { createInternalCanvasEntryRouter } from './canvasEntries/internalRoutes.js';
+import { PostgresCanvasEntryRepository } from './canvasEntries/repository.js';
+import { createCanvasEntryRouter } from './canvasEntries/routes.js';
+import { CanvasEntryService } from './canvasEntries/service.js';
 import { PostgresTermsRepository } from './terms/repository.js';
 import { TermsService } from './terms/service.js';
 import { createTermsRouter } from './terms/routes.js';
@@ -19,7 +26,7 @@ import { PostgresInvitationRepository } from './invitations/repository.js';
 import { InvitationService } from './invitations/service.js';
 import { InvitationPreviewRateLimiter } from './invitations/previewRateLimiter.js';
 import { createInvitationRouter } from './invitations/routes.js';
-import { UnavailableEmailVerification } from './registrations/emailVerification.js';
+import { createEmailVerification } from './registrations/emailVerification.js';
 import { RegistrationRateLimiter } from './registrations/rateLimiter.js';
 import { PostgresRegistrationRepository } from './registrations/repository.js';
 import { createRegistrationRouter } from './registrations/routes.js';
@@ -27,6 +34,18 @@ import { RegistrationService } from './registrations/service.js';
 import { PostgresPaymentFoundationRepository } from './payments/repository.js';
 import { createPaymentRouter } from './payments/routes.js';
 import { PaymentFoundationService } from './payments/service.js';
+import { PostgresCommercialChannelRepository } from './channels/repository.js';
+import { createCommercialChannelRouter } from './channels/routes.js';
+import { CommercialChannelService } from './channels/service.js';
+import { PostgresCommissionAuditRepository } from './commissions/repository.js';
+import { createCommissionAuditRouter } from './commissions/routes.js';
+import { CommissionAuditService } from './commissions/service.js';
+import { PostgresCommissionSettlementRepository } from './settlements/repository.js';
+import { createCommissionSettlementRouter } from './settlements/routes.js';
+import { CommissionSettlementService } from './settlements/service.js';
+import { PostgresMemberDirectoryRepository } from './members/repository.js';
+import { createMemberDirectoryRouter } from './members/routes.js';
+import { MemberDirectoryService } from './members/service.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -71,7 +90,7 @@ const invitationRouter = createInvitationRouter({
 const registrationRouter = createRegistrationRouter({
   service: new RegistrationService(
     new PostgresRegistrationRepository(database),
-    new UnavailableEmailVerification(),
+    createEmailVerification(),
     config.registrationIdempotencySecret,
   ),
   limiter: new RegistrationRateLimiter(
@@ -91,9 +110,43 @@ const paymentRouter = createPaymentRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const commercialChannelRouter = createCommercialChannelRouter({
+  service: new CommercialChannelService(new PostgresCommercialChannelRepository(database)),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
+const commissionAuditRouter = createCommissionAuditRouter({
+  service: new CommissionAuditService(new PostgresCommissionAuditRepository(database)),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
+const commissionSettlementRouter = createCommissionSettlementRouter({
+  service: new CommissionSettlementService(
+    new PostgresCommissionSettlementRepository(database),
+    config.rechargePaymentDigestSecret,
+  ),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
+const memberDirectoryRouter = createMemberDirectoryRouter({
+  service: new MemberDirectoryService(new PostgresMemberDirectoryRepository(database)),
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const projectPolicy = new PostgresProjectPolicy(database);
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
+const storyboardRouter = createStoryboardRouter({
+  service: new StoryboardAuthorityService(new PostgresStoryboardAuthorityStore(database)),
   policy: projectPolicy,
   resolveSession: (token) => authService.resolve(token),
   secureCookies: config.nodeEnv === 'production',
@@ -115,6 +168,21 @@ const productionRouter = createProductionRouter({
   secureCookies: config.nodeEnv === 'production',
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
+const canvasEntryService = new CanvasEntryService(
+  new PostgresCanvasEntryRepository(database, undefined, undefined, productionStore),
+  config.rechargePaymentDigestSecret,
+);
+const internalCanvasEntryRouter = createInternalCanvasEntryRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: canvasEntryService,
+});
+const canvasEntryRouter = createCanvasEntryRouter({
+  service: canvasEntryService,
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+});
 const app = createApp({
   appVersion: config.appVersion,
   nodeEnv: config.nodeEnv,
@@ -124,9 +192,16 @@ const app = createApp({
   invitationRouter,
   registrationRouter,
   internalProductionRouter,
+  internalCanvasEntryRouter,
   contentRouter,
+  storyboardRouter,
   productionRouter,
+  canvasEntryRouter,
   paymentRouter,
+  commercialChannelRouter,
+  commissionAuditRouter,
+  commissionSettlementRouter,
+  memberDirectoryRouter,
   trustProxy: config.trustProxy,
 });
 

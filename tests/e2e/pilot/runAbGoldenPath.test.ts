@@ -1,0 +1,553 @@
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { AB_GOLDEN_PATH_EVIDENCE_STEPS } from './abGoldenPathEvidenceContract.js';
+import {
+  AbGoldenPathRunnerError,
+  createLocalAbGoldenPathPreflightDependencies,
+  runAbGoldenPath,
+  validateAbGoldenPathEvidence,
+  type AbGoldenPathRunnerDependencies,
+} from './run-ab-golden-path.js';
+
+const BASELINE_COMMIT = 'a7f8021b80f540c69e4c45718b335ba2c0fca539';
+const DATABASE_URL =
+  'postgresql://pilot_user:FAKE_RUNNER_DB_PASSWORD@127.0.0.1:5432/videoagent_control_test';
+const FORBIDDEN = [
+  BASELINE_COMMIT,
+  DATABASE_URL,
+  'FAKE_RUNNER_SECRET_DO_NOT_USE',
+  '/private/tmp/fake-runner-path',
+];
+
+const CANVAS_SELECTORS = {
+  bootstrapAuthorityReady: 'pilot-storycanvas-boundary-ready',
+  realEditorLoaded: 'pilot-storycanvas-editor-loaded',
+};
+
+function semanticEvidenceResult(
+  stepTitles = AB_GOLDEN_PATH_EVIDENCE_STEPS,
+): Record<string, unknown> {
+  return {
+    status: 'passed',
+    steps: stepTitles.map((title) => ({ title })),
+  };
+}
+
+function environment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    PILOT_E2E: 'true',
+    PILOT_E2E_AB_GOLDEN_PATH: 'true',
+    PILOT_E2E_BROWSER_CHANNEL: 'chrome',
+    CONTROL_API_TEST_DATABASE_URL: DATABASE_URL,
+    JOINT_GATE_B_BASELINE_COMMIT: BASELINE_COMMIT,
+    ...overrides,
+  };
+}
+
+function runnerDependencies(overrides: Partial<AbGoldenPathRunnerDependencies> = {}): {
+  dependencies: AbGoldenPathRunnerDependencies;
+  calls: Record<
+    'exists' | 'ancestor' | 'attest' | 'consumer' | 'read' | 'reset' | 'spawn' | 'network',
+    number
+  >;
+} {
+  const calls = {
+    exists: 0,
+    ancestor: 0,
+    attest: 0,
+    consumer: 0,
+    read: 0,
+    reset: 0,
+    spawn: 0,
+    network: 0,
+  };
+  return {
+    dependencies: {
+      commitExists: async () => {
+        calls.exists += 1;
+        return true;
+      },
+      isCommitAncestor: async () => {
+        calls.ancestor += 1;
+        return true;
+      },
+      attestStoryCanvasTrackedBaseline: async () => {
+        calls.attest += 1;
+      },
+      hasBConsumerCapability: async () => {
+        calls.consumer += 1;
+        return false;
+      },
+      readGoldenPathInput: async () => {
+        calls.read += 1;
+        return '';
+      },
+      resetMigrateSeed: async () => {
+        calls.reset += 1;
+      },
+      createProcessHarness: () => {
+        calls.spawn += 1;
+        throw new Error('FAKE_PROCESS_MUST_NOT_START');
+      },
+      probeReadiness: async () => {
+        calls.network += 1;
+        return false;
+      },
+      ...overrides,
+    },
+    calls,
+  };
+}
+
+async function expectSafeCode(operation: Promise<unknown>, code: string): Promise<void> {
+  await assert.rejects(operation, (error: Error) => {
+    assert.equal(error.message, code);
+    assert.equal(error.stack, undefined);
+    for (const forbidden of FORBIDDEN) {
+      assert.doesNotMatch(
+        error.message,
+        new RegExp(forbidden.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+      );
+    }
+    return true;
+  });
+}
+
+test('rejects static environment failures before Git, file, database, process, or network work', async () => {
+  const probes = runnerDependencies();
+
+  await expectSafeCode(
+    runAbGoldenPath(environment({ PILOT_E2E_AB_GOLDEN_PATH: 'false' }), {
+      dependencies: probes.dependencies,
+    }),
+    'AB_GOLDEN_PATH_MODE_REQUIRED',
+  );
+
+  assert.deepEqual(probes.calls, {
+    exists: 0,
+    ancestor: 0,
+    attest: 0,
+    consumer: 0,
+    read: 0,
+    reset: 0,
+    spawn: 0,
+    network: 0,
+  });
+});
+
+test('requires commit object and ancestor evidence before the B consumer probe', async () => {
+  const missing = runnerDependencies({ commitExists: async () => false });
+  await expectSafeCode(
+    runAbGoldenPath(environment(), { dependencies: missing.dependencies }),
+    'JOINT_GATE_B_BASELINE_COMMIT_INVALID',
+  );
+  assert.deepEqual(missing.calls, {
+    exists: 0,
+    ancestor: 0,
+    attest: 0,
+    consumer: 0,
+    read: 0,
+    reset: 0,
+    spawn: 0,
+    network: 0,
+  });
+
+  const nonAncestor = runnerDependencies({ isCommitAncestor: async () => false });
+  await expectSafeCode(
+    runAbGoldenPath(environment(), { dependencies: nonAncestor.dependencies }),
+    'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR',
+  );
+  assert.equal(nonAncestor.calls.exists, 1);
+  assert.equal(nonAncestor.calls.attest, 0);
+  assert.equal(nonAncestor.calls.consumer, 0);
+  assert.equal(nonAncestor.calls.read, 0);
+  assert.equal(nonAncestor.calls.reset, 0);
+  assert.equal(nonAncestor.calls.spawn, 0);
+  assert.equal(nonAncestor.calls.network, 0);
+});
+
+test('fails closed on the current missing B consumer capability with zero deferred side effects', async () => {
+  const probes = runnerDependencies();
+
+  await expectSafeCode(
+    runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+    'AB_GOLDEN_PATH_B_CONSUMER_REQUIRED',
+  );
+
+  assert.deepEqual(probes.calls, {
+    exists: 1,
+    ancestor: 1,
+    attest: 1,
+    consumer: 1,
+    read: 0,
+    reset: 0,
+    spawn: 0,
+    network: 0,
+  });
+});
+
+test('remains NOT_IMPLEMENTED after a synthetic complete preflight and starts no deferred work', async () => {
+  const probes = runnerDependencies({ hasBConsumerCapability: async () => true });
+
+  await expectSafeCode(
+    runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+    'AB_GOLDEN_PATH_NOT_IMPLEMENTED',
+  );
+
+  assert.equal(probes.calls.exists, 1);
+  assert.equal(probes.calls.ancestor, 1);
+  assert.equal(probes.calls.attest, 1);
+  assert.equal(probes.calls.read, 0);
+  assert.equal(probes.calls.reset, 0);
+  assert.equal(probes.calls.spawn, 0);
+  assert.equal(probes.calls.network, 0);
+});
+
+test('uses only local shell-false Git probes and defaults the unfrozen B capability marker to false', async () => {
+  const invocations: Array<{
+    command: string;
+    args: string[];
+    options: { cwd: string; shell: false; stdio: 'ignore' };
+  }> = [];
+  const repositoryRoot = '/private/tmp/fake-runner-path';
+  const dependencies = createLocalAbGoldenPathPreflightDependencies({
+    repositoryRoot,
+    spawnSyncImpl: (command, args, options) => {
+      invocations.push({ command, args, options });
+      return { status: 0 };
+    },
+  });
+
+  assert.equal(await dependencies.commitExists(BASELINE_COMMIT), true);
+  assert.equal(await dependencies.isCommitAncestor(BASELINE_COMMIT), true);
+  await dependencies.attestStoryCanvasTrackedBaseline(BASELINE_COMMIT);
+  assert.equal(await dependencies.hasBConsumerCapability(BASELINE_COMMIT), false);
+  assert.deepEqual(invocations, [
+    {
+      command: 'git',
+      args: ['cat-file', '-e', `${BASELINE_COMMIT}^{commit}`],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+    {
+      command: 'git',
+      args: ['merge-base', '--is-ancestor', BASELINE_COMMIT, 'HEAD'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+    {
+      command: 'git',
+      args: ['diff', '--quiet', '--', 'apps/storycanvas'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+    {
+      command: 'git',
+      args: ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+    {
+      command: 'git',
+      args: ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+      options: { cwd: repositoryRoot, shell: false, stdio: 'ignore' },
+    },
+  ]);
+});
+
+test('rejects each expected StoryCanvas tracked difference before consumer or deferred work', async () => {
+  const diffCommands = [
+    ['diff', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+  ];
+
+  for (const dirtyIndex of diffCommands.keys()) {
+    const outcomes: Array<number | null> = [0, 0, 0];
+    outcomes[dirtyIndex] = 1;
+    const invocations: string[][] = [];
+    const local = createLocalAbGoldenPathPreflightDependencies({
+      repositoryRoot: '/private/tmp/fake-runner-path',
+      spawnSyncImpl: (_command, args) => {
+        invocations.push(args);
+        return { status: outcomes.shift() ?? null };
+      },
+    });
+    const probes = runnerDependencies({
+      attestStoryCanvasTrackedBaseline: local.attestStoryCanvasTrackedBaseline,
+    });
+
+    await expectSafeCode(
+      runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+      'JOINT_GATE_B_BASELINE_ATTESTATION_REQUIRED',
+    );
+
+    assert.deepEqual(invocations, diffCommands.slice(0, dirtyIndex + 1));
+    assert.equal(probes.calls.consumer, 0);
+    assert.equal(probes.calls.read, 0);
+    assert.equal(probes.calls.reset, 0);
+    assert.equal(probes.calls.spawn, 0);
+    assert.equal(probes.calls.network, 0);
+  }
+});
+
+test('fails closed when a StoryCanvas tracked Git diff probe is invalid', async () => {
+  const diffCommands = [
+    ['diff', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+  ];
+  const invalidOutcomes: Array<number | null | Error> = [
+    128,
+    null,
+    new Error(`fatal: baseline-secret ${BASELINE_COMMIT}`),
+  ];
+
+  for (const invalidIndex of diffCommands.keys()) {
+    for (const invalidOutcome of invalidOutcomes) {
+      const outcomes: Array<number | null | Error> = Array.from({ length: invalidIndex }, () => 0);
+      outcomes.push(invalidOutcome);
+      const invocations: string[][] = [];
+      const local = createLocalAbGoldenPathPreflightDependencies({
+        repositoryRoot: '/private/tmp/fake-runner-path',
+        spawnSyncImpl: (_command, args) => {
+          invocations.push(args);
+          const outcome = outcomes.shift();
+          if (outcome instanceof Error) throw outcome;
+          return { status: outcome ?? null };
+        },
+      });
+      const probes = runnerDependencies({
+        attestStoryCanvasTrackedBaseline: local.attestStoryCanvasTrackedBaseline,
+      });
+
+      await expectSafeCode(
+        runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+        'JOINT_GATE_B_BASELINE_COMMIT_INVALID',
+      );
+
+      assert.deepEqual(invocations, diffCommands.slice(0, invalidIndex + 1));
+      assert.equal(probes.calls.consumer, 0);
+      assert.equal(probes.calls.read, 0);
+      assert.equal(probes.calls.reset, 0);
+      assert.equal(probes.calls.spawn, 0);
+      assert.equal(probes.calls.network, 0);
+    }
+  }
+});
+
+test('uses Git diff rather than status so untracked StoryCanvas files remain outside attestation', async () => {
+  const invocations: string[][] = [];
+  const dependencies = createLocalAbGoldenPathPreflightDependencies({
+    repositoryRoot: '/private/tmp/fake-runner-path',
+    spawnSyncImpl: (_command, args) => {
+      invocations.push(args);
+      return { status: 0 };
+    },
+  });
+
+  await dependencies.attestStoryCanvasTrackedBaseline(BASELINE_COMMIT);
+
+  assert.deepEqual(invocations, [
+    ['diff', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--cached', '--quiet', '--', 'apps/storycanvas'],
+    ['diff', '--quiet', BASELINE_COMMIT, 'HEAD', '--', 'apps/storycanvas'],
+  ]);
+  assert.equal(
+    invocations.some(([command]) => command === 'status'),
+    false,
+  );
+});
+
+test('distinguishes a valid non-ancestor from invalid local Git ancestor probes', async () => {
+  const cases: Array<{
+    ancestorOutcome: number | null | Error;
+    expectedCode:
+      'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR' | 'JOINT_GATE_B_BASELINE_COMMIT_INVALID';
+  }> = [
+    { ancestorOutcome: 1, expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_NOT_ANCESTOR' },
+    { ancestorOutcome: 128, expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' },
+    { ancestorOutcome: null, expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID' },
+    {
+      ancestorOutcome: new Error(`fatal: baseline-secret ${BASELINE_COMMIT}`),
+      expectedCode: 'JOINT_GATE_B_BASELINE_COMMIT_INVALID',
+    },
+  ];
+
+  for (const { ancestorOutcome, expectedCode } of cases) {
+    const outcomes: Array<number | null | Error> = [0, ancestorOutcome];
+    const invocations: string[][] = [];
+    const local = createLocalAbGoldenPathPreflightDependencies({
+      repositoryRoot: '/private/tmp/fake-runner-path',
+      spawnSyncImpl: (_command, args) => {
+        invocations.push(args);
+        const outcome = outcomes.shift();
+        if (outcome instanceof Error) throw outcome;
+        return { status: outcome ?? null };
+      },
+    });
+    const probes = runnerDependencies({
+      commitExists: local.commitExists,
+      isCommitAncestor: local.isCommitAncestor,
+    });
+
+    await expectSafeCode(
+      runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+      expectedCode,
+    );
+
+    assert.deepEqual(invocations, [
+      ['cat-file', '-e', `${BASELINE_COMMIT}^{commit}`],
+      ['merge-base', '--is-ancestor', BASELINE_COMMIT, 'HEAD'],
+    ]);
+    assert.equal(probes.calls.consumer, 0);
+    assert.equal(probes.calls.attest, 0);
+    assert.equal(probes.calls.read, 0);
+    assert.equal(probes.calls.reset, 0);
+    assert.equal(probes.calls.spawn, 0);
+    assert.equal(probes.calls.network, 0);
+  }
+});
+
+test('reuses the frozen spec, report, and artifact oracles without declaring gate completion', async () => {
+  const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-ab-runner-evidence-'));
+  try {
+    const result = await validateAbGoldenPathEvidence({
+      specSource: `
+        import { test } from '@playwright/test';
+        test('synthetic evidence only', async () => { await Promise.resolve(); });
+      `,
+      playwrightReport: {
+        suites: [
+          {
+            title: 'A/B Golden Path evidence',
+            specs: [
+              {
+                title: 'synthetic evidence only',
+                tests: [
+                  {
+                    expectedStatus: 'passed',
+                    annotations: [],
+                    results: [semanticEvidenceResult()],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        stats: { expected: 1, skipped: 0, unexpected: 0, flaky: 0 },
+      },
+      artifactRoot,
+      secrets: [],
+      canvasSelectors: CANVAS_SELECTORS,
+    });
+
+    assert.deepEqual(result, { total: 1, expected: 1, passed: 1 });
+    assert.equal('gateComplete' in result, false);
+  } finally {
+    await rm(artifactRoot, { recursive: true, force: true });
+  }
+});
+
+test('rejects bootstrap authority as complete Golden Path evidence before artifact acceptance', async () => {
+  const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-ab-runner-bootstrap-only-'));
+  try {
+    await assert.rejects(
+      validateAbGoldenPathEvidence({
+        specSource: `
+          import { test } from '@playwright/test';
+          test('synthetic evidence only', async () => { await Promise.resolve(); });
+        `,
+        playwrightReport: {
+          suites: [
+            {
+              title: 'A/B Golden Path evidence',
+              specs: [
+                {
+                  title: 'synthetic evidence only',
+                  tests: [
+                    {
+                      expectedStatus: 'passed',
+                      annotations: [],
+                      results: [semanticEvidenceResult(AB_GOLDEN_PATH_EVIDENCE_STEPS.slice(0, 7))],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          stats: { expected: 1, skipped: 0, unexpected: 0, flaky: 0 },
+        },
+        artifactRoot,
+        secrets: [],
+        canvasSelectors: CANVAS_SELECTORS,
+      }),
+      (error: Error) => {
+        assert.equal(error.message, 'PILOT_E2E_REAL_EDITOR_EVIDENCE_REQUIRED');
+        assert.equal(error.stack, undefined);
+        assert.doesNotMatch(error.message, /bootstrap|selector|canvas/i);
+        return true;
+      },
+    );
+  } finally {
+    await rm(artifactRoot, { recursive: true, force: true });
+  }
+});
+
+test('rejects sensitive values embedded in an otherwise passing Playwright report', async () => {
+  const artifactRoot = await mkdtemp(join(tmpdir(), 'pilot-ab-runner-report-evidence-'));
+  const secret = 'FAKE_REPORT_RAW_GRANT_TOKEN_DO_NOT_USE_20260811';
+  try {
+    await assert.rejects(
+      validateAbGoldenPathEvidence({
+        specSource: `
+          import { test } from '@playwright/test';
+          test('synthetic evidence only', async () => { await Promise.resolve(); });
+        `,
+        playwrightReport: {
+          suites: [
+            {
+              title: 'A/B Golden Path evidence',
+              specs: [
+                {
+                  title: 'synthetic evidence only',
+                  tests: [
+                    {
+                      expectedStatus: 'passed',
+                      annotations: [],
+                      results: [{ status: 'passed', stdout: [{ text: secret }] }],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          stats: { expected: 1, skipped: 0, unexpected: 0, flaky: 0 },
+        },
+        artifactRoot,
+        secrets: [secret],
+        canvasSelectors: CANVAS_SELECTORS,
+      }),
+      (error: Error) => {
+        assert.equal(error.message, 'PILOT_E2E_IN_MEMORY_SECRET_LEAK');
+        assert.doesNotMatch(error.message, new RegExp(secret));
+        assert.doesNotMatch(error.message, /stdout|playwright/i);
+        return true;
+      },
+    );
+  } finally {
+    await rm(artifactRoot, { recursive: true, force: true });
+  }
+});
+
+test('normalizes unexpected runner failures to a fixed non-leaking code', async () => {
+  const probes = runnerDependencies({
+    commitExists: async () => {
+      throw new AbGoldenPathRunnerError('AB_GOLDEN_PATH_RUNNER_FAILED');
+    },
+  });
+
+  await expectSafeCode(
+    runAbGoldenPath(environment(), { dependencies: probes.dependencies }),
+    'JOINT_GATE_B_BASELINE_COMMIT_INVALID',
+  );
+});

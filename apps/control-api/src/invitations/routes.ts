@@ -29,6 +29,12 @@ const tenantCreateSchema = z
     idempotencyKey: idempotencyKeySchema,
   })
   .strict();
+const listQuerySchema = z
+  .object({
+    status: z.enum(['all', 'active', 'revoked', 'exhausted', 'expired']).default('all'),
+    limit: z.coerce.number().int().min(1).max(100).default(100),
+  })
+  .strict();
 const emptySchema = z.object({}).strict();
 
 type SessionResolution = { token?: string; session: PublicSession };
@@ -80,6 +86,10 @@ function sendError(response: Response, status: number, code: string, message: st
 
 function invalid(response: Response): void {
   sendError(response, 400, 'INVITATION_VALIDATION_FAILED', '邀请请求格式无效。');
+}
+
+function invalidQuery(response: Response): void {
+  sendError(response, 422, 'INVITATION_QUERY_INVALID', '邀请查询格式无效。');
 }
 
 function domainError(response: Response, caught: InvitationDomainError): void {
@@ -275,10 +285,19 @@ export function createInvitationRouter(options: InvitationRouterOptions): Router
     });
   });
 
-  router.get('/platform/invitations', async (_request, response: InvitationResponse, next) => {
+  router.get('/platform/invitations', async (request, response: InvitationResponse, next) => {
+    const parsed = listQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      invalidQuery(response);
+      return;
+    }
     await handle(response, next, async () => {
       requireOrganizationType(response, 'PLATFORM');
-      const invitations = await options.service.listInvitations(actor(response));
+      const invitations = await options.service.listInvitations(
+        actor(response),
+        parsed.data.status,
+        parsed.data.limit,
+      );
       response.status(200).json({ invitations: invitations.map(managementView) });
     });
   });
@@ -312,8 +331,9 @@ export function createInvitationRouter(options: InvitationRouterOptions): Router
     '/channels/:channelId/invitations',
     async (request, response: InvitationResponse, next) => {
       const parsedChannelId = uuidSchema.safeParse(request.params.channelId);
-      if (!parsedChannelId.success) {
-        invalid(response);
+      const parsed = listQuerySchema.safeParse(request.query);
+      if (!parsedChannelId.success || !parsed.success) {
+        invalidQuery(response);
         return;
       }
       await handle(response, next, async () => {
@@ -324,7 +344,11 @@ export function createInvitationRouter(options: InvitationRouterOptions): Router
         if (!actualChannelId || actualChannelId !== parsedChannelId.data) {
           throw new InvitationScopeConflictError();
         }
-        const invitations = await options.service.listInvitations(actor(response));
+        const invitations = await options.service.listInvitations(
+          actor(response),
+          parsed.data.status,
+          parsed.data.limit,
+        );
         response.status(200).json({ invitations: invitations.map(managementView) });
       });
     },
@@ -359,8 +383,9 @@ export function createInvitationRouter(options: InvitationRouterOptions): Router
     '/tenants/:tenantId/invitations',
     async (request, response: InvitationResponse, next) => {
       const parsedTenantId = uuidSchema.safeParse(request.params.tenantId);
-      if (!parsedTenantId.success) {
-        invalid(response);
+      const parsed = listQuerySchema.safeParse(request.query);
+      if (!parsedTenantId.success || !parsed.success) {
+        invalidQuery(response);
         return;
       }
       await handle(response, next, async () => {
@@ -371,7 +396,11 @@ export function createInvitationRouter(options: InvitationRouterOptions): Router
         ) {
           throw new InvitationScopeConflictError();
         }
-        const invitations = await options.service.listInvitations(actor(response));
+        const invitations = await options.service.listInvitations(
+          actor(response),
+          parsed.data.status,
+          parsed.data.limit,
+        );
         response.status(200).json({ invitations: invitations.map(managementView) });
       });
     },

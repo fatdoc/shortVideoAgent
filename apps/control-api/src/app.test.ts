@@ -106,6 +106,78 @@ describe('Control API health contract', () => {
     expect(response.body).toEqual({ mounted: true });
   });
 
+  it('mounts the independent Commercial Channel router under /api/v1', async () => {
+    const commercialChannelRouter = Router();
+    commercialChannelRouter.get('/channels/current', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      commercialChannelRouter,
+    });
+
+    const response = await request(application).get('/api/v1/channels/current');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent Commission audit router under /api/v1', async () => {
+    const commissionAuditRouter = Router();
+    commissionAuditRouter.get('/platform/commission-audit/calculations', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      commissionAuditRouter,
+    });
+
+    const response = await request(application).get(
+      '/api/v1/platform/commission-audit/calculations',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent Commission Settlement router under /api/v1', async () => {
+    const commissionSettlementRouter = Router();
+    commissionSettlementRouter.post('/platform/commission-settlements', (_request, response) => {
+      response.status(201).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      commissionSettlementRouter,
+    });
+
+    const response = await request(application)
+      .post('/api/v1/platform/commission-settlements')
+      .send({ paymentMode: 'TEST' });
+    expect(response.status).toBe(201);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent Member Directory router under /api/v1', async () => {
+    const memberDirectoryRouter = Router();
+    memberDirectoryRouter.get('/organizations/current/members', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      memberDirectoryRouter,
+    });
+
+    const response = await request(application).get('/api/v1/organizations/current/members');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
   it('mounts the independent Registration router under /api/v1', async () => {
     const registrationRouter = Router();
     registrationRouter.post('/public/registrations', (_request, response) => {
@@ -123,5 +195,88 @@ describe('Control API health contract', () => {
       .send({ test: true });
     expect(response.status).toBe(201);
     expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent Storyboard Authority router under /api/v1', async () => {
+    const storyboardRouter = Router();
+    storyboardRouter.get('/projects/:projectId/storyboard-versions', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      storyboardRouter,
+    });
+
+    const response = await request(application).get(
+      '/api/v1/projects/00000000-0000-4000-8000-000000000001/storyboard-versions',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent Canvas Entry router under /api/v1', async () => {
+    const canvasEntryRouter = Router();
+    canvasEntryRouter.get('/projects/:projectId/canvas-entries/:handle', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test-version',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      canvasEntryRouter,
+    });
+
+    const response = await request(application).get(
+      '/api/v1/projects/00000000-0000-4000-8000-000000000001/canvas-entries/ce_test',
+    );
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('mounts the independent internal Canvas Entry redemption router under /api/v1/internal', async () => {
+    const internalCanvasEntryRouter = Router();
+    internalCanvasEntryRouter.post('/canvas-entries/redeem', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const dependencies = {
+      appVersion: 'test-version',
+      nodeEnv: 'test' as const,
+      readinessProbe: async () => undefined,
+      internalCanvasEntryRouter,
+    };
+    const application = createApp(dependencies);
+
+    const response = await request(application)
+      .post('/api/v1/internal/canvas-entries/redeem')
+      .set('x-request-id', 'canvas-redemption-bootstrap-red')
+      .send({});
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+  });
+
+  it('fails closed when Storyboard and Canvas Entry routers are not registered', async () => {
+    const application = testApp(async () => undefined);
+    const [storyboardResponse, canvasEntryResponse] = await Promise.all([
+      request(application)
+        .get('/api/v1/projects/00000000-0000-4000-8000-000000000001/storyboard-versions')
+        .set('x-request-id', 'storyboard-not-registered'),
+      request(application)
+        .get('/api/v1/projects/00000000-0000-4000-8000-000000000001/canvas-entries/ce_missing')
+        .set('x-request-id', 'canvas-not-registered'),
+    ]);
+
+    expect(storyboardResponse.status).toBe(404);
+    expect(storyboardResponse.body.error).toMatchObject({
+      code: 'ROUTE_NOT_FOUND',
+      requestId: 'storyboard-not-registered',
+    });
+    expect(canvasEntryResponse.status).toBe(404);
+    expect(canvasEntryResponse.body.error).toMatchObject({
+      code: 'ROUTE_NOT_FOUND',
+      requestId: 'canvas-not-registered',
+    });
   });
 });

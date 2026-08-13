@@ -7,7 +7,9 @@ export type TermsActor = {
 };
 
 export type TermsDocumentStatus = 'active' | 'retired';
+export type TermsDocumentStatusFilter = TermsDocumentStatus | 'all';
 export type TermsVersionStatus = 'DRAFT' | 'PUBLISHED' | 'RETIRED';
+export type TermsVersionStatusFilter = TermsVersionStatus | 'all';
 export type TermsEvidenceChannel = 'web' | 'admin' | 'api';
 
 export type TermsDocument = {
@@ -72,6 +74,17 @@ export type UpdateTermsDraftInput = Omit<CreateTermsDraftInput, 'termsDocumentId
   effectiveAt?: Date | null;
 };
 
+export type ListTermsDocumentsInput = {
+  status: TermsDocumentStatusFilter;
+  limit: number;
+};
+
+export type ListTermsVersionsInput = {
+  termsDocumentId: string;
+  status: TermsVersionStatusFilter;
+  limit: number;
+};
+
 export type RecordTermsConsentInput = {
   userId: string;
   documentCode: string;
@@ -95,6 +108,8 @@ export type ReplayableResult<T> = {
 };
 
 export interface TermsStore {
+  listDocuments(input: ListTermsDocumentsInput): Promise<TermsDocument[]>;
+  listVersions(input: ListTermsVersionsInput): Promise<TermsVersion[]>;
   createDocument(input: CreateTermsDocumentInput): Promise<TermsDocument>;
   createDraft(input: CreateTermsDraftInput): Promise<TermsVersion>;
   updateDraft(termsVersionId: string, input: UpdateTermsDraftInput): Promise<TermsVersion>;

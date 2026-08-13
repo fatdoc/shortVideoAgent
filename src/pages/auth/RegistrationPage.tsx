@@ -17,6 +17,10 @@ import {
   type PublicRegistrationInput,
   type PublicRegistrationTerms,
 } from '../../services/publicRegistrationApi';
+import {
+  registrationEmailVerification,
+  type RegistrationEmailVerificationProvider,
+} from './registrationEmailVerification';
 import '../../design/d2-auth.css';
 
 type RegistrationApi = Pick<
@@ -24,9 +28,7 @@ type RegistrationApi = Pick<
   'loadCurrentTerms' | 'previewInvitation' | 'register'
 >;
 
-export interface EmailVerificationEvidenceProvider {
-  createEvidence(email: string): Promise<string>;
-}
+export type EmailVerificationEvidenceProvider = RegistrationEmailVerificationProvider;
 
 export interface RegistrationPageProps {
   api?: RegistrationApi;
@@ -51,17 +53,6 @@ interface PageError {
   requestId: string | null;
   retryAfterSeconds: number | null;
 }
-
-const unavailableEmailVerification: EmailVerificationEvidenceProvider = {
-  async createEvidence() {
-    throw new PublicRegistrationApiError(
-      'EMAIL_VERIFICATION_UNAVAILABLE',
-      '邮箱验证服务暂不可用。',
-      503,
-      null,
-    );
-  },
-};
 
 const invitationLabels: Record<PublicInvitationPreview['invitationType'], string> = {
   PLATFORM: '平台邀请注册',
@@ -112,7 +103,7 @@ function createIdempotencyKey(): string {
 
 export function RegistrationPage({
   api = publicRegistrationApi,
-  emailVerification = unavailableEmailVerification,
+  emailVerification = registrationEmailVerification,
   invitationToken = null,
   onLogin,
 }: RegistrationPageProps) {

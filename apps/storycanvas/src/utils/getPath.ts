@@ -12,7 +12,9 @@ export default (fileName?: string[] | string) => {
     const userDataDir: string = app.getPath("userData");
     basePath = path.join(userDataDir, "data");
   } else {
-    basePath = path.join(process.cwd(), "data");
+    basePath = process.env.STORYCANVAS_DATA_ROOT?.trim()
+      ? path.resolve(process.env.STORYCANVAS_DATA_ROOT.trim())
+      : path.join(process.cwd(), "data");
   }
   if (fileName) {
     let dbPath: string;

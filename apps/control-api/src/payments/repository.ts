@@ -1,5 +1,6 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
+import { calculateCommission, type CommissionRuleFacts } from './commissionCalculation.js';
 import {
   PaymentIdempotencyConflictError,
   PaymentOrderConflictError,
@@ -21,7 +22,16 @@ import type {
   ReplayableResult,
 } from './types.js';
 
-type RepositoryEntity = 'wallet' | 'order' | 'orderEvent' | 'paymentEvent';
+type RepositoryEntity =
+  | 'wallet'
+  | 'order'
+  | 'orderEvent'
+  | 'paymentEvent'
+  | 'creditLot'
+  | 'ledgerEntry'
+  | 'commissionOutcome'
+  | 'commissionAccrual'
+  | 'commissionReversal';
 
 type RechargeOrderRow = {
   recharge_order_id: string;
@@ -57,6 +67,7 @@ type PaymentEventRow = {
   received_at: Date | string;
   processing_status: PaymentEventProcessingStatus;
   error_code: PaymentEventErrorCode | null;
+  processed_at: Date | string | null;
 };
 
 type CreditConversionRuleRow = {
@@ -70,6 +81,45 @@ type CreditConversionRuleRow = {
 };
 
 type WalletRow = { wallet_id: string; tenant_id: string; status: string };
+
+type ReferralAttributionRow = {
+  referral_attribution_id: string;
+  referrer_channel_id: string | null;
+  status: string;
+  effective_from: Date | string;
+  protected_until: Date | string | null;
+  channel_organization_status: string | null;
+};
+
+type CommissionRuleRow = {
+  commission_rule_version_id: string;
+  rate_numerator: string | number;
+  rate_denominator: string | number;
+  rounding_mode: CommissionRuleFacts['roundingMode'];
+  refund_observation_days: number;
+};
+
+type CreditLotRow = {
+  credit_lot_id: string;
+  tenant_id: string;
+  wallet_id: string;
+  recharge_order_id: string;
+  lot_type: 'PURCHASED' | 'BONUS';
+  original_credits: string | number;
+};
+
+type CreditLedgerEntryRow = {
+  credit_lot_id: string | null;
+  operation: string;
+};
+
+type CommissionAccrualRow = {
+  commission_accrual_id: string;
+  basis_amount_minor: string | number;
+  commission_amount_minor: string | number;
+  currency: string;
+};
+
 type PostgresError = { code?: string; constraint?: string; message?: string };
 
 function postgresError(error: unknown): PostgresError {
@@ -90,6 +140,20 @@ function safeInteger(value: string | number, field: string): number {
     throw new Error(`${field} exceeds the supported safe integer range.`);
   }
   return normalized;
+}
+
+function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+    .join(',')}}`;
+}
+
+function digestSnapshot(snapshot: unknown): string {
+  return createHash('sha256').update(canonicalJson(snapshot), 'utf8').digest('hex');
 }
 
 function orderFromRow(row: RechargeOrderRow): RechargeOrder {
@@ -128,6 +192,7 @@ function paymentEventFromRow(row: PaymentEventRow): PaymentEvent {
     receivedAt: iso(row.received_at),
     processingStatus: row.processing_status,
     errorCode: row.error_code,
+    processedAt: row.processed_at === null ? null : iso(row.processed_at),
   };
 }
 
@@ -336,18 +401,26 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
           .where({ recharge_order_id: input.rechargeOrderId })
           .forUpdate()
           .first()) as RechargeOrderRow | undefined;
+        const reversalEvent =
+          input.eventType === 'refund_succeeded' || input.eventType === 'chargeback_succeeded';
+        const orderAmount = order ? safeInteger(order.amount_minor, 'Recharge Order amount') : null;
         if (
           !order ||
           order.payment_mode !== input.paymentMode ||
-          safeInteger(order.amount_minor, 'Recharge Order amount') !== input.amountMinor ||
+          (reversalEvent ? input.amountMinor > orderAmount! : input.amountMinor !== orderAmount) ||
           order.currency !== input.currency
         ) {
           throw new PaymentOrderConflictError();
         }
 
-        const [created] = (await transaction('control_plane.payment_events')
+        const wallet = (await transaction('control_plane.wallets')
+          .where({ wallet_id: order.wallet_id, tenant_id: order.tenant_id })
+          .forUpdate()
+          .first()) as WalletRow | undefined;
+        const paymentEventId = this.newId('paymentEvent');
+        const [received] = (await transaction('control_plane.payment_events')
           .insert({
-            payment_event_id: this.newId('paymentEvent'),
+            payment_event_id: paymentEventId,
             payment_mode: input.paymentMode,
             provider_code: input.providerCode,
             provider_event_id: input.providerEventId,
@@ -360,10 +433,147 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
             received_at: input.receivedAt,
             processing_status: 'received',
             error_code: null,
+            processed_at: null,
           })
           .returning('*')) as PaymentEventRow[];
-        if (!created) throw new Error('Payment Event insert returned no row.');
-        return { value: paymentEventFromRow(created), replayed: false };
+        if (!received) throw new Error('Payment Event insert returned no row.');
+
+        const finish = async (
+          processingStatus: 'applied' | 'rejected',
+          errorCode: PaymentEventErrorCode | null,
+        ): Promise<ReplayableResult<PaymentEvent>> => {
+          const [terminal] = (await transaction('control_plane.payment_events')
+            .where({ payment_event_id: paymentEventId })
+            .update({
+              processing_status: processingStatus,
+              error_code: errorCode,
+              processed_at: input.receivedAt,
+            })
+            .returning('*')) as PaymentEventRow[];
+          if (!terminal) throw new Error('Payment Event terminal update returned no row.');
+          return { value: paymentEventFromRow(terminal), replayed: false };
+        };
+
+        if (input.paymentMode !== 'TEST') {
+          return finish('rejected', 'unsupported_event_type');
+        }
+        if (!wallet || wallet.status !== 'active') {
+          return finish('rejected', 'wallet_unavailable');
+        }
+        if (reversalEvent) {
+          return this.applyFullTestPaymentReversal(
+            transaction,
+            order,
+            paymentEventId,
+            input,
+            finish,
+          );
+        }
+        if (input.eventType !== 'payment_succeeded') {
+          return finish('rejected', 'unsupported_event_type');
+        }
+        if (order.status !== 'created' && order.status !== 'pending') {
+          return finish('rejected', 'invalid_order_state');
+        }
+
+        const existingLot = await transaction('control_plane.credit_lots')
+          .select('credit_lot_id')
+          .where({ recharge_order_id: order.recharge_order_id })
+          .first();
+        if (existingLot) return finish('rejected', 'credit_issuance_conflict');
+
+        if (order.status === 'created') {
+          await transaction('control_plane.recharge_orders')
+            .where({ recharge_order_id: order.recharge_order_id })
+            .update({ status: 'pending' });
+          await transaction('control_plane.recharge_order_events').insert({
+            recharge_order_event_id: this.newId('orderEvent'),
+            recharge_order_id: order.recharge_order_id,
+            event_type: 'pending',
+            source_payment_event_id: null,
+            actor_type: 'system',
+            actor_id: input.providerCode,
+            reason_code: 'payment_processing_started',
+            occurred_at: input.receivedAt,
+            created_at: input.receivedAt,
+          });
+        }
+
+        const issueLot = async (
+          lotType: 'PURCHASED' | 'BONUS',
+          credits: number,
+          expiresAt: Date | null,
+        ): Promise<void> => {
+          const creditLotId = this.newId('creditLot');
+          await transaction('control_plane.credit_lots').insert({
+            credit_lot_id: creditLotId,
+            tenant_id: order.tenant_id,
+            wallet_id: order.wallet_id,
+            recharge_order_id: order.recharge_order_id,
+            source_payment_event_id: paymentEventId,
+            conversion_rule_version_id: order.conversion_rule_version_id,
+            lot_type: lotType,
+            original_credits: credits,
+            issued_at: input.occurredAt,
+            expires_at: expiresAt,
+            created_at: input.receivedAt,
+          });
+          await transaction('control_plane.credit_ledger_entries').insert({
+            ledger_entry_id: this.newId('ledgerEntry'),
+            tenant_id: order.tenant_id,
+            wallet_id: order.wallet_id,
+            reservation_id: null,
+            posting_group_id: paymentEventId,
+            operation: 'issue',
+            bucket: 'available',
+            delta: credits,
+            reference_type: 'recharge_order',
+            reference_id: order.recharge_order_id,
+            idempotency_key: `payment-event:${paymentEventId}:${lotType.toLowerCase()}`,
+            actor_type: 'system',
+            actor_id: input.providerCode,
+            reason_code:
+              lotType === 'PURCHASED' ? 'recharge_purchase_issued' : 'recharge_bonus_issued',
+            occurred_at: input.occurredAt,
+            created_at: input.receivedAt,
+            credit_lot_id: creditLotId,
+          });
+        };
+
+        await issueLot(
+          'PURCHASED',
+          safeInteger(order.purchased_credits, 'Recharge Order purchased credits'),
+          null,
+        );
+        const bonusCredits = safeInteger(order.bonus_credits, 'Recharge Order bonus credits');
+        if (bonusCredits > 0) {
+          if (order.bonus_expires_in_days === null) {
+            throw new Error('Recharge Order bonus expiry is unavailable.');
+          }
+          const bonusExpiresAt = new Date(
+            input.occurredAt.getTime() + order.bonus_expires_in_days * 24 * 60 * 60 * 1000,
+          );
+          await issueLot('BONUS', bonusCredits, bonusExpiresAt);
+        }
+
+        await transaction('control_plane.recharge_orders')
+          .where({ recharge_order_id: order.recharge_order_id })
+          .update({ status: 'paid' });
+        await transaction('control_plane.recharge_order_events').insert({
+          recharge_order_event_id: this.newId('orderEvent'),
+          recharge_order_id: order.recharge_order_id,
+          event_type: 'paid',
+          source_payment_event_id: paymentEventId,
+          actor_type: 'system',
+          actor_id: input.providerCode,
+          reason_code: 'payment_succeeded',
+          occurred_at: input.occurredAt,
+          created_at: input.receivedAt,
+        });
+
+        const applied = await finish('applied', null);
+        await this.appendCommissionCalculation(transaction, order, paymentEventId, input);
+        return applied;
       });
     } catch (error) {
       if (
@@ -384,6 +594,318 @@ export class PostgresPaymentFoundationRepository implements PaymentFoundationSto
       }
       throw error;
     }
+  }
+
+  private async applyFullTestPaymentReversal(
+    transaction: Knex.Transaction,
+    order: RechargeOrderRow,
+    paymentEventId: string,
+    input: ReceivePaymentEventRecord,
+    finish: (
+      processingStatus: 'applied' | 'rejected',
+      errorCode: PaymentEventErrorCode | null,
+    ) => Promise<ReplayableResult<PaymentEvent>>,
+  ): Promise<ReplayableResult<PaymentEvent>> {
+    if (order.status !== 'paid') return finish('rejected', 'invalid_order_state');
+    if (input.amountMinor !== safeInteger(order.amount_minor, 'Recharge Order amount')) {
+      return finish('rejected', 'partial_refund_unsupported');
+    }
+
+    const lots = (await transaction('control_plane.credit_lots')
+      .select(
+        'credit_lot_id',
+        'tenant_id',
+        'wallet_id',
+        'recharge_order_id',
+        'lot_type',
+        'original_credits',
+      )
+      .where({ recharge_order_id: order.recharge_order_id })
+      .orderBy('lot_type')
+      .forUpdate()) as CreditLotRow[];
+    const ledger = (await transaction('control_plane.credit_ledger_entries')
+      .select('credit_lot_id', 'operation')
+      .where({ wallet_id: order.wallet_id })
+      .forUpdate()) as CreditLedgerEntryRow[];
+    const reservations = await transaction('control_plane.credit_reservations')
+      .select('reservation_id')
+      .where({ wallet_id: order.wallet_id })
+      .forUpdate();
+
+    const expectedLots = new Map<'PURCHASED' | 'BONUS', number>([
+      ['PURCHASED', safeInteger(order.purchased_credits, 'Recharge Order purchased credits')],
+    ]);
+    const bonusCredits = safeInteger(order.bonus_credits, 'Recharge Order bonus credits');
+    if (bonusCredits > 0) expectedLots.set('BONUS', bonusCredits);
+
+    const lotIds = new Set(lots.map((lot) => lot.credit_lot_id));
+    const issueCountByLot = new Map<string, number>();
+    for (const entry of ledger) {
+      if (entry.operation !== 'issue') return finish('rejected', 'credit_reclaim_unsafe');
+      if (entry.credit_lot_id !== null && lotIds.has(entry.credit_lot_id)) {
+        issueCountByLot.set(
+          entry.credit_lot_id,
+          (issueCountByLot.get(entry.credit_lot_id) ?? 0) + 1,
+        );
+      }
+    }
+
+    const lotsAreComplete =
+      reservations.length === 0 &&
+      lots.length === expectedLots.size &&
+      lots.every(
+        (lot) =>
+          lot.tenant_id === order.tenant_id &&
+          lot.wallet_id === order.wallet_id &&
+          lot.recharge_order_id === order.recharge_order_id &&
+          safeInteger(lot.original_credits, 'Credit Lot original credits') ===
+            expectedLots.get(lot.lot_type) &&
+          issueCountByLot.get(lot.credit_lot_id) === 1,
+      );
+    if (!lotsAreComplete) return finish('rejected', 'credit_reclaim_unsafe');
+
+    const accruals = (await transaction('control_plane.commission_accruals')
+      .select('commission_accrual_id', 'basis_amount_minor', 'commission_amount_minor', 'currency')
+      .where({ recharge_order_id: order.recharge_order_id })
+      .orderBy('commission_accrual_id')
+      .forUpdate()) as CommissionAccrualRow[];
+    if (accruals.length > 1) return finish('rejected', 'commission_reversal_conflict');
+
+    const accrual = accruals[0] ?? null;
+    if (accrual !== null) {
+      const existingReversal = await transaction('control_plane.commission_reversals')
+        .select('commission_reversal_id')
+        .where({ commission_accrual_id: accrual.commission_accrual_id })
+        .forUpdate()
+        .first();
+      if (existingReversal) return finish('rejected', 'commission_reversal_conflict');
+      if (
+        safeInteger(accrual.basis_amount_minor, 'Commission Accrual basis') !== input.amountMinor ||
+        accrual.currency !== input.currency
+      ) {
+        return finish('rejected', 'commission_reversal_conflict');
+      }
+    }
+
+    const priorAppliedReversal = await transaction('control_plane.payment_events')
+      .select('payment_event_id')
+      .where({
+        recharge_order_id: order.recharge_order_id,
+        processing_status: 'applied',
+      })
+      .whereIn('event_type', ['refund_succeeded', 'chargeback_succeeded'])
+      .forUpdate()
+      .first();
+    if (priorAppliedReversal) return finish('rejected', 'invalid_order_state');
+
+    const applied = await finish('applied', null);
+    const reversalType = input.eventType === 'refund_succeeded' ? 'refund' : 'chargeback';
+    for (const lot of lots) {
+      await transaction('control_plane.credit_ledger_entries').insert({
+        ledger_entry_id: this.newId('ledgerEntry'),
+        tenant_id: order.tenant_id,
+        wallet_id: order.wallet_id,
+        reservation_id: null,
+        posting_group_id: paymentEventId,
+        operation: 'reclaim',
+        bucket: 'available',
+        delta: -safeInteger(lot.original_credits, 'Credit Lot original credits'),
+        reference_type: 'recharge_order',
+        reference_id: order.recharge_order_id,
+        idempotency_key: `payment-event:${paymentEventId}:${lot.lot_type.toLowerCase()}:reclaim`,
+        actor_type: 'system',
+        actor_id: input.providerCode,
+        reason_code:
+          reversalType === 'refund' ? 'recharge_refund_reclaimed' : 'recharge_chargeback_reclaimed',
+        occurred_at: input.occurredAt,
+        created_at: input.receivedAt,
+        credit_lot_id: lot.credit_lot_id,
+      });
+    }
+
+    if (accrual !== null) {
+      const commissionAmount = safeInteger(
+        accrual.commission_amount_minor,
+        'Commission Accrual amount',
+      );
+      const reversalSnapshot = {
+        schemaVersion: 'commission-reversal-v1',
+        sourcePaymentEventId: paymentEventId,
+        rechargeOrderId: order.recharge_order_id,
+        commissionAccrualId: accrual.commission_accrual_id,
+        reversalType,
+        basisAmountMinor: input.amountMinor,
+        commissionAmountMinor: commissionAmount,
+        currency: input.currency,
+      };
+      await transaction('control_plane.commission_reversals').insert({
+        commission_reversal_id: this.newId('commissionReversal'),
+        commission_accrual_id: accrual.commission_accrual_id,
+        source_payment_event_id: paymentEventId,
+        reversal_type: reversalType,
+        amount_minor: commissionAmount,
+        currency: input.currency,
+        reversal_snapshot: reversalSnapshot,
+        reversal_digest: digestSnapshot(reversalSnapshot),
+        occurred_at: input.occurredAt,
+        created_at: input.receivedAt,
+      });
+    }
+
+    const orderStatus = reversalType === 'refund' ? 'refunded' : 'disputed';
+    await transaction('control_plane.recharge_orders')
+      .where({ recharge_order_id: order.recharge_order_id })
+      .update({ status: orderStatus });
+    await transaction('control_plane.recharge_order_events').insert({
+      recharge_order_event_id: this.newId('orderEvent'),
+      recharge_order_id: order.recharge_order_id,
+      event_type: orderStatus,
+      source_payment_event_id: paymentEventId,
+      actor_type: 'system',
+      actor_id: input.providerCode,
+      reason_code:
+        reversalType === 'refund' ? 'payment_refund_succeeded' : 'payment_chargeback_succeeded',
+      occurred_at: input.occurredAt,
+      created_at: input.receivedAt,
+    });
+    return applied;
+  }
+
+  private async appendCommissionCalculation(
+    transaction: Knex.Transaction,
+    order: RechargeOrderRow,
+    paymentEventId: string,
+    input: ReceivePaymentEventRecord,
+  ): Promise<void> {
+    let attribution: ReferralAttributionRow | null = null;
+    if (order.attribution_snapshot_id !== null) {
+      attribution =
+        ((await transaction('control_plane.referral_attributions as attribution')
+          .leftJoin(
+            'control_plane.channels as channel',
+            'channel.channel_id',
+            'attribution.referrer_channel_id',
+          )
+          .leftJoin(
+            'control_plane.organizations as organization',
+            'organization.organization_id',
+            'channel.organization_id',
+          )
+          .select(
+            'attribution.referral_attribution_id',
+            'attribution.referrer_channel_id',
+            'attribution.status',
+            'attribution.effective_from',
+            'attribution.protected_until',
+            'organization.status as channel_organization_status',
+          )
+          .where({ 'attribution.referral_attribution_id': order.attribution_snapshot_id })
+          .forUpdate('attribution')
+          .first()) as ReferralAttributionRow | undefined) ?? null;
+    }
+
+    let matchingRules: CommissionRuleRow[] = [];
+    const attributionEligibleForRule =
+      attribution !== null &&
+      attribution.status === 'active' &&
+      attribution.referrer_channel_id !== null &&
+      input.occurredAt >= new Date(attribution.effective_from) &&
+      attribution.protected_until !== null &&
+      input.occurredAt < new Date(attribution.protected_until) &&
+      attribution.channel_organization_status === 'active';
+    if (attributionEligibleForRule) {
+      await transaction.raw('select pg_advisory_xact_lock(hashtextextended(?, 0))', [
+        `${input.paymentMode}:${input.currency}:DIRECT_ATTRIBUTION`,
+      ]);
+      matchingRules = (await transaction('control_plane.commission_rule_versions')
+        .select(
+          'commission_rule_version_id',
+          'rate_numerator',
+          'rate_denominator',
+          'rounding_mode',
+          'refund_observation_days',
+        )
+        .where({
+          payment_mode: input.paymentMode,
+          currency: input.currency,
+          status: 'ACTIVE',
+          scope_type: 'DIRECT_ATTRIBUTION',
+          basis_type: 'NET_PAID_AMOUNT',
+        })
+        .where('effective_at', '<=', input.occurredAt)
+        .where((builder) =>
+          builder.whereNull('retired_at').orWhere('retired_at', '>', input.occurredAt),
+        )
+        .orderBy('effective_at', 'desc')
+        .orderBy('commission_rule_version_id', 'desc')
+        .forUpdate()
+        .limit(2)) as CommissionRuleRow[];
+    }
+
+    const calculation = calculateCommission({
+      sourcePaymentEventId: paymentEventId,
+      rechargeOrderId: order.recharge_order_id,
+      frozenAttributionId: order.attribution_snapshot_id,
+      basisAmountMinor: input.amountMinor,
+      currency: input.currency,
+      occurredAt: input.occurredAt,
+      attribution:
+        attribution === null
+          ? null
+          : {
+              referralAttributionId: attribution.referral_attribution_id,
+              beneficiaryChannelId: attribution.referrer_channel_id,
+              status: attribution.status,
+              effectiveFrom: new Date(attribution.effective_from),
+              protectedUntil:
+                attribution.protected_until === null ? null : new Date(attribution.protected_until),
+              channelOrganizationStatus: attribution.channel_organization_status,
+            },
+      matchingRules: matchingRules.map((rule) => ({
+        commissionRuleVersionId: rule.commission_rule_version_id,
+        rateNumerator: rule.rate_numerator,
+        rateDenominator: rule.rate_denominator,
+        roundingMode: rule.rounding_mode,
+        refundObservationDays: rule.refund_observation_days,
+      })),
+    });
+
+    const calculationOutcomeId = this.newId('commissionOutcome');
+    await transaction('control_plane.commission_calculation_outcomes').insert({
+      commission_calculation_outcome_id: calculationOutcomeId,
+      source_payment_event_id: paymentEventId,
+      recharge_order_id: order.recharge_order_id,
+      referral_attribution_id: calculation.referralAttributionId,
+      beneficiary_channel_id: calculation.beneficiaryChannelId,
+      commission_rule_version_id: calculation.commissionRuleVersionId,
+      basis_amount_minor: input.amountMinor,
+      currency: input.currency,
+      outcome: calculation.outcome,
+      reason_code: calculation.reasonCode,
+      calculation_snapshot: calculation.snapshot,
+      calculation_digest: calculation.digest,
+      occurred_at: input.occurredAt,
+      created_at: input.receivedAt,
+    });
+
+    if (calculation.accrual === null) return;
+    await transaction('control_plane.commission_accruals').insert({
+      commission_accrual_id: this.newId('commissionAccrual'),
+      calculation_outcome_id: calculationOutcomeId,
+      source_payment_event_id: paymentEventId,
+      recharge_order_id: order.recharge_order_id,
+      referral_attribution_id: calculation.referralAttributionId,
+      beneficiary_channel_id: calculation.beneficiaryChannelId,
+      commission_rule_version_id: calculation.commissionRuleVersionId,
+      basis_amount_minor: input.amountMinor,
+      commission_amount_minor: calculation.accrual.commissionAmountMinor,
+      currency: input.currency,
+      eligible_at: calculation.accrual.eligibleAt,
+      calculation_snapshot: calculation.snapshot,
+      calculation_digest: calculation.digest,
+      occurred_at: input.occurredAt,
+      created_at: input.receivedAt,
+    });
   }
 
   private orderReplay(

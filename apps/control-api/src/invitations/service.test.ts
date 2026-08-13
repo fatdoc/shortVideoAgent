@@ -260,8 +260,13 @@ describe('InvitationService', () => {
     }));
     const invitations = service(store({ listByIssuerOrganization, revoke }));
 
-    await invitations.listInvitations(platformAdmin);
-    expect(listByIssuerOrganization).toHaveBeenCalledWith(platformOrganizationId, now);
+    await invitations.listInvitations(platformAdmin, 'active', 25);
+    expect(listByIssuerOrganization).toHaveBeenCalledWith({
+      issuerOrganizationId: platformOrganizationId,
+      asOf: now,
+      status: 'active',
+      limit: 25,
+    });
     await invitations.revokeInvitation(platformAdmin, invitationId);
     expect(revoke).toHaveBeenCalledWith({
       invitationId,
@@ -271,8 +276,27 @@ describe('InvitationService', () => {
     });
 
     await expect(
-      invitations.listInvitations({ ...tenantAdmin, roles: ['content_operator'] }),
+      invitations.listInvitations({ ...tenantAdmin, roles: ['content_operator'] }, 'all', 100),
     ).rejects.toBeInstanceOf(InvitationPermissionDeniedError);
+  });
+
+  it('rejects invalid list status or bounds before reaching the store', async () => {
+    const listByIssuerOrganization = vi.fn<InvitationStore['listByIssuerOrganization']>();
+    const invitations = service(store({ listByIssuerOrganization }));
+
+    await expect(
+      invitations.listInvitations(platformAdmin, 'pending' as never, 100),
+    ).rejects.toBeInstanceOf(InvitationValidationError);
+    await expect(invitations.listInvitations(platformAdmin, 'all', 0)).rejects.toBeInstanceOf(
+      InvitationValidationError,
+    );
+    await expect(invitations.listInvitations(platformAdmin, 'all', 101)).rejects.toBeInstanceOf(
+      InvitationValidationError,
+    );
+    await expect(invitations.listInvitations(platformAdmin, 'all', 1.5)).rejects.toBeInstanceOf(
+      InvitationValidationError,
+    );
+    expect(listByIssuerOrganization).not.toHaveBeenCalled();
   });
 
   it('uses a versioned digest for Preview and makes malformed or missing Tokens uniformly unavailable', async () => {

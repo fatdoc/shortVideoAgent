@@ -65,7 +65,6 @@ function validTenantSession(session: PilotSession): session is PilotSession & {
     session.tenant !== null &&
     session.activeContext.tenantId !== null &&
     session.tenant.id === session.activeContext.tenantId &&
-    session.activeContext.organizationId === session.activeContext.tenantId &&
     (session.roles.includes('tenant_admin') || session.roles.includes('content_operator'))
   );
 }

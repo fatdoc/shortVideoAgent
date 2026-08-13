@@ -2,31 +2,55 @@ import knex, { type Knex } from 'knex';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../app.js';
-import type { ProjectPolicy } from '../projects/policy.js';
 import { up as createPilotCore } from '../db/migrations/001_pilot_core.js';
-import { up as addSessionRotation } from '../db/migrations/002_auth_session_rotation.js';
 import { up as addContentTenantIntegrity } from '../db/migrations/003_content_tenant_integrity.js';
 import { up as addProductionPackageGrant } from '../db/migrations/004_production_package_grant.js';
 import { up as hardenProductionSecurity } from '../db/migrations/005_production_security_hardening.js';
-import { contractPayloadDigest, tokenDigest } from './digest.js';
+import { up as addStoryboardAuthority } from '../db/migrations/020_storyboard_authority.js';
+import { up as addProductionStoryboardAuthority } from '../db/migrations/022_production_storyboard_authority.js';
+import type { ProjectPolicy } from '../projects/policy.js';
+import { tokenDigest } from './digest.js';
 import { ProjectGrantTokenService } from './grantToken.js';
-import { createInternalProjectGrantRouter } from './internalRoutes.js';
 import { PostgresProductionStore } from './repository.js';
 import { createProductionRouter } from './routes.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
 const hasDedicatedTestDatabase = /_test$/.test(testDatabaseName);
-const tenantA = '10000000-0000-4000-8000-000000000001';
-const tenantB = '20000000-0000-4000-8000-000000000001';
-const userA = '10000000-0000-4000-8000-000000000002';
-const userB = '20000000-0000-4000-8000-000000000002';
-const projectA = '10000000-0000-4000-8000-000000000004';
-const briefA = '10000000-0000-4000-8000-000000000005';
-const scriptA = '10000000-0000-4000-8000-000000000006';
-const fixedNow = new Date('2026-08-05T01:00:00.000Z');
-const signingSecret = 'postgres-test-project-grant-secret-at-least-32-chars';
-const productionPlaneInternalToken = 'postgres-test-production-plane-internal-token-32-bytes';
+
+const tenantA = '25000000-0000-4000-8000-000000000001';
+const tenantB = '26000000-0000-4000-8000-000000000001';
+const userA = '25000000-0000-4000-8000-000000000002';
+const userB = '26000000-0000-4000-8000-000000000002';
+const projectA = '25000000-0000-4000-8000-000000000003';
+const briefA = '25000000-0000-4000-8000-000000000004';
+const scriptA = '25000000-0000-4000-8000-000000000005';
+const storyboardA = '25000000-0000-4000-8000-000000000006';
+const scriptApprovalA = '25000000-0000-4000-8000-000000000007';
+const storyboardApprovalA = '25000000-0000-4000-8000-000000000008';
+const storyboardRevocationA = '25000000-0000-4000-8000-000000000009';
+const scriptDigest = `sha256:${'a'.repeat(64)}`;
+const storyboardDigest = `sha256:${'b'.repeat(64)}`;
+const fixedNow = new Date('2026-08-11T06:00:00.000Z');
+const signingSecret = 'strict-http-project-grant-secret-at-least-32-chars';
+
+const publicPackageKeys = [
+  'objectType',
+  'contractVersion',
+  'tenantId',
+  'projectId',
+  'packageId',
+  'packageVersion',
+  'scriptVersionId',
+  'storyboardVersionId',
+  'capabilityRequirements',
+  'status',
+  'payloadDigest',
+  'approvedScriptDigest',
+  'approvedStoryboardDigest',
+  'createdAt',
+  'expiresAt',
+] as const;
 
 function session(tenantId: string, userId: string) {
   return {
@@ -35,7 +59,7 @@ function session(tenantId: string, userId: string) {
       tenant: { id: tenantId, displayName: 'Pilot Tenant' },
       roles: ['tenant_admin'] as const,
       activeContext: {
-        membershipId: `${userId}-membership`,
+        membershipId: `${userId.slice(0, -1)}3`,
         organizationId: tenantId,
         organizationType: 'TENANT' as const,
         organizationDisplayName: 'Pilot Tenant',
@@ -49,26 +73,162 @@ function session(tenantId: string, userId: string) {
   };
 }
 
-describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow', () => {
+function packageCommand() {
+  return {
+    scriptVersionId: scriptA,
+    storyboardVersionId: storyboardA,
+    capabilityRequirements: ['video.generate', 'media.export'],
+    expiresInSeconds: 3_600,
+  };
+}
+
+async function seedApprovedAuthority(database: Knex): Promise<void> {
+  await database('control_plane.projects').insert({
+    project_id: projectA,
+    tenant_id: tenantA,
+    name: 'Strict HTTP Project',
+    status: 'active',
+    platform: 'douyin',
+    aspect_ratio: '9:16',
+    target_duration_seconds: 30,
+    created_by: userA,
+  });
+  await database('control_plane.creative_briefs').insert({
+    brief_id: briefA,
+    tenant_id: tenantA,
+    project_id: projectA,
+    version: 1,
+    status: 'approved',
+    payload: {
+      objective: 'Create a controlled TEST production package.',
+      audience: ['pilot-reviewers'],
+      platforms: ['douyin'],
+      brandPolicySnapshot: {
+        facts: [],
+        prohibitedTerms: [],
+        requiredDisclosures: ['TEST only'],
+        sourceDigest: `sha256:${'c'.repeat(64)}`,
+      },
+    },
+    payload_digest: `sha256:${'d'.repeat(64)}`,
+    created_by: userA,
+  });
+  await database('control_plane.script_versions').insert({
+    script_version_id: scriptA,
+    tenant_id: tenantA,
+    project_id: projectA,
+    version: 1,
+    status: 'approved',
+    payload: {
+      content: 'Approved script authority content that is server-only.',
+      storyboard: [
+        {
+          shotId: 'legacy-script-fallback',
+          sequence: 1,
+          description: 'Legacy fallback that must not be used.',
+          durationSeconds: 30,
+          sourceMode: 'generated',
+        },
+      ],
+    },
+    payload_digest: scriptDigest,
+    created_by: userA,
+  });
+  await database('control_plane.script_approvals').insert({
+    approval_id: scriptApprovalA,
+    tenant_id: tenantA,
+    project_id: projectA,
+    script_version_id: scriptA,
+    status: 'approved',
+    fact_risk_status: 'cleared',
+    reason: 'Approved for TEST production.',
+    acted_by: userA,
+    acted_at: new Date('2026-08-11T05:55:00.000Z'),
+  });
+  await database('control_plane.storyboard_versions').insert({
+    storyboard_version_id: storyboardA,
+    tenant_id: tenantA,
+    project_id: projectA,
+    script_version_id: scriptA,
+    version: 1,
+    status: 'draft',
+    draft_revision_id: '25000000-0000-4000-8000-000000000010',
+    draft_revision_number: 1,
+    previous_draft_revision_id: null,
+    script_payload_digest: scriptDigest,
+    payload: {
+      shots: [
+        {
+          shotId: '25000000-0000-4000-8000-000000000011',
+          sequence: 1,
+          description: 'Approved storyboard shot that is server-only.',
+          durationSeconds: 30,
+          sourceMode: 'mixed',
+        },
+      ],
+    },
+    payload_digest: storyboardDigest,
+    provenance: {
+      objectType: 'StoryboardDraftRevision',
+      contractVersion: '0.2',
+      status: 'draft',
+      tenantId: tenantA,
+      projectId: projectA,
+      approvedScriptVersionId: scriptA,
+      approvedScriptDigest: scriptDigest,
+      draftRevisionId: '25000000-0000-4000-8000-000000000010',
+      revisionNumber: 1,
+      previousRevisionId: null,
+      sourceReceipt: {
+        providerId: 'storycanvas',
+        sourceSystem: 'storycanvas',
+        sourceContractVersion: '0.2',
+        commandId: '25000000-0000-4000-8000-000000000012',
+        receiptId: '25000000-0000-4000-8000-000000000013',
+        receiptDigest: `sha256:${'e'.repeat(64)}`,
+        receivedAt: '2026-08-11T05:50:00.000Z',
+      },
+      generationPolicy: { policyId: 'pilot.storyboard', policyVersion: '0.2.0' },
+      validationSummary: { status: 'passed', issueCodes: [] },
+      createdAt: '2026-08-11T05:51:00.000Z',
+    },
+    created_by: userA,
+  });
+  await database('control_plane.storyboard_approvals').insert({
+    storyboard_approval_id: storyboardApprovalA,
+    tenant_id: tenantA,
+    project_id: projectA,
+    storyboard_version_id: storyboardA,
+    status: 'approved',
+    fact_risk_status: 'cleared',
+    reason: 'Approved storyboard authority.',
+    idempotency_key: 'strict-http-storyboard-approval',
+    event_digest: `sha256:${'f'.repeat(64)}`,
+    acted_by: userA,
+    acted_at: new Date('2026-08-11T05:56:00.000Z'),
+  });
+  await database('control_plane.storyboard_versions')
+    .where({ storyboard_version_id: storyboardA })
+    .update({ status: 'approved' });
+}
+
+describe.runIf(hasDedicatedTestDatabase)('Strict Production Package v0.3 HTTP PostgreSQL', () => {
   let database: Knex;
   let app: ReturnType<typeof createApp>;
   let tokens: ProjectGrantTokenService;
-  let productionStore: PostgresProductionStore;
 
   beforeAll(async () => {
     database = knex({ client: 'pg', connection: databaseUrl });
     await database.raw('drop schema if exists control_plane cascade');
     await createPilotCore(database);
-    await addSessionRotation(database);
     await addContentTenantIntegrity(database);
     await addProductionPackageGrant(database);
     await hardenProductionSecurity(database);
-    tokens = new ProjectGrantTokenService(signingSecret, 'pilot-test-kid', () => fixedNow);
-    productionStore = new PostgresProductionStore(database, tokens, () => fixedNow);
-    const internalProductionRouter = createInternalProjectGrantRouter({
-      internalToken: productionPlaneInternalToken,
-      verifier: productionStore,
-    });
+    await addStoryboardAuthority(database);
+    await addProductionStoryboardAuthority(database);
+
+    tokens = new ProjectGrantTokenService(signingSecret, 'strict-http-kid', () => fixedNow);
+    const productionStore = new PostgresProductionStore(database, tokens, () => fixedNow);
     const projectPolicy: ProjectPolicy = {
       canCreateProject: async () => true,
       listVisibleProjectIds: async () => null,
@@ -89,7 +249,6 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       appVersion: 'test',
       nodeEnv: 'test',
       readinessProbe: async () => undefined,
-      internalProductionRouter,
       productionRouter,
     });
   });
@@ -99,13 +258,13 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
       truncate table
         control_plane.project_grants,
         control_plane.production_packages,
+        control_plane.storyboard_approvals,
+        control_plane.storyboard_versions,
         control_plane.script_approvals,
         control_plane.script_versions,
         control_plane.creative_briefs,
         control_plane.idempotency_records,
         control_plane.projects,
-        control_plane.auth_sessions,
-        control_plane.memberships,
         control_plane.users,
         control_plane.tenants
       restart identity cascade
@@ -117,160 +276,83 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     await database('control_plane.users').insert([
       {
         user_id: userA,
-        email: 'a@example.com',
-        display_name: 'A',
+        email: 'strict-http-a@example.com',
+        display_name: 'Strict HTTP A',
         password_hash: 'unused',
         status: 'active',
       },
       {
         user_id: userB,
-        email: 'b@example.com',
-        display_name: 'B',
+        email: 'strict-http-b@example.com',
+        display_name: 'Strict HTTP B',
         password_hash: 'unused',
         status: 'active',
       },
     ]);
-    await database('control_plane.memberships').insert([
-      {
-        membership_id: '10000000-0000-4000-8000-000000000003',
-        tenant_id: tenantA,
-        user_id: userA,
-        role_code: 'tenant_admin',
-        status: 'active',
-      },
-      {
-        membership_id: '20000000-0000-4000-8000-000000000003',
-        tenant_id: tenantB,
-        user_id: userB,
-        role_code: 'tenant_admin',
-        status: 'active',
-      },
-    ]);
+    await seedApprovedAuthority(database);
   });
 
   afterAll(async () => {
     await database?.destroy();
   });
 
-  async function seedContent(
-    projectId: string,
-    scriptId: string,
-    approval?: {
-      status: 'approved' | 'revoked' | 'blocked';
-      factRiskStatus: 'cleared' | 'unresolved';
-    },
-  ) {
-    const suffix = projectId.slice(-1);
-    await database('control_plane.projects').insert({
-      project_id: projectId,
-      tenant_id: tenantA,
-      name: `Pilot ${suffix}`,
-      status: 'active',
-      platform: 'douyin',
-      aspect_ratio: '9:16',
-      target_duration_seconds: 15,
-      created_by: userA,
-    });
-    await database('control_plane.creative_briefs').insert({
-      brief_id: projectId === projectA ? briefA : `10000000-0000-4000-8000-00000000001${suffix}`,
-      tenant_id: tenantA,
-      project_id: projectId,
-      version: 1,
-      status: 'draft',
-      payload: JSON.stringify({
-        objective: 'Produce one controlled-pilot vertical store video.',
-        audience: ['local-store-visitors'],
-        platforms: ['douyin'],
-        brandPolicySnapshot: {
-          facts: [
-            {
-              factId: `fact-${suffix}`,
-              text: 'Pilot fact from customer-provided source material.',
-              sourceReference: `customer-material:fact-${suffix}`,
-              approved: true,
-            },
-          ],
-          prohibitedTerms: ['unverified-superlative'],
-          requiredDisclosures: ['internal-controlled-pilot'],
-          sourceDigest: `sha256:${'1'.repeat(64)}`,
-        },
-      }),
-      payload_digest: `brief-${suffix}`,
-      created_by: userA,
-    });
-    await database('control_plane.script_versions').insert({
-      script_version_id: scriptId,
-      tenant_id: tenantA,
-      project_id: projectId,
-      version: 1,
-      status: 'draft',
-      payload: JSON.stringify({
-        content: 'Approved pilot script snapshot.',
-        storyboard: [
-          {
-            shotId: `shot-${suffix}`,
-            sequence: 1,
-            description: 'Opening store-context shot.',
-            durationSeconds: 5,
-            sourceMode: 'mixed',
-          },
-        ],
-      }),
-      payload_digest: `script-${suffix}`,
-      created_by: userA,
-    });
-    if (approval) {
-      await database('control_plane.script_approvals').insert({
-        approval_id: `10000000-0000-4000-8000-00000000002${suffix}`,
-        tenant_id: tenantA,
-        project_id: projectId,
-        script_version_id: scriptId,
-        status: approval.status,
-        fact_risk_status: approval.factRiskStatus,
-        acted_by: userA,
-        acted_at: new Date(fixedNow.getTime() - 60_000),
-      });
-    }
-  }
-
-  function packageRequest(targetProject = projectA, key = 'package-a-v1') {
+  function createPackage(key = 'strict-package-v03') {
     return request(app)
-      .post(`/api/v1/projects/${targetProject}/production-packages`)
+      .post(`/api/v1/projects/${projectA}/production-packages`)
       .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('x-request-id', `request-${key}`)
       .set('idempotency-key', key)
-      .send({
-        scriptVersionId: targetProject === projectA ? scriptA : targetProject.replace(/.$/, '6'),
-        capabilityRequirements: ['video.generate', 'media.export'],
-        expiresInSeconds: 21_600,
-      });
+      .send(packageCommand());
   }
 
-  function introspectGrant(grantToken: string) {
-    return request(app)
-      .post('/api/v1/internal/project-grants/introspect')
-      .set('x-production-plane-internal-token', productionPlaneInternalToken)
-      .set('authorization', `Bearer ${grantToken}`);
-  }
-
-  it('persists an immutable approved package and safely replays or rejects the command', async () => {
-    await seedContent(projectA, scriptA, { status: 'approved', factRiskStatus: 'cleared' });
-
-    const created = await packageRequest();
+  it('creates, reads, and replays only the exact public v0.3 projection', async () => {
+    const created = await createPackage();
     expect(created.status).toBe(201);
+    expect(created.headers['cache-control']).toBe('no-store');
+    expect(Object.keys(created.body)).toEqual(publicPackageKeys);
     expect(created.body).toMatchObject({
       objectType: 'ProjectProductionPackage',
-      contractVersion: '0.2',
+      contractVersion: '0.3',
       tenantId: tenantA,
       projectId: projectA,
       packageVersion: 1,
-      approvedScript: { scriptVersionId: scriptA, approvedBy: userA },
+      scriptVersionId: scriptA,
+      storyboardVersionId: storyboardA,
+      capabilityRequirements: ['video.generate', 'media.export'],
+      status: 'ready',
+      approvedScriptDigest: scriptDigest,
+      approvedStoryboardDigest: storyboardDigest,
     });
-    expect(created.body.payloadDigest).toBe(contractPayloadDigest(created.body));
+    expect(created.body.payloadDigest).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(created.text).not.toContain('Approved script authority content');
+    expect(created.text).not.toContain('Approved storyboard shot');
+    expect(created.body).not.toHaveProperty('snapshot');
+    expect(created.body).not.toHaveProperty('idempotencyKey');
 
-    const replay = await packageRequest();
+    const stored = await database('control_plane.production_packages')
+      .select('contract_version', 'approved_storyboard_version_id', 'snapshot')
+      .where({ package_id: created.body.packageId })
+      .first();
+    expect(stored).toMatchObject({
+      contract_version: '0.3',
+      approved_storyboard_version_id: storyboardA,
+    });
+    expect(JSON.stringify(stored.snapshot)).toContain('Approved script authority content');
+    expect(JSON.stringify(stored.snapshot)).toContain('Approved storyboard shot');
+
+    const read = await request(app)
+      .get(`/api/v1/projects/${projectA}/production-packages/${created.body.packageId as string}`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('x-request-id', 'strict-package-read');
+    expect(read.status).toBe(200);
+    expect(read.headers['cache-control']).toBe('no-store');
+    expect(Object.keys(read.body)).toEqual(publicPackageKeys);
+    expect(read.body).toEqual(created.body);
+
+    const replay = await createPackage();
     expect(replay.status).toBe(200);
     expect(replay.headers['idempotency-replayed']).toBe('true');
-    expect(replay.body.packageId).toBe(created.body.packageId);
+    expect(replay.body).toEqual(created.body);
     expect(
       await database('control_plane.production_packages').count('* as count').first(),
     ).toMatchObject({ count: '1' });
@@ -278,23 +360,16 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     const conflict = await request(app)
       .post(`/api/v1/projects/${projectA}/production-packages`)
       .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'package-a-v1')
-      .send({
-        scriptVersionId: scriptA,
-        capabilityRequirements: ['video.generate'],
-        expiresInSeconds: 21_600,
-      });
+      .set('x-request-id', 'strict-package-conflict')
+      .set('idempotency-key', 'strict-package-v03')
+      .send({ ...packageCommand(), capabilityRequirements: ['video.generate'] });
     expect(conflict.status).toBe(409);
-    expect(conflict.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
-
-    const crossTenant = await request(app)
-      .get(`/api/v1/projects/${projectA}/production-packages/${created.body.packageId as string}`)
-      .set('cookie', 'videoagent_session=tenant-b-session');
-    expect(crossTenant.status).toBe(403);
-    expect(crossTenant.body.error).toMatchObject({
-      code: 'PROJECT_SCOPE_MISMATCH',
-      message: 'Request scope is not authorized.',
-      details: {},
+    expect(conflict.body).toEqual({
+      error: {
+        code: 'IDEMPOTENCY_CONFLICT',
+        message: 'Request conflicts with an earlier request.',
+        requestId: 'strict-package-conflict',
+      },
     });
 
     await expect(
@@ -304,303 +379,104 @@ describe.runIf(hasDedicatedTestDatabase)('A05 PostgreSQL package/grant workflow'
     ).rejects.toThrow(/immutable/);
   });
 
-  it('binds idempotency to the path project for package and Grant commands', async () => {
-    const projectB = '10000000-0000-4000-8000-000000000007';
-    const scriptB = '10000000-0000-4000-8000-000000000008';
-    await seedContent(projectA, scriptA, { status: 'approved', factRiskStatus: 'cleared' });
-    await seedContent(projectB, scriptB, { status: 'approved', factRiskStatus: 'cleared' });
-
-    const packageResponse = await packageRequest();
-    expect(packageResponse.status).toBe(201);
-    const packageCrossProject = await request(app)
-      .post(`/api/v1/projects/${projectB}/production-packages`)
-      .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'package-a-v1')
-      .send({
-        scriptVersionId: scriptA,
-        capabilityRequirements: ['video.generate', 'media.export'],
-        expiresInSeconds: 21_600,
-      });
-    expect(packageCrossProject.status).toBe(409);
-    expect(packageCrossProject.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
-    expect(packageCrossProject.body.projectId).toBe(projectB);
-
-    const grantPayload = {
-      packageId: packageResponse.body.packageId as string,
-      requestedCapabilities: ['video.generate'],
-      requestedScopes: ['production.package.read', 'production.task.write'],
-      ttlSeconds: 600,
-    };
-    const grant = await request(app)
-      .post(`/api/v1/projects/${projectA}/production-grants`)
-      .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'grant-path-scope-v1')
-      .send(grantPayload);
-    expect(grant.status).toBe(201);
-    const grantCrossProject = await request(app)
-      .post(`/api/v1/projects/${projectB}/production-grants`)
-      .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'grant-path-scope-v1')
-      .send(grantPayload);
-    expect(grantCrossProject.status).toBe(409);
-    expect(grantCrossProject.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
-    expect(grantCrossProject.body.projectId).toBe(projectB);
-  });
-
-  it('blocks unapproved, revoked, blocked, and unresolved-risk scripts', async () => {
-    const cases = [
-      {
-        projectId: '10000000-0000-4000-8000-000000000011',
-        scriptId: '10000000-0000-4000-8000-000000000016',
-        approval: undefined,
-        reason: 'SCRIPT_NOT_APPROVED',
-      },
-      {
-        projectId: '10000000-0000-4000-8000-000000000012',
-        scriptId: '10000000-0000-4000-8000-000000000026',
-        approval: { status: 'revoked', factRiskStatus: 'cleared' } as const,
-        reason: 'APPROVAL_REVOKED',
-      },
-      {
-        projectId: '10000000-0000-4000-8000-000000000013',
-        scriptId: '10000000-0000-4000-8000-000000000036',
-        approval: { status: 'blocked', factRiskStatus: 'cleared' } as const,
-        reason: 'SCRIPT_BLOCKED',
-      },
-      {
-        projectId: '10000000-0000-4000-8000-000000000014',
-        scriptId: '10000000-0000-4000-8000-000000000046',
-        approval: { status: 'approved', factRiskStatus: 'unresolved' } as const,
-        reason: 'FACT_RISK_UNRESOLVED',
-      },
-    ];
-    for (const [index, item] of cases.entries()) {
-      await seedContent(item.projectId, item.scriptId, item.approval);
-      const response = await request(app)
-        .post(`/api/v1/projects/${item.projectId}/production-packages`)
-        .set('cookie', 'videoagent_session=tenant-a-session')
-        .set('idempotency-key', `ineligible-${index}`)
-        .send({
-          scriptVersionId: item.scriptId,
-          capabilityRequirements: ['video.generate'],
-        });
-      expect(response.status).toBe(403);
-      expect(response.body.error).toMatchObject({
-        code: 'CAPABILITY_SCOPE_DENIED',
-        details: { reasonCode: item.reason },
-      });
-    }
-    expect(
-      await database('control_plane.production_packages').count('* as count').first(),
-    ).toMatchObject({ count: '0' });
-  });
-
-  it('issues a minimal signed grant, stores no raw token, and rechecks approval', async () => {
-    await seedContent(projectA, scriptA, { status: 'approved', factRiskStatus: 'cleared' });
-    const packageResponse = await packageRequest();
-    const grantPayload = {
-      packageId: packageResponse.body.packageId as string,
-      requestedCapabilities: ['video.generate'],
-      requestedScopes: ['production.package.read', 'production.task.write'],
-      ttlSeconds: 600,
-    };
-    const issue = () =>
-      request(app)
-        .post(`/api/v1/projects/${projectA}/production-grants`)
-        .set('cookie', 'videoagent_session=tenant-a-session')
-        .set('idempotency-key', 'grant-a-v1')
-        .send(grantPayload);
-
-    const created = await issue();
+  it('returns one no-store 404 for cross-tenant and unknown Package reads', async () => {
+    const created = await createPackage('strict-package-cross-tenant');
     expect(created.status).toBe(201);
-    expect(created.headers['cache-control']).toBe('no-store');
-    expect(created.body.grant).toMatchObject({
-      objectType: 'ProjectGrant',
-      contractVersion: '0.2',
-      tenantId: tenantA,
-      projectId: projectA,
-      packageId: grantPayload.packageId,
-      capabilities: ['video.generate'],
-      scopes: ['production.package.read', 'production.task.write'],
-    });
-    expect(created.body.grant.payloadDigest).toBe(contractPayloadDigest(created.body.grant));
-    expect(created.body.grant.tokenDigest).toBe(tokenDigest(created.body.accessToken as string));
-    expect(tokens.verify(created.body.accessToken as string)).toMatchObject({
-      tenantId: tenantA,
-      projectId: projectA,
-      packageId: grantPayload.packageId,
-      capabilities: ['video.generate'],
-      scopes: ['production.package.read', 'production.task.write'],
-    });
-    await expect(
-      productionStore.verifyActiveGrantToken(created.body.accessToken as string),
-    ).resolves.toMatchObject({ jti: created.body.grant.grantId });
-    const activeIntrospection = await introspectGrant(created.body.accessToken as string);
-    expect(activeIntrospection.status).toBe(200);
-    expect(activeIntrospection.body).toEqual({
-      active: true,
-      grantId: created.body.grant.grantId,
-      tenantId: tenantA,
-      projectId: projectA,
-      packageId: grantPayload.packageId,
-      capabilities: ['video.generate'],
-      scopes: ['production.package.read', 'production.task.write'],
-      exp: Math.floor(new Date(created.body.grant.expiresAt as string).getTime() / 1000),
-    });
-    const forgedGrantId = '10000000-0000-4000-8000-000000000099';
-    const validClaims = tokens.verify(created.body.accessToken as string);
-    const mismatchedGrantToken = tokens.issue({ ...validClaims, jti: forgedGrantId });
-    const grantIdMismatch = await introspectGrant(mismatchedGrantToken);
-    expect(grantIdMismatch.status).toBe(401);
-    expect(grantIdMismatch.body.error).toMatchObject({
-      code: 'GRANT_INVALID',
-      message: 'Project authorization is invalid.',
-      details: {},
-    });
-    expect(grantIdMismatch.text).not.toContain(forgedGrantId);
 
-    const replay = await issue();
-    expect(replay.status).toBe(200);
-    expect(replay.body.accessToken).toBe(created.body.accessToken);
-    expect(
-      await database('control_plane.project_grants').count('* as count').first(),
-    ).toMatchObject({ count: '1' });
-    const persisted = JSON.stringify({
-      grants: await database('control_plane.project_grants').select('*'),
-      idempotency: await database('control_plane.idempotency_records')
-        .select('response_body')
-        .where({ operation: 'production.grant.issue' }),
-    });
-    expect(persisted).not.toContain(created.body.accessToken as string);
-    expect(persisted).not.toContain(signingSecret);
-
-    await database.raw(
-      'alter table control_plane.project_grants disable trigger project_grants_scope_immutable',
-    );
-    try {
-      await database('control_plane.project_grants')
-        .where({ grant_id: created.body.grant.grantId })
-        .update({ token_digest: `sha256:${'9'.repeat(64)}` });
-    } finally {
-      await database.raw(
-        'alter table control_plane.project_grants enable trigger project_grants_scope_immutable',
-      );
-    }
-    const digestMismatch = await introspectGrant(created.body.accessToken as string);
-    expect(digestMismatch.status).toBe(401);
-    expect(digestMismatch.body.error).toMatchObject({
-      code: 'GRANT_INVALID',
-      message: 'Project authorization is invalid.',
-      details: {},
-    });
-    await database.raw(
-      'alter table control_plane.project_grants disable trigger project_grants_scope_immutable',
-    );
-    try {
-      await database('control_plane.project_grants')
-        .where({ grant_id: created.body.grant.grantId })
-        .update({ token_digest: created.body.grant.tokenDigest });
-    } finally {
-      await database.raw(
-        'alter table control_plane.project_grants enable trigger project_grants_scope_immutable',
-      );
-    }
-
-    await expect(
-      database('control_plane.project_grants')
-        .where({ grant_id: created.body.grant.grantId })
-        .update({ status: 'revoked' }),
-    ).rejects.toThrow(/project_grants_status_revocation_ck/);
-    await database('control_plane.project_grants')
-      .where({ grant_id: created.body.grant.grantId })
-      .update({ status: 'revoked', revoked_at: fixedNow });
-    const revokedGrantReplay = await issue();
-    expect(revokedGrantReplay.status).toBe(401);
-    expect(revokedGrantReplay.body.error).toMatchObject({
-      code: 'GRANT_INVALID',
-      message: 'Project authorization is invalid.',
-      details: {},
-    });
-    await expect(
-      productionStore.verifyActiveGrantToken(created.body.accessToken as string),
-    ).rejects.toMatchObject({ code: 'GRANT_INVALID', status: 401 });
-    const revokedIntrospection = await introspectGrant(created.body.accessToken as string);
-    expect(revokedIntrospection.status).toBe(401);
-    expect(revokedIntrospection.body.error).toMatchObject({
-      code: 'GRANT_INVALID',
-      message: 'Project authorization is invalid.',
-      details: {},
-    });
-    await expect(
-      database('control_plane.project_grants')
-        .where({ grant_id: created.body.grant.grantId })
-        .delete(),
-    ).rejects.toThrow(/cannot be deleted/);
-
-    const storedGrant = await database('control_plane.project_grants')
-      .select('*')
-      .where({ grant_id: created.body.grant.grantId })
-      .first();
-    await expect(
-      database('control_plane.project_grants').insert({
-        ...storedGrant,
-        grant_id: '10000000-0000-4000-8000-000000000031',
-        idempotency_key: 'grant-invalid-db-bypass',
-        token_digest: `sha256:${'3'.repeat(64)}`,
-        payload_digest: `sha256:${'4'.repeat(64)}`,
-        nonce: '10000000-0000-4000-8000-000000000032',
-        capabilities: JSON.stringify(['tenant.admin']),
-        scopes: JSON.stringify(storedGrant.scopes),
-        status: 'active',
-        revoked_at: null,
-      }),
-    ).rejects.toThrow(/project_grants_capabilities_policy_ck/);
-
-    const overScoped = await request(app)
-      .post(`/api/v1/projects/${projectA}/production-grants`)
+    const crossTenant = await request(app)
+      .get(`/api/v1/projects/${projectA}/production-packages/${created.body.packageId as string}`)
+      .set('cookie', 'videoagent_session=tenant-b-session')
+      .set('x-request-id', 'strict-safe-404');
+    const unknown = await request(app)
+      .get(`/api/v1/projects/${projectA}/production-packages/25000000-0000-4000-8000-000000000099`)
       .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'grant-over-scope')
-      .send({
-        ...grantPayload,
-        requestedCapabilities: ['audio.tts'],
-      });
-    expect(overScoped.status).toBe(403);
-    expect(overScoped.body.error.code).toBe('CAPABILITY_SCOPE_DENIED');
+      .set('x-request-id', 'strict-safe-404');
 
-    const overPrivileged = await request(app)
-      .post(`/api/v1/projects/${projectA}/production-grants`)
-      .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'grant-over-privileged')
-      .send({
-        ...grantPayload,
-        requestedScopes: ['production.package.read', 'production.export.write'],
-      });
-    expect(overPrivileged.status).toBe(403);
-    expect(overPrivileged.body.error.code).toBe('CAPABILITY_SCOPE_DENIED');
+    expect(crossTenant.status).toBe(404);
+    expect(crossTenant.headers['cache-control']).toBe('no-store');
+    expect(crossTenant.body).toEqual(unknown.body);
+    expect(crossTenant.body).toEqual({
+      error: {
+        code: 'RESOURCE_NOT_FOUND',
+        message: 'Requested resource does not exist or is not accessible.',
+        requestId: 'strict-safe-404',
+      },
+    });
+  });
 
-    await database('control_plane.script_approvals').insert({
-      approval_id: '10000000-0000-4000-8000-000000000030',
+  it('maps stale Storyboard authority to 409 without returning the old package', async () => {
+    const created = await createPackage('strict-package-stale');
+    expect(created.status).toBe(201);
+
+    await database('control_plane.storyboard_approvals').insert({
+      storyboard_approval_id: storyboardRevocationA,
       tenant_id: tenantA,
       project_id: projectA,
-      script_version_id: scriptA,
+      storyboard_version_id: storyboardA,
       status: 'revoked',
       fact_risk_status: 'cleared',
-      reason: 'customer requested changes',
+      reason: 'Storyboard authority revoked.',
+      idempotency_key: 'strict-http-storyboard-revocation',
+      event_digest: `sha256:${'9'.repeat(64)}`,
       acted_by: userA,
       acted_at: fixedNow,
     });
-    const packageReplayAfterRevoke = await packageRequest();
-    expect(packageReplayAfterRevoke.status).toBe(403);
-    expect(packageReplayAfterRevoke.body.error.details.reasonCode).toBe('APPROVAL_REVOKED');
-    const grantReplayAfterApprovalRevoke = await issue();
-    expect(grantReplayAfterApprovalRevoke.status).toBe(403);
-    expect(grantReplayAfterApprovalRevoke.body.error.details.reasonCode).toBe('APPROVAL_REVOKED');
-    const revoked = await request(app)
+    await database('control_plane.storyboard_versions')
+      .where({ storyboard_version_id: storyboardA })
+      .update({ status: 'revoked' });
+
+    const replay = await createPackage('strict-package-stale');
+    expect(replay.status).toBe(409);
+    expect(replay.headers['cache-control']).toBe('no-store');
+    expect(replay.headers['idempotency-replayed']).toBeUndefined();
+    expect(replay.body).toEqual({
+      error: {
+        code: 'PRODUCTION_AUTHORITY_STALE',
+        message: 'Production authority is no longer current.',
+        requestId: 'request-strict-package-stale',
+      },
+    });
+    expect(replay.body).not.toHaveProperty('packageId');
+    expect(replay.text).not.toContain('STORYBOARD_APPROVAL_REVOKED');
+  });
+
+  it('keeps the existing Grant v0.2 success and token contract unchanged', async () => {
+    const packageResponse = await createPackage('strict-package-for-grant');
+    expect(packageResponse.status).toBe(201);
+
+    const grant = await request(app)
       .post(`/api/v1/projects/${projectA}/production-grants`)
       .set('cookie', 'videoagent_session=tenant-a-session')
-      .set('idempotency-key', 'grant-after-revoke')
-      .send(grantPayload);
-    expect(revoked.status).toBe(403);
-    expect(revoked.body.error.details.reasonCode).toBe('APPROVAL_REVOKED');
+      .set('x-request-id', 'strict-grant-unchanged')
+      .set('idempotency-key', 'strict-grant-v02')
+      .send({
+        packageId: packageResponse.body.packageId,
+        requestedCapabilities: ['video.generate'],
+        requestedScopes: ['production.package.read', 'production.task.write'],
+      });
+
+    expect(grant.status).toBe(201);
+    expect(grant.headers['cache-control']).toBe('no-store');
+    expect(grant.body).toMatchObject({
+      tokenType: 'Bearer',
+      accessToken: expect.any(String),
+      grant: {
+        objectType: 'ProjectGrant',
+        contractVersion: '0.2',
+        tenantId: tenantA,
+        projectId: projectA,
+        packageId: packageResponse.body.packageId,
+        capabilities: ['video.generate'],
+        scopes: ['production.package.read', 'production.task.write'],
+      },
+    });
+    expect(grant.body.grant.tokenDigest).toBe(tokenDigest(grant.body.accessToken as string));
+    expect(tokens.verify(grant.body.accessToken as string).contractVersion).toBe('0.2');
+
+    const storedGrant = await database('control_plane.project_grants')
+      .select('*')
+      .where({ grant_id: grant.body.grant.grantId })
+      .first();
+    expect(JSON.stringify(storedGrant)).not.toContain(grant.body.accessToken as string);
   });
 });

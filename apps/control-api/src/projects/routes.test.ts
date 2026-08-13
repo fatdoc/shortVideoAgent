@@ -1,10 +1,11 @@
+import { Router } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import type { PublicSession } from '../auth/service.js';
 import type { ProjectAccess, ProjectPolicy } from './policy.js';
-import { createContentRouter } from './routes.js';
-import type { ContentStore } from './types.js';
+import { createContentRouter, type ContentRouterOptions } from './routes.js';
+import type { ContentStore, ProductionEligibilityDecision } from './types.js';
 
 const tenantId = '10000000-0000-4000-8000-000000000001';
 const userId = '10000000-0000-4000-8000-000000000002';
@@ -98,6 +99,38 @@ function app(contentStore: ContentStore, projectPolicy: ProjectPolicy) {
 }
 
 describe('project HTTP context and policy boundary', () => {
+  it('falls through unrelated /api/v1 paths without resolving a Tenant session', async () => {
+    const contentStore = store();
+    const projectPolicy = policy('manager');
+    const resolveSession = vi.fn<ContentRouterOptions['resolveSession']>();
+    const contentRouter = createContentRouter({
+      store: contentStore,
+      policy: projectPolicy,
+      resolveSession,
+      secureCookies: false,
+      sessionTtlSeconds: 28_800,
+    });
+    const paymentRouter = Router();
+    paymentRouter.get('/platform/payment-events', (_request, response) => {
+      response.status(200).json({ mounted: true });
+    });
+    const application = createApp({
+      appVersion: 'test',
+      nodeEnv: 'test',
+      readinessProbe: async () => undefined,
+      contentRouter,
+      paymentRouter,
+    });
+
+    const response = await request(application).get('/api/v1/platform/payment-events');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ mounted: true });
+    expect(resolveSession).not.toHaveBeenCalled();
+    expect(projectPolicy.listVisibleProjectIds).not.toHaveBeenCalled();
+    expect(contentStore.listProjects).not.toHaveBeenCalled();
+  });
+
   it('rejects a PLATFORM context before invoking Policy or Tenant content store', async () => {
     const contentStore = store();
     const projectPolicy = policy('manager');
@@ -143,6 +176,70 @@ describe('project HTTP context and policy boundary', () => {
     expect(response.status).toBe(404);
     expect(response.body.error.code).toBe('PROJECT_NOT_FOUND');
     expect(contentStore.getProject).not.toHaveBeenCalled();
+  });
+
+  it('returns the exact dual-authority production eligibility DTO', async () => {
+    const contentStore = store();
+    const decision: ProductionEligibilityDecision = {
+      projectId,
+      eligible: true,
+      scriptVersionId: '10000000-0000-4000-8000-000000000005',
+      scriptVersion: 2,
+      storyboardVersionId: '10000000-0000-4000-8000-000000000006',
+      storyboardVersion: 3,
+      reasonCode: 'ELIGIBLE',
+      scriptApproval: {
+        id: '10000000-0000-4000-8000-000000000007',
+        projectId,
+        scriptVersionId: '10000000-0000-4000-8000-000000000005',
+        status: 'approved',
+        factRiskStatus: 'cleared',
+        reason: null,
+        actedBy: userId,
+        actedAt: '2026-08-11T00:00:00.000Z',
+      },
+      storyboardApproval: {
+        id: '10000000-0000-4000-8000-000000000008',
+        projectId,
+        storyboardVersionId: '10000000-0000-4000-8000-000000000006',
+        status: 'approved',
+        factRiskStatus: 'cleared',
+        reason: null,
+        actedBy: userId,
+        actedAt: '2026-08-11T00:01:00.000Z',
+      },
+    };
+    contentStore.getProductionEligibility = vi.fn(async () => decision);
+
+    const response = await request(app(contentStore, policy('manager')))
+      .get(`/api/v1/projects/${projectId}/production-eligibility`)
+      .set('cookie', 'videoagent_session=admin-session');
+
+    expect(response.status).toBe(200);
+    expect(Object.keys(response.body)).toEqual([
+      'projectId',
+      'eligible',
+      'scriptVersionId',
+      'scriptVersion',
+      'storyboardVersionId',
+      'storyboardVersion',
+      'reasonCode',
+      'scriptApproval',
+      'storyboardApproval',
+    ]);
+    expect(response.body).toEqual(decision);
+    expect(response.body).not.toHaveProperty('approval');
+  });
+
+  it('normalizes an unassigned production eligibility probe to a safe 404', async () => {
+    const contentStore = store();
+    const response = await request(app(contentStore, policy(null)))
+      .get(`/api/v1/projects/${projectId}/production-eligibility`)
+      .set('cookie', 'videoagent_session=operator-session');
+
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('PROJECT_NOT_FOUND');
+    expect(contentStore.getProductionEligibility).not.toHaveBeenCalled();
   });
 
   it('returns 403 and skips writes when a viewer can see but cannot edit a project', async () => {
