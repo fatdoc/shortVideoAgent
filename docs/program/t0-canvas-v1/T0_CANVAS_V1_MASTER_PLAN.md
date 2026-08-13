@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.12`
+> 版本：`v0.13`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -79,6 +79,9 @@ G5 Story Workspace/Materialization independent QA integrated head:
 
 G5 Shared Bridge/Router/Proxy independent QA integrated head:
 6032b2e56423ad586d7d38638a4cf81abf8be83b
+
+G6 safe no-provider browser independent QA integrated head:
+603caf90759020a2b02541f25e2c74d07e063589
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -442,7 +445,7 @@ raw Idempotency-Key
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
 | CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `ACCEPTED` | Control、Story 与 Shared Bridge/Router/Proxy 已独立验收 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 已独立验收；进入 G6 外部真实浏览器 Golden Path |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `BLOCKED` | G6 非付费真实浏览器切片已通过；等待真实 BytePlus/TOS 配置与付费 smoke 授权 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -578,7 +581,7 @@ Gate 状态：
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
 | G5 | `ACCEPTED` | Control、Story、Shared 同源 API/Bridge/Router/Proxy 均通过独立 Gate；历史 4 个 Shared RED 以真实产品实现转绿 |
-| G6 | `READY` | G5 已放行；待启动三服务、真实浏览器、真实项目与受控付费 smoke |
+| G6 | `BLOCKED` | 真实三服务、Chromium 双视口、刷新恢复与安全扫描已通过；缺 BytePlus/TOS 运行时配置，且未获付费 smoke 授权，无真实 task/output |
 
 状态词只使用：
 
@@ -816,8 +819,9 @@ G2、G3、G4 和 G5 已由 CV0 验收。当前进入 Wave 4 / G6 Delivery：
 4. CV3 已完成 12 个白名单 Agent tools，只读分析、资产计划和单镜头命令全部经同一 CanvasCommand Service
 5. CV1 冻结 browser-safe `CanvasWorkspace/0.1` 与 server-only `CanvasAssetMaterialization/0.1`
 6. CV2 已完成 formal bootstrap/workspace/materialization；CV5 已完成 Activation/Bridge/Proxy/Router
-7. CV6 已完成 G5 独立 Gate；下一步启动 Control、StoryCanvas、Vite 三服务执行真实浏览器链路
-8. 真实付费 Seedance smoke 只能在明确受控确认后执行；当前仍未调用 Provider
+7. CV6 已使用 dedicated PostgreSQL `_test`、Control、StoryCanvas、Vite 和真实 Chromium 完成双视口安全浏览器切片
+8. G6 期间修复并独立复验了 Session 重投影、同源 GET provenance、StrictMode 并发 Legacy Open 与 Formal Bootstrap
+9. 真实付费 Seedance smoke 只能在六项 BytePlus/TOS 配置通过非付费预检且用户明确确认后执行；当前仍未调用 Provider
 ```
 
 G1 证据：
@@ -852,6 +856,10 @@ G5 additive parser Gate:  facts 7; Story 7; parity/boundary 11; browser/UI 6 PAS
 G5 Shared Gate:           activation 6/6; static 7/7; runtime 7/7; historical 37/37 PASS
 G5 owner/root:            Shared owner 67/67; root 521/521 PASS
 G5 product status:        ACCEPTED; external browser and paid Provider remain G6
+G6 safe browser:          real 3-service Chromium 1440x900 + 1672x941 2/2 PASS
+G6 session recovery:      3/3 PASS; reload authority and document facts stable
+G6 no-provider result:    formal workspace hydrated; generation blocked; approval/command/provider 0
+G6 status:                BLOCKED; six BytePlus/TOS runtime settings and paid smoke authorization missing
 ```
 
 G0 已知基线事实：
@@ -871,6 +879,14 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.13 · 2026-08-14
+
+- 真实 Chromium 复现并修复 formal GET 缺少 `Origin`、StrictMode 并发 Legacy Open 200/409、并发 Formal Bootstrap 502，以及新 `pcs_*` 会话下 Provider/Entity authority 无法恢复；
+- 冻结浏览器 provenance 与并发 replay additive 合同；同源 formal GET 通过 Session、exact `pcs_*`、Fetch Metadata 与 Referer 组合验证，mutation 继续 exact Origin + CSRF；
+- 使用 dedicated `videoagent_control_test`、Control API、StoryCanvas、Vite 和真实 Chromium 完成 1440×900、1672×941 双视口验证，formal Workspace 加载、刷新恢复、无秘密泄漏均通过；
+- Provider 未配置时 UI 明确显示 Seedance unavailable，生成按钮禁用；approval、command、paid Provider 调用均为 0；
+- CV0 接受 `G6 SAFE NO-PROVIDER BROWSER` 切片，但 G6 整体标记 `BLOCKED`：当前环境缺少六项 BytePlus/TOS 配置，且尚未获得付费 smoke 授权，因此没有真实 task/output，Golden Path 仍未完成。
 
 ### v0.12 · 2026-08-14
 
