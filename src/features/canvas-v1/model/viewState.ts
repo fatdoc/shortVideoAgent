@@ -31,4 +31,3 @@ export const useCanvasV1ViewState = create<CanvasV1ViewState>((set) => ({
   closeAssetBinding: () => set({ bindingAssetId: null }),
   resetView: () => set(initialView),
 }));
-
