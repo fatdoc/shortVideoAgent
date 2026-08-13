@@ -211,7 +211,7 @@ const readinessRequirement = z.object({
   rightsStatus,
   approvalStatus,
   providerStatus,
-  entityBindingStatus,
+  entityBindingStatus: entityBindingStatus.nullable(),
   capabilityAvailable: z.boolean(),
   ready: z.boolean(),
   reasonCodes: z.array(reasonCode),
@@ -378,7 +378,8 @@ function readinessReasons(requirement: ShotReadinessV01["requirements"][number])
   if (requirement.rightsStatus !== "authorized") reasons.push(`RIGHTS_${requirement.rightsStatus.toUpperCase()}` as typeof reasons[number]);
   if (requirement.approvalStatus !== "approved") reasons.push(`ASSET_APPROVAL_${requirement.approvalStatus.toUpperCase()}` as typeof reasons[number]);
   if (requirement.providerStatus !== "active") reasons.push(`PROVIDER_${requirement.providerStatus.toUpperCase()}` as typeof reasons[number]);
-  if (requirement.entityBindingStatus !== "approved") reasons.push(`ENTITY_BINDING_${requirement.entityBindingStatus.toUpperCase()}` as typeof reasons[number]);
+  if (requirement.entityBindingStatus === null) reasons.push("ENTITY_BINDING_MISSING");
+  else if (requirement.entityBindingStatus !== "approved") reasons.push(`ENTITY_BINDING_${requirement.entityBindingStatus.toUpperCase()}` as typeof reasons[number]);
   if (!requirement.capabilityAvailable) reasons.push("CAPABILITY_UNAVAILABLE");
   return CANVAS_V1_REASON_CODES.filter((code) => reasons.includes(code));
 }

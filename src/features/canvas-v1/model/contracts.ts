@@ -191,7 +191,7 @@ export interface ReadinessRequirement {
   rightsStatus: RightsStatus;
   approvalStatus: ApprovalStatus;
   providerStatus: ProviderStatus;
-  entityBindingStatus: EntityBindingStatus;
+  entityBindingStatus: EntityBindingStatus | null;
   capabilityAvailable: boolean;
   ready: boolean;
   reasonCodes: ShotReadinessReasonCode[];
@@ -473,7 +473,7 @@ function parseReadiness(value: unknown): ShotReadinessV01 {
     const entry = exact(item, ['requirementId', 'assetId', 'scopeMatched', 'rightsStatus', 'approvalStatus', 'providerStatus', 'entityBindingStatus', 'capabilityAvailable', 'ready', 'reasonCodes']);
     uuid(entry.requirementId); const assetId = nullable(entry.assetId, uuid); const scopeMatched = bool(entry.scopeMatched);
     const rights = enumeration(entry.rightsStatus, RIGHTS_STATUSES); const approval = enumeration(entry.approvalStatus, APPROVAL_STATUSES);
-    const provider = enumeration(entry.providerStatus, PROVIDER_STATUSES); const binding = enumeration(entry.entityBindingStatus, ENTITY_STATUSES);
+    const provider = enumeration(entry.providerStatus, PROVIDER_STATUSES); const binding = nullable(entry.entityBindingStatus, (candidate) => enumeration(candidate, ENTITY_STATUSES));
     const capabilityAvailable = bool(entry.capabilityAvailable); const itemReady = bool(entry.ready);
     const itemReasons = list(entry.reasonCodes, (candidate) => enumeration(candidate, CANVAS_V1_REASON_CODES));
     const expected = readinessReasons({ assetId, scopeMatched, rightsStatus: rights, approvalStatus: approval, providerStatus: provider, entityBindingStatus: binding, capabilityAvailable });
@@ -576,7 +576,8 @@ function readinessReasons(value: Pick<ReadinessRequirement, 'assetId' | 'scopeMa
   if (value.rightsStatus !== 'authorized') reasons.push(`RIGHTS_${value.rightsStatus.toUpperCase()}` as ShotReadinessReasonCode);
   if (value.approvalStatus !== 'approved') reasons.push(`ASSET_APPROVAL_${value.approvalStatus.toUpperCase()}` as ShotReadinessReasonCode);
   if (value.providerStatus !== 'active') reasons.push(`PROVIDER_${value.providerStatus.toUpperCase()}` as ShotReadinessReasonCode);
-  if (value.entityBindingStatus !== 'approved') reasons.push(`ENTITY_BINDING_${value.entityBindingStatus.toUpperCase()}` as ShotReadinessReasonCode);
+  if (value.entityBindingStatus === null) reasons.push('ENTITY_BINDING_MISSING');
+  else if (value.entityBindingStatus !== 'approved') reasons.push(`ENTITY_BINDING_${value.entityBindingStatus.toUpperCase()}` as ShotReadinessReasonCode);
   if (!value.capabilityAvailable) reasons.push('CAPABILITY_UNAVAILABLE');
   return CANVAS_V1_REASON_CODES.filter((code) => reasons.includes(code));
 }
