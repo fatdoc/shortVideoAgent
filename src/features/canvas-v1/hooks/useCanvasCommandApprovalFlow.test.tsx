@@ -148,7 +148,10 @@ describe('useCanvasCommandApprovalFlow', () => {
     expect(prepare).toHaveBeenCalledWith({
       ...context,
       commandType,
-      action: payloads[commandType],
+      action: {
+        commandId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        payload: payloads[commandType],
+      },
     });
     const dispatched = onCommand.mock.calls[0][0];
     expect(dispatched).toEqual({
