@@ -74,3 +74,48 @@ test("controlled media fails closed on task/media scope drift before object stor
   await assert.rejects(() => service.open({ scope, assetId }), (error: unknown) => (error as { code?: unknown }).code === "CANVAS_MEDIA_NOT_FOUND");
   assert.equal(fetched, 0);
 });
+
+test("controlled media rejects every persisted event or command JSON authority poison before target resolution", async (context) => {
+  const other = "99999999-9999-4999-8999-999999999999";
+  const poisons: Array<{ table: "sc_canvas_v1_events" | "sc_canvas_v1_commands"; column: "eventJson" | "commandJson"; field: string; value?: string }> = [
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "tenantId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "projectId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "packageId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "canvasSessionId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "eventId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "commandId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "commandType", value: "SELECT_SHOT_OUTPUT" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "taskId" },
+    { table: "sc_canvas_v1_events", column: "eventJson", field: "outputAssetId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "tenantId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "projectId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "packageId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "canvasSessionId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "requestedByActorId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "commandId" },
+    { table: "sc_canvas_v1_commands", column: "commandJson", field: "commandType", value: "SELECT_SHOT_OUTPUT" },
+  ];
+  for (const poison of poisons) {
+    const db = await database();
+    context.after(() => db.destroy());
+    const row = await db(poison.table).first();
+    await db(poison.table).update({
+      [poison.column]: JSON.stringify({ ...JSON.parse(String(row[poison.column])), [poison.field]: poison.value ?? other }),
+    });
+    let resolved = 0;
+    let signed = 0;
+    let fetched = 0;
+    const service = new CanvasV1ControlledMediaService({
+      database: db,
+      resolveTarget: async () => { resolved += 1; return target; },
+      signGet: () => { signed += 1; return "https://example.test/private"; },
+      fetch: async () => { fetched += 1; return new Response(); },
+    });
+    await assert.rejects(
+      () => service.open({ scope, assetId }),
+      (error: unknown) => (error as { code?: unknown }).code === "CANVAS_MEDIA_NOT_FOUND",
+      `${poison.table}.${poison.field}`,
+    );
+    assert.deepEqual({ resolved, signed, fetched }, { resolved: 0, signed: 0, fetched: 0 }, `${poison.table}.${poison.field}`);
+  }
+});

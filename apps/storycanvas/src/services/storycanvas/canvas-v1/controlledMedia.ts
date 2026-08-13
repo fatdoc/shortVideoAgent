@@ -46,6 +46,16 @@ export interface CanvasV1ControlledMediaServiceOptions {
 
 function fail(): never { throw new CanvasV1ControlledMediaError("CANVAS_MEDIA_NOT_FOUND"); }
 
+function hasExactAuthority(
+  value: Pick<CanvasCommandV01 | CanvasEventV01, "tenantId" | "projectId" | "packageId" | "canvasSessionId">,
+  scope: CanvasProductionScope,
+): boolean {
+  return value.tenantId === scope.tenantId
+    && value.projectId === scope.projectId
+    && value.packageId === scope.packageId
+    && value.canvasSessionId === scope.canvasSessionId;
+}
+
 function safeJson(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "string") return null;
   try {
@@ -89,7 +99,14 @@ export class CanvasV1ControlledMediaService {
     for (const row of eventRows) {
       try {
         const event = parseCanvasV1Contract(JSON.parse(String(row.eventJson)));
-        if (event.objectType === "CanvasEvent" && event.commandType === "GENERATE_SHOT" && event.taskId === taskId) matchingEvents.push(event);
+        if (event.objectType !== "CanvasEvent"
+          || !hasExactAuthority(event, input.scope)
+          || event.eventId !== String(row.eventId)
+          || event.commandId !== String(row.commandId)
+          || event.status !== String(row.status)) fail();
+        if (event.commandType === "GENERATE_SHOT"
+          && event.taskId === taskId
+          && (event.outputAssetId === null || event.outputAssetId === input.assetId)) matchingEvents.push(event);
       } catch { fail(); }
     }
     if (matchingEvents.length !== 1) fail();
@@ -101,7 +118,14 @@ export class CanvasV1ControlledMediaService {
     let command: CanvasCommandV01;
     try {
       const parsed = parseCanvasV1Contract(JSON.parse(String(commandRows[0].commandJson)));
-      if (parsed.objectType !== "CanvasCommand" || parsed.commandType !== "GENERATE_SHOT") fail();
+      if (parsed.objectType !== "CanvasCommand"
+        || !hasExactAuthority(parsed, input.scope)
+        || parsed.requestedByActorId !== input.scope.actorId
+        || parsed.commandId !== String(commandRows[0].commandId)
+        || parsed.commandId !== event.commandId
+        || parsed.commandType !== String(commandRows[0].commandType)
+        || parsed.commandType !== event.commandType
+        || parsed.commandType !== "GENERATE_SHOT") fail();
       command = parsed;
     } catch { fail(); }
     if (!(command.payload as { shotId?: unknown }).shotId) fail();
