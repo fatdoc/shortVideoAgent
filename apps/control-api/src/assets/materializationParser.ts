@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
-import { materializationError } from './materializationErrors.js';
+import { CanvasMaterializationError, materializationError } from './materializationErrors.js';
 import {
   CANVAS_MATERIALIZATION_MAX_BYTES,
   CANVAS_MATERIALIZATION_MAX_REQUEST_BYTES,
@@ -13,7 +13,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SESSION = /^pcs_[A-Za-z0-9_-]{24,128}$/;
 const REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
-const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const MAX_MATERIALIZATION_BASE64_CHARS = 11_184_812;
 
 function canonicalTimestamp(value: string): boolean {
   if (!TIMESTAMP.test(value)) return false;
@@ -53,7 +53,7 @@ const responseSchema = z
     byteSize: z.number().int().min(1).max(CANVAS_MATERIALIZATION_MAX_BYTES),
     checksum: z.string().regex(/^sha256:[a-f0-9]{64}$/),
     contentEncoding: z.literal('base64'),
-    contentBase64: z.string().min(4).max(11_184_812).regex(BASE64),
+    contentBase64: z.string().min(4).max(MAX_MATERIALIZATION_BASE64_CHARS),
     replayed: z.boolean(),
   })
   .strict();
@@ -94,7 +94,38 @@ function candidate(input: unknown): Record<string, unknown> | null {
     : null;
 }
 
-export function parseCanvasAssetMaterializationResponse(
+function isBase64Alphabet(code: number): boolean {
+  return (
+    (code >= 0x41 && code <= 0x5a) ||
+    (code >= 0x61 && code <= 0x7a) ||
+    (code >= 0x30 && code <= 0x39) ||
+    code === 0x2b ||
+    code === 0x2f
+  );
+}
+
+function decodeCanonicalBase64(value: string): Buffer | null {
+  if (value.length < 4 || value.length % 4 !== 0) return null;
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+  const contentLength = value.length - padding;
+  if (
+    (padding === 0 && contentLength % 4 !== 0) ||
+    (padding === 1 && contentLength % 4 !== 3) ||
+    (padding === 2 && contentLength % 4 !== 2)
+  ) {
+    return null;
+  }
+  for (let index = 0; index < contentLength; index += 1) {
+    if (!isBase64Alphabet(value.charCodeAt(index))) return null;
+  }
+  for (let index = contentLength; index < value.length; index += 1) {
+    if (value.charCodeAt(index) !== 0x3d) return null;
+  }
+  const bytes = Buffer.from(value, 'base64');
+  return bytes.toString('base64') === value ? bytes : null;
+}
+
+function parseCanvasAssetMaterializationResponseInternal(
   input: unknown,
 ): CanvasAssetMaterializationResponse {
   const raw = candidate(input);
@@ -113,15 +144,23 @@ export function parseCanvasAssetMaterializationResponse(
   ) {
     throw materializationError('CANVAS_MATERIALIZATION_MIME_UNSUPPORTED');
   }
+  if (
+    typeof raw?.contentBase64 === 'string' &&
+    raw.contentBase64.length > MAX_MATERIALIZATION_BASE64_CHARS
+  ) {
+    throw materializationError('CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE');
+  }
+  const decoded =
+    typeof raw?.contentBase64 === 'string' ? decodeCanonicalBase64(raw.contentBase64) : null;
+  if (typeof raw?.contentBase64 === 'string' && decoded === null) {
+    throw materializationError('CANVAS_MATERIALIZATION_RESPONSE_INVALID');
+  }
   const parsed = responseSchema.safeParse(input);
   if (!parsed.success) throw materializationError('CANVAS_MATERIALIZATION_RESPONSE_INVALID');
-  const bytes = Buffer.from(parsed.data.contentBase64, 'base64');
+  const bytes = decoded!;
   if (bytes.length === 0) throw materializationError('CANVAS_MATERIALIZATION_SOURCE_EMPTY');
   if (bytes.length > CANVAS_MATERIALIZATION_MAX_BYTES) {
     throw materializationError('CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE');
-  }
-  if (bytes.toString('base64') !== parsed.data.contentBase64) {
-    throw materializationError('CANVAS_MATERIALIZATION_RESPONSE_INVALID');
   }
   const mimeType = detectCanvasMaterializationMime(bytes);
   if (!mimeType) throw materializationError('CANVAS_MATERIALIZATION_MIME_UNSUPPORTED');
@@ -134,4 +173,15 @@ export function parseCanvasAssetMaterializationResponse(
     throw materializationError('CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED');
   }
   return parsed.data;
+}
+
+export function parseCanvasAssetMaterializationResponse(
+  input: unknown,
+): CanvasAssetMaterializationResponse {
+  try {
+    return parseCanvasAssetMaterializationResponseInternal(input);
+  } catch (error) {
+    if (error instanceof CanvasMaterializationError) throw error;
+    throw materializationError('CANVAS_MATERIALIZATION_RESPONSE_INVALID');
+  }
 }

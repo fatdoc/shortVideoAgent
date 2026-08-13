@@ -85,6 +85,10 @@ describe('Canvas materialization strict parsers', () => {
     const cases = [
       [responseForBytes(Buffer.from([0xff])), 'CANVAS_MATERIALIZATION_MIME_UNSUPPORTED'],
       [responseForBytes(Buffer.concat([exactLimit, Buffer.from([0])])), 'CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE'],
+      [
+        { ...response(), contentBase64: 'A'.repeat(11_184_816) },
+        'CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE',
+      ],
       [{ ...response(), contentBase64: '%%%%' }, 'CANVAS_MATERIALIZATION_RESPONSE_INVALID'],
       [{ ...response(), contentBase64: '/9j=' }, 'CANVAS_MATERIALIZATION_RESPONSE_INVALID'],
     ] as const;
@@ -94,6 +98,27 @@ describe('Canvas materialization strict parsers', () => {
         throw new Error('expected Canvas materialization parsing to fail');
       } catch (error) {
         expect(error).toMatchObject({ name: 'CanvasMaterializationError', code });
+      }
+    }
+  });
+
+  it('normalizes unexpected parser runtime failures to the fixed response error', () => {
+    const throwing = new Proxy(
+      {},
+      {
+        get() {
+          throw new RangeError('untrusted getter failed');
+        },
+      },
+    );
+    for (const input of [null, undefined, true, 1, 'base64', [], throwing]) {
+      expect(() => parseCanvasAssetMaterializationResponse(input)).toThrow(
+        'CANVAS_MATERIALIZATION_RESPONSE_INVALID',
+      );
+      try {
+        parseCanvasAssetMaterializationResponse(input);
+      } catch (error) {
+        expect(error).toMatchObject({ name: 'CanvasMaterializationError' });
       }
     }
   });
