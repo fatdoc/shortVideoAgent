@@ -248,6 +248,7 @@ export class CanvasV1ShotProductionAdapter {
     });
     const run = async () => {
       let submittedExternalTaskId: string | null = null;
+      let hookConflict = false;
       try {
         const generated = await this.provider.start(
           {
@@ -264,6 +265,7 @@ export class CanvasV1ShotProductionAdapter {
               }
               if (submittedExternalTaskId) {
                 if (submittedExternalTaskId !== externalTaskId) {
+                  hookConflict = true;
                   throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
                 }
                 return;
@@ -276,8 +278,18 @@ export class CanvasV1ShotProductionAdapter {
                   progress: 20,
                   externalTaskId,
                   updatedAt: safeDate(this.now),
-                });
+              });
               if (changed !== 1) {
+                const persisted = await this.options.database('sc_tasks')
+                  .select('externalTaskId')
+                  .where({ id: taskId })
+                  .first();
+                if (persisted?.externalTaskId === externalTaskId) {
+                  submittedExternalTaskId = externalTaskId;
+                  resolveSubmitted();
+                  return;
+                }
+                hookConflict = true;
                 throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
               }
               submittedExternalTaskId = externalTaskId;
@@ -286,6 +298,7 @@ export class CanvasV1ShotProductionAdapter {
           },
         );
         if (
+          hookConflict ||
           !submittedExternalTaskId ||
           generated.externalTaskId !== submittedExternalTaskId
         ) {
