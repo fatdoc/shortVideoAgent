@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.3`
+> 版本：`v0.4`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -46,6 +46,12 @@ governance baseline:
 
 G1 integrated head:
 bbb475d0326b48b84941ca2a5daae4c15ec0ab5c
+
+Wave 2 remediation product head:
+1e6d0848e0142ff5aeac508057ad383d098ecad2
+
+Wave 2 independent QA integrated head:
+9d86c7cf1c2fab97ba2e2e0753bc1ec7fe8e02b4
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -405,11 +411,11 @@ raw Idempotency-Key
 |---|---|---|---|---|
 | CV0 | 总控与集成负责人 | `tasks/CV0_MASTER_INTEGRATION_TASK.md` | `IN_PROGRESS` | 无 |
 | CV1 | 合同架构师 | `tasks/CV1_CONTRACT_ARCHITECT_TASK.md` | `ACCEPTED` | G1 已验收 |
-| CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `IN_PROGRESS` | G1 已放行；进入 Wave 2 |
-| CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `NOT_STARTED` | G2 未通过 |
-| CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `IN_PROGRESS` | G1 已放行；进入 Wave 2 |
-| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | 仅执行 05A；05B 等待 G2/G3/G4 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G0/G1 已交付；等待后续 Gate 复核 |
+| CV2 | 资产与生产后端工程师 | `tasks/CV2_ASSET_PRODUCTION_BACKEND_TASK.md` | `IN_PROGRESS` | G2 仅剩正式审批消费与 Seedance runtime adapter |
+| CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `READY` | 只读准备完成；G2 未通过前不写实现 |
+| CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
+| CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `IN_PROGRESS` | 05A scope remediation 已通过；05B 等待 G2/G4 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G1 amendment/G2/G3 已复核；等待 runtime 与后续 Gate |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -540,9 +546,9 @@ Gate 状态：
 | Gate | 当前状态 | 证据/说明 |
 |---|---|---|
 | G0 | `ACCEPTED` | `handoffs/CV6_G0_BASELINE_HANDOFF.md`；带已知基线失败放行 |
-| G1 | `ACCEPTED` | CV1 四原子提交；CV6 Gate 60/60 PASS、37/37 negative-vector parity |
-| G2 | `IN_PROGRESS` | CV2 资产/命令 + CV5 Control 资产权威进入 Wave 2 |
-| G3 | `IN_PROGRESS` | CV4 基于冻结 fixture 实现 Canvas V1 UI |
+| G1 | `ACCEPTED` | 含 EntityBinding missing amendment；66/66 PASS、10 fixtures、38/38 双 parser parity |
+| G2 | `BLOCKED` | Scope/持久化已通过；StoryCanvas production runtime 尚缺 Control approval consumption 与真实 Seedance adapter |
+| G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `NOT_STARTED` | 依赖 G2 |
 | G5 | `NOT_STARTED` | 依赖 G2/G3/G4 |
 | G6 | `NOT_STARTED` | 依赖 G5 |
@@ -576,6 +582,7 @@ CANVAS_V1_GOLDEN_PATH_PASS
 
 ```text
 CANVAS_V1_CONTRACT_FROZEN
+CANVAS_V1_UI_READY
 B_REMEDIATION_ACCEPTED
 SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING
 AB_GOLDEN_PATH_NOT_IMPLEMENTED
@@ -768,15 +775,16 @@ G6 最少需要：
 ## 16. 当前执行入口
 
 用户已正式启动 T0-CV1。G0 已由 CV6 完成并由 CV0 以
-`ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行；G1 已由 CV1/CV6 完成并由
-CV0 验收，当前进入 Wave 2：
+`ACCEPT_WITH_KNOWN_BASELINE_FAILURES` 放行；G1（含 additive amendment）和
+G3 已由 CV0 验收。Wave 2 当前只剩 G2 runtime activation：
 
 ```text
-1. CV2 实现 StoryCanvas 资产门禁、Document 和 Canvas Command Service
-2. CV4 基于冻结 fixture 实现受控门店视频 Canvas V1 UI
-3. CV5 只实现 Control Plane tenant-scoped Asset Authority（05A）
-4. CV5 的 Shared Proxy/Bridge/Router（05B）继续等待 G2/G3/G4
-5. CV0 验收 G2/G3；G2 通过后再招聘 CV3
+1. CV2 已完成资产门禁、Document、Canvas Command Service 与安全 runtime route
+2. CV5 05A 已完成 Control 资产、不可变 Canvas Session authority 与 exact scope
+3. CV4 已完成 UI，并关闭 approval、prompt refresh 与 browser media sink 缺口
+4. CV2 继续接通 server-only Control approval consumption 与真实 Seedance adapter
+5. CV3 只读准备完成，G2 ACCEPTED 后才进入 Agent RED/GREEN
+6. CV5 05B 只读准备中，继续等待 G2/G4；G3 已放行
 ```
 
 G1 证据：
@@ -791,6 +799,14 @@ CV6 GREEN:              a03432891d440c51d0906948adb84db6593fa50b
 CV6 handoff:            7dd0caed9b817b106d33e1be14f5777f8a52e074
 Contract Gate:          60 PASS / 0 FAIL / 0 SKIP/TODO
 Negative-vector parity: 37/37 frontend/backend stable-code PASS
+
+Wave 2 independent revalidation:
+CV6 test:                  8e8d5037cbc8b040deb82340e17e2ad09dab3648
+CV6 handoff:               9d86c7cf1c2fab97ba2e2e0753bc1ec7fe8e02b4
+G1 amendment gate:         66/66 PASS; 10 fixtures; 38/38 parity
+G2 production-wired scope: 3/3 PASS; Story 005 + PostgreSQL 025/026 PASS
+G3 independent regressions: 3/3 PASS; owner suite 31/31 PASS
+G2 remaining blocker:      approval consumption + Seedance runtime adapter
 ```
 
 G0 已知基线事实：
@@ -810,6 +826,17 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.4 · 2026-08-14
+
+- 集成 CV2/CV4/CV5 Wave 2 产品切片与 CV6 独立复验；
+- 接受 EntityBinding missing amendment，合同 Gate 更新为 10 fixtures、38 vectors、66/66 PASS；
+- 新建并验证本机隔离数据库 `videoagent_control_test`，PostgreSQL 025/026 与迁移链真实通过；StoryCanvas 005 同步通过；
+- 修复 Control Canvas Session exact scope、response-loss replay、registration fail-closed 与内部 token 比较；
+- 修复 UI 高成本绑定 approval、同镜头新文档版本 prompt 恢复与全部 browser media sink；
+- CV0 将 G3 标记为 `ACCEPTED`；
+- G2 保持 `BLOCKED`：正式 StoryCanvas runtime 尚未注入 Control approval consumption 和 Seedance production adapter；
+- CV3 与 CV5 05B 仅完成只读准备，不越过 G2/G4 Gate。
 
 ### v0.3 · 2026-08-14
 
