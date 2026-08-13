@@ -6,7 +6,7 @@
 >
 > Task: `T0-CV1-01`
 >
-> Status: `G1 ACCEPTED`; additive amendment awaiting CV0/CV6 revalidation
+> Status: `G1 ACCEPTED` including the additive missing-binding amendment
 
 Canvas V1 adds nine strict aggregate contracts without modifying
 ProjectProductionPackage/0.3, ProjectGrant/0.2,
@@ -19,6 +19,15 @@ CanvasEntryRedemption/0.1 or Pilot Production Contract/0.2.
 - `fixtures/*.json`: one canonical success fixture for each object.
 - `negative-vectors.json`: shared backend/frontend security and semantic matrix.
 - `validate-contract.mjs`: dependency-free facts/schema-coverage validator.
+- `ACTIVATION_TRANSPORT_CONTRACT.md`: proposed G5 browser/Control/Story
+  activation, bootstrap layering and high-cost confirmation transport.
+- `activation-transport.schema.json`: strict HTTP payload composition that
+  references the existing CanvasBootstrap and CanvasCommand definitions.
+- `fixtures/activation-transport.json`: canonical activation/open/bootstrap/
+  approval/dispatch sequence.
+- `activation-transport-negative-vectors.json`: G5 transport RED matrix.
+- `validate-activation-transport.mjs`: dependency-free transport facts
+  validator.
 - `apps/storycanvas/src/contracts/canvas-v1/index.ts`: StoryCanvas strict runtime
   parser, types and semantic helpers.
 - `src/features/canvas-v1/model/contracts.ts`: browser/frontend strict parser,
@@ -219,4 +228,6 @@ entirety by the browser parser.
 See `AUTHORITY_INVENTORY.md` for the full authority boundary and all eight
 accepted Wave 0 decisions. See `G1_HANDOFF.md` for evidence and downstream
 implementation starts. See `G1_AMENDMENT_REQ_T0CV1_CV2_002.md` for the additive
-missing-binding repair and revalidation evidence.
+missing-binding repair and revalidation evidence. The G5 activation transport
+is still `PROPOSED / READY_FOR_CV0_DECISION`; passing its documentation
+validator is not product implementation or a Gate result.
