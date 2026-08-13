@@ -58,8 +58,14 @@ export class CanvasWorkspaceContractError extends Error {
   }
 }
 
+function isCanonicalUtcTimestamp(value: string): boolean {
+  if (!TIMESTAMP.test(value)) return false;
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds) && new Date(milliseconds).toISOString() === value;
+}
+
 const uuid = z.string().regex(UUID);
-const timestamp = z.string().regex(TIMESTAMP).refine((value) => Number.isFinite(Date.parse(value)));
+const timestamp = z.string().refine(isCanonicalUtcTimestamp);
 const sessionId = z.string().regex(SESSION);
 const requestId = z.string().regex(REQUEST_ID);
 const category = z.enum(["human", "virtual_character", "store", "product", "brand", "prop", "voice", "image", "video"]);

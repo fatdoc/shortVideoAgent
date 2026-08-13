@@ -187,6 +187,13 @@ function pattern(value: unknown, expression: RegExp): string {
   return output;
 }
 
+function canonicalUtcTimestamp(value: unknown): string {
+  const output = pattern(value, TIMESTAMP);
+  const milliseconds = Date.parse(output);
+  if (!Number.isFinite(milliseconds) || new Date(milliseconds).toISOString() !== output) fail();
+  return output;
+}
+
 function enumeration<T extends string>(value: unknown, values: readonly T[]): T {
   if (typeof value !== 'string' || !values.includes(value as T)) fail();
   return value as T;
@@ -399,7 +406,7 @@ export function parseCanvasWorkspaceV01(input: unknown): CanvasWorkspaceV01 {
     assets: list(output.assets, parseAsset),
     saveState: 'saved',
     requestId: pattern(output.requestId, REQUEST_ID),
-    occurredAt: pattern(output.occurredAt, TIMESTAMP),
+    occurredAt: canonicalUtcTimestamp(output.occurredAt),
   };
   assertSemantics(value);
   return value;
