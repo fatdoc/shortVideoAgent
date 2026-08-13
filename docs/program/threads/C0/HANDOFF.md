@@ -1068,3 +1068,15 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 下一阶段仅可基于已接受 remediation 规划 Shared activation Green；Shared Router、Bridge、Proxy RED 必须继续保留，未完成独立 Green 前不得宣称真实编辑器或联合 Golden Path 已打通。
 - `apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned untracked，未触碰、未暂存、未提交。
 - 当前状态仅为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Activation Partial Green Handoff
+
+- Shared 提交链：Proxy Green `9d82e58`；Bridge RED `f317ecd`；Bridge Green `65073da`；Router boundary RED `6ef169c`；route readiness RED `3357f78`；Router Green `409dfdf`。
+- B 下一次同步 shared Router/Bridge/Proxy 或相关测试前必须完整纳入上述祖先链，并验证 commit object、ancestor 与 exact write set；不得只复制最终文件或跳过 RED commits。
+- Proxy 只属于 explicit Golden Path test harness；非 `mode=test + PILOT_E2E=true + PILOT_E2E_AB_GOLDEN_PATH=true` 时不得安装 StoryCanvas proxy，也不得改变真实 Pilot/Demo 默认网络边界。
+- Bridge 只接受 exact tenant/project/package binding 和 deterministic bootstrap cycle；固定 Entry TTL 120 秒，失败保持安全 `status/code/retryable/requestId`，不暴露 raw Grant、token、grantId、digest、stack 或 response body，也不回退 Demo/Mock/Storage。
+- Router canonical 路由为 `/projects/:projectId/script`、`/projects/:projectId/storyboard`、`/production/canvas/:projectId`。Script/Storyboard 已加载 B Pilot boundary；Canvas 当前因缺少 canonical Package reference 而安全 blocked，`entry=null` 是有意停止线。
+- 后续必须以独立合同/RED/Green 实现 approved Script + approved Storyboard → exact Package → Entry → B consumer 数据流；不得选择第一条 Package、从 URL/Storage/Demo 猜 packageId 或把 blocked boundary 解释为 editor 已加载。
+- 验证证据：targeted `71/71 PASS`、ESLint PASS、Root Build PASS、Governance PASS、Prettier PASS、diff-check PASS。
+- 保持：`CANVAS_PACKAGE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；禁止宣称 `SHARED_ACTIVATION_GREEN / REAL_EDITOR_LOADED / GOLDEN_PATH_COMPLETE / JOINT_GATE_PASS / FULL_JOINT_GATE_PASS`。
+- `apps/storycanvas/data/vendor/byteplus.ts` 仍为 B-owned untracked 文件，未触碰且必须继续排除。

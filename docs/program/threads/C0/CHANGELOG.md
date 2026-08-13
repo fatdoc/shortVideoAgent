@@ -539,3 +539,12 @@
 - Shared Router、Bridge、Proxy RED 继续保留；本次只接受 remediation，不记录 Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
 - B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰、未暂存、未提交。
 - 状态仅更新为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Activation Partial Green
+
+- `9d82e58` 在 explicit Golden Path test flags 下增加 loopback StoryCanvas proxy，普通 runtime 保持不变。
+- `f317ecd` / `65073da` 冻结并完成 strict Shared Pilot Bridge：固定 120 秒 Entry、deterministic cycle idempotency、exact Scope binding、B browser-facing consumer handoff 与安全错误投影。
+- `6ef169c` / `3357f78` 冻结 Router boundary 和 manifest readiness RED；`409dfdf` 激活 B Pilot Script/Storyboard/Canvas boundaries，并仅将三条已同步路由标记 `ready`。
+- Canvas 尚无 canonical Package/Entry dataflow，Router 以 `entry=null` fail closed；未实现或宣称真实 editor、Golden Path 或 Joint Gate。
+- targeted `71/71 PASS`，ESLint、Root Build、Governance、Prettier、diff-check PASS；B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+- 状态：`SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANVAS_PACKAGE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

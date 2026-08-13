@@ -1422,3 +1422,14 @@
 - Shared Router、Bridge 与 Proxy RED 继续保留；本次验收不代表 Shared activation Green、真实编辑器加载、Golden Path 或 Joint Gate 完成。
 - B-owned 未跟踪文件 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - 当前状态仅为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · A-BIZ-06E.4B / 06E.4C Shared Activation Partial Green
+
+- `9d82e58` 完成 explicit Golden Path test harness 的 Shared Canvas runtime proxy：仅在 `mode=test`、`PILOT_E2E=true`、`PILOT_E2E_AB_GOLDEN_PATH=true` 时安装 `/api/production/pilot/canvas` → loopback StoryCanvas proxy；普通 Demo/Pilot runtime 不启用该代理。
+- `f317ecd` / `65073da` 分别冻结并实现 Shared Pilot Bridge：使用 A strict client 创建固定 120 秒的 non-secret Canvas Entry，以 `projectId/packageId/bootstrapCycleId` 生成稳定幂等键，再将 exact `handle/tenantId/projectId/packageId` 交给 B browser-facing consumer；同 cycle 并发/完成调用去重，失败不回退 Demo/Mock/Storage。
+- `6ef169c` / `3357f78` 冻结 Shared Router 与 route-readiness RED；`409dfdf` 将 canonical Script、Storyboard、Canvas 路由激活到 B Pilot boundaries，并把对应 manifest readiness 标记为 `ready`。
+- Script 与 Storyboard 现在加载 B Pilot boundary；Canvas route 只加载 B Canvas boundary 的 fail-closed blocked 状态。Router 当前只有 canonical `projectId`，没有可信 `packageId`、Entry handle 或 bootstrap cycle，因此明确传入 `entry=null`，不得从列表首项、URL、Demo Store、LocalStorage 或临时 UUID 猜测 Package。
+- 验证：Router/manifest/Bridge/B Pilot pages/Proxy targeted `71/71 PASS`；changed-file ESLint、Root Build、Governance、Prettier 与 diff-check PASS。
+- 下一原子切片必须先冻结 approved Script + approved Storyboard → exact Production Package reference → deterministic bootstrap cycle → Bridge `open()` → B Canvas boundary Entry 注入的数据流；在此之前不得宣称真实 editor 已加载或 Shared Activation 全绿。
+- B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANVAS_PACKAGE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
