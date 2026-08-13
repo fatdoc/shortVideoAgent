@@ -20,6 +20,12 @@
       "exports": ["createPilotStoryCanvasBridge", "PilotStoryCanvasBridgeError"]
     }
   ],
+  "bridgePublicMethods": {
+    "activate": "activate({projectId,packageId,activationAttemptId}) -> activation state",
+    "prepareApproval": "prepareApproval(state, request); bridge reacquires Control CSRF internally",
+    "dispatch": "dispatch(state, unchanged complete command)",
+    "refresh": "refreshWorkspace(state) reads workspace, document, assets and shot readiness in order"
+  },
   "canonicalRoute": {
     "pattern": "/production/canvas/:projectId?packageId=<uuid>",
     "requiredQueryKeys": ["packageId"],

@@ -115,7 +115,7 @@ test('bridge performs activation, exact four-field open, formal bootstrap and wo
   );
   assert.deepEqual(harness.calls[2].args[0], activation.legacyOpenRequest);
   assert.equal(result.canvasSessionId, activation.legacyOpenResponse.canvasSessionId);
-  assert.equal(result.csrfToken, 'csrf-safe-value');
+  assert.equal(Object.hasOwn(result, 'csrfToken'), false);
   assert.deepEqual(result.workspace, workspace);
 });
 
@@ -162,16 +162,22 @@ test('scope poison in formal bootstrap or workspace fails closed without default
 test('approval and dispatch pass through the same complete command object', async () => {
   const harness = bridgePort();
   const bridge = createPilotStoryCanvasBridge({ port: harness.port });
+  const state = await bridge.activate({ projectId, packageId, activationAttemptId: attemptId });
+  harness.calls.length = 0;
   const pending = structuredClone(activation.commandDispatchRequest);
   const action = { commandId: pending.commandId, payload: pending.payload };
   const approvalRequest = { ...activation.approvalPrepareRequest, action };
 
-  const approval = await bridge.prepareApproval(projectId, approvalRequest, 'csrf-safe-value');
+  const approval = await bridge.prepareApproval(state, approvalRequest);
   const command = { ...pending, approvalId: approval.approvalId };
-  await bridge.dispatch(command);
+  await bridge.dispatch(state, command);
 
   const prepare = harness.calls.find(({ name }) => name === 'prepareApproval');
   const dispatch = harness.calls.find(({ name }) => name === 'dispatch');
+  assert.deepEqual(
+    harness.calls.map(({ name }) => name),
+    ['acquireControlCsrf', 'prepareApproval', 'dispatch'],
+  );
   assert.deepEqual(prepare?.args, [projectId, approvalRequest, 'csrf-safe-value']);
   assert.strictEqual(dispatch?.args[0], command);
   assert.deepEqual(action, { commandId: command.commandId, payload: command.payload });
@@ -180,11 +186,9 @@ test('approval and dispatch pass through the same complete command object', asyn
 test('refresh reads workspace/document/assets/readiness through the shared session-bound port', async () => {
   const harness = bridgePort();
   const bridge = createPilotStoryCanvasBridge({ port: harness.port });
-  await bridge.refresh({
-    canvasSessionId: workspace.canvasSessionId,
-    documentId: workspace.document.documentId,
-    shotId: workspace.shots[0].shotId,
-  });
+  const state = await bridge.activate({ projectId, packageId, activationAttemptId: attemptId });
+  harness.calls.length = 0;
+  await bridge.refreshWorkspace(state);
   assert.deepEqual(
     harness.calls.map(({ name }) => name),
     ['readWorkspace', 'readDocument', 'readAssets', 'readReadiness'],
