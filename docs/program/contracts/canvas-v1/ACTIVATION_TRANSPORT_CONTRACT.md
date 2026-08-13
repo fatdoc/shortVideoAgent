@@ -119,8 +119,8 @@ The facade always requests the server-owned fixed TTL:
 120 seconds
 ```
 
-The browser cannot extend it. Existing Package/Grant expiry may shorten or
-reject authority according to the current Canvas Entry service.
+The browser cannot extend it. Existing Package/Grant authority must cover that
+fixed lifetime or the current Canvas Entry service rejects activation.
 
 ## 4. Legacy open and formal bootstrap are separate layers
 
