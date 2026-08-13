@@ -30,12 +30,20 @@ CanvasEntryRedemption/0.1 or Pilot Production Contract/0.2.
   validator.
 - `WORKSPACE_MATERIALIZATION_CONTRACT.md`: proposed G5 formal workspace
   hydration and server-only Control-to-Story asset-byte transport.
+- `WORKSPACE_AUTHORITY_AMENDMENT.md`: exact Control workspace authority,
+  deterministic first-day casting, public UUIDv5 IDs and trusted prepare split.
+- `workspace-authority.schema.json`: strict server-only authority request,
+  browser-safe-content response and fixed safe errors.
+- `fixtures/workspace-authority.json`: canonical exact-Package authority facts.
+- `workspace-authority-negative-vectors.json`: 30 authority, casting, UUIDv5,
+  transaction and containment vectors.
+- `validate-workspace-authority.mjs`: dependency-free authority validator.
 - `workspace-materialization.schema.json`: additive strict
   `CanvasWorkspace/0.1` and `CanvasAssetMaterialization/0.1` transport schema;
   it references, rather than expands, the nine accepted domain definitions.
 - `fixtures/workspace-materialization.json`: canonical workspace,
   materialization request/response and safe error fixtures.
-- `workspace-materialization-negative-vectors.json`: 61 workspace, byte
+- `workspace-materialization-negative-vectors.json`: 69 workspace, byte
   integrity, replay, containment and persistence RED vectors.
 - `validate-workspace-materialization.mjs`: dependency-free additive transport
   facts validator.
@@ -72,6 +80,7 @@ Additive transport aggregates do not expand this nine-object domain set:
 |---|---|---|
 | CanvasWorkspace/0.1 | browser-safe aggregate | Formal bootstrap, document, real shot/readiness/asset/output/event facts and explicit completeness. |
 | CanvasAssetMaterialization/0.1 | server-only transport | Verified first-day virtual-character image bytes; magic MIME, exact size/checksum and response-loss replay. |
+| CanvasWorkspaceAuthority/0.1 | server-only transport; browser-safe content | Exact project/version/assets authority used only by trusted prepare. |
 
 `HighCostCommandApproval` remains a server-only Control Plane authority. A
 CanvasCommand carries only the safe UUID `approvalId`; a naked
