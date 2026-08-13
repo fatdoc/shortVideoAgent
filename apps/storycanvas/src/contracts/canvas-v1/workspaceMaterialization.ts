@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import {
   parseCanvasV1BrowserContract,
+  type AssetRecordV01,
   type CanvasBootstrapV01,
   type CanvasDocumentV01,
   type CanvasEventV01,
@@ -18,6 +19,7 @@ const CONTROLLED_MEDIA = /^\/(?:api\/canvas-v1|api\/production\/pilot\/canvas\/v
 const OUTPUT_MEDIA = /^\/api\/production\/pilot\/canvas\/v1\/media\/[A-Za-z0-9_./%-]+$/;
 const MAX_MATERIALIZATION_BYTES = 8 * 1024 * 1024;
 const MAX_MATERIALIZATION_BASE64_CHARS = 11_184_812;
+const CANVAS_WORKSPACE_UUIDV5_NAMESPACE = "0f88cfb6-eef3-5961-8e78-c6f5aa24af6c";
 
 export const CANVAS_WORKSPACE_REASON_CODES = [
   "WORKSPACE_CAPABILITY_BLOCKED",
@@ -32,6 +34,7 @@ export const CANVAS_WORKSPACE_REASON_CODES = [
 
 export type CanvasWorkspaceContractErrorCode =
   | "CANVAS_WORKSPACE_SCHEMA_INVALID"
+  | "CANVAS_WORKSPACE_ERROR_INVALID"
   | "CANVAS_WORKSPACE_BROWSER_UNSAFE"
   | "CANVAS_WORKSPACE_SCOPE_MISMATCH"
   | "CANVAS_WORKSPACE_DOCUMENT_MISMATCH"
@@ -42,6 +45,14 @@ export type CanvasWorkspaceContractErrorCode =
   | "CANVAS_WORKSPACE_OUTPUT_MISMATCH"
   | "CANVAS_WORKSPACE_EVENT_MISMATCH"
   | "CANVAS_WORKSPACE_STATUS_INCONSISTENT"
+  | "CANVAS_WORKSPACE_AUTHORITY_REQUEST_INVALID"
+  | "CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID"
+  | "CANVAS_WORKSPACE_AUTHORITY_BROWSER_UNSAFE"
+  | "CANVAS_WORKSPACE_AUTHORITY_SCOPE_MISMATCH"
+  | "CANVAS_WORKSPACE_AUTHORITY_ASSET_ORDER_INVALID"
+  | "CANVAS_WORKSPACE_AUTHORITY_INCOMPLETE"
+  | "PRIMARY_VIRTUAL_CHARACTER_MISSING"
+  | "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"
   | "CANVAS_MATERIALIZATION_REQUEST_INVALID"
   | "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
   | "CANVAS_MATERIALIZATION_SCOPE_MISMATCH"
@@ -153,6 +164,48 @@ const workspaceSchema = z.object({
   occurredAt: timestamp,
 }).strict();
 
+const workspaceBlockedErrorSchema = z.object({
+  error: z.object({
+    code: z.enum(["PRIMARY_VIRTUAL_CHARACTER_MISSING", "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"]),
+    message: z.string().min(1).max(160),
+    retryable: z.literal(false),
+    requestId,
+  }).strict(),
+}).strict();
+
+const workspaceAuthorityRequestSchema = z.object({
+  objectType: z.literal("CanvasWorkspaceAuthorityRequest"),
+  contractVersion: z.literal("0.1"),
+  tenantId: uuid,
+  projectId: uuid,
+  packageId: uuid,
+  canvasSessionId: sessionId,
+  actorId: uuid,
+  requestId,
+  occurredAt: timestamp,
+}).strict();
+
+const workspaceAuthorityResponseSchema = z.object({
+  objectType: z.literal("CanvasWorkspaceAuthority"),
+  contractVersion: z.literal("0.1"),
+  tenantId: uuid,
+  projectId: uuid,
+  packageId: uuid,
+  canvasSessionId: sessionId,
+  project: z.object({ projectName: z.string().min(1).max(200) }).strict(),
+  approvedScript: z.object({ scriptId: uuid, version: z.number().int().positive() }).strict(),
+  approvedStoryboard: z.object({ storyboardId: uuid, version: z.number().int().positive() }).strict(),
+  assets: z.array(z.unknown()).max(1_000),
+  completeness: z.object({
+    project: z.literal(true),
+    approvedScript: z.literal(true),
+    approvedStoryboard: z.literal(true),
+    assets: z.literal(true),
+  }).strict(),
+  requestId,
+  occurredAt: timestamp,
+}).strict();
+
 const materializationRequestSchema = z.object({
   objectType: z.literal("CanvasAssetMaterializationRequest"),
   contractVersion: z.literal("0.1"),
@@ -202,6 +255,11 @@ export type CanvasWorkspaceV01 = Omit<z.infer<typeof workspaceSchema>, "bootstra
 };
 export type CanvasAssetMaterializationRequestV01 = z.infer<typeof materializationRequestSchema>;
 export type CanvasAssetMaterializationV01 = z.infer<typeof materializationResponseSchema>;
+export type CanvasWorkspaceBlockedErrorV01 = z.infer<typeof workspaceBlockedErrorSchema>;
+export type CanvasWorkspaceAuthorityRequestV01 = z.infer<typeof workspaceAuthorityRequestSchema>;
+export type CanvasWorkspaceAuthorityV01 = Omit<z.infer<typeof workspaceAuthorityResponseSchema>, "assets"> & {
+  assets: AssetRecordV01[];
+};
 
 const CATEGORY_LABELS: Record<CanvasWorkspaceAssetV01["category"], string> = {
   human: "真人",
@@ -229,6 +287,11 @@ const FORBIDDEN_MATERIALIZATION_KEYS = new Set([
   "storagereference", "signedurl", "previewurl", "controlledpreviewurl", "accesstoken",
   "authorization", "internaltoken", "providercredential", "providerrawbody",
 ]);
+const FORBIDDEN_AUTHORITY_KEYS = new Set([
+  "storagereference", "checksum", "contentbase64", "providerassetid", "providergroupid",
+  "asseturi", "internalid", "internaltoken", "accesstoken", "authorization",
+  "productionpackage", "packagesnapshot", "payloaddigest", "signedurl", "localpath",
+]);
 
 function fail(code: CanvasWorkspaceContractErrorCode): never {
   throw new CanvasWorkspaceContractError(code);
@@ -254,6 +317,35 @@ function scopeMatches(value: { tenantId: string; projectId: string; packageId: s
 
 function unique(values: readonly unknown[]): boolean {
   return new Set(values).size === values.length;
+}
+
+const ASSET_CATEGORY_ORDER = [
+  "human", "virtual_character", "store", "product", "brand", "prop", "voice", "image", "video",
+] as const;
+
+type CanvasUuidScope = { tenantId: string; projectId: string; packageId: string };
+
+function uuidV5(name: string): string {
+  const namespaceBytes = Buffer.from(CANVAS_WORKSPACE_UUIDV5_NAMESPACE.replaceAll("-", ""), "hex");
+  const bytes = crypto.createHash("sha1").update(namespaceBytes).update(name, "utf8").digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function targetEntityIdFor(scope: CanvasUuidScope, assetId: string): string {
+  return uuidV5(
+    `target-entity|tenant=${scope.tenantId}|project=${scope.projectId}|package=${scope.packageId}`
+      + `|asset=${assetId}|category=virtual_character`,
+  );
+}
+
+function shotRequirementIdFor(scope: CanvasUuidScope, shotId: string, assetId: string): string {
+  return uuidV5(
+    `shot-requirement|tenant=${scope.tenantId}|project=${scope.projectId}|package=${scope.packageId}`
+      + `|shot=${shotId}|asset=${assetId}|capability=video_generation`,
+  );
 }
 
 function expectedWorkspaceReasons(value: CanvasWorkspaceV01): typeof CANVAS_WORKSPACE_REASON_CODES[number][] {
@@ -313,16 +405,38 @@ function assertWorkspaceSemantics(value: CanvasWorkspaceV01): void {
     || !unique(value.shots.flatMap(({ outputs }) => outputs.map(({ assetId }) => assetId)))) {
     fail("CANVAS_WORKSPACE_SHOT_MISMATCH");
   }
+  for (const asset of value.assets) {
+    const state = asset.materialization;
+    if (asset.category !== "virtual_character") {
+      if (state.status !== "unsupported" || state.reasonCode !== "CATEGORY_UNSUPPORTED") fail("CANVAS_WORKSPACE_ASSET_MISMATCH");
+    } else if (asset.rightsStatus !== "authorized") {
+      if (state.status !== "blocked" || state.reasonCode !== "RIGHTS_NOT_AUTHORIZED") fail("CANVAS_WORKSPACE_ASSET_MISMATCH");
+    } else if (asset.approvalStatus !== "approved") {
+      if (state.status !== "blocked" || state.reasonCode !== "APPROVAL_NOT_APPROVED") fail("CANVAS_WORKSPACE_ASSET_MISMATCH");
+    }
+  }
+  const primaryAssets = value.assets.filter(({ category }) => category === "virtual_character");
+  if (primaryAssets.length === 0) fail("PRIMARY_VIRTUAL_CHARACTER_MISSING");
+  if (primaryAssets.length > 1) fail("PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS");
+  const primaryAsset = primaryAssets[0]!;
+  const targetEntityId = targetEntityIdFor(value, primaryAsset.assetId);
+  if (primaryAsset.targetEntityId !== targetEntityId) fail("CANVAS_WORKSPACE_REQUIREMENT_MISMATCH");
   const scriptText = value.shots[0]?.scriptText;
   for (const [index, shot] of value.shots.entries()) {
     const documentShot = value.document.shots[index];
     if (!documentShot || shot.shotId !== documentShot.shotId || documentShot.position !== index
       || shot.sequence !== index + 1 || shot.title !== `镜头 ${String(index + 1).padStart(2, "0")}`
-      || shot.scriptText !== scriptText) {
+      || shot.scriptText !== scriptText || documentShot.prompt !== shot.storyboardText) {
       fail("CANVAS_WORKSPACE_SHOT_MISMATCH");
     }
+    if (shot.requirements.length !== 1) fail("CANVAS_WORKSPACE_REQUIREMENT_MISMATCH");
     for (const requirement of shot.requirements) {
       if (!scopeMatches(requirement, value) || requirement.shotId !== shot.shotId
+        || requirement.requirementId !== shotRequirementIdFor(value, shot.shotId, primaryAsset.assetId)
+        || requirement.assetCategory !== "virtual_character"
+        || requirement.entityId !== targetEntityId
+        || requirement.status !== "required"
+        || JSON.stringify(requirement.requiredCapabilities) !== JSON.stringify(["video_generation"])
         || requirement.source.scriptId !== value.bootstrap.approvedScript.scriptId
         || requirement.source.scriptVersion !== value.bootstrap.approvedScript.version
         || requirement.source.storyboardId !== value.bootstrap.approvedStoryboard.storyboardId
@@ -397,6 +511,103 @@ export function parseCanvasWorkspaceV01(input: unknown): CanvasWorkspaceV01 {
   const value = parseNestedWorkspace(parsed.data);
   assertWorkspaceSemantics(value);
   return value;
+}
+
+export function parseCanvasWorkspaceBlockedErrorV01(input: unknown): CanvasWorkspaceBlockedErrorV01 {
+  const parsed = workspaceBlockedErrorSchema.safeParse(input);
+  if (!parsed.success) fail("CANVAS_WORKSPACE_ERROR_INVALID");
+  return parsed.data;
+}
+
+export function parseCanvasWorkspaceAuthorityRequestV01(input: unknown): CanvasWorkspaceAuthorityRequestV01 {
+  const parsed = workspaceAuthorityRequestSchema.safeParse(input);
+  if (!parsed.success || Buffer.byteLength(JSON.stringify(parsed.data), "utf8") > 16 * 1024) {
+    fail("CANVAS_WORKSPACE_AUTHORITY_REQUEST_INVALID");
+  }
+  return parsed.data;
+}
+
+function assertCanonicalAuthorityAssetTimestamps(asset: AssetRecordV01): void {
+  const values = [
+    asset.occurredAt, asset.createdAt, asset.updatedAt, asset.provenance.declaredAt,
+    asset.rights.validFrom, asset.rights.validUntil, asset.rights.reviewedAt,
+    asset.approval.reviewedAt,
+  ];
+  if (values.some((value) => value !== null && !isCanonicalUtcTimestamp(value))) {
+    fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  }
+}
+
+export function parseCanvasWorkspaceAuthorityV01(input: unknown): CanvasWorkspaceAuthorityV01 {
+  scan(input, FORBIDDEN_AUTHORITY_KEYS, [
+    "asset://", "bearer ", "x-amz-credential=", "x-amz-signature=", "x-tos-signature=",
+    "access_token=", "blob:", "data:",
+  ], "CANVAS_WORKSPACE_AUTHORITY_BROWSER_UNSAFE");
+  const candidate = record(input);
+  const completeness = record(candidate?.completeness);
+  if (completeness && Object.values(completeness).some((value) => value !== true)) {
+    fail("CANVAS_WORKSPACE_AUTHORITY_INCOMPLETE");
+  }
+  const parsed = workspaceAuthorityResponseSchema.safeParse(input);
+  if (!parsed.success) fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  const assets: AssetRecordV01[] = [];
+  try {
+    for (const raw of parsed.data.assets) {
+      const asset = parseCanvasV1BrowserContract(raw);
+      if (asset.objectType !== "AssetRecord") fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+      assertCanonicalAuthorityAssetTimestamps(asset);
+      if (asset.tenantId !== parsed.data.tenantId || asset.projectId !== parsed.data.projectId
+        || asset.packageId !== parsed.data.packageId || asset.canvasSessionId !== parsed.data.canvasSessionId) {
+        fail("CANVAS_WORKSPACE_AUTHORITY_SCOPE_MISMATCH");
+      }
+      assets.push(asset);
+    }
+  } catch (error) {
+    if (error instanceof CanvasWorkspaceContractError) throw error;
+    fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  }
+  if (!unique(assets.map(({ assetId }) => assetId))) fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  const rank = new Map(ASSET_CATEGORY_ORDER.map((categoryName, index) => [categoryName, index]));
+  const order = assets.map(({ category: categoryName, assetId }) => `${String(rank.get(categoryName)).padStart(2, "0")}:${assetId}`);
+  if (JSON.stringify(order) !== JSON.stringify([...order].sort())) {
+    fail("CANVAS_WORKSPACE_AUTHORITY_ASSET_ORDER_INVALID");
+  }
+  return { ...parsed.data, assets };
+}
+
+export function assertCanvasWorkspaceAuthorityMatchesRequest(
+  response: CanvasWorkspaceAuthorityV01,
+  request: CanvasWorkspaceAuthorityRequestV01,
+): void {
+  if (response.tenantId !== request.tenantId || response.projectId !== request.projectId
+    || response.packageId !== request.packageId || response.canvasSessionId !== request.canvasSessionId
+    || response.requestId !== request.requestId) {
+    fail("CANVAS_WORKSPACE_AUTHORITY_SCOPE_MISMATCH");
+  }
+}
+
+export function selectPrimaryVirtualCharacter(authority: CanvasWorkspaceAuthorityV01): AssetRecordV01 {
+  const matches = authority.assets.filter(({ category: categoryName }) => categoryName === "virtual_character");
+  if (matches.length === 0) fail("PRIMARY_VIRTUAL_CHARACTER_MISSING");
+  if (matches.length > 1) fail("PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS");
+  return matches[0]!;
+}
+
+export function deriveCanvasTargetEntityId(authority: CanvasWorkspaceAuthorityV01, assetId: string): string {
+  const asset = authority.assets.find((candidate) => candidate.assetId === assetId);
+  if (!asset || asset.category !== "virtual_character") fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  return targetEntityIdFor(authority, assetId);
+}
+
+export function deriveCanvasShotRequirementId(
+  authority: CanvasWorkspaceAuthorityV01,
+  shotId: string,
+  assetId: string,
+): string {
+  if (!UUID.test(shotId) || !authority.assets.some((asset) => asset.assetId === assetId && asset.category === "virtual_character")) {
+    fail("CANVAS_WORKSPACE_AUTHORITY_RESPONSE_INVALID");
+  }
+  return shotRequirementIdFor(authority, shotId, assetId);
 }
 
 export function parseCanvasAssetMaterializationRequestV01(input: unknown): CanvasAssetMaterializationRequestV01 {

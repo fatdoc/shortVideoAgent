@@ -64,11 +64,13 @@ describe('CanvasWorkspace/0.1 browser parser', () => {
   });
 
   it('matches Story on every executable workspace negative vector', () => {
-    for (const vector of matrix.vectors.filter(({ operation }) => operation === 'parse-workspace')) {
-      expect(
-        codeOf(() => parseCanvasWorkspaceV01(mutate(fixture.workspaceResponse, vector.mutations))),
-        vector.id,
-      ).toBe(vector.expectedCode);
+    for (const vector of matrix.vectors) {
+      const actual = vector.operation === 'parse-workspace'
+        ? codeOf(() => parseCanvasWorkspaceV01(mutate(fixture.workspaceResponse, vector.mutations)))
+        : vector.operation === 'parse-workspace-error'
+          ? codeOf(() => parseCanvasWorkspaceBlockedErrorV01(mutate(fixture.workspaceError, vector.mutations)))
+          : undefined;
+      if (actual !== undefined) expect(actual, vector.id).toBe(vector.expectedCode);
     }
   });
 

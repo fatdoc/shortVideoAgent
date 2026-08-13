@@ -87,6 +87,8 @@ test("Story parser rejects every executable workspace/materialization negative v
     let actual: string | null = null;
     if (vector.operation === "parse-workspace") {
       actual = codeOf(() => parseCanvasWorkspaceV01(mutate(fixture.workspaceResponse, vector.mutations)));
+    } else if (vector.operation === "parse-workspace-error") {
+      actual = codeOf(() => parseCanvasWorkspaceBlockedErrorV01(mutate(fixture.workspaceError, vector.mutations)));
     } else if (vector.operation === "parse-materialization-request") {
       actual = codeOf(() => parseCanvasAssetMaterializationRequestV01(mutate(fixture.materializationRequest, vector.mutations)));
     } else if (vector.operation === "parse-materialization-response") {
