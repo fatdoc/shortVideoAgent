@@ -24,7 +24,7 @@ export function AssetDock({ assets, open, onToggle, onInspectBinding }: AssetDoc
       </button>
       <AnimatePresence initial={false}>
         {open ? (
-          <motion.div className="cv1-asset-dock__items" initial={{ height: 0, opacity: 0 }} animate={{ height: 108, opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .18 }}>
+          <motion.div className="cv1-asset-dock__items" initial={{ height: 0, opacity: 0 }} animate={{ height: 74, opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .18 }}>
             {assets.map((asset) => (
               <article key={asset.assetId}>
                 <div className="cv1-asset-dock__preview">
