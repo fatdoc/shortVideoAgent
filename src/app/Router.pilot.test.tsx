@@ -430,7 +430,11 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       expect(window.location.pathname).toBe('/projects/project-alpha/script');
       expect(window.location.search).toBe('?tab=draft');
     });
-    expect(screen.getByTestId('pilot-route-handoff')).toBeInTheDocument();
+    expect(screen.getByTestId('pilot-script-boundary')).toHaveAttribute(
+      'data-project-id',
+      'project-alpha',
+    );
+    expect(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
   });
 
   it('keeps a Project API service failure inside the authenticated Pilot shell', async () => {

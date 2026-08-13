@@ -44,6 +44,12 @@ import {
 } from '../pages/pilot/PilotMemberOperationsPages';
 import { PilotPlatformSettlementDraftPage } from '../pages/pilot/PilotSettlementDraftPage';
 import { PilotTenantRechargeAuditPage } from '../pages/pilot/PilotTenantRechargeAuditPage';
+import {
+  PilotCanvasBoundaryPage,
+  PilotScriptBoundaryPage,
+  PilotStoryboardBoundaryPage,
+  createPilotCanvasEntryConsumer,
+} from '../pages/pilot-production/PilotProductionBoundaryPages';
 import { PilotTermsOperationsPage } from '../pages/pilot/PilotTermsOperationsPage';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
@@ -781,6 +787,25 @@ function pilotCommercialPage(route: PilotCommercialRouteManifestEntry): ReactNod
   return <PilotNotFoundPage />;
 }
 
+const pilotCanvasEntryConsumer = createPilotCanvasEntryConsumer();
+
+function pilotProductionBoundary(route: TenantRouteManifestEntry, projectId: string): ReactNode {
+  if (route.key === 'script') return <PilotScriptBoundaryPage projectId={projectId} />;
+  if (route.key === 'storyboard') return <PilotStoryboardBoundaryPage projectId={projectId} />;
+  if (route.key === 'production-canvas') {
+    return (
+      <div data-testid="pilot-production-canvas-route" data-project-id={projectId}>
+        <PilotCanvasBoundaryPage
+          projectId={projectId}
+          entry={null}
+          consumer={pilotCanvasEntryConsumer}
+        />
+      </div>
+    );
+  }
+  return null;
+}
+
 function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   const location = useLocation();
   const session = usePilotAuthStore((state) => state.session);
@@ -826,6 +851,10 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   }
 
   const projectCopy = decision.projectId ? `Project ${decision.projectId} · ` : '';
+  if (route.pilotReadiness === 'ready' && decision.projectId) {
+    const boundary = pilotProductionBoundary(route, decision.projectId);
+    if (boundary) return boundary;
+  }
   if (route.pilotReadiness === 'handoff-required') {
     return (
       <PilotStatePage
