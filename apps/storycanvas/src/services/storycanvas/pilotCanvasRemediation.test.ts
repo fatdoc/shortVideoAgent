@@ -134,7 +134,7 @@ test("authority registry deduplicates, purges expiry, bounds capacity and clears
   };
   const Registry = PilotCanvasAuthorityRegistry as unknown as new (
     client: unknown,
-    options: { capacity: number; now(): number },
+    options: { capacity: number; now(): number; registrar: { register(): Promise<unknown> } },
   ) => PilotCanvasAuthorityRegistry;
   const registry = new Registry(fakeClient, {
     capacity: 2,

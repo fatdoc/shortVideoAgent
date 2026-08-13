@@ -12,6 +12,7 @@ const TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 const CSRF_HEADER_VALUE = "pilot-canvas-bootstrap-v1";
 const REDEMPTION_PATH = "/api/v1/internal/canvas-entries/redeem";
+const SESSION_REGISTRATION_PATH = "/api/v1/internal/canvas-asset-sessions";
 const SESSION_PATH = "/api/v1/auth/session";
 const capabilityValues = ["image.generate", "video.generate", "audio.tts", "media.export"] as const;
 const scopeValues = ["production.package.read", "production.task.write", "production.receipt.write", "production.asset.write", "production.export.write"] as const;
@@ -163,6 +164,71 @@ export class PilotCanvasRedemptionClient {
   }
 }
 
+const canvasSessionRegistrationSchema = z.object({
+  handle: z.string().regex(HANDLE_PATTERN),
+  ...bindingFields,
+  canvasSessionId: z.string().regex(/^pcs_[A-Za-z0-9_-]{24,128}$/),
+  actorId: uuid,
+}).strict();
+const canvasSessionRegistrationResultSchema = z.object({
+  status: z.literal("active"),
+  expiresAt: timestamp,
+  replayed: z.boolean(),
+}).strict();
+export type PilotCanvasSessionRegistration = z.infer<typeof canvasSessionRegistrationSchema>;
+export type PilotCanvasSessionRegistrationResult = z.infer<typeof canvasSessionRegistrationResultSchema>;
+export interface PilotCanvasSessionRegistrar {
+  register(input: PilotCanvasSessionRegistration): Promise<PilotCanvasSessionRegistrationResult>;
+}
+export class PilotCanvasSessionRegistrationClient implements PilotCanvasSessionRegistrar {
+  private readonly baseUrl: URL;
+  private readonly fetchImpl: PilotCanvasFetch;
+  constructor(private readonly options: PilotCanvasRedemptionClientOptions) {
+    const baseUrl = validBaseUrl(options.controlApiBaseUrl);
+    if (!baseUrl || Buffer.byteLength(options.internalToken, "utf8") < 32) {
+      throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
+    }
+    this.baseUrl = baseUrl;
+    this.fetchImpl = options.fetchImpl ?? fetch;
+  }
+  async register(inputValue: PilotCanvasSessionRegistration): Promise<PilotCanvasSessionRegistrationResult> {
+    const parsed = canvasSessionRegistrationSchema.safeParse(inputValue);
+    if (!parsed.success) throw new PilotCanvasRedemptionError("PILOT_CANVAS_INVALID_RESPONSE", 422, false);
+    const body = JSON.stringify(parsed.data);
+    const url = new URL(SESSION_REGISTRATION_PATH, this.baseUrl).toString();
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let response: Response;
+      try {
+        response = await this.fetchImpl(url, {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            "x-production-plane-internal-token": this.options.internalToken,
+          },
+          body,
+        });
+      } catch {
+        if (attempt === 0) continue;
+        throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      }
+      if (response.status === 503 && attempt === 0) continue;
+      if (!response.ok) throw errorForStatus(response.status, safeRequestId(response));
+      if (!response.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+        throw new PilotCanvasRedemptionError("PILOT_CANVAS_INVALID_RESPONSE", 502, false, safeRequestId(response));
+      }
+      const raw = await response.json().catch(() => null);
+      const result = canvasSessionRegistrationResultSchema.safeParse(raw);
+      if (!result.success || (response.headers.get("idempotency-replayed") === "true") !== result.data.replayed) {
+        throw new PilotCanvasRedemptionError("PILOT_CANVAS_INVALID_RESPONSE", 502, false, safeRequestId(response));
+      }
+      return result.data;
+    }
+    throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+  }
+}
+
 type PilotRole = "platform_admin" | "channel_admin" | "tenant_admin" | "content_operator" | "pilot_support";
 export interface PilotCanvasSessionContext { actorId: string; tenantId: string; organizationType: "TENANT"; roles: readonly PilotRole[]; setCookie?: string; }
 export interface BrowserSafeCanvasBootstrap { schemaVersion: "pilot-canvas-bootstrap.v1"; status: "ready"; projectId: string; packageId: string; canvasSessionId: string; expiresAt: string; requestId: string; }
@@ -240,6 +306,7 @@ export class PilotCanvasAuthorityRegistry {
   private readonly capacity: number;
   private readonly now: () => number;
   private readonly onEvent?: (event: PilotCanvasAuthorityRegistryEvent) => void;
+  private readonly registrar: PilotCanvasSessionRegistrar;
   constructor(
     private readonly client: PilotCanvasRedemptionClient,
     options: PilotCanvasAuthorityRegistryOptions = {},
@@ -247,6 +314,10 @@ export class PilotCanvasAuthorityRegistry {
     this.capacity = options.capacity ?? 64;
     this.now = options.now ?? Date.now;
     this.onEvent = options.onEvent;
+    if (!options.registrar) {
+      throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
+    }
+    this.registrar = options.registrar;
     if (!Number.isSafeInteger(this.capacity) || this.capacity < 2 || this.capacity > 1_024) {
       throw new PilotCanvasRedemptionError("PILOT_CANVAS_CONFIGURATION_ERROR", 503, false);
     }
@@ -273,7 +344,16 @@ export class PilotCanvasAuthorityRegistry {
       this.emit("capacity-evicted");
     }
     const authorityId = `pcs_${crypto.randomBytes(24).toString("base64url")}`;
-    const expiresAt = new Date(expiryTime).toISOString();
+    const expectedExpiresAt = new Date(expiryTime).toISOString();
+    const registration = await this.registrar.register({
+      ...entry,
+      canvasSessionId: authorityId,
+      actorId,
+    });
+    if (registration.expiresAt !== expectedExpiresAt || this.now() >= Date.parse(registration.expiresAt)) {
+      throw new PilotCanvasRedemptionError("PILOT_CANVAS_INVALID_RESPONSE", 502, false);
+    }
+    const expiresAt = registration.expiresAt;
     this.values.set(authorityId, { actorId, redemption, expiresAt, entryKey });
     this.authorityByEntry.set(entryKey, authorityId);
     this.emit(this.values.size === this.capacity ? "capacity-filled" : "authority-issued");
@@ -326,6 +406,7 @@ export interface PilotCanvasAuthorityRegistryOptions {
   capacity?: number;
   now?: () => number;
   onEvent?: (event: PilotCanvasAuthorityRegistryEvent) => void;
+  registrar?: PilotCanvasSessionRegistrar;
 }
 export interface PilotCanvasAuthorityRegistryEvent {
   kind: "authority-issued" | "authority-deduplicated" | "expired-observed" | "expired-purged" | "capacity-filled" | "capacity-evicted" | "shutdown-cleared";

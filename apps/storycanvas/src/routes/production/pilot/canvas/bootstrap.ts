@@ -4,6 +4,7 @@ import {
   PilotCanvasAuthorityRegistry,
   PilotCanvasRedemptionClient,
   PilotCanvasRedemptionError,
+  PilotCanvasSessionRegistrationClient,
   createControlApiSessionVerifier,
   createPilotCanvasSafeBootstrapRouter,
 } from "@/services/storycanvas/pilotCanvasCapability";
@@ -33,7 +34,12 @@ function loadDelegate(): express.Router | null {
     authorityRegistry = new PilotCanvasAuthorityRegistry(new PilotCanvasRedemptionClient({
       controlApiBaseUrl,
       internalToken,
-    }));
+    }), {
+      registrar: new PilotCanvasSessionRegistrationClient({
+        controlApiBaseUrl,
+        internalToken,
+      }),
+    });
     delegate = createPilotCanvasSafeBootstrapRouter({
       allowedOrigin,
       verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
