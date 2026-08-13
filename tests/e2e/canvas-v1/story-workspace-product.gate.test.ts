@@ -456,7 +456,6 @@ test("controlled media rejects poisoned persisted event and command scopes befor
       eventId, commandId, tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId,
       canvasSessionId: scope.canvasSessionId, status: "task_created", eventJson: JSON.stringify(event), createdAt: occurredAt,
     });
-    await db(poison.table).update({ [poison.column]: JSON.stringify(poison.value) });
     let signed = 0;
     let fetched = 0;
     const service = new CanvasV1ControlledMediaService({
@@ -465,10 +464,19 @@ test("controlled media rejects poisoned persisted event and command scopes befor
       signGet: () => { signed += 1; return "https://bucket.example.test/private?X-Tos-Signature=secret"; },
       fetch: async () => { fetched += 1; return new Response(Buffer.from("video"), { status: 200, headers: { "content-type": "video/mp4" } }); },
     });
+    const exact = await service.open({ scope, assetId: outputAssetId });
+    assert.deepEqual({ status: exact.status, contentType: exact.contentType, acceptRanges: exact.acceptRanges }, {
+      status: 200, contentType: "video/mp4", acceptRanges: "bytes",
+    });
+    assert.equal(await new Response(exact.body).text(), "video");
+    assert.equal(JSON.stringify(exact).match(/X-Tos-Signature|tos:\/\/|provider|localPath/iu), null);
+    assert.equal(signed, 1);
+    assert.equal(fetched, 1);
+    await db(poison.table).update({ [poison.column]: JSON.stringify(poison.value) });
     await assert.rejects(() => service.open({ scope, assetId: outputAssetId }), (error: unknown) =>
       codeOf(error) === "CANVAS_MEDIA_NOT_FOUND", `${poison.table} poisoned authority must fail closed`);
-    assert.equal(signed, 0, `${poison.table} must fail before signing`);
-    assert.equal(fetched, 0, `${poison.table} must fail before object storage`);
+    assert.equal(signed, 1, `${poison.table} must fail before another signing operation`);
+    assert.equal(fetched, 1, `${poison.table} must fail before another object storage read`);
   }
 });
 
