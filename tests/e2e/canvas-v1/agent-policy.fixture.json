@@ -101,6 +101,6 @@
     "seedance",
     "seedream"
   ],
-  "onlyWritePort": "CanvasCommandService.execute",
+  "onlyWritePort": "ports.executeCanvasCommand -> CanvasCommandService.execute",
   "blockedResult": "confirmation_required"
 }

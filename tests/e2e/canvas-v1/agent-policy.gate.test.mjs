@@ -48,7 +48,7 @@ test("G4 policy fixture is closed and agrees with the frozen five-command cost b
   ]);
   assert.equal(fixture.commandTools.sync_provider_asset, "SYNC_PROVIDER_ASSET");
   assert.ok(!fixture.highCostTools.includes("sync_provider_asset"));
-  assert.equal(fixture.onlyWritePort, "CanvasCommandService.execute");
+  assert.equal(fixture.onlyWritePort, "ports.executeCanvasCommand -> CanvasCommandService.execute");
   assert.equal(fixture.blockedResult, "confirmation_required");
 });
 
@@ -90,8 +90,8 @@ test("G4 Agent source and skill surface are whitelist-only and isolated from leg
       assert.ok(!specifier.toLowerCase().includes(fragment.toLowerCase()), `forbidden Agent import ${specifier}`);
     }
   }
-  assert.match(productSource, /CanvasCommandService/u, "Agent write adapter must receive CanvasCommandService");
-  assert.match(productSource, /\.execute\s*\(/u, "Agent commands must use CanvasCommandService.execute");
+  assert.match(productSource, /executeCanvasCommand/u, "Agent must expose only the common command-service write port");
   assert.doesNotMatch(productSource, /\.(?:insert|update|delete|del)\s*\(/u, "Agent source contains a direct persistence mutation");
   assert.doesNotMatch(productSource, /socket\s*\.\s*emit\s*\(/u, "Agent source contains a legacy socket mutation");
+  assert.doesNotMatch(productSource, /\bconsole\s*\./u, "Agent source must not write tool values to public logs");
 });
