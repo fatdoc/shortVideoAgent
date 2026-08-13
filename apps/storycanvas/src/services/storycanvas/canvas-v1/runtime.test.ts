@@ -192,9 +192,7 @@ test("runtime binds Origin, Control Session actor and server-only canvas authori
     projectId,
     packageId,
     canvasSessionId,
-    readinessId: (generateCommand.payload as Extract<CanvasCommandV01, {
-      commandType: "GENERATE_SHOT";
-    }>["payload"]).readinessId,
+    readinessId: (generateCommand.payload as { readinessId: string }).readinessId,
     shotId,
     ready: true,
     reasonCodes: [],
