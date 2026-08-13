@@ -16,6 +16,7 @@ import type {
   ProviderAssetBindingV01,
   ShotReadinessV01,
 } from "@/contracts/canvas-v1";
+import type { CanvasWorkspaceAuthorityV01 } from "@/contracts/canvas-v1/workspaceMaterialization";
 import type { PilotCanvasServerAuthority } from "../pilotCanvasCapability";
 import { createCanvasV1RuntimeRouter } from "./runtime";
 
@@ -168,8 +169,12 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
   const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
   const projectsRoot = await mkdtemp(path.join(os.tmpdir(), "canvas-runtime-concurrent-bootstrap-"));
   context.after(async () => { await database.destroy(); await rm(projectsRoot, { recursive: true, force: true }); });
+  await database.schema.createTable("o_project", (table) => table.integer("id").primary());
+  await database.schema.createTable("o_image", (table) => table.integer("id").primary());
+  await database.schema.createTable("o_video", (table) => table.integer("id").primary());
   await storyCanvasCoreMigration.up(database);
   await canvasV1Migration.up(database);
+  await database("o_project").insert({ id: 42 });
   const approvedPackage = {
     scriptVersionId: "44444444-4444-4444-8444-444444444444",
     storyboardVersionId: "55555555-5555-4555-8555-555555555555",
@@ -181,7 +186,7 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
     redemption: { tenantId, projectId, packageId, productionPackage: approvedPackage },
     expiresAt: "2099-08-14T03:00:00.000Z",
   } as unknown as PilotCanvasServerAuthority;
-  const workspaceAuthority = {
+  const workspaceAuthority: CanvasWorkspaceAuthorityV01 = {
     objectType: "CanvasWorkspaceAuthority" as const,
     contractVersion: "0.1" as const,
     tenantId,
@@ -252,7 +257,7 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
   const failedFirst = fetch(url, { headers });
   await started;
   const failedReplay = fetch(url, { headers });
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => setTimeout(resolve, 25));
   releaseAuthority();
   assert.deepEqual((await Promise.all([failedFirst, failedReplay])).map(({ status }) => status), [502, 502]);
   assert.equal(authorityCalls, 1);
@@ -268,10 +273,10 @@ test("concurrent exact formal bootstrap opens share prepare and materialization,
     headers: { ...headers, "x-canvas-session-id": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321" },
   });
   assert.equal(changedScope.status, 401);
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => setTimeout(resolve, 25));
   releaseAuthority();
   const responses = await Promise.all([first, replay]);
-  assert.deepEqual(responses.map(({ status }) => status), [200, 200]);
+  assert.deepEqual(responses.map(({ status }) => status), [200, 200], JSON.stringify({ authorityCalls, materializationCalls }));
   assert.deepEqual(await responses[0].json(), await responses[1].json());
   assert.equal(authorityCalls, 2);
   assert.equal(materializationCalls, 1);
