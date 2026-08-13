@@ -15,7 +15,8 @@ export type CanvasPublicErrorCode =
   | "CANVAS_PROVIDER_FAILED"
   | "CANVAS_OUTPUT_REGISTRATION_FAILED"
   | "PRIMARY_VIRTUAL_CHARACTER_MISSING"
-  | "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS";
+  | "PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS"
+  | "CANVAS_MEDIA_NOT_FOUND";
 
 const SAFE_MESSAGES: Record<CanvasPublicErrorCode, string> = {
   CANVAS_SCHEMA_INVALID: "Canvas request is invalid.",
@@ -35,6 +36,7 @@ const SAFE_MESSAGES: Record<CanvasPublicErrorCode, string> = {
   CANVAS_OUTPUT_REGISTRATION_FAILED: "Generated output could not be registered.",
   PRIMARY_VIRTUAL_CHARACTER_MISSING: "Primary virtual character is required.",
   PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS: "Primary virtual character is ambiguous.",
+  CANVAS_MEDIA_NOT_FOUND: "Controlled Canvas media was not found.",
 };
 
 const HTTP_STATUS: Partial<Record<CanvasPublicErrorCode, number>> = {
@@ -50,6 +52,7 @@ const HTTP_STATUS: Partial<Record<CanvasPublicErrorCode, number>> = {
   CANVAS_OUTPUT_REGISTRATION_FAILED: 502,
   PRIMARY_VIRTUAL_CHARACTER_MISSING: 409,
   PRIMARY_VIRTUAL_CHARACTER_AMBIGUOUS: 409,
+  CANVAS_MEDIA_NOT_FOUND: 404,
 };
 
 export class CanvasCommandServiceError extends Error {

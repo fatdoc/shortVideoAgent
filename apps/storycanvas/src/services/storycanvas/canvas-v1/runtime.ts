@@ -37,6 +37,7 @@ import {
 } from "./controlAssetMaterializationClient";
 import { CanvasV1AssetMaterializer } from "./assetMaterialization";
 import getPath from "@/utils/getPath";
+import { CanvasV1ControlledMediaService } from "./controlledMedia";
 
 interface ProjectionRow {
   projectionJson: string;
@@ -157,6 +158,7 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
     projectsRoot: options.projectsRoot ?? getPath("projects"),
     now: options.now,
   }) : null;
+  const controlledMedia = new CanvasV1ControlledMediaService({ database: options.database, now: options.now });
 
   const resolveRequestScope = async (
     request: Request,
@@ -266,5 +268,6 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
         });
       },
     },
+    media: controlledMedia,
   });
 }

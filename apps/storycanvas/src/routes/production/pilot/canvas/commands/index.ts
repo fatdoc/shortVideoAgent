@@ -26,6 +26,7 @@ import {
   createCanvasV1WorkspaceRouter,
   type CanvasV1WorkspaceRouterOptions,
 } from "../workspace";
+import { createCanvasV1MediaRouter, type CanvasV1MediaRouterOptions } from "../media";
 
 export interface CanvasV1ProductionRouterOptions {
   resolveRequestScope(
@@ -37,6 +38,7 @@ export interface CanvasV1ProductionRouterOptions {
   documents: CanvasV1DocumentRouteService;
   formalBootstrap?: Omit<CanvasV1FormalBootstrapRouterOptions, "resolveRequestScope">;
   workspace?: Omit<CanvasV1WorkspaceRouterOptions, "resolveRequestScope">;
+  media?: Omit<CanvasV1MediaRouterOptions, "resolveRequestScope">;
   bodyLimit?: string | number;
 }
 
@@ -79,6 +81,10 @@ export function createCanvasV1ProductionRouter(options?: CanvasV1ProductionRoute
   router.use("/workspace", createCanvasV1WorkspaceRouter(options?.workspace ? {
     resolveRequestScope: options.resolveRequestScope,
     ...options.workspace,
+  } : undefined));
+  router.use("/media", createCanvasV1MediaRouter(options?.media ? {
+    resolveRequestScope: options.resolveRequestScope,
+    ...options.media,
   } : undefined));
   router.use("/assets", createCanvasV1AssetsRouter(options ? {
     resolveRequestScope: options.resolveRequestScope,
