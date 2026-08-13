@@ -54,6 +54,7 @@ import {
   ChannelProductsPage,
 } from '../pages/channel/ChannelCommercialPages';
 import { ProductCatalogPage } from '../pages/commercial/ProductCatalogPage';
+import { CanvasV1RouteContainer } from '../features/canvas-v1/api';
 import { DashboardPage } from '../pages/dashboard/DashboardPage';
 import {
   PlatformCatalogPage,
@@ -824,6 +825,8 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   if (decision.status !== 'allowed' || decision.routeKind !== 'tenant') {
     return <PilotNotFoundPage />;
   }
+
+  if (route.key === 'production-canvas') return <CanvasV1RouteContainer />;
 
   const projectCopy = decision.projectId ? `Project ${decision.projectId} · ` : '';
   if (route.pilotReadiness === 'handoff-required') {

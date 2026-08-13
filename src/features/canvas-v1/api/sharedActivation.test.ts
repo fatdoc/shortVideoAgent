@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import type { CanvasCommandV01 } from '../model/contracts';
+import type { CanvasBootstrapV01, CanvasCommandV01 } from '../model/contracts';
+import type { CanvasWorkspaceV01 } from '../model/workspaceContract';
 import {
   createCanvasActivationAttemptId,
   createPilotStoryCanvasHttpPort,
@@ -10,20 +11,34 @@ import {
   parseFormalCanvasBootstrap,
   parseFormalCanvasWorkspace,
   parseLegacyCanvasOpenResponse,
+  type CanvasActivationResponse,
+  type CanvasApprovalProjection,
+  type CanvasFetch,
+  type LegacyCanvasOpenRequest,
+  type LegacyCanvasOpenResponse,
 } from './index';
+
+interface ActivationFixture {
+  activationResponse: CanvasActivationResponse;
+  legacyOpenRequest: LegacyCanvasOpenRequest;
+  legacyOpenResponse: LegacyCanvasOpenResponse;
+  formalBootstrapResponse: CanvasBootstrapV01;
+  approvalPrepareResponse: CanvasApprovalProjection;
+  commandDispatchRequest: CanvasCommandV01;
+}
 
 const activation = JSON.parse(
   readFileSync(
     resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/activation-transport.json'),
     'utf8',
   ),
-) as Record<string, any>;
+) as ActivationFixture;
 const workspace = JSON.parse(
   readFileSync(
     resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json'),
     'utf8',
   ),
-) as Record<string, any>;
+) as { workspaceResponse: CanvasWorkspaceV01 };
 
 const projectId = '22222222-2222-4222-8222-222222222222';
 const packageId = '33333333-3333-4333-8333-333333333333';
@@ -84,7 +99,10 @@ describe('G5 Shared activation transport 25-vector RED', () => {
 
   it('07 rejects a non-canonical project route parameter', () => {
     expect(() =>
-      parseCanonicalCanvasRouteSelection({ projectId: projectId.toUpperCase(), search: `?packageId=${packageId}` }),
+      parseCanonicalCanvasRouteSelection({
+        projectId: 'AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA',
+        search: `?packageId=${packageId}`,
+      }),
     ).toThrow('CANVAS_ACTIVATION_PROJECT_INVALID');
   });
 
@@ -202,7 +220,7 @@ describe('G5 Shared activation transport 25-vector RED', () => {
   });
 
   it('21 acquires Control CSRF only from the existing safe-read response header', async () => {
-    const fetchImpl = vi.fn(async () =>
+    const fetchImpl = vi.fn<CanvasFetch>().mockResolvedValue(
       json({ assets: [] }, { headers: { 'x-csrf-token': 'A'.repeat(43) } }),
     );
     await expect(createPilotStoryCanvasHttpPort({ fetchImpl }).acquireControlCsrf(projectId)).resolves.toBe(
@@ -215,7 +233,7 @@ describe('G5 Shared activation transport 25-vector RED', () => {
   });
 
   it('22 sends strict activation without a browser Idempotency-Key', async () => {
-    const fetchImpl = vi.fn(async () => json(activation.activationResponse));
+    const fetchImpl = vi.fn<CanvasFetch>().mockResolvedValue(json(activation.activationResponse));
     await createPilotStoryCanvasHttpPort({ fetchImpl }).activate(
       projectId,
       packageId,
@@ -228,7 +246,7 @@ describe('G5 Shared activation transport 25-vector RED', () => {
   });
 
   it('23 projects exactly four fields into legacy open', async () => {
-    const fetchImpl = vi.fn(async () => json(activation.legacyOpenResponse));
+    const fetchImpl = vi.fn<CanvasFetch>().mockResolvedValue(json(activation.legacyOpenResponse));
     await createPilotStoryCanvasHttpPort({ fetchImpl }).openLegacy(activation.legacyOpenRequest);
     const [, init] = fetchImpl.mock.calls[0]!;
     expect(JSON.parse(String(init?.body))).toEqual(activation.legacyOpenRequest);
