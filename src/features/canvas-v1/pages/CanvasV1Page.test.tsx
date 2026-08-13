@@ -387,9 +387,12 @@ describe('CanvasV1Page interactions and safety', () => {
     ['data URI', 'data:image/svg+xml;base64,PHN2Zy8+'],
     ['blob URI', 'blob:https://example.test/private'],
     ['script URI', 'javascript:alert(1)'],
+    ['external HTTPS URL', 'https://cdn.example.test/preview.jpg'],
+    ['protocol-relative URL', '//cdn.example.test/preview.jpg'],
     ['signed URL', 'https://cdn.example.test/preview.jpg?X-Amz-Signature=secret'],
     ['credential URL', 'https://user:password@cdn.example.test/preview.jpg'],
-  ])('keeps every media sink free of an unsafe %s', (_label, unsafeUrl) => {
+  ])('keeps every media sink free of an unsafe %s', async (_label, unsafeUrl) => {
+    const user = userEvent.setup();
     const shot = {
       ...createShot(),
       thumbnailUrl: unsafeUrl,
@@ -403,6 +406,9 @@ describe('CanvasV1Page interactions and safety', () => {
     const asset = createBindableAsset({ controlledPreviewUrl: unsafeUrl });
     render(<CanvasV1Page {...createProps({ shots: [shot], assets: [asset] })} />);
 
+    expect(document.querySelectorAll('img')).toHaveLength(0);
+    expect(document.documentElement.outerHTML).not.toContain(unsafeUrl);
+    await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
     expect(document.querySelectorAll('img')).toHaveLength(0);
     expect(document.documentElement.outerHTML).not.toContain(unsafeUrl);
   });
