@@ -82,7 +82,7 @@ describe.runIf(hasDedicatedTestDatabase)('Pilot E2E deterministic PostgreSQL lif
     expect(second.summary).toMatchObject({
       fixtureVersion: 2,
       fixtureClock: PILOT_E2E_FIXTURE_CLOCK,
-      migrationCount: 24,
+      migrationCount: 26,
       organizationCount: 5,
       channelCount: 2,
       tenantCount: 2,

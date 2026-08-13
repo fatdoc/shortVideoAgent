@@ -329,8 +329,8 @@ describe.runIf(hasDedicatedTestDatabase)('PostgresMemberDirectoryRepository', ()
       active_organization_id: tenantId,
       membership_version: expectedVersion,
       token_digest: 'legacy-member-session-digest',
-      expires_at: '2026-08-10T00:00:00.000Z',
-      rotation_due_at: '2026-08-09T23:59:00.000Z',
+      expires_at: '2099-08-10T00:00:00.000Z',
+      rotation_due_at: '2099-08-09T23:59:00.000Z',
     });
     const authRepository = new PostgresAuthRepository(database);
     await expect(
