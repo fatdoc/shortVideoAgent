@@ -61,6 +61,24 @@
       "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
     },
     {
+      "id": "workspace-rejects-out-of-range-canonical-timestamp",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-99-99T99:99:99.999Z" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-rejects-calendar-rollover-timestamp",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-02-30T02:07:00.000Z" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-rejects-offset-timestamp-drift",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-08-14T02:07:00.000+00:00" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
       "id": "workspace-rejects-legacy-open-bootstrap",
       "operation": "parse-workspace",
       "mutations": [{ "op": "replace", "path": "/bootstrap", "value": { "schemaVersion": "pilot-canvas-bootstrap.v1", "status": "ready" } }],

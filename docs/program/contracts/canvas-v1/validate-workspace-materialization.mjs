@@ -226,7 +226,8 @@ test("negative vectors freeze workspace, transport, content integrity and persis
   const ids = negative.vectors.map(({ id }) => id);
   assert.equal(new Set(ids).size, ids.length);
   const required = [
-    "unknown-top-level", "legacy-open-bootstrap", "package-scope-mismatch",
+    "unknown-top-level", "canonical-timestamp", "calendar-rollover-timestamp",
+    "offset-timestamp-drift", "legacy-open-bootstrap", "package-scope-mismatch",
     "document-reference", "shot-sequence", "script-is-not-empty", "requirement-must-bind",
     "readiness-must-bind", "required-labels", "asset-aggregate", "nonvirtual-asset",
     "selected-output", "thumbnail", "signed-url", "event-must-be", "incomplete-assets",
