@@ -301,6 +301,17 @@ describe('CanvasV1Page interactions and safety', () => {
     expect(onCommand).not.toHaveBeenCalled();
   });
 
+  it('fails closed when high-cost generation approval is missing', async () => {
+    const user = userEvent.setup();
+    const onCommand = vi.fn();
+    render(<CanvasV1Page {...createProps({ onCommand, commandContext: { requestedByActorId: '12121212-1212-4212-8212-121212121212', approvalId: null } })} />);
+
+    expect(screen.getByText('生成审批尚未确认')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '生成当前镜头' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: '生成当前镜头' }));
+    expect(onCommand).not.toHaveBeenCalled();
+  });
+
   it('does not create a candidate asset when a task fails', () => {
     render(<CanvasV1Page {...createProps({ taskEvents: { [shotId]: createEvent('failed') } })} />);
 

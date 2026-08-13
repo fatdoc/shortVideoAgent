@@ -112,10 +112,15 @@ export function CanvasV1Page({
   const event = activeShot ? taskEvents[activeShot.shotId] : undefined;
   const assetViews = assets ?? bootstrap?.assetSummaries ?? [];
   const bindingAsset = assetViews.find((asset) => asset.assetId === bindingAssetId) ?? null;
-  const blockingReasons = useMemo(
-    () => activeShot?.readiness.reasonCodes.map((reason) => reasonCopy[reason] ?? '当前镜头未通过生产检查') ?? [],
-    [activeShot],
-  );
+  const blockingReasons = useMemo(() => {
+    const reasons = activeShot?.readiness.reasonCodes.map((reason) => reasonCopy[reason] ?? '当前镜头未通过生产检查') ?? [];
+    if (bootstrap?.status === 'blocked') {
+      const videoCapability = bootstrap.capabilities.find((entry) => entry.capability === 'video_generation');
+      reasons.push(videoCapability?.reasonCode ? reasonCopy[videoCapability.reasonCode] ?? '视频生成能力当前不可用' : '项目生产入口尚未就绪');
+    }
+    if (!commandContext.approvalId) reasons.push('生成审批尚未确认');
+    return [...new Set(reasons)];
+  }, [activeShot, bootstrap, commandContext.approvalId]);
 
   if (loadState === 'loading') {
     return <div className="cv1-state-page" role="status"><IconLoader2 className="cv1-spin" /><strong>正在加载门店生产台</strong><span>同步已批准脚本、分镜和项目资产</span></div>;
@@ -130,7 +135,7 @@ export function CanvasV1Page({
   }
 
   const taskRunning = event && ['accepted', 'provider_submitted', 'task_created'].includes(event.status);
-  const canGenerate = bootstrap.status === 'ready' && activeShot.readiness.ready && !taskRunning;
+  const canGenerate = bootstrap.status === 'ready' && activeShot.readiness.ready && Boolean(commandContext.approvalId) && !taskRunning;
 
   const generateShot = (prompt: string) => {
     if (!canGenerate) return;

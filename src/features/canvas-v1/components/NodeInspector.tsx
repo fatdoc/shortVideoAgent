@@ -17,13 +17,14 @@ interface NodeInspectorProps {
 export function NodeInspector({ shot, assets, event, initialPrompt, canGenerate, blockingReasons, onGenerate }: NodeInspectorProps) {
   const [prompt, setPrompt] = useState(initialPrompt);
   const taskRunning = event && ['accepted', 'provider_submitted', 'task_created'].includes(event.status);
+  const gateReady = shot.readiness.ready && blockingReasons.length === 0;
 
   return (
     <aside className="cv1-inspector" aria-label="镜头检查器">
       <div className="cv1-section-heading"><div><span>生产检查</span><small>镜头 {String(shot.sequence).padStart(2, '0')}</small></div></div>
-      <section className={`cv1-readiness ${canGenerate ? 'is-ready' : 'is-blocked'}`}>
-        <span>{shot.readiness.ready ? 'READY' : 'BLOCKED'}</span>
-        <strong>{shot.readiness.ready ? '镜头已就绪，可以生成' : '当前镜头暂不可生成'}</strong>
+      <section className={`cv1-readiness ${gateReady ? 'is-ready' : 'is-blocked'}`}>
+        <span>{gateReady ? 'READY' : 'BLOCKED'}</span>
+        <strong>{gateReady ? '镜头已就绪，可以生成' : '当前镜头暂不可生成'}</strong>
         {blockingReasons.length ? <ul>{blockingReasons.map((reason) => <li key={reason}>{reason}</li>)}</ul> : <p>权利、审批、Provider 和项目绑定均已通过。</p>}
       </section>
       <AssetReadinessPanel assets={assets} />
