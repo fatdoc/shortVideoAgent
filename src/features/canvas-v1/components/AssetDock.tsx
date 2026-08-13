@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { IconChevronDown, IconLink, IconPhoto } from '@tabler/icons-react';
 import type { CanvasAssetView } from '../pages/CanvasV1Page';
+import { controlledMediaSrc } from './controlledMedia';
 
 interface AssetDockProps {
   assets: CanvasAssetView[];
@@ -25,15 +26,16 @@ export function AssetDock({ assets, open, onToggle, onInspectBinding }: AssetDoc
       <AnimatePresence initial={false}>
         {open ? (
           <motion.div className="cv1-asset-dock__items" initial={{ height: 0, opacity: 0 }} animate={{ height: 74, opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: .18 }}>
-            {assets.map((asset) => (
-              <article key={asset.assetId}>
+            {assets.map((asset) => {
+              const previewSrc = controlledMediaSrc(asset.controlledPreviewUrl);
+              return <article key={asset.assetId}>
                 <div className="cv1-asset-dock__preview">
-                  {asset.controlledPreviewUrl ? <img src={asset.controlledPreviewUrl} alt="" /> : <IconPhoto size={20} />}
+                  {previewSrc ? <img src={previewSrc} alt="" /> : <IconPhoto size={20} />}
                 </div>
                 <div><strong>{asset.displayName}</strong><small>{statusCopy[asset.entityBindingStatus]}</small></div>
                 <button type="button" onClick={() => onInspectBinding(asset.assetId)} aria-label={`查看${asset.displayName}绑定`}><IconLink size={15} /></button>
-              </article>
-            ))}
+              </article>;
+            })}
           </motion.div>
         ) : null}
       </AnimatePresence>

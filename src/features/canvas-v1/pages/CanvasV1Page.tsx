@@ -164,7 +164,7 @@ export function CanvasV1Page({
   };
 
   const bindAsset = (asset: CanvasAssetView) => {
-    if (!asset.targetEntityId) return;
+    if (!commandContext.approvalId || !asset.targetEntityId) return;
     void onCommand({
       objectType: 'CanvasCommand', contractVersion: '0.1', tenantId: bootstrap.tenantId, projectId: bootstrap.projectId,
       packageId: bootstrap.packageId, canvasSessionId: bootstrap.canvasSessionId, commandId: generatedUuid(),
@@ -197,7 +197,7 @@ export function CanvasV1Page({
           <PlaylistStrip shots={shots} orderedShotIds={document.playlist.shotIds} onReorder={reorderPlaylist} />
         </div>
         <NodeInspector
-          key={activeShot.shotId}
+          key={`${document.documentId}:${document.version}:${activeShot.shotId}`}
           shot={activeShot}
           assets={assetViews}
           event={event}
@@ -207,7 +207,7 @@ export function CanvasV1Page({
           onGenerate={generateShot}
         />
       </div>
-      <AssetBindingDrawer asset={bindingAsset} onClose={closeAssetBinding} onBind={bindAsset} />
+      <AssetBindingDrawer asset={bindingAsset} approvalGranted={Boolean(commandContext.approvalId)} onClose={closeAssetBinding} onBind={bindAsset} />
     </div>
   );
 }

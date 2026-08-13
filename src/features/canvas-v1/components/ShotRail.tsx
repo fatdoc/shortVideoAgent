@@ -1,6 +1,7 @@
 import { IconCircleCheck, IconCircleDashed, IconCircleX, IconLoader2 } from '@tabler/icons-react';
 import type { CanvasEventV01 } from '../model/contracts';
 import type { CanvasShotView } from '../pages/CanvasV1Page';
+import { controlledMediaSrc } from './controlledMedia';
 
 interface ShotRailProps {
   shots: CanvasShotView[];
@@ -25,8 +26,9 @@ export function ShotRail({ shots, activeShotId, taskEvents, onSelect }: ShotRail
         <div><span>镜头</span><small>{shots.length} 个</small></div>
       </div>
       <ol>
-        {shots.map((shot) => (
-          <li key={shot.shotId}>
+        {shots.map((shot) => {
+          const thumbnailSrc = controlledMediaSrc(shot.thumbnailUrl);
+          return <li key={shot.shotId}>
             <button
               type="button"
               className={shot.shotId === activeShotId ? 'is-active' : ''}
@@ -35,7 +37,7 @@ export function ShotRail({ shots, activeShotId, taskEvents, onSelect }: ShotRail
             >
               <span className="cv1-shot-rail__number">{String(shot.sequence).padStart(2, '0')}</span>
               <span className="cv1-shot-rail__media">
-                {shot.thumbnailUrl ? <img src={shot.thumbnailUrl} alt="" /> : <span aria-hidden="true" />}
+                {thumbnailSrc ? <img src={thumbnailSrc} alt="" /> : <span aria-hidden="true" />}
               </span>
               <span className="cv1-shot-rail__copy">
                 <strong>{shot.title}</strong>
@@ -43,8 +45,8 @@ export function ShotRail({ shots, activeShotId, taskEvents, onSelect }: ShotRail
               </span>
               <span className="cv1-shot-rail__state"><ShotStateIcon shot={shot} event={taskEvents[shot.shotId]} /></span>
             </button>
-          </li>
-        ))}
+          </li>;
+        })}
       </ol>
     </nav>
   );

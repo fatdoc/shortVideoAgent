@@ -3,6 +3,7 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { CSS } from '@dnd-kit/utilities';
 import { IconGripVertical } from '@tabler/icons-react';
 import type { CanvasShotView } from '../pages/CanvasV1Page';
+import { controlledMediaSrc } from './controlledMedia';
 
 interface PlaylistStripProps {
   shots: CanvasShotView[];
@@ -12,11 +13,12 @@ interface PlaylistStripProps {
 
 function SortableShot({ shot }: { shot: CanvasShotView }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: shot.shotId });
+  const thumbnailSrc = controlledMediaSrc(shot.thumbnailUrl);
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={isDragging ? 'is-dragging' : ''}>
       <button type="button" aria-label={`拖动镜头 ${shot.sequence}`} {...attributes} {...listeners}><IconGripVertical size={14} /></button>
       <span>{String(shot.sequence).padStart(2, '0')}</span>
-      <div>{shot.thumbnailUrl ? <img src={shot.thumbnailUrl} alt="" /> : null}</div>
+      <div>{thumbnailSrc ? <img src={thumbnailSrc} alt="" /> : null}</div>
       <strong>{shot.title}</strong>
       <small>{shot.durationSeconds}s</small>
     </li>

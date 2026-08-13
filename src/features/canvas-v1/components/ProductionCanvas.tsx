@@ -3,6 +3,7 @@ import { IconArrowDown, IconCircleCheck, IconPhoto, IconUser, IconVideo } from '
 import type { ReactNode } from 'react';
 import type { CanvasEventV01 } from '../model/contracts';
 import type { CanvasShotView } from '../pages/CanvasV1Page';
+import { controlledMediaSrc } from './controlledMedia';
 
 interface ProductionCanvasProps {
   shot: CanvasShotView;
@@ -29,6 +30,7 @@ function NodeShell({ eyebrow, icon, state, children }: { eyebrow: string; icon: 
 export function ProductionCanvas({ shot, event }: ProductionCanvasProps) {
   const taskRunning = event && ['accepted', 'provider_submitted', 'task_created'].includes(event.status);
   const output = shot.outputs[0];
+  const outputPreviewSrc = controlledMediaSrc(output?.previewUrl);
 
   return (
     <motion.main
@@ -60,8 +62,8 @@ export function ProductionCanvas({ shot, event }: ProductionCanvasProps) {
         </NodeShell>
         <ChainLink />
         <NodeShell eyebrow="候选画面" icon={<IconPhoto size={17} />} state={output ? '已选择' : '待生成'}>
-          {output ? (
-            <div className="cv1-node__preview"><img src={output.previewUrl} alt={`${shot.title}候选画面`} /></div>
+          {output && outputPreviewSrc ? (
+            <div className="cv1-node__preview"><img src={outputPreviewSrc} alt={`${shot.title}候选画面`} /></div>
           ) : (
             <div className="cv1-node__placeholder"><IconPhoto size={24} /><span>生成后在这里选择候选画面</span></div>
           )}
