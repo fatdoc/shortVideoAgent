@@ -307,6 +307,47 @@ describe('CanvasV1Page interactions and safety', () => {
     expect(screen.getByText('俯拍咖啡与甜点，手部入画。')).toBeInTheDocument();
   });
 
+  it('keeps the full store acquisition lifecycle and the four current-shot stages visible', () => {
+    const { container } = render(<CanvasV1Page {...createProps()} />);
+
+    const lifecycle = screen.getByRole('list', { name: '门店短视频获客业务链' });
+    expect(lifecycle).toHaveTextContent(
+      '门店建档商品套餐门店资产获客任务AI 探店脚本探店分镜剪辑成片发布投放线索转化',
+    );
+    const productionChain = screen.getByRole('list', { name: '当前镜头生产链' });
+    expect(productionChain).toHaveTextContent('ScriptAssetImageVideo');
+    expect(container.querySelectorAll('button.cv1-primary-action')).toHaveLength(1);
+  });
+
+  it('projects generation, output registration, and controlled preview as distinct facts', () => {
+    const shot = createShot();
+    shot.outputs = [
+      {
+        assetId: '19191919-1919-4919-8919-191919191919',
+        kind: 'image',
+        previewUrl: '/api/canvas-v1/media/candidate-safe.jpg',
+        selected: true,
+      },
+      {
+        assetId: '20202020-2020-4020-8020-202020202020',
+        kind: 'video',
+        previewUrl: '/api/production/pilot/canvas/v1/media/output-safe.mp4',
+        selected: false,
+      },
+    ];
+    render(<CanvasV1Page {...createProps({
+      shots: [shot],
+      taskEvents: { [shotId]: createEvent('output_registered') },
+    })} />);
+
+    expect(screen.getByText('输出已登记')).toBeInTheDocument();
+    expect(screen.getByText('可预览')).toBeInTheDocument();
+    const preview = screen.getByLabelText('门店开场视频预览');
+    expect(preview).toHaveAttribute('src', '/api/production/pilot/canvas/v1/media/output-safe.mp4');
+    expect(preview).toHaveAttribute('controls');
+    expect(document.body.textContent).not.toContain('15151515-1515-4515-8515-151515151515');
+  });
+
   it('uses the edited prompt in a browser-safe command', async () => {
     const user = userEvent.setup();
     const onCommand = vi.fn();
@@ -527,10 +568,10 @@ describe('CanvasV1Page interactions and safety', () => {
     const asset = createBindableAsset({ controlledPreviewUrl: unsafeUrl });
     render(<CanvasV1Page {...createProps({ shots: [shot], assets: [asset] })} />);
 
-    expect(document.querySelectorAll('img')).toHaveLength(0);
+    expect(document.querySelectorAll('img, video')).toHaveLength(0);
     expect(document.documentElement.outerHTML).not.toContain(unsafeUrl);
     await user.click(screen.getByRole('button', { name: '查看门店讲解员绑定' }));
-    expect(document.querySelectorAll('img')).toHaveLength(0);
+    expect(document.querySelectorAll('img, video')).toHaveLength(0);
     expect(document.documentElement.outerHTML).not.toContain(unsafeUrl);
   });
 
