@@ -31,7 +31,7 @@ describe('Pilot login page', () => {
 
     expect(screen.getByRole('heading', { name: '登录工作台' })).toBeInTheDocument();
     expect(screen.queryByTestId('demo-identities')).not.toBeInTheDocument();
-    expect(screen.getByText('仅填充邮箱，实际权限由服务端账号决定')).toBeInTheDocument();
+    expect(screen.queryByTestId('pilot-local-account-select')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByTestId('pilot-login-email'), {
       target: { value: 'pilot@example.com' },
@@ -47,15 +47,16 @@ describe('Pilot login page', () => {
     expect(screen.getByTestId('pilot-login-password')).toHaveAttribute('type', 'password');
   });
 
-  it('fills the email from a local quick account without granting a browser-side role', async () => {
-    render(<LoginPage />);
+  it('does not expose local account shortcuts or role selection', () => {
+    const { container } = render(<LoginPage />);
 
-    fireEvent.mouseDown(screen.getByRole('combobox', { name: '快捷账号' }));
-    fireEvent.click(await screen.findByText('内容运营'));
-
-    expect(screen.getByTestId('pilot-login-email')).toHaveValue('operator@videoagent.test');
+    expect(screen.queryByRole('combobox', { name: '快捷账号' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pilot-local-account-select')).not.toBeInTheDocument();
+    expect(container).not.toHaveTextContent(
+      /platform@videoagent\.test|channel@videoagent\.test|admin@videoagent\.test|operator@videoagent\.test/,
+    );
+    expect(container).not.toHaveTextContent(/平台管理员|渠道管理员|门店管理员|内容运营/);
     expect(login).not.toHaveBeenCalled();
-    expect(screen.getByTestId('pilot-login-password')).toHaveFocus();
   });
 
   it('offers a Pilot-only registration entry without changing Demo login behavior', () => {
