@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import path from "node:path";
 
+// Knex publishes types for its package root but not for its explicit ESM runtime entry.
+// @ts-expect-error the integration test uses the package's stable ESM runtime entry
+import controlKnex from "../../apps/control-api/node_modules/knex/knex.mjs";
 import {
   parseLocalManualCaseOptions,
   runLocalManualCase,
@@ -25,6 +28,15 @@ test("local manual case target parser keeps local and test databases fail-closed
     STORYCANVAS_LOCAL_CASE_ROOT: storyRoot,
     CANVAS_ASSET_STORAGE_ROOT: assetRoot,
   }).target, "local");
+  const localWithoutPassword = Object.fromEntries(
+    Object.entries(strongSecrets).filter(([key]) => key !== "PILOT_LOCAL_ACCOUNT_PASSWORD"),
+  );
+  assert.equal(parseLocalManualCaseOptions(["--target", "local"], {
+    ...localWithoutPassword,
+    DATABASE_URL: "postgresql://127.0.0.1:5432/videoagent_control",
+    STORYCANVAS_LOCAL_CASE_ROOT: storyRoot,
+    CANVAS_ASSET_STORAGE_ROOT: assetRoot,
+  }).accountPassword, null);
   assert.equal(parseLocalManualCaseOptions(["--target=test"], {
     ...strongSecrets,
     PILOT_E2E: "true",
@@ -87,7 +99,44 @@ test("complete case is repeatable, persistent, blocked without Provider, and zer
   };
   const options = parseLocalManualCaseOptions(["--target=test"], environment);
   const first = await runLocalManualCase(options);
-  const replay = await runLocalManualCase({ ...options, resetTestTarget: false });
+  const verificationDatabase = controlKnex({
+    client: "pg",
+    connection: databaseUrl,
+    pool: { min: 0, max: 1 },
+  });
+  const beforeReplay = {
+    users: await verificationDatabase("control_plane.users").count("* as count").first(),
+    projects: await verificationDatabase("control_plane.projects").count("* as count").first(),
+    hashes: await verificationDatabase("control_plane.users")
+      .select("user_id", "password_hash").orderBy("user_id"),
+  };
+  const persistedMarkers = JSON.stringify({
+    project: await verificationDatabase("control_plane.projects")
+      .where({ project_id: first.entry.projectId }).first("name"),
+    brief: await verificationDatabase("control_plane.creative_briefs")
+      .where({ project_id: first.entry.projectId }).first("payload"),
+    script: await verificationDatabase("control_plane.script_versions")
+      .where({ project_id: first.entry.projectId }).first("payload"),
+    storyboard: await verificationDatabase("control_plane.storyboard_versions")
+      .where({ project_id: first.entry.projectId }).first("payload"),
+    production: await verificationDatabase("control_plane.production_packages")
+      .where({ package_id: first.entry.packageId }).first("snapshot"),
+  });
+  for (const marker of ["PROJECT", "BRAND", "BRIEF", "SCRIPT", "STORYBOARD", "PRODUCTION"]) {
+    assert.match(persistedMarkers, new RegExp(`CANVAS_FULL_CASE_${marker}`));
+  }
+  const replay = await runLocalManualCase({
+    ...options,
+    accountPassword: "Different-Local-Case-2026!",
+    resetTestTarget: false,
+  });
+  const afterReplay = {
+    users: await verificationDatabase("control_plane.users").count("* as count").first(),
+    projects: await verificationDatabase("control_plane.projects").count("* as count").first(),
+    hashes: await verificationDatabase("control_plane.users")
+      .select("user_id", "password_hash").orderBy("user_id"),
+  };
+  await verificationDatabase.destroy();
 
   assert.equal(first.control.migrationCount, 27);
   assert.equal(first.story.migrationCount, 5);
@@ -130,5 +179,6 @@ test("complete case is repeatable, persistent, blocked without Provider, and zer
   assert.deepEqual(replay.control.authorityCounts, first.control.authorityCounts);
   assert.deepEqual(replay.story.factCounts, first.story.factCounts);
   assert.equal(replay.entry.handle, first.entry.handle);
+  assert.deepEqual(afterReplay, beforeReplay);
   assert.doesNotMatch(JSON.stringify(first), /accessToken|password|secret|authorization/i);
 });
