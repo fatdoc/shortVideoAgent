@@ -14,7 +14,8 @@ type Stage = {
   key: string;
   routeTemplate: string;
   roles: string[];
-  requiredMarkerEnvironment: string;
+  requiredMarkerEnvironment: string | null;
+  expectedSurfaceTestId: string | null;
   acceptance: string;
 };
 type Matrix = {
@@ -106,12 +107,14 @@ for (const account of matrix.accounts) {
 
     for (const stage of matrix.stages.filter(({ roles }) => roles.includes(account.key))) {
       await page.goto(route(stage));
-      await assertNoFalseSuccess(page);
-      if (stage.key === 'project') {
-        await expect(page.getByTestId(account.expectedProjectSurface)).toBeVisible();
+      if (stage.expectedSurfaceTestId) {
+        await expect(page.getByTestId(stage.expectedSurfaceTestId)).toBeVisible();
       }
-      const marker = required(stage.requiredMarkerEnvironment);
-      await expect(page.getByText(marker, { exact: false }).first()).toBeVisible();
+      if (stage.requiredMarkerEnvironment) {
+        const marker = required(stage.requiredMarkerEnvironment);
+        await expect(page.getByText(marker, { exact: false }).first()).toBeVisible();
+      }
+      await assertNoFalseSuccess(page);
       if (stage.key === 'script' && account.key === 'content_operator') {
         await expect(page.getByText(required('CANVAS_FULL_CASE_BRIEF_MARKER'), { exact: false }).first())
           .toBeVisible();

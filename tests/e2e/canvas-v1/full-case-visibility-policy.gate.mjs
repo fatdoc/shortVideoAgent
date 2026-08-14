@@ -10,6 +10,10 @@ const matrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
 const manifestPath = path.join(root, 'src/domain/unifiedTenantWorkbench.ts');
 const routerPath = path.join(root, 'src/app/Router.tsx');
 const localAccountsPath = path.join(root, 'src/pages/auth/pilotLocalAccounts.ts');
+const contentPagesPath = path.join(
+  root,
+  'src/pages/pilot-production/PilotProjectContentPages.tsx',
+);
 
 const exactAccounts = [
   ['platform_admin', 'platform@videoagent.test', 'PLATFORM', 'denied', 'pilot-tenant-context-required'],
@@ -19,11 +23,11 @@ const exactAccounts = [
 ];
 const exactStages = [
   ['project', '/projects', 'implemented_real'],
-  ['brand', '/projects/:projectId/brand', 'page_not_implemented'],
-  ['brief', '/projects/new', 'page_not_implemented'],
-  ['script', '/projects/:projectId/script', 'page_not_implemented'],
-  ['storyboard', '/projects/:projectId/storyboard', 'page_not_implemented'],
-  ['production', '/production/overview', 'page_not_implemented'],
+  ['brand', '/projects/:projectId/brand', 'implemented_real'],
+  ['brief', '/projects/new', 'implemented_real'],
+  ['script', '/projects/:projectId/script', 'implemented_real'],
+  ['storyboard', '/projects/:projectId/storyboard', 'implemented_real'],
+  ['production', '/production/overview', 'implemented_real'],
   ['canvas', '/production/canvas/:projectId?packageId=:packageId', 'no_provider_blocked_readiness'],
 ];
 
@@ -50,8 +54,14 @@ test('full-case stages are ordered and distinguish real, missing-page and safe b
   );
   assert.equal(new Set(matrix.stages.map(({ key }) => key)).size, exactStages.length);
   for (const stage of matrix.stages) {
-    assert.match(stage.requiredMarkerEnvironment, /^CANVAS_FULL_CASE_[A-Z_]+$/u);
-    assert.ok(['real_server_data', 'real_no_provider_blocked_readiness'].includes(stage.acceptance));
+    if (stage.requiredMarkerEnvironment !== null) {
+      assert.match(stage.requiredMarkerEnvironment, /^CANVAS_FULL_CASE_[A-Z_]+$/u);
+    }
+    assert.ok([
+      'real_server_data',
+      'real_service_create_surface',
+      'real_no_provider_blocked_readiness',
+    ].includes(stage.acceptance));
     assert.notEqual(stage.currentClassification, 'demo');
     assert.notEqual(stage.currentClassification, 'placeholder_pass');
   }
@@ -68,35 +78,35 @@ test('platform and channel roles cannot masquerade as the tenant full case', () 
   assert.deepEqual(brief.roles, ['tenant_admin']);
 });
 
-test('Pilot router keeps Canvas real and missing pages explicit instead of falling back to Demo', () => {
+test('Pilot router sends all full-case pages to real content surfaces before fallback branches', () => {
   const manifest = fs.readFileSync(manifestPath, 'utf8');
   const router = fs.readFileSync(routerPath, 'utf8');
+  const contentPages = fs.readFileSync(contentPagesPath, 'utf8');
   const pilotManifestRoute = router.match(
     /function PilotManifestRoute[\s\S]*?(?=\nfunction PilotConfigurationBlock)/u,
   )?.[0];
   assert.ok(pilotManifestRoute, 'PILOT_MANIFEST_ROUTE_REQUIRED');
-  for (const [key] of exactStages.filter(([stage]) => stage !== 'project')) {
-    if (key === 'brief') {
-      assert.match(manifest, /key:\s*'project-create'[\s\S]*pilotReadiness:\s*'not-implemented'/u);
-      continue;
-    }
-    if (key === 'canvas') {
-      assert.match(
-        pilotManifestRoute,
-        /route\.key === 'production-canvas'\) return <CanvasV1RouteContainer \/>/u,
-      );
-      continue;
-    }
-    const manifestKey = key === 'production' ? 'production-overview' : key;
-    assert.match(
-      manifest,
-      new RegExp(`key:\\s*'${manifestKey}'[\\s\\S]*?pilotReadiness:\\s*'handoff-required'`, 'u'),
-    );
+  assert.match(
+    pilotManifestRoute,
+    /route\.key === 'production-canvas'\) return <CanvasV1RouteContainer \/>/u,
+  );
+  for (const routeKey of ['project-create', 'brand', 'script', 'storyboard', 'production-overview']) {
+    assert.match(manifest, new RegExp(`key:\\s*'${routeKey}'`, 'u'));
+    assert.match(pilotManifestRoute, new RegExp(`'${routeKey}'`, 'u'));
   }
+  assert.ok(
+    pilotManifestRoute.indexOf('contentRouteKeys.has') <
+      pilotManifestRoute.indexOf("route.pilotReadiness === 'handoff-required'"),
+    'REAL_CONTENT_BRANCH_MUST_PRECEDE_HANDOFF_FALLBACK',
+  );
+  assert.match(pilotManifestRoute, /<PilotProjectContentPage/u);
   assert.match(pilotManifestRoute, /testId="pilot-route-handoff"/u);
   assert.match(pilotManifestRoute, /testId="pilot-route-unavailable"/u);
   assert.doesNotMatch(pilotManifestRoute, /<BrandBrainPage/u);
   assert.doesNotMatch(pilotManifestRoute, /<IntegratedStoryCanvasPage/u);
+  assert.match(contentPages, /data-testid="pilot-project-create-page"/u);
+  assert.match(contentPages, /data-testid=\{`pilot-project-content-\$\{routeKey\}`\}/u);
+  assert.doesNotMatch(contentPages, /DEMO_PROJECT_ID|localStorage|sessionStorage/u);
 });
 
 test('local four-account picker is either exact or explicitly pending integration', () => {

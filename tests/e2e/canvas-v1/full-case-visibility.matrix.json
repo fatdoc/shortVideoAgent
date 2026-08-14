@@ -42,6 +42,7 @@
       "routeTemplate": "/projects",
       "roles": ["tenant_admin", "content_operator"],
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "expectedSurfaceTestId": "pilot-project-list",
       "acceptance": "real_server_data",
       "currentClassification": "implemented_real"
     },
@@ -51,17 +52,19 @@
       "routeTemplate": "/projects/:projectId/brand",
       "roles": ["tenant_admin", "content_operator"],
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_BRAND_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-brand",
       "acceptance": "real_server_data",
-      "currentClassification": "page_not_implemented"
+      "currentClassification": "implemented_real"
     },
     {
       "key": "brief",
       "label": "Brief",
       "routeTemplate": "/projects/new",
       "roles": ["tenant_admin"],
-      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_BRIEF_MARKER",
-      "acceptance": "real_server_data",
-      "currentClassification": "page_not_implemented"
+      "requiredMarkerEnvironment": null,
+      "expectedSurfaceTestId": "pilot-project-create-page",
+      "acceptance": "real_service_create_surface",
+      "currentClassification": "implemented_real"
     },
     {
       "key": "script",
@@ -69,8 +72,9 @@
       "routeTemplate": "/projects/:projectId/script",
       "roles": ["tenant_admin", "content_operator"],
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_SCRIPT_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-script",
       "acceptance": "real_server_data",
-      "currentClassification": "page_not_implemented"
+      "currentClassification": "implemented_real"
     },
     {
       "key": "storyboard",
@@ -78,8 +82,9 @@
       "routeTemplate": "/projects/:projectId/storyboard",
       "roles": ["tenant_admin", "content_operator"],
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_STORYBOARD_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-storyboard",
       "acceptance": "real_server_data",
-      "currentClassification": "page_not_implemented"
+      "currentClassification": "implemented_real"
     },
     {
       "key": "production",
@@ -87,8 +92,9 @@
       "routeTemplate": "/production/overview",
       "roles": ["tenant_admin", "content_operator"],
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PRODUCTION_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-production-overview",
       "acceptance": "real_server_data",
-      "currentClassification": "page_not_implemented"
+      "currentClassification": "implemented_real"
     },
     {
       "key": "canvas",
@@ -96,6 +102,7 @@
       "routeTemplate": "/production/canvas/:projectId?packageId=:packageId",
       "roles": ["tenant_admin", "content_operator"],
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "expectedSurfaceTestId": null,
       "acceptance": "real_no_provider_blocked_readiness",
       "currentClassification": "no_provider_blocked_readiness"
     }
@@ -106,7 +113,14 @@
       "pilot-route-unavailable",
       "pilot-project-not-found",
       "pilot-project-service-error",
-      "pilot-storycanvas-boundary-blocked"
+      "pilot-storycanvas-boundary-blocked",
+      "pilot-brand-empty",
+      "pilot-brand-invalid-brief",
+      "pilot-script-empty",
+      "pilot-script-invalid",
+      "pilot-storyboard-empty",
+      "pilot-project-content-no-scope",
+      "pilot-project-content-error"
     ],
     "phrases": [
       "该页面尚未接入真实 Pilot 数据",
