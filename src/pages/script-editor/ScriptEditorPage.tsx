@@ -1,18 +1,5 @@
-import {
-  Alert,
-  App,
-  Button,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
-import {
-  ArrowRightOutlined,
-  ExperimentOutlined,
-  ReloadOutlined,
-  SaveOutlined,
-  ThunderboltOutlined,
-} from '@ant-design/icons';
+import { Alert, App, Button, Divider, Space, Tag, Typography } from 'antd';
+import { ArrowRightOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -30,7 +17,6 @@ import {
   buildRiskItems,
   cloneScript,
   computeSayability,
-  mockGenerateScript,
   sortBlocks,
   toggleClaimOnBlock,
   updateBlockContent,
@@ -41,10 +27,6 @@ import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
 import { getActiveScript, isDemoProject } from '../../domain/selectors';
 import type { ScriptVersion } from '../../domain/types';
 import { useProjectStore } from '../../stores/projectStore';
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 export function ScriptEditorPage() {
   const { message } = App.useApp();
@@ -63,10 +45,10 @@ export function ScriptEditorPage() {
   const [draft, setDraft] = useState<ScriptVersion | null>(null);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [generationBlocked, setGenerationBlocked] = useState(false);
 
   const activeFromStore = useMemo(() => getActiveScript(workspace), [workspace]);
   const prohibitedWords = workspace.brand.prohibitedWords;
@@ -123,10 +105,7 @@ export function ScriptEditorPage() {
     return buildRiskItems(draft, prohibitedWords, facts);
   }, [draft, prohibitedWords, facts]);
 
-  const sortedBlocks = useMemo(
-    () => (draft ? sortBlocks(draft.blocks) : []),
-    [draft],
-  );
+  const sortedBlocks = useMemo(() => (draft ? sortBlocks(draft.blocks) : []), [draft]);
 
   const patchDraft = useCallback((updater: (current: ScriptVersion) => ScriptVersion) => {
     setDraft((current) => {
@@ -179,31 +158,8 @@ export function ScriptEditorPage() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!draft) return;
-    setGenerating(true);
-    setLocalError(null);
-    try {
-      await delay(900);
-      const generated = mockGenerateScript(
-        draft,
-        facts,
-        brief.cta,
-        prohibitedWords,
-        'refresh',
-      );
-      const scored = applyScoreToScript(generated, computeSayability(generated, facts, prohibitedWords, brief.duration || 30));
-      setDraft(scored);
-      setDirty(true);
-      setFocusedBlockId(scored.blocks[0]?.id ?? null);
-      message.success('已 Mock 重新生成当前版本（未自动保存）');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '生成失败';
-      setLocalError(msg);
-      message.error(msg);
-    } finally {
-      setGenerating(false);
-    }
+  const handleGenerationBlocked = () => {
+    setGenerationBlocked(true);
   };
 
   const handleResetDraft = () => {
@@ -223,7 +179,7 @@ export function ScriptEditorPage() {
     navigate(ROUTES.storyboard(DEMO_PROJECT_ID));
   };
 
-  const busy = loading || generating || saving || switching;
+  const busy = loading || saving || switching;
 
   if (!hydrated && loading) {
     return <LoadingState tip="正在加载脚本工作区..." />;
@@ -267,10 +223,10 @@ export function ScriptEditorPage() {
       <div className="script-editor-toolbar">
         <div className="script-editor-toolbar-main">
           <Typography.Title level={3} style={{ margin: 0 }}>
-            脚本生成与编辑
+            AI 探店脚本
           </Typography.Title>
           <Typography.Text type="secondary">
-            {workspace.project.name} · Hook / Body / Proof / CTA / Disclaimer · 事实引用 C1—C8
+            {workspace.project.name} · 版本、事实引用、套餐权益、风险与人工确认
           </Typography.Text>
           <div className="script-brief-strip">
             <Tag color="blue">{brief.platforms.join(' / ') || '未选平台'}</Tag>
@@ -282,23 +238,17 @@ export function ScriptEditorPage() {
         </div>
         <div className="script-editor-toolbar-actions">
           <Button
-            icon={<ThunderboltOutlined />}
-            loading={generating}
-            disabled={busy && !generating}
-            onClick={() => void handleGenerate()}
-            data-testid="script-generate-btn"
-          >
-            Mock 生成
-          </Button>
-          <Button
             icon={<ReloadOutlined />}
-            disabled={!dirty || busy}
-            onClick={handleResetDraft}
+            disabled={busy}
+            onClick={handleGenerationBlocked}
+            data-testid="script-generation-blocked-btn"
           >
+            AI 优化待配置
+          </Button>
+          <Button icon={<ReloadOutlined />} disabled={!dirty || busy} onClick={handleResetDraft}>
             还原草稿
           </Button>
           <Button
-            type="primary"
             icon={<SaveOutlined />}
             loading={saving}
             disabled={!dirty || busy}
@@ -308,7 +258,7 @@ export function ScriptEditorPage() {
             保存脚本
           </Button>
           <Button
-            type="default"
+            type="primary"
             icon={<ArrowRightOutlined />}
             loading={saving}
             disabled={busy}
@@ -339,13 +289,16 @@ export function ScriptEditorPage() {
         />
       ) : null}
 
-      <Alert
-        type="info"
-        showIcon
-        icon={<ExperimentOutlined />}
-        message="演示说明"
-        description="生成、评分与风险均为前端 Mock 逻辑；保存后写入统一 store / LocalStorage，供分镜页读取 activeScript。"
-      />
+      {generationBlocked ? (
+        <Alert
+          type="warning"
+          showIcon
+          closable
+          onClose={() => setGenerationBlocked(false)}
+          message="AI 脚本服务待配置"
+          description="当前没有已接通的脚本生成端点。本页只允许编辑已进入工作区的脚本版本、事实引用和人工确认状态，不伪造新版本。"
+        />
+      ) : null}
 
       <div className="script-editor-layout">
         <aside className="script-editor-left">
@@ -371,6 +324,13 @@ export function ScriptEditorPage() {
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 禁用词库 {prohibitedWords.length} 条 · 品牌事实 {facts.length} 条
               </Typography.Text>
+              <Divider style={{ margin: '8px 0' }} />
+              <Typography.Text strong>套餐权益</Typography.Text>
+              {workspace.brand.packages.map((item) => (
+                <Typography.Text key={item.id} type="secondary" style={{ fontSize: 12 }}>
+                  {item.name} · {item.claimIds.join('、') || '待绑定事实'}
+                </Typography.Text>
+              ))}
             </Space>
           </div>
         </aside>
@@ -390,43 +350,39 @@ export function ScriptEditorPage() {
               <Tag>风险项 {riskItems.filter((i) => i.level !== 'none').length}</Tag>
             </Space>
           </div>
-          {generating ? (
-            <LoadingState tip="正在 Mock 生成脚本版本..." minHeight={320} bordered={false} />
-          ) : (
-            <div className="script-block-list">
-              {sortedBlocks.map((block) => (
-                <ScriptBlockEditor
-                  key={block.id}
-                  block={block}
-                  facts={facts}
-                  prohibitedWords={prohibitedWords}
-                  focused={block.id === (focusedBlock?.id ?? '')}
-                  disabled={busy}
-                  onFocus={() => setFocusedBlockId(block.id)}
-                  onContentChange={(content) =>
-                    patchDraft((current) =>
-                      updateBlockContent(current, block.id, content, prohibitedWords),
-                    )
-                  }
-                  onDurationChange={(duration) =>
-                    patchDraft((current) =>
-                      updateBlockDuration(current, block.id, duration, prohibitedWords),
-                    )
-                  }
-                  onToggleClaim={(claimId) =>
-                    patchDraft((current) =>
-                      toggleClaimOnBlock(current, block.id, claimId, prohibitedWords),
-                    )
-                  }
-                  onAddComment={(content) =>
-                    patchDraft((current) =>
-                      addBlockComment(current, block.id, content, workspace.project.owner),
-                    )
-                  }
-                />
-              ))}
-            </div>
-          )}
+          <div className="script-block-list">
+            {sortedBlocks.map((block) => (
+              <ScriptBlockEditor
+                key={block.id}
+                block={block}
+                facts={facts}
+                prohibitedWords={prohibitedWords}
+                focused={block.id === (focusedBlock?.id ?? '')}
+                disabled={busy}
+                onFocus={() => setFocusedBlockId(block.id)}
+                onContentChange={(content) =>
+                  patchDraft((current) =>
+                    updateBlockContent(current, block.id, content, prohibitedWords),
+                  )
+                }
+                onDurationChange={(duration) =>
+                  patchDraft((current) =>
+                    updateBlockDuration(current, block.id, duration, prohibitedWords),
+                  )
+                }
+                onToggleClaim={(claimId) =>
+                  patchDraft((current) =>
+                    toggleClaimOnBlock(current, block.id, claimId, prohibitedWords),
+                  )
+                }
+                onAddComment={(content) =>
+                  patchDraft((current) =>
+                    addBlockComment(current, block.id, content, workspace.project.owner),
+                  )
+                }
+              />
+            ))}
+          </div>
         </section>
 
         <aside className="script-editor-right">
@@ -444,9 +400,7 @@ export function ScriptEditorPage() {
           <ScriptClaimPanel
             facts={facts}
             activeClaimIds={focusedBlock?.claimIds ?? []}
-            focusedBlockLabel={
-              focusedBlock ? BLOCK_TYPE_LABEL[focusedBlock.type] : undefined
-            }
+            focusedBlockLabel={focusedBlock ? BLOCK_TYPE_LABEL[focusedBlock.type] : undefined}
             disabled={busy || !focusedBlock}
             onToggleClaim={(claimId) => {
               if (!focusedBlock) {

@@ -10,27 +10,15 @@ import {
   StopOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import {
-  Alert,
-  Button,
-  Descriptions,
-  Drawer,
-  Empty,
-  Progress,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, Button, Descriptions, Drawer, Empty, Progress, Space, Tag, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DEMO_PROJECT_ID, ROUTES } from '../../domain/constants';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
-import {
-  DEMO_FAILURE_TASK_ID,
-  DEMO_SUCCESS_TASK_ID,
-} from '../../mocks/controlPlaneDemo';
+import { DEMO_FAILURE_TASK_ID, DEMO_SUCCESS_TASK_ID } from '../../mocks/controlPlaneDemo';
 import { CanonicalScriptApproval } from './CanonicalScriptApproval';
 import { TruthBadge } from '../workbench/TruthBadge';
+import './production-control.css';
 
 export type ProductionView = 'all' | 'inbox' | 'tasks' | 'assets' | 'export';
 
@@ -50,39 +38,25 @@ interface FlowAction {
   tone?: 'success' | 'failure';
 }
 
-function shortDigest(value: string) {
-  return `${value.slice(0, 18)}…${value.slice(-8)}`;
+function receiptLabel(kind: string, index: number) {
+  return `${kind} ${String(index + 1).padStart(2, '0')}`;
 }
 
-export function ProductionControlSurface({
-  view = 'all',
-}: ProductionControlSurfaceProps) {
+export function ProductionControlSurface({ view = 'all' }: ProductionControlSurfaceProps) {
   const navigate = useNavigate();
   const snapshot = useControlPlaneStore((state) => state.snapshot);
   const loading = useControlPlaneStore((state) => state.loading);
   const error = useControlPlaneStore((state) => state.error);
   const lastAction = useControlPlaneStore((state) => state.lastAction);
   const bootstrapResult = useControlPlaneStore((state) => state.bootstrapResult);
-  const lastPackageDispatch = useControlPlaneStore(
-    (state) => state.lastPackageDispatch,
-  );
+  const lastPackageDispatch = useControlPlaneStore((state) => state.lastPackageDispatch);
   const lastReceiptSync = useControlPlaneStore((state) => state.lastReceiptSync);
   const clearError = useControlPlaneStore((state) => state.clearError);
-  const dispatchPackage = useControlPlaneStore(
-    (state) => state.dispatchCanonicalPackage,
-  );
-  const retryPackage = useControlPlaneStore(
-    (state) => state.retryCanonicalPackage,
-  );
-  const syncReceipts = useControlPlaneStore(
-    (state) => state.syncStoryCanvasReceipts,
-  );
-  const reserveSuccess = useControlPlaneStore(
-    (state) => state.reserveCanonicalSuccess,
-  );
-  const reserveFailure = useControlPlaneStore(
-    (state) => state.reserveCanonicalFailure,
-  );
+  const dispatchPackage = useControlPlaneStore((state) => state.dispatchCanonicalPackage);
+  const retryPackage = useControlPlaneStore((state) => state.retryCanonicalPackage);
+  const syncReceipts = useControlPlaneStore((state) => state.syncStoryCanvasReceipts);
+  const reserveSuccess = useControlPlaneStore((state) => state.reserveCanonicalSuccess);
+  const reserveFailure = useControlPlaneStore((state) => state.reserveCanonicalFailure);
   const resetDemoReady = useControlPlaneStore((state) => state.resetDemoReady);
   const [packageInspectorOpen, setPackageInspectorOpen] = useState(false);
 
@@ -119,9 +93,7 @@ export function ProductionControlSurface({
       )
     : null;
   const sourceReservation = sourceTask
-    ? credit.reservations.find(
-        (reservation) => reservation.taskId === sourceTask.generationTaskId,
-      )
+    ? credit.reservations.find((reservation) => reservation.taskId === sourceTask.generationTaskId)
     : null;
   const scriptApproval = snapshot.scriptApprovals.find(
     (approval) => approval.scriptVersionId === 'script-a',
@@ -129,16 +101,10 @@ export function ProductionControlSurface({
   const transport = snapshot.transport;
   const visibleReceiptSync = transport.lastAttemptAt ? lastReceiptSync : null;
   const packageAccepted =
-    ([
-      'accepted',
-      'duplicate',
-      'handoff_waiting',
-      'handoff_ready',
-      'handoff_timeout',
-    ].includes(transport.phase) ||
-      ['accepted', 'duplicate'].includes(
-        lastPackageDispatch?.response?.result ?? '',
-      )) &&
+    (['accepted', 'duplicate', 'handoff_waiting', 'handoff_ready', 'handoff_timeout'].includes(
+      transport.phase,
+    ) ||
+      ['accepted', 'duplicate'].includes(lastPackageDispatch?.response?.result ?? '')) &&
     transport.packageId === productionPackage?.packageId &&
     transport.projectId === productionPackage?.projectId;
   const retryableTransport =
@@ -146,9 +112,7 @@ export function ProductionControlSurface({
     Boolean(transport.lastAttemptAt) &&
     ['offline', 'rejected', 'error'].includes(transport.phase);
   const resetSucceeded =
-    lastAction === 'resetDemoExperience' &&
-    !error &&
-    snapshot.stateName === 'DEMO_READY';
+    lastAction === 'resetDemoExperience' && !error && snapshot.stateName === 'DEMO_READY';
   const resetFailed = lastAction === 'resetDemoExperience:failed';
   const fallbackTruth = snapshot.truthManifest.entries.find(
     (entry) => entry.capabilityId === 'production.basic-ffmpeg-merge',
@@ -233,11 +197,10 @@ export function ProductionControlSurface({
     (entry) => entry.referenceType === 'GENERATION_TASK',
   );
   const availableForNextTask =
-    credit.wallet.available.value >=
-    snapshot.commercial.rateCard.maxReservedCredits.value;
+    credit.wallet.available.value >= snapshot.commercial.rateCard.maxReservedCredits.value;
 
   return (
-    <div className="d1-production-stack">
+    <div className="d1-production-stack production-control-v3">
       {error ? (
         <Alert
           type="error"
@@ -263,9 +226,9 @@ export function ProductionControlSurface({
             <TruthBadge capabilityId="control.production-contract-adapter" compact />
             <Tag>{snapshot.truthManifest.disclaimer}</Tag>
           </Space>
-          <Typography.Title level={3}>海底捞三里屯 · 双平面生产控制</Typography.Title>
+          <Typography.Title level={3}>剪辑成片与生产控制</Typography.Title>
           <Typography.Paragraph type="secondary">
-            每一步直接调用 C4 ControlPlane Mock Adapter；任务状态与额度状态分别推进。
+            保留生产包、审批、额度、任务回执和失败语义；未接通的发布和线索只显示待配置。
           </Typography.Paragraph>
         </div>
         <div className="d1-production-progress">
@@ -278,11 +241,7 @@ export function ProductionControlSurface({
               Last action: {lastAction ?? '等待操作'}
             </Typography.Text>
           </div>
-          <Button
-            icon={<ReloadOutlined />}
-            loading={loading}
-            onClick={resetDemoReady}
-          >
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={resetDemoReady}>
             重置 DEMO_READY
           </Button>
           {resetSucceeded ? <Tag color="success">reset ready</Tag> : null}
@@ -290,49 +249,51 @@ export function ProductionControlSurface({
         </div>
       </section>
 
-      <CanonicalScriptApproval />
+      {view !== 'export' ? (
+        <>
+          <CanonicalScriptApproval />
 
-      <section className="d1-wallet-rail">
-        <div>
-          <Typography.Text type="secondary">可用额度</Typography.Text>
-          <Typography.Title level={2}>{credit.wallet.available.value}</Typography.Title>
-        </div>
-        <div>
-          <Typography.Text type="secondary">冻结额度</Typography.Text>
-          <Typography.Title level={2}>{credit.wallet.reserved.value}</Typography.Title>
-        </div>
-        <div>
-          <Typography.Text type="secondary">成功支线</Typography.Text>
-          <Typography.Text strong>
-            {successReservation
-              ? `${successReservation.status} · ${successReservation.consumedCredits.value} 消费 / ${successReservation.releasedCredits.value} 释放`
-              : 'requested · 120 → 100 + 20'}
-          </Typography.Text>
-        </div>
-        <div>
-          <Typography.Text type="secondary">失败支线</Typography.Text>
-          <Typography.Text strong>
-            {failureReservation
-              ? `${failureReservation.status} · ${failureReservation.consumedCredits.value} 消费 / ${failureReservation.releasedCredits.value} 释放`
-              : 'requested · 80 → 0 + 80'}
-          </Typography.Text>
-        </div>
-      </section>
+          <section className="d1-wallet-rail">
+            <div>
+              <Typography.Text type="secondary">可用额度</Typography.Text>
+              <Typography.Title level={2}>{credit.wallet.available.value}</Typography.Title>
+            </div>
+            <div>
+              <Typography.Text type="secondary">冻结额度</Typography.Text>
+              <Typography.Title level={2}>{credit.wallet.reserved.value}</Typography.Title>
+            </div>
+            <div>
+              <Typography.Text type="secondary">成功支线</Typography.Text>
+              <Typography.Text strong>
+                {successReservation
+                  ? `${successReservation.status} · ${successReservation.consumedCredits.value} 消费 / ${successReservation.releasedCredits.value} 释放`
+                  : '待审批 · 120 → 100 + 20'}
+              </Typography.Text>
+            </div>
+            <div>
+              <Typography.Text type="secondary">失败支线</Typography.Text>
+              <Typography.Text strong>
+                {failureReservation
+                  ? `${failureReservation.status} · ${failureReservation.consumedCredits.value} 消费 / ${failureReservation.releasedCredits.value} 释放`
+                  : '待审批 · 80 → 0 + 80'}
+              </Typography.Text>
+            </div>
+          </section>
 
-      <Alert
-        type={availableForNextTask ? 'success' : 'error'}
-        showIcon
-        message={
-          availableForNextTask
-            ? '额度门禁已通过'
-            : 'INSUFFICIENT_CREDITS · 可用额度不足'
-        }
-        description={
-          availableForNextTask
-            ? `当前可用 ${credit.wallet.available.value}，满足演示 RateCard 最大冻结 ${snapshot.commercial.rateCard.maxReservedCredits.value}。`
-            : '控制平面不会部分冻结或透支；请重置 DEMO_READY 或联系企业管理员。'
-        }
-      />
+          <Alert
+            type={availableForNextTask ? 'success' : 'error'}
+            showIcon
+            message={
+              availableForNextTask ? '额度门禁已通过' : 'INSUFFICIENT_CREDITS · 可用额度不足'
+            }
+            description={
+              availableForNextTask
+                ? `当前可用 ${credit.wallet.available.value}，满足演示 RateCard 最大冻结 ${snapshot.commercial.rateCard.maxReservedCredits.value}。`
+                : '控制平面不会部分冻结或透支；请重置 DEMO_READY 或联系企业管理员。'
+            }
+          />
+        </>
+      ) : null}
 
       {view === 'all' || view === 'inbox' ? (
         <section className="d1-surface">
@@ -355,12 +316,7 @@ export function ProductionControlSurface({
                 </Button>
               ) : null}
               {retryableTransport ? (
-                <Button
-                  danger
-                  icon={<ReloadOutlined />}
-                  loading={loading}
-                  onClick={retryPackage}
-                >
+                <Button danger icon={<ReloadOutlined />} loading={loading} onClick={retryPackage}>
                   重试发包
                 </Button>
               ) : null}
@@ -372,12 +328,10 @@ export function ProductionControlSurface({
                 检查生产包
               </Button>
               <Button
-                type="primary"
+                type={packageAccepted ? 'primary' : 'default'}
                 icon={<SendOutlined />}
                 disabled={!packageAccepted}
-                onClick={() =>
-                  navigate(ROUTES.productionCanvas(DEMO_PROJECT_ID))
-                }
+                onClick={() => navigate(ROUTES.productionCanvas(DEMO_PROJECT_ID))}
               >
                 进入 StoryCanvas 画布
               </Button>
@@ -389,9 +343,7 @@ export function ProductionControlSurface({
               <CloudServerOutlined />
               <span>控制平面</span>
               <small>
-                {productionPackage && grant
-                  ? 'package + grant ready'
-                  : 'waiting approved script'}
+                {productionPackage && grant ? 'package + grant ready' : 'waiting approved script'}
               </small>
             </div>
             <span className="d1-connection-track" />
@@ -412,26 +364,18 @@ export function ProductionControlSurface({
               showIcon
               message={`${bootstrapResult.status === 'offline' ? 'HTTP_NOT_CONNECTED' : transport.phase} · StoryCanvas 尚未完成握手`}
               description="不会提前开放 deepLink。可发包/重试；服务离线时使用同一 canonical package 检查器，不伪装为已连通。"
-              action={
-                <TruthBadge
-                  capabilityId="production.storycanvas-foundation"
-                  compact
-                />
-              }
+              action={<TruthBadge capabilityId="production.storycanvas-foundation" compact />}
             />
           ) : (
             <Alert
               type="success"
               showIcon
               message={`${transport.phase} · 同页画布入口已就绪`}
-              description="Package 与当前 Grant 已验证。进入 /production/canvas/demo-local-001 后由根应用以内存 Prop 注入 Grant，不经过 URL、LocalStorage、sessionStorage 或子窗消息。"
+              description="Package 与当前 Grant 已验证。进入画布后由根应用以内存 Prop 注入 Grant，不经过 URL 或跨窗口消息。"
               action={
                 <Button
                   size="small"
-                  type="primary"
-                  onClick={() =>
-                    navigate(ROUTES.productionCanvas(DEMO_PROJECT_ID))
-                  }
+                  onClick={() => navigate(ROUTES.productionCanvas(DEMO_PROJECT_ID))}
                 >
                   打开画布
                 </Button>
@@ -450,19 +394,14 @@ export function ProductionControlSurface({
                 顺序执行，成功任务必须等资产登记后才能结算。
               </Typography.Text>
             </div>
-            <TruthBadge
-              capabilityId="control.production-contract-adapter"
-              compact
-            />
+            <TruthBadge capabilityId="control.production-contract-adapter" compact />
           </div>
 
           <div className="d1-flow-list">
             {flowActions.map((item) => (
               <article
                 key={item.key}
-                className={`d1-flow-row is-${item.tone ?? 'neutral'} ${
-                  item.done ? 'is-done' : ''
-                }`}
+                className={`d1-flow-row is-${item.tone ?? 'neutral'} ${item.done ? 'is-done' : ''}`}
               >
                 <span className="d1-flow-index">{item.index}</span>
                 <span className="d1-flow-status">
@@ -473,12 +412,9 @@ export function ProductionControlSurface({
                   <Typography.Text type="secondary">{item.detail}</Typography.Text>
                 </div>
                 <div className="d1-flow-actions">
-                  <TruthBadge
-                    capabilityId="control.production-contract-adapter"
-                    compact
-                  />
+                  <TruthBadge capabilityId="control.production-contract-adapter" compact />
                   <Button
-                    type={item.done ? 'default' : 'primary'}
+                    type="default"
                     danger={item.tone === 'failure' && !item.done}
                     disabled={item.disabled || item.done}
                     loading={loading}
@@ -499,12 +435,11 @@ export function ProductionControlSurface({
             <div>
               <Typography.Title level={4}>StoryCanvas Receipt Outbox</Typography.Title>
               <Typography.Text type="secondary">
-                delivered → ACK → acknowledged；C4 只在 ACK 成功后 apply，ACK
-                失败保持 Task / Asset / Credit 零变化。
+                delivered → ACK → acknowledged；C4 只在 ACK 成功后 apply，ACK 失败保持 Task / Asset
+                / Credit 零变化。
               </Typography.Text>
             </div>
             <Button
-              type="primary"
               icon={<SyncOutlined />}
               disabled={!packageAccepted}
               loading={loading}
@@ -529,9 +464,7 @@ export function ProductionControlSurface({
               {
                 key: 'acknowledged',
                 label: 'acknowledged',
-                active: Boolean(
-                  visibleReceiptSync?.items.some((item) => item.acked),
-                ),
+                active: Boolean(visibleReceiptSync?.items.some((item) => item.acked)),
               },
               {
                 key: 'retry',
@@ -540,16 +473,12 @@ export function ProductionControlSurface({
                   transport.phase === 'error' ||
                   Boolean(
                     visibleReceiptSync?.items.some(
-                      (item) =>
-                        item.status === 'ack_error' || item.status === 'rejected',
+                      (item) => item.status === 'ack_error' || item.status === 'rejected',
                     ),
                   ),
               },
             ].map((stage) => (
-              <div
-                key={stage.key}
-                className={stage.active ? 'is-active' : undefined}
-              >
+              <div key={stage.key} className={stage.active ? 'is-active' : undefined}>
                 <span>{stage.label}</span>
               </div>
             ))}
@@ -559,19 +488,14 @@ export function ProductionControlSurface({
             <div className="d1-receipt-list">
               {visibleReceiptSync.items.map((item) => (
                 <div className="d1-receipt-row" key={item.deliveryId}>
-                  <span
-                    className={`d1-receipt-icon ${
-                      item.acked ? 'is-success' : 'is-failure'
-                    }`}
-                  >
+                  <span className={`d1-receipt-icon ${item.acked ? 'is-success' : 'is-failure'}`}>
                     {item.acked ? <CheckCircleOutlined /> : <SyncOutlined />}
                   </span>
                   <div>
                     <Typography.Text strong>
-                      {item.kind.toUpperCase()} · {item.receiptId}
+                      {item.kind.toUpperCase()} · 内部回执已接收
                     </Typography.Text>
                     <Typography.Text type="secondary">
-                      delivery {item.deliveryId} ·{' '}
                       {item.acked
                         ? 'delivered → acknowledged · 已入账'
                         : item.status === 'ack_error'
@@ -584,9 +508,7 @@ export function ProductionControlSurface({
                       </Typography.Text>
                     ) : null}
                   </div>
-                  <Tag color={item.acked ? 'green' : 'red'}>
-                    {item.status}
-                  </Tag>
+                  <Tag color={item.acked ? 'green' : 'red'}>{item.status}</Tag>
                 </div>
               ))}
             </div>
@@ -594,17 +516,11 @@ export function ProductionControlSurface({
             <Alert
               type={transport.phase === 'error' ? 'error' : 'info'}
               showIcon
-              message={
-                transport.phase === 'error'
-                  ? 'Receipt 同步失败，可重试'
-                  : '尚无已交付回执'
-              }
+              message={transport.phase === 'error' ? 'Receipt 同步失败，可重试' : '尚无已交付回执'}
               description="钱包只显示 useControlPlaneStore 的账本投影；未 ACK 的回执不生成 Task、Asset 或额度流水。"
             />
           )}
-          {visibleReceiptSync?.items.some(
-            (item) => item.status === 'ack_error',
-          ) ? (
+          {visibleReceiptSync?.items.some((item) => item.status === 'ack_error') ? (
             <Alert
               type="warning"
               showIcon
@@ -633,7 +549,7 @@ export function ProductionControlSurface({
               </Space>
               {snapshot.generationTaskReceipts.length ? (
                 <div className="d1-receipt-list">
-                  {snapshot.generationTaskReceipts.map((receipt) => (
+                  {snapshot.generationTaskReceipts.map((receipt, index) => (
                     <div className="d1-receipt-row" key={receipt.generationTaskId}>
                       <span
                         className={
@@ -650,10 +566,11 @@ export function ProductionControlSurface({
                       </span>
                       <div>
                         <Typography.Text strong>
-                          {receipt.generationTaskId}
+                          {receiptLabel('生成任务回执', index)}
                         </Typography.Text>
                         <Typography.Text type="secondary">
-                          {receipt.shotId} · {receipt.taskType} · {receipt.model}
+                          镜头 {receipt.shotId.replace('shot-', '')} · {receipt.taskType} ·{' '}
+                          {receipt.model}
                         </Typography.Text>
                       </div>
                       <Tag color={receipt.status === 'succeeded' ? 'green' : 'red'}>
@@ -674,13 +591,13 @@ export function ProductionControlSurface({
               </Space>
               {snapshot.assetReceipts.length ? (
                 <div className="d1-receipt-list">
-                  {snapshot.assetReceipts.map((receipt) => (
+                  {snapshot.assetReceipts.map((receipt, index) => (
                     <div className="d1-receipt-row" key={receipt.assetId}>
                       <span className="d1-receipt-icon is-asset">
                         <SafetyCertificateOutlined />
                       </span>
                       <div>
-                        <Typography.Text strong>{receipt.assetId}</Typography.Text>
+                        <Typography.Text strong>{receiptLabel('资产回执', index)}</Typography.Text>
                         <Typography.Text type="secondary">
                           {receipt.dimensions.width}×{receipt.dimensions.height} ·{' '}
                           {receipt.reviewStatus}
@@ -703,14 +620,8 @@ export function ProductionControlSurface({
               ) : (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无 AssetReceipt" />
               )}
-              {snapshot.assetReceipts.some(
-                (receipt) => receipt.reviewStatus === 'qa_blocked',
-              ) ? (
-                <Alert
-                  type="error"
-                  showIcon
-                  message="qa_blocked · 资产不可进入可播放交付"
-                />
+              {snapshot.assetReceipts.some((receipt) => receipt.reviewStatus === 'qa_blocked') ? (
+                <Alert type="error" showIcon message="qa_blocked · 资产不可进入可播放交付" />
               ) : null}
             </div>
 
@@ -720,41 +631,39 @@ export function ProductionControlSurface({
                 <Tag>{snapshot.exportReceipts.length}</Tag>
               </Space>
               {snapshot.exportReceipts.length ? (
-              <div className="d1-receipt-list">
-                {snapshot.exportReceipts.map((receipt) => {
-                  const playable =
-                    receipt.status === 'succeeded' &&
-                    receipt.outputAssetIds.length > 0 &&
-                    receipt.outputAssetIds.every((assetId) =>
-                      snapshot.assetReceipts.some(
-                        (asset) =>
-                          asset.assetId === assetId &&
-                          asset.reviewStatus === 'approved',
-                      ),
+                <div className="d1-receipt-list">
+                  {snapshot.exportReceipts.map((receipt, index) => {
+                    const playable =
+                      receipt.status === 'succeeded' &&
+                      receipt.outputAssetIds.length > 0 &&
+                      receipt.outputAssetIds.every((assetId) =>
+                        snapshot.assetReceipts.some(
+                          (asset) => asset.assetId === assetId && asset.reviewStatus === 'approved',
+                        ),
+                      );
+                    return (
+                      <div className="d1-receipt-row" key={receipt.exportId}>
+                        <span
+                          className={`d1-receipt-icon ${playable ? 'is-success' : 'is-failure'}`}
+                        >
+                          {playable ? <CheckCircleOutlined /> : <StopOutlined />}
+                        </span>
+                        <div>
+                          <Typography.Text strong>
+                            {receiptLabel('导出回执', index)}
+                          </Typography.Text>
+                          <Typography.Text type="secondary">
+                            {receipt.status} · output {receipt.outputAssetIds.length} · playable=
+                            {String(playable)}
+                          </Typography.Text>
+                        </div>
+                        <Tag color={playable ? 'green' : 'red'}>
+                          {playable ? 'playable=true' : 'playable=false'}
+                        </Tag>
+                      </div>
                     );
-                  return (
-                  <div className="d1-receipt-row" key={receipt.exportId}>
-                    <span
-                      className={`d1-receipt-icon ${
-                        playable ? 'is-success' : 'is-failure'
-                      }`}
-                    >
-                      {playable ? <CheckCircleOutlined /> : <StopOutlined />}
-                    </span>
-                    <div>
-                      <Typography.Text strong>{receipt.exportId}</Typography.Text>
-                      <Typography.Text type="secondary">
-                        {receipt.status} · output {receipt.outputAssetIds.length} ·{' '}
-                        playable={String(playable)}
-                      </Typography.Text>
-                    </div>
-                    <Tag color={playable ? 'green' : 'red'}>
-                      {playable ? 'playable=true' : 'playable=false'}
-                    </Tag>
-                  </div>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
               ) : (
                 <Alert
                   type="warning"
@@ -784,13 +693,10 @@ export function ProductionControlSurface({
                     <div>
                       <Typography.Text strong>{entry.operation}</Typography.Text>
                       <Typography.Text type="secondary">
-                        {entry.referenceId} · {entry.bucket}
+                        内部任务引用 · {entry.bucket}
                       </Typography.Text>
                     </div>
-                    <Typography.Text
-                      strong
-                      type={entry.delta.value < 0 ? 'danger' : 'success'}
-                    >
+                    <Typography.Text strong type={entry.delta.value < 0 ? 'danger' : 'success'}>
                       {entry.delta.value > 0 ? '+' : ''}
                       {entry.delta.value}
                     </Typography.Text>
@@ -814,9 +720,7 @@ export function ProductionControlSurface({
             <Space wrap>
               <TruthBadge capabilityId="production.basic-ffmpeg-merge" compact />
               <Button disabled icon={<LinkOutlined />}>
-                {snapshot.exportReceipts.length
-                  ? '无可验证下载地址'
-                  : '等待 ExportReceipt'}
+                {snapshot.exportReceipts.length ? '无可验证下载地址' : '等待 ExportReceipt'}
               </Button>
             </Space>
           </div>
@@ -824,12 +728,12 @@ export function ProductionControlSurface({
           {productionPackage && sourceTask && sourceReservation ? (
             <div className="d1-source-chain">
               {[
-                ['Tenant', productionPackage.tenantId],
-                ['Package', productionPackage.packageId],
-                ['Script', productionPackage.approvedScriptVersion.id],
-                ['Task', sourceTask.generationTaskId],
-                ['Asset', sourceAsset?.assetId ?? '无可交付资产'],
-                ['Export', sourceExport?.exportId ?? '无 ExportReceipt'],
+                ['Tenant', '当前租户'],
+                ['Package', '生产包已记录'],
+                ['Script', '已批准脚本'],
+                ['Task', '内部任务已记录'],
+                ['Asset', sourceAsset ? '资产回执已登记' : '无可交付资产'],
+                ['Export', sourceExport ? '导出回执已登记' : '无 ExportReceipt'],
                 [
                   'Credit',
                   `${sourceReservation.status} · ${sourceReservation.consumedCredits.value} consumed`,
@@ -851,24 +755,63 @@ export function ProductionControlSurface({
           <Alert
             type={
               snapshot.exportReceipts.some(
-                (receipt) =>
-                  receipt.status === 'succeeded' &&
-                  receipt.outputAssetIds.length > 0,
+                (receipt) => receipt.status === 'succeeded' && receipt.outputAssetIds.length > 0,
               )
                 ? 'warning'
                 : 'info'
             }
             showIcon
-            message={`${
-              fallbackTruth?.displayName ?? '基础合并导出'
-            } · playable=false`}
-            description={
-              `${
-                fallbackTruth?.knownLimitations.join('；') ??
-                '当前没有可验证的导出能力声明。'
-              }；仅有 succeeded receipt 仍不足以证明可播放，必须同时有已批准输出资产和可验证交付引用。`
-            }
+            message={`${fallbackTruth?.displayName ?? '基础合并导出'} · playable=false`}
+            description={`${
+              fallbackTruth?.knownLimitations.join('；') ?? '当前没有可验证的导出能力声明。'
+            }；仅有 succeeded receipt 仍不足以证明可播放，必须同时有已批准输出资产和可验证交付引用。`}
           />
+        </section>
+      ) : null}
+
+      {view === 'all' || view === 'export' ? (
+        <section className="production-publish-grid">
+          <div className="d1-surface production-publish-panel">
+            <div className="d1-section-heading">
+              <div>
+                <Typography.Title level={4}>发布投放待配置</Typography.Title>
+                <Typography.Text type="secondary">
+                  平台发布、POI、CTA、追踪链接、预算和合规检查尚未接入真实 API。
+                </Typography.Text>
+              </div>
+              <Tag color="warning">待发布</Tag>
+            </div>
+            <div className="production-platform-list" aria-label="发布平台配置状态">
+              {['抖音', '快手', '小红书', '视频号', 'B站'].map((platform) => (
+                <div key={platform}>
+                  <Typography.Text strong>{platform}</Typography.Text>
+                  <Typography.Text type="secondary">待配置 · 未下发</Typography.Text>
+                </div>
+              ))}
+            </div>
+            <Alert
+              type="warning"
+              showIcon
+              message="发布接口未接通"
+              description="不会展示已发布、已投放、已消耗预算或平台成功状态；完成导出检查后仍需人工配置发布。"
+            />
+          </div>
+
+          <div className="d1-surface production-leads-empty">
+            <div className="d1-section-heading">
+              <div>
+                <Typography.Title level={4}>线索入口暂无真实归因数据</Typography.Title>
+                <Typography.Text type="secondary">
+                  曝光、点击、领券、咨询、到店核销与获客成本未接入归因源。
+                </Typography.Text>
+              </div>
+              <Tag>空态</Tag>
+            </div>
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="归因连接完成前，不展示线索列表、转化路径或经营 KPI。"
+            />
+          </div>
         </section>
       ) : null}
 
@@ -912,16 +855,12 @@ export function ProductionControlSurface({
                 {
                   key: 'package',
                   label: 'Package',
-                  children: productionPackage.packageId,
+                  children: '生产包已记录',
                 },
                 {
                   key: 'digest',
-                  label: 'Digest',
-                  children: (
-                    <Typography.Text copyable={{ text: productionPackage.digest }}>
-                      {shortDigest(productionPackage.digest)}
-                    </Typography.Text>
-                  ),
+                  label: '摘要',
+                  children: '内部摘要已记录',
                 },
                 {
                   key: 'claims',
@@ -943,15 +882,11 @@ export function ProductionControlSurface({
                 {
                   key: 'grant',
                   label: 'Grant',
-                  children: grant
-                    ? `${grant.grantId} · ${grant.truthMode}`
-                    : '尚未签发',
+                  children: grant ? `已签发 · ${grant.truthMode}` : '尚未签发',
                 },
               ]}
             />
-            <TruthBadge
-              capabilityId="control.production-contract-adapter"
-            />
+            <TruthBadge capabilityId="control.production-contract-adapter" />
           </Space>
         ) : (
           <Empty description="请先创建 canonical production package" />
