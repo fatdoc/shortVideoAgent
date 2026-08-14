@@ -303,7 +303,7 @@
   height: 100%;
   display: block;
   object-fit: cover;
-  filter: grayscale(1) sepia(0.16) saturate(0.72) contrast(0.94);
+  filter: saturate(0.82) contrast(0.96) brightness(1.01);
 }
 
 .store-hero-empty {
@@ -471,7 +471,7 @@
   flex: 0 0 auto;
   border-radius: 5px;
   object-fit: cover;
-  filter: grayscale(1) sepia(0.12) saturate(0.72) contrast(0.96);
+  filter: saturate(0.84) contrast(0.97) brightness(1.01);
   background: #f1ebe4;
 }
 
