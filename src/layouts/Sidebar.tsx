@@ -16,6 +16,7 @@ import {
   WalletOutlined,
 } from '@ant-design/icons';
 import { Layout, Menu, Typography, type MenuProps } from 'antd';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resolveWorkbenchKind, WORKBENCH_OPTIONS } from '../components/workbench/workbench';
 import { pilotRuntime } from '../config/pilotRuntime';
@@ -33,8 +34,22 @@ const { Sider } = Layout;
 
 interface ShellMenuItem {
   key: string;
+  icon?: React.ReactNode;
+  label: string;
+  children?: ShellMenuItem[];
+}
+
+interface ShellMenuSourceItem {
+  key: string;
+  path: string;
+  label: string;
+}
+
+interface ShellMenuGroup {
+  key: string;
   icon: React.ReactNode;
   label: string;
+  itemKeys: readonly string[];
 }
 
 const legacyMenuByWorkbench = {
@@ -122,24 +137,150 @@ const iconByTenantMenuKey: Record<string, React.ReactNode> = {
   'tenant-members': <ApartmentOutlined />,
 };
 
-function shellItems(
-  items: readonly { key: string; path: string; label: string }[],
-): ShellMenuItem[] {
-  return items.map((item) => ({
+const tenantMenuGroups: readonly ShellMenuGroup[] = [
+  {
+    key: 'group:tenant-workspace',
+    icon: <AppstoreOutlined />,
+    label: '经营与项目',
+    itemKeys: ['projects', 'dashboard', 'products', 'project-create'],
+  },
+  {
+    key: 'group:tenant-planning',
+    icon: <FileTextOutlined />,
+    label: '内容策划',
+    itemKeys: ['brand', 'script', 'storyboard'],
+  },
+  {
+    key: 'group:tenant-production',
+    icon: <VideoCameraOutlined />,
+    label: '视频生产',
+    itemKeys: [
+      'rough-cut',
+      'production-overview',
+      'production-inbox',
+      'production-canvas',
+      'production-tasks',
+      'production-assets',
+      'production-export',
+    ],
+  },
+  {
+    key: 'group:tenant-operations',
+    icon: <ApartmentOutlined />,
+    label: '团队与账务',
+    itemKeys: ['tenant-recharge-orders', 'tenant-invitations', 'tenant-members'],
+  },
+];
+
+const platformMenuGroups: readonly ShellMenuGroup[] = [
+  {
+    key: 'group:platform-commercial',
+    icon: <WalletOutlined />,
+    label: '商业与结算',
+    itemKeys: ['platform-commission-audit', 'platform-commission-settlements'],
+  },
+  {
+    key: 'group:platform-operations',
+    icon: <ApartmentOutlined />,
+    label: '组织与权限',
+    itemKeys: ['platform-terms', 'platform-invitations', 'platform-members'],
+  },
+];
+
+const channelMenuGroups: readonly ShellMenuGroup[] = [
+  {
+    key: 'group:channel-commercial',
+    icon: <WalletOutlined />,
+    label: '商业与结算',
+    itemKeys: ['channel-commission-audit'],
+  },
+  {
+    key: 'group:channel-operations',
+    icon: <ApartmentOutlined />,
+    label: '组织与权限',
+    itemKeys: ['channel-invitations', 'channel-members'],
+  },
+];
+
+const demoPlatformMenuGroups: readonly ShellMenuGroup[] = [
+  {
+    key: 'group:demo-platform-operations',
+    icon: <AppstoreOutlined />,
+    label: '平台运营',
+    itemKeys: [ROUTES.platformOverview, ROUTES.platformOrganizations],
+  },
+  {
+    key: 'group:demo-platform-delivery',
+    icon: <AppstoreAddOutlined />,
+    label: '能力与交付',
+    itemKeys: [ROUTES.platformCatalog, ROUTES.platformReceipts],
+  },
+];
+
+const demoChannelMenuGroups: readonly ShellMenuGroup[] = [
+  {
+    key: 'group:demo-channel-operations',
+    icon: <AppstoreOutlined />,
+    label: '渠道运营',
+    itemKeys: [ROUTES.channelOverview, ROUTES.channelCustomers],
+  },
+  {
+    key: 'group:demo-channel-products',
+    icon: <AppstoreAddOutlined />,
+    label: '商品能力',
+    itemKeys: [ROUTES.channelProducts],
+  },
+];
+
+function shellLeaf(item: ShellMenuSourceItem, showIcon = false): ShellMenuItem {
+  return {
     key: item.path,
-    icon: iconByTenantMenuKey[item.key] ?? <FolderOpenOutlined />,
+    icon: showIcon ? (iconByTenantMenuKey[item.key] ?? <FolderOpenOutlined />) : undefined,
     label: item.label,
-  }));
+  };
+}
+
+function groupedShellItems(
+  items: readonly ShellMenuSourceItem[],
+  groups: readonly ShellMenuGroup[],
+): ShellMenuItem[] {
+  const itemByKey = new Map(items.map((item) => [item.key, item]));
+  const groupedKeys = new Set<string>();
+  const groupedItems = groups.flatMap((group) => {
+    const children = group.itemKeys.flatMap((key) => {
+      const item = itemByKey.get(key);
+      if (!item) return [];
+      groupedKeys.add(key);
+      return [shellLeaf(item)];
+    });
+    if (children.length === 0) return [];
+    return [{ key: group.key, icon: group.icon, label: group.label, children }];
+  });
+
+  const ungroupedItems = items
+    .filter((item) => !groupedKeys.has(item.key))
+    .map((item) => shellLeaf(item, true));
+  return [...groupedItems, ...ungroupedItems];
+}
+
+function leafMenuItems(items: readonly ShellMenuItem[]): ShellMenuItem[] {
+  return items.flatMap((item) => (item.children ? leafMenuItems(item.children) : [item]));
 }
 
 function selectedMenuKey(pathname: string, items: readonly { key: string }[]) {
-  const exact = items.find((item) => item.key === pathname);
+  const leaves = leafMenuItems(items as readonly ShellMenuItem[]);
+  const exact = leaves.find((item) => item.key === pathname);
   if (exact) return exact.key;
   if (pathname.startsWith('/channel/customers')) return ROUTES.channelCustomers;
   if (pathname.includes('/usage') || pathname.includes('/delivery')) {
     return ROUTES.roughCut(DEMO_PROJECT_ID);
   }
-  return items[0]?.key;
+  return leaves[0]?.key;
+}
+
+function parentMenuKey(items: readonly ShellMenuItem[], selected: string | undefined) {
+  if (!selected) return undefined;
+  return items.find((item) => item.children?.some((child) => child.key === selected))?.key;
 }
 
 function SidebarFrame({
@@ -154,6 +295,21 @@ function SidebarFrame({
   const navigate = useNavigate();
   const location = useLocation();
   const selected = selectedMenuKey(location.pathname, items);
+  const activeParent = parentMenuKey(items, selected);
+  const [openKeys, setOpenKeys] = useState<string[]>(() => (activeParent ? [activeParent] : []));
+
+  useEffect(() => {
+    if (!activeParent) {
+      setOpenKeys([]);
+      return;
+    }
+    setOpenKeys((current) => (current.includes(activeParent) ? current : [activeParent]));
+  }, [activeParent]);
+
+  const changeOpenKeys = (nextOpenKeys: string[]) => {
+    const newlyOpened = nextOpenKeys.find((key) => !openKeys.includes(key));
+    setOpenKeys(newlyOpened ? [newlyOpened] : []);
+  };
 
   return (
     <Sider
@@ -180,12 +336,17 @@ function SidebarFrame({
         </div>
       </div>
       <Menu
+        aria-label="主任务导航"
+        className="sidebar-task-menu"
         theme="light"
         mode="inline"
+        inlineIndent={16}
         selectedKeys={selected ? [selected] : []}
+        openKeys={openKeys}
+        onOpenChange={changeOpenKeys}
         items={[...items] as MenuProps['items']}
         onClick={({ key }) => navigate(key)}
-        style={{ borderInlineEnd: 0, marginTop: 12, paddingBottom: 96 }}
+        style={{ borderInlineEnd: 0 }}
       />
       <div className="sidebar-footer">{footer}</div>
     </Sider>
@@ -206,13 +367,19 @@ function DemoSidebar() {
   const unifiedTenant = kind === 'tenant' || kind === 'production';
   const legacyWorkbench = WORKBENCH_OPTIONS.find((item) => item.kind === kind)!;
   const items: ShellMenuItem[] = unifiedTenant
-    ? shellItems(
+    ? groupedShellItems(
         buildTenantMenu({
           roleCodes: demoTenantRoles(identity?.accountKind),
           projectId: DEMO_PROJECT_ID,
         }),
+        tenantMenuGroups,
       )
-    : legacyMenuByWorkbench[kind].filter((item) => canAccessDemoRoute(identity, item.permission));
+    : groupedShellItems(
+        legacyMenuByWorkbench[kind]
+          .filter((item) => canAccessDemoRoute(identity, item.permission))
+          .map((item) => ({ key: item.key, path: item.key, label: item.label })),
+        kind === 'platform' ? demoPlatformMenuGroups : demoChannelMenuGroups,
+      );
 
   return (
     <SidebarFrame
@@ -236,30 +403,28 @@ function PilotSidebar() {
   const context = usePilotProjectContextStore((state) => state.context);
   const organizationType = session?.activeContext.organizationType;
   const commercialItems = session
-    ? shellItems(
-        buildPilotCommercialMenu({
-          organizationType: session.activeContext.organizationType,
-          roleCodes: session.activeContext.roles,
-        }),
-      )
+    ? buildPilotCommercialMenu({
+        organizationType: session.activeContext.organizationType,
+        roleCodes: session.activeContext.roles,
+      })
     : [];
   const items = session
     ? organizationType === 'TENANT'
-      ? [
-          {
-            key: '/projects',
-            icon: iconByTenantMenuKey.projects,
-            label: '项目',
-          },
-          ...commercialItems,
-          ...shellItems(
-            buildTenantMenu({
+      ? groupedShellItems(
+          [
+            { key: 'projects', path: '/projects', label: '项目' },
+            ...commercialItems,
+            ...buildTenantMenu({
               roleCodes: session.activeContext.roles,
               projectId: activeProjectId,
             }),
-          ),
-        ]
-      : commercialItems
+          ],
+          tenantMenuGroups,
+        )
+      : groupedShellItems(
+          commercialItems,
+          organizationType === 'PLATFORM' ? platformMenuGroups : channelMenuGroups,
+        )
     : [];
   const subtitle =
     organizationType === 'PLATFORM'

@@ -289,8 +289,20 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     });
     expect(screen.getByTestId('pilot-app-shell')).toBeInTheDocument();
     expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
+    expect(screen.getByRole('menuitem', { name: /内容策划/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
     expect(screen.getByRole('menuitem', { name: /品牌大脑/ })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /生产概览/ })).toBeInTheDocument();
+    const productionMenu = screen.getByRole('menuitem', { name: /视频生产/ });
+    expect(productionMenu).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('menuitem', { name: /生产概览/ })).not.toBeInTheDocument();
+    fireEvent.click(productionMenu);
+    expect(await screen.findByRole('menuitem', { name: /生产概览/ })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /内容策划/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
     expect(screen.getByTestId('pilot-project-content-brand')).toHaveAttribute(
       'data-project-id',
       'project-alpha',

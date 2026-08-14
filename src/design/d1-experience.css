@@ -154,6 +154,42 @@
   background: var(--va-color-elevated);
 }
 
+.va-shell .sidebar-task-menu {
+  height: calc(100vh - 66px);
+  margin-top: 8px;
+  padding: 0 0 108px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.va-shell .sidebar-task-menu .ant-menu-submenu-title {
+  height: 40px;
+  margin: 2px 8px;
+  border-radius: 8px;
+  color: var(--va-color-text-secondary);
+  font-size: 13px;
+  font-weight: 650;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.va-shell .sidebar-task-menu .ant-menu-submenu-title:hover,
+.va-shell .sidebar-task-menu .ant-menu-submenu-open > .ant-menu-submenu-title {
+  color: var(--va-color-text);
+  background: #f7f2ec;
+}
+
+.va-shell .sidebar-task-menu .ant-menu-sub.ant-menu-inline {
+  background: transparent;
+}
+
+.va-shell .sidebar-task-menu .ant-menu-sub .ant-menu-item {
+  height: 36px;
+  margin-block: 1px;
+  font-size: 13px;
+}
+
 .va-shell .ant-menu-item {
   height: 42px;
   margin-inline: 8px;
