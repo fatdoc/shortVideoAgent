@@ -537,7 +537,7 @@ describe('A-BIZ-06E.4C Shared Router production boundary RED', () => {
     expect(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
   });
 
-  it('loads the formal Canvas V1 route in a fail-closed state until canonical Project and Package references exist', async () => {
+  it('blocks a real Tenant Canvas route when the B Pilot boundary is unavailable', async () => {
     setTenantContext();
     window.history.replaceState({}, '', '/production/canvas/project-alpha');
     render(<App />);
