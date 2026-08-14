@@ -172,7 +172,7 @@ function SidebarFrame({
     >
       <div className="sidebar-brand">
         <div className="sidebar-brand-mark" aria-hidden="true">
-          AI
+          <img src="/brand/yuanhe-assistant-v2.png" alt="" />
         </div>
         <div>
           <div className="sidebar-brand-title">源核 AI 社群</div>

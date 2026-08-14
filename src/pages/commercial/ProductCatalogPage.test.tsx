@@ -32,11 +32,12 @@ describe('ProductCatalogPage', () => {
     expect(screen.getAllByText('已购 Entitlement')).toHaveLength(2);
     expect(screen.getAllByText('产品说明 · 未开通')).toHaveLength(2);
     expect(screen.getAllByText('锁定 · 未授权')).toHaveLength(2);
-    expect(screen.getByText('权益')).toBeInTheDocument();
-    expect(screen.getByText('期限')).toBeInTheDocument();
-    expect(screen.getByText('平台状态')).toBeInTheDocument();
+    expect(screen.getByText('套餐 / 能力与授权状态')).toBeInTheDocument();
+    expect(screen.getByText('操作')).toBeInTheDocument();
     expect(screen.getAllByText('到店可用')).toHaveLength(2);
     expect(screen.getByText('未接通发布平台')).toBeInTheDocument();
+    expect(screen.getAllByLabelText('套餐视觉示意，非运行数据')).toHaveLength(6);
+    expect(screen.getAllByText('视觉示意')).toHaveLength(6);
     expect(screen.queryByText('演示 RateCard')).not.toBeInTheDocument();
   });
 
