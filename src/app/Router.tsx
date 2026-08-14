@@ -45,6 +45,10 @@ import {
 import { PilotPlatformSettlementDraftPage } from '../pages/pilot/PilotSettlementDraftPage';
 import { PilotTenantRechargeAuditPage } from '../pages/pilot/PilotTenantRechargeAuditPage';
 import { PilotTermsOperationsPage } from '../pages/pilot/PilotTermsOperationsPage';
+import {
+  PilotProjectContentPage,
+  type PilotProjectContentRouteKey,
+} from '../pages/pilot-production/PilotProjectContentPages';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
 import {
@@ -784,9 +788,13 @@ function pilotCommercialPage(route: PilotCommercialRouteManifestEntry): ReactNod
 
 function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const session = usePilotAuthStore((state) => state.session);
   const projectStatus = usePilotProjectContextStore((state) => state.status);
   const projects = usePilotProjectContextStore((state) => state.projects);
+  const activeProjectId = usePilotProjectContextStore((state) => state.activeProjectId);
+  const loadProjects = usePilotProjectContextStore((state) => state.load);
+  const selectProject = usePilotProjectContextStore((state) => state.select);
 
   if (!session) return null;
   const decision = authorizePilotOrganizationRoute({
@@ -827,6 +835,44 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   }
 
   if (route.key === 'production-canvas') return <CanvasV1RouteContainer />;
+
+  const contentRouteKeys = new Set<PilotProjectContentRouteKey>([
+    'project-create',
+    'brand',
+    'script',
+    'storyboard',
+    'rough-cut',
+    'production-overview',
+    'production-inbox',
+    'production-tasks',
+    'production-assets',
+    'production-export',
+  ]);
+  if (contentRouteKeys.has(route.key as PilotProjectContentRouteKey)) {
+    const projectId =
+      decision.projectId ?? (route.key === 'production-overview' ? activeProjectId : null);
+    const project = projects.find((candidate) => candidate.id === projectId) ?? null;
+    return (
+      <PilotProjectContentPage
+        routeKey={route.key as PilotProjectContentRouteKey}
+        projectId={projectId}
+        project={project}
+        onOpenCanvas={(packageId) => {
+          if (!projectId) return;
+          navigate(
+            `/production/canvas/${encodeURIComponent(projectId)}?packageId=${encodeURIComponent(packageId)}`,
+          );
+        }}
+        onProjectCreated={async (createdProject) => {
+          const loaded = await loadProjects(session);
+          if (loaded.status !== 'ready') throw new Error('project reload failed');
+          const selected = await selectProject(session, createdProject.id);
+          if (selected.status !== 'ready') throw new Error('project selection failed');
+          navigate(`/projects/${encodeURIComponent(createdProject.id)}/brand`);
+        }}
+      />
+    );
+  }
 
   const projectCopy = decision.projectId ? `Project ${decision.projectId} · ` : '';
   if (route.pilotReadiness === 'handoff-required') {
