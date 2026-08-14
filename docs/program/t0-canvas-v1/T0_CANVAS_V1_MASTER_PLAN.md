@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.13`
+> 版本：`v0.14`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -445,7 +445,7 @@ raw Idempotency-Key
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
 | CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `ACCEPTED` | Control、Story 与 Shared Bridge/Router/Proxy 已独立验收 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `BLOCKED` | G6 非付费真实浏览器切片已通过；等待真实 BytePlus/TOS 配置与付费 smoke 授权 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `BLOCKED` | 非付费真实浏览器与一次本地落盘付费 smoke 已通过；TOS 签名访问及完整产品输出链仍阻塞 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -577,11 +577,11 @@ Gate 状态：
 |---|---|---|
 | G0 | `ACCEPTED` | `handoffs/CV6_G0_BASELINE_HANDOFF.md`；带已知基线失败放行 |
 | G1 | `ACCEPTED` | 含 EntityBinding missing amendment；66/66 PASS、10 fixtures、38/38 双 parser parity |
-| G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
+| G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；G6 已另行完成一次本地落盘真实 Provider smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
 | G5 | `ACCEPTED` | Control、Story、Shared 同源 API/Bridge/Router/Proxy 均通过独立 Gate；历史 4 个 Shared RED 以真实产品实现转绿 |
-| G6 | `BLOCKED` | 真实三服务、Chromium 双视口、刷新恢复与安全扫描已通过；缺 BytePlus/TOS 运行时配置，且未获付费 smoke 授权，无真实 task/output |
+| G6 | `BLOCKED` | 真实三服务、Chromium 双视口、刷新恢复与安全扫描已通过；一次真实 Seedance task 已成功并本地落盘，但 TOS 签名访问 403，未完成产品命令→远程输出登记链 |
 
 状态词只使用：
 
@@ -821,7 +821,7 @@ G2、G3、G4 和 G5 已由 CV0 验收。当前进入 Wave 4 / G6 Delivery：
 6. CV2 已完成 formal bootstrap/workspace/materialization；CV5 已完成 Activation/Bridge/Proxy/Router
 7. CV6 已使用 dedicated PostgreSQL `_test`、Control、StoryCanvas、Vite 和真实 Chromium 完成双视口安全浏览器切片
 8. G6 期间修复并独立复验了 Session 重投影、同源 GET provenance、StrictMode 并发 Legacy Open 与 Formal Bootstrap
-9. 真实付费 Seedance smoke 只能在六项 BytePlus/TOS 配置通过非付费预检且用户明确确认后执行；当前仍未调用 Provider
+9. 用户已明确授权并完成一次受控 Seedance 付费 smoke：单次 POST、4 秒、480p、无音频，Provider `succeeded` 且 MP4 本地校验通过；TOS 签名读取仍为 403，因此未执行 TOS 写入或产品输出登记
 ```
 
 G1 证据：
@@ -859,7 +859,9 @@ G5 product status:        ACCEPTED; external browser and paid Provider remain G6
 G6 safe browser:          real 3-service Chromium 1440x900 + 1672x941 2/2 PASS
 G6 session recovery:      3/3 PASS; reload authority and document facts stable
 G6 no-provider result:    formal workspace hydrated; generation blocked; approval/command/provider 0
-G6 status:                BLOCKED; six BytePlus/TOS runtime settings and paid smoke authorization missing
+G6 paid local smoke:      one Provider POST; succeeded; H.264 4.041667s; local SHA-256 verified
+G6 TOS status:            signed object GET 403 AccessDenied; no TOS write attempted
+G6 status:                BLOCKED; product CanvasCommand→TOS→controlled-media ownership chain incomplete
 ```
 
 G0 已知基线事实：
@@ -879,6 +881,14 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.14 · 2026-08-14
+
+- 用户明确授权一次 Seedance 受控付费 smoke；CV0 以单次 POST、无自动付费重试提交 4 秒、480p、9:16、无音频任务，Provider 达到 `succeeded`；
+- Asset Group 与两个 Active Image 资产预检通过；现有资产 URL 可读取，但当前 AK/SK 对匹配 bucket/prefix 的签名 TOS GET 返回 HTTP 403 `AccessDenied`；
+- 经用户裁决，本轮保留 TOS 配置并改为本地落盘；MP4 为 H.264、496×864、24fps、4.041667 秒、493718 字节，SHA-256 已校验；
+- 原始 Provider task ID 只保存在仓库外 0600 本地状态，持久报告仅记录安全指纹；未写 TOS、未触碰 `byteplus.ts`、未发起第二次付费任务；
+- G6 继续为 `BLOCKED`：本地 Provider smoke 成功不等于浏览器动态审批、CanvasCommand、TOS 输出登记、controlled media、Golden Path 或 Joint Gate 完成。
 
 ### v0.13 · 2026-08-14
 
