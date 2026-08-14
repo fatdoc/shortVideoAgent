@@ -48,18 +48,21 @@ describe('BrandBrainPage', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders the dense merchant overview and unified C1-C8 facts', () => {
+  it('renders the V3 store profile from workspace facts without fabricated operating metrics', () => {
     renderPage();
     expect(screen.getByTestId('brand-brain-page')).toBeInTheDocument();
     expect(screen.getAllByText('海底捞火锅·北京三里屯店').length).toBeGreaterThan(0);
-    expect(screen.getByAltText('海底捞品牌标识')).toBeInTheDocument();
-    expect(screen.getByAltText('张勇头像')).toBeInTheDocument();
-    expect(screen.getByText('张勇（海底捞创始人）')).toBeInTheDocument();
-    expect(screen.getByText('1,268')).toBeInTheDocument();
+    expect(screen.getByTestId('brand-store-photo')).toBeInTheDocument();
+    expect(screen.getByText('资料来源')).toBeInTheDocument();
+    expect(screen.getByText('有效期')).toBeInTheDocument();
+    expect(screen.getByText('变更记录')).toBeInTheDocument();
     expect(screen.getByText('四宫格锅底')).toBeInTheDocument();
     expect(screen.getByTestId('brand-facts-panel')).toBeInTheDocument();
     expect(screen.getByText('C1')).toBeInTheDocument();
     expect(screen.getByText('C8')).toBeInTheDocument();
+    expect(screen.queryByText('张勇（海底捞创始人）')).not.toBeInTheDocument();
+    expect(screen.queryByText('1,268')).not.toBeInTheDocument();
+    expect(screen.queryByText('128')).not.toBeInTheDocument();
   });
 
   it('edits merchant data and persists through updateBrand', async () => {

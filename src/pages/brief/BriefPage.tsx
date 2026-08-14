@@ -1,9 +1,4 @@
-import {
-  ArrowRightOutlined,
-  CloudUploadOutlined,
-  RobotOutlined,
-  SaveOutlined,
-} from '@ant-design/icons';
+import { ArrowRightOutlined, SafetyCertificateOutlined, SaveOutlined } from '@ant-design/icons';
 import {
   Alert,
   Button,
@@ -46,7 +41,6 @@ export function BriefPage() {
   const clearError = useProjectStore((state) => state.clearError);
   const [draft, setDraft] = useState(() => cloneBrief(workspace.brief));
   const [dirty, setDirty] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const formTopRef = useRef<HTMLDivElement>(null);
 
@@ -95,35 +89,13 @@ export function BriefPage() {
     );
   };
 
-  const applyAiSuggestions = async () => {
-    setAiLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 650));
-    patch(
-      'notes',
-      '前 3 秒用三里屯深夜火锅场景抓住注意力，中段突出服务、锅底与招牌菜，结尾明确领取团购券并到店核销。',
-    );
-    patch('restrictions', [
-      '价格与权益必须引用已确认事实',
-      '避免绝对化承诺与竞品对比',
-      '会员权益以门店实际规则为准',
-    ]);
-    setAiLoading(false);
-  };
-
-  const simulateUpload = () => {
-    const nextId = `brief-upload-${draft.assetIds.length + 1}`;
-    if (!draft.assetIds.includes(nextId)) {
-      patch('assetIds', [...draft.assetIds, nextId]);
-    }
-  };
-
   return (
     <div className="project-workflow-page" data-testid="brief-page" ref={formTopRef}>
       <div className="project-page-toolbar">
         <div className="project-page-toolbar-copy">
           <Typography.Title level={3}>新建项目 / Brief</Typography.Title>
           <Typography.Text type="secondary">
-            统一 Demo 已预填；修改后可保存到 Store / LocalStorage 并继续生产。
+            定义获客任务的平台、人群、限制和 CTA；资料缺失时先阻断后续生产。
           </Typography.Text>
         </div>
         <div className="project-toolbar-actions">
@@ -276,7 +248,7 @@ export function BriefPage() {
           <section className="brief-form-section">
             <div className="brief-form-section-title">
               <Typography.Title level={5} style={{ margin: 0 }}>素材与内容约束</Typography.Title>
-              <Typography.Text type="secondary">素材上传为前端 Mock，不读取真实文件</Typography.Text>
+              <Typography.Text type="secondary">只引用当前工作区已有素材；缺失素材在资产入口补齐。</Typography.Text>
             </div>
             <div className="brief-upload-zone">
               <div>
@@ -284,16 +256,14 @@ export function BriefPage() {
                 <br />
                 <Typography.Text type="secondary">建议包含门头、服务、菜品、环境与夜景</Typography.Text>
               </div>
-              <Button icon={<CloudUploadOutlined />} onClick={simulateUpload} data-testid="brief-upload">
-                模拟上传
-              </Button>
+              <Tag color={draft.assetIds.length >= 5 ? 'green' : 'orange'}>
+                {draft.assetIds.length >= 5 ? '素材可用' : '素材不足'}
+              </Tag>
             </div>
             <div className="brief-asset-list">
               {draft.assetIds.map((assetId, index) => (
                 <Tag
                   key={assetId}
-                  closable={assetId.startsWith('brief-upload-')}
-                  onClose={() => patch('assetIds', draft.assetIds.filter((id) => id !== assetId))}
                 >
                   素材 {String(index + 1).padStart(2, '0')}
                 </Tag>
@@ -323,18 +293,20 @@ export function BriefPage() {
 
         <aside className="brief-side-column">
           <section className="brief-side-panel">
-            <div className="brief-side-title" style={{ color: '#1677ff' }}>
-              <Typography.Text strong>实时摘要</Typography.Text>
-              <Tag color="blue" style={{ marginLeft: 'auto' }}>预览</Tag>
+            <div className="brief-side-title">
+              <SafetyCertificateOutlined />
+              <Typography.Text strong>获客任务</Typography.Text>
+              <Tag style={{ marginLeft: 'auto' }}>{dirty ? '待保存' : '已同步'}</Tag>
             </div>
             <div className="brief-summary-list">
               <span className="brief-summary-label">业务类型</span><span>本地探店</span>
-              <span className="brief-summary-label">商家</span><span>{draft.merchantName || '待填写'}</span>
-              <span className="brief-summary-label">目标平台</span><span>{draft.platforms.join(' / ') || '待选择'}</span>
+              <span className="brief-summary-label">门店</span><span>{draft.merchantName || '待填写'}</span>
+              <span className="brief-summary-label">平台</span><span>{draft.platforms.join(' / ') || '待选择'}</span>
               <span className="brief-summary-label">画面规格</span><span>{draft.aspectRatio} · {draft.duration}s</span>
-              <span className="brief-summary-label">目标受众</span><span>{draft.targetAudience.slice(0, 2).join('、') || '待填写'}</span>
+              <span className="brief-summary-label">人群</span><span>{draft.targetAudience.slice(0, 2).join('、') || '待填写'}</span>
               <span className="brief-summary-label">CTA</span><span>{draft.cta || '待填写'}</span>
               <span className="brief-summary-label">素材</span><span>{draft.assetIds.length} 个引用</span>
+              <span className="brief-summary-label">限制</span><span>{draft.restrictions.length ? `${draft.restrictions.length} 条` : '待填写'}</span>
             </div>
           </section>
 
@@ -344,28 +316,17 @@ export function BriefPage() {
           />
 
           <section className="brief-side-panel">
-            <div className="brief-side-title" style={{ color: '#722ed1' }}>
-              <RobotOutlined />
-              <Typography.Text strong>AI 建议（Mock）</Typography.Text>
+            <div className="brief-side-title">
+              <Typography.Text strong>限制与阻断原因</Typography.Text>
             </div>
             <ul className="brief-ai-list">
-              <li>前三秒使用夜景 / 服务场景建立注意力</li>
-              <li>价格与权益绑定 C3、C4、C6—C8</li>
-              <li>结尾保留领券与到店核销的明确动作</li>
+              {(draft.restrictions.length ? draft.restrictions : ['限制待填写']).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
             </ul>
-            <Button
-              block
-              style={{ marginTop: 14 }}
-              loading={aiLoading}
-              onClick={() => void applyAiSuggestions()}
-              data-testid="brief-ai-suggest"
-            >
-              应用建议到备注
-            </Button>
           </section>
 
           <Button
-            type="primary"
             size="large"
             block
             icon={<ArrowRightOutlined />}
