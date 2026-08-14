@@ -8,7 +8,7 @@
       "email": "platform@videoagent.test",
       "organizationType": "PLATFORM",
       "projectCaseAccess": "denied",
-      "expectedProjectSurface": "pilot-tenant-context-required"
+      "expectedProjectSurface": "pilot-route-not-found"
     },
     {
       "key": "channel_admin",
@@ -16,7 +16,7 @@
       "email": "channel@videoagent.test",
       "organizationType": "CHANNEL",
       "projectCaseAccess": "denied",
-      "expectedProjectSurface": "pilot-tenant-context-required"
+      "expectedProjectSurface": "pilot-route-not-found"
     },
     {
       "key": "tenant_admin",
@@ -105,6 +105,128 @@
       "expectedSurfaceTestId": null,
       "acceptance": "real_no_provider_blocked_readiness",
       "currentClassification": "no_provider_blocked_readiness"
+    }
+  ],
+  "operations": [
+    {
+      "key": "dashboard",
+      "route": "/dashboard",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-dashboard-real-projects"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "products",
+      "route": "/enterprise/products",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-products-real-capabilities"],
+      "requiredTexts": ["video.generate", "不代表已购买商品"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "platform_invitations",
+      "route": "/platform/invitations",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-invitations-ready"],
+      "requiredTexts": ["canvas-local-platform@example.invalid", "revoked"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_revoked_record"
+    },
+    {
+      "key": "channel_invitations",
+      "route": "/channel/invitations",
+      "organizationType": "CHANNEL",
+      "roles": ["channel_admin"],
+      "expectedTestIds": ["pilot-invitations-ready"],
+      "requiredTexts": ["Channel reusable invitation", "revoked"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_revoked_record"
+    },
+    {
+      "key": "tenant_invitations",
+      "route": "/enterprise/invitations",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-invitations-ready"],
+      "requiredTexts": ["canvas-local-tenant@example.invalid", "revoked"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_revoked_record"
+    },
+    {
+      "key": "platform_members",
+      "route": "/platform/members",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-members-ready"],
+      "requiredTexts": ["platform@videoagent.test"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "channel_members",
+      "route": "/channel/members",
+      "organizationType": "CHANNEL",
+      "roles": ["channel_admin"],
+      "expectedTestIds": ["pilot-members-ready"],
+      "requiredTexts": ["channel@videoagent.test"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "tenant_members",
+      "route": "/enterprise/members",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-members-ready"],
+      "requiredTexts": ["admin@videoagent.test", "operator@videoagent.test"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "terms",
+      "route": "/platform/terms",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-terms-documents-ready", "pilot-terms-versions-ready"],
+      "requiredTexts": ["[CANVAS_FULL_CASE_TERMS]", "DRAFT"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_draft_record"
+    },
+    {
+      "key": "platform_financial_empty",
+      "route": "/platform/commission-audit",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-platform-commission-audit-empty"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_empty"
+    },
+    {
+      "key": "channel_financial_empty",
+      "route": "/channel/commission-audit",
+      "organizationType": "CHANNEL",
+      "roles": ["channel_admin"],
+      "expectedTestIds": ["pilot-channel-commission-audit-empty"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_empty"
+    },
+    {
+      "key": "tenant_financial_empty",
+      "route": "/enterprise/recharge-orders",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-tenant-recharge-empty"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_empty"
     }
   ],
   "forbiddenSuccessSurfaces": {

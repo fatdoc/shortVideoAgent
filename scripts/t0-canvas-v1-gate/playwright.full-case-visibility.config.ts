@@ -1,5 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
+const browserExecutable = process.env.CANVAS_FULL_CASE_BROWSER_EXECUTABLE?.trim();
+if (browserExecutable && !browserExecutable.startsWith('/Applications/')) {
+  throw new Error('CANVAS_FULL_CASE_BROWSER_EXECUTABLE_INVALID');
+}
+
 export default defineConfig({
   testDir: '../../tests/e2e/canvas-v1',
   testMatch: 'full-case-visibility.spec.ts',
@@ -11,6 +16,7 @@ export default defineConfig({
   outputDir: '../../docs/program/t0-canvas-v1/evidence/full-case-visibility/playwright',
   use: {
     baseURL: process.env.CANVAS_FULL_CASE_BASE_URL,
+    launchOptions: browserExecutable ? { executablePath: browserExecutable } : undefined,
     trace: 'off',
     video: 'off',
     screenshot: 'only-on-failure',

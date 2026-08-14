@@ -17,8 +17,8 @@ const contentPagesPath = path.join(
 const contentApiPath = path.join(root, 'src/services/pilotContentProductionApi.ts');
 
 const exactAccounts = [
-  ['platform_admin', 'platform@videoagent.test', 'PLATFORM', 'denied', 'pilot-tenant-context-required'],
-  ['channel_admin', 'channel@videoagent.test', 'CHANNEL', 'denied', 'pilot-tenant-context-required'],
+  ['platform_admin', 'platform@videoagent.test', 'PLATFORM', 'denied', 'pilot-route-not-found'],
+  ['channel_admin', 'channel@videoagent.test', 'CHANNEL', 'denied', 'pilot-route-not-found'],
   ['tenant_admin', 'admin@videoagent.test', 'TENANT', 'full', 'pilot-project-list'],
   ['content_operator', 'operator@videoagent.test', 'TENANT', 'full_except_brief_create', 'pilot-project-list'],
 ];
@@ -91,6 +91,36 @@ test('platform and channel roles cannot masquerade as the tenant full case', () 
   }
   const brief = matrix.stages.find(({ key }) => key === 'brief');
   assert.deepEqual(brief.roles, ['tenant_admin']);
+});
+
+test('operations matrix binds exact role routes to real records and financial empty states', () => {
+  assert.equal(matrix.operations.length, 12);
+  assert.equal(new Set(matrix.operations.map(({ key }) => key)).size, 12);
+  for (const operation of matrix.operations) {
+    assert.ok(operation.route.startsWith('/'));
+    assert.ok(operation.roles.length > 0);
+    assert.ok(operation.expectedTestIds.length > 0);
+    assert.ok([
+      'real_server_data',
+      'real_revoked_record',
+      'real_draft_record',
+      'real_empty',
+    ].includes(operation.acceptance));
+  }
+  assert.deepEqual(
+    matrix.operations.filter(({ acceptance }) => acceptance === 'real_empty').map(({ key }) => key),
+    ['platform_financial_empty', 'channel_financial_empty', 'tenant_financial_empty'],
+  );
+  assert.deepEqual(
+    matrix.operations.filter(({ acceptance }) => acceptance === 'real_revoked_record').map(({ key }) => key),
+    ['platform_invitations', 'channel_invitations', 'tenant_invitations'],
+  );
+  const terms = matrix.operations.find(({ key }) => key === 'terms');
+  assert.deepEqual(terms.expectedTestIds, [
+    'pilot-terms-documents-ready',
+    'pilot-terms-versions-ready',
+  ]);
+  assert.ok(terms.requiredTexts.includes('[CANVAS_FULL_CASE_TERMS]'));
 });
 
 test('Pilot router sends all full-case pages to real content surfaces before fallback branches', () => {

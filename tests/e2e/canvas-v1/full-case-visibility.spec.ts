@@ -18,9 +18,20 @@ type Stage = {
   expectedSurfaceTestId: string | null;
   acceptance: string;
 };
+type Operation = {
+  key: string;
+  route: string;
+  organizationType: string;
+  roles: string[];
+  expectedTestIds: string[];
+  requiredTexts: string[];
+  requiredMarkerEnvironment: string | null;
+  acceptance: string;
+};
 type Matrix = {
   accounts: Account[];
   stages: Stage[];
+  operations: Operation[];
   forbiddenSuccessSurfaces: { testIds: string[]; phrases: string[] };
 };
 
@@ -83,6 +94,28 @@ async function assertNoFalseSuccess(page: Page) {
   }
 }
 
+async function assertOperation(page: Page, account: Account, operation: Operation, testInfo: import('@playwright/test').TestInfo) {
+  await page.goto(operation.route);
+  for (const testId of operation.expectedTestIds) {
+    await expect(page.getByTestId(testId)).toBeVisible();
+  }
+  for (const requiredText of operation.requiredTexts) {
+    await expect(
+      page.getByText(requiredText, { exact: false }).filter({ visible: true }).first(),
+    ).toBeVisible();
+  }
+  if (operation.requiredMarkerEnvironment) {
+    await expect(
+      page.getByText(required(operation.requiredMarkerEnvironment), { exact: false }).first(),
+    ).toBeVisible();
+  }
+  await assertNoFalseSuccess(page);
+  await page.screenshot({
+    path: testInfo.outputPath(`${account.key}-${operation.key}-${testInfo.project.name}.png`),
+    fullPage: false,
+  });
+}
+
 for (const account of matrix.accounts) {
   test(`${account.key}: exact role visibility and full-case disposition`, async ({ page }, testInfo) => {
     const approvalRequests: string[] = [];
@@ -92,7 +125,37 @@ for (const account of matrix.accounts) {
       if (pathname.endsWith('/canvas-command-approvals')) approvalRequests.push(pathname);
       if (pathname.endsWith('/canvas/v1/commands')) commandRequests.push(pathname);
     });
+    page.on('response', (response) => {
+      const request = response.request();
+      const pathname = new URL(response.url()).pathname;
+      if (
+        pathname.startsWith('/api/')
+        && (pathname.includes('/invitations') || pathname.includes('/canvas'))
+      ) {
+        process.stdout.write(
+          `[full-case-http] ${account.key} ${request.method()} ${pathname} ${response.status()}\n`,
+        );
+      }
+    });
     await login(page, account);
+
+    const allowedOperations = matrix.operations.filter(({ roles }) => roles.includes(account.key));
+    for (const operation of allowedOperations) {
+      await assertOperation(page, account, operation, testInfo);
+    }
+
+    if (account.key === 'content_operator') {
+      for (const operation of matrix.operations.filter(
+        ({ organizationType, roles }) => organizationType === 'TENANT' && !roles.includes(account.key),
+      )) {
+        await page.goto(operation.route);
+        await expect(page.getByTestId('pilot-route-permission-denied')).toBeVisible();
+        await page.screenshot({
+          path: testInfo.outputPath(`${account.key}-${operation.key}-denied-${testInfo.project.name}.png`),
+          fullPage: false,
+        });
+      }
+    }
 
     if (account.organizationType !== 'TENANT') {
       await page.goto('/projects');
@@ -102,6 +165,8 @@ for (const account of matrix.accounts) {
         path: testInfo.outputPath(`${account.key}-${testInfo.project.name}.png`),
         fullPage: false,
       });
+      expect(approvalRequests).toEqual([]);
+      expect(commandRequests).toEqual([]);
       return;
     }
 
