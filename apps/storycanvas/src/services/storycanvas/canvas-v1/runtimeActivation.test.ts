@@ -346,6 +346,8 @@ test('production adapter persists before provider submission and same-command re
   assert.equal(row.externalTaskId, 'provider-task-server-only');
   assert.doesNotMatch(String(row.inputJson), /asset:\/\/|provider-task|signed\?|secret/iu);
   releaseProvider();
+  assert.deepEqual(await first.completion, { outputAssetId: '19191919-1919-4919-8919-191919191919' });
+  assert.equal((await db('sc_tasks').first()).status, 'succeeded');
 });
 
 test('production adapter does not resolve until a real provider task id is durably persisted', async (context) => {

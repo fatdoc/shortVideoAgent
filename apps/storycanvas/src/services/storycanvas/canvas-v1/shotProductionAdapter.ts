@@ -9,7 +9,10 @@ import {
   uploadRemoteOutput,
   type RemoteOutputUpload,
 } from '../remoteOutputStorage';
-import type { StartShotProductionInput } from './canvasCommandService';
+import type {
+  StartShotProductionInput,
+  StartShotProductionResult,
+} from './canvasCommandService';
 import { CanvasCommandServiceError } from './errors';
 import { persistLocalCanvasOutput } from './localOutputStorage';
 import getPath from '@/utils/getPath';
@@ -195,6 +198,7 @@ export class CanvasV1ShotProductionAdapter {
   private readonly persistOutput: NonNullable<CanvasV1ShotProductionAdapterOptions['persistOutput']>;
   private readonly newId: () => string;
   private readonly now: () => Date;
+  private readonly completions = new Map<string, Promise<{ outputAssetId: string }>>();
 
   constructor(private readonly options: CanvasV1ShotProductionAdapterOptions) {
     this.provider = options.provider ?? { start: realProviderStart };
@@ -203,7 +207,7 @@ export class CanvasV1ShotProductionAdapter {
     this.now = options.now ?? (() => new Date());
   }
 
-  async start(input: StartShotProductionInput): Promise<{ taskId: string }> {
+  async start(input: StartShotProductionInput): Promise<StartShotProductionResult> {
     if (!(await this.options.readiness())) {
       throw new CanvasCommandServiceError('CANVAS_CAPABILITY_UNAVAILABLE');
     }
@@ -234,7 +238,18 @@ export class CanvasV1ShotProductionAdapter {
         existing.externalTaskId &&
         SAFE_PROVIDER_TASK_ID.test(String(existing.externalTaskId))
       ) {
-        return { taskId: String(existing.id) };
+        const taskId = String(existing.id);
+        const completion = this.completions.get(taskId);
+        if (completion) return { taskId, completion };
+        if (existing.status === 'succeeded') {
+          try {
+            const outputAssetId = JSON.parse(String(existing.outputJson)).outputAssetId;
+            if (/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(outputAssetId)) {
+              return { taskId, completion: Promise.resolve({ outputAssetId }) };
+            }
+          } catch { /* fixed failure below */ }
+        }
+        return { taskId };
       }
       throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
     }
@@ -265,7 +280,8 @@ export class CanvasV1ShotProductionAdapter {
         replay.externalTaskId &&
         SAFE_PROVIDER_TASK_ID.test(String(replay.externalTaskId))
       ) {
-        return { taskId: String(replay.id) };
+        const taskId = String(replay.id);
+        return { taskId, completion: this.completions.get(taskId) };
       }
       throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
     }
@@ -276,7 +292,7 @@ export class CanvasV1ShotProductionAdapter {
       resolveSubmitted = resolve;
       rejectSubmitted = reject;
     });
-    const run = async () => {
+    const run = async (): Promise<{ outputAssetId: string }> => {
       let submittedExternalTaskId: string | null = null;
       let hookConflict = false;
       try {
@@ -348,6 +364,7 @@ export class CanvasV1ShotProductionAdapter {
           errorJson: null,
           updatedAt: safeDate(this.now),
         });
+        return { outputAssetId: output.outputAssetId };
       } catch {
         await this.options.database('sc_tasks').where({ id: taskId }).update({
           status: 'failed',
@@ -356,12 +373,17 @@ export class CanvasV1ShotProductionAdapter {
           updatedAt: safeDate(this.now),
         }).catch(() => undefined);
         rejectSubmitted();
+        throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
       }
     };
-    void run();
+    const completion = run().finally(() => {
+      if (this.completions.get(taskId) === completion) this.completions.delete(taskId);
+    });
+    this.completions.set(taskId, completion);
+    void completion.catch(() => undefined);
     try {
       await submitted;
-      return { taskId };
+      return { taskId, completion };
     } catch {
       throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
     }

@@ -178,6 +178,7 @@ test("advances a submitted generation to output_registered only after persisted 
       taskId: "18181818-1818-4818-8818-181818181818",
       completion,
     }),
+    assertOutputAsset: async (candidate) => candidate === "19191919-1919-4919-8919-191919191919",
   }));
 
   const submitted = await service.execute(command());
@@ -201,6 +202,36 @@ test("advances a submitted generation to output_registered only after persisted 
   const replay = await service.execute(command({ requestId: "req-output-registered-replay" }));
   assert.equal(replay.status, "output_registered");
   assert.equal(replay.replayed, true);
+});
+
+test("records a fixed failed event when submitted production cannot register an output", async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  let fail!: (error: Error) => void;
+  const completion = new Promise<{ outputAssetId: string }>((_resolve, reject) => { fail = reject; });
+  const service = new CanvasCommandService(options(db, {
+    startShotProduction: async () => ({
+      taskId: "18181818-1818-4818-8818-181818181818",
+      completion,
+    }),
+    assertOutputAsset: async () => false,
+  }));
+  const submitted = await service.execute(command());
+  assert.equal(submitted.status, "task_created");
+  fail(new Error("Bearer secret asset://provider raw storage response"));
+
+  let persisted: CanvasEventV01 | null = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    persisted = JSON.parse(String((await db("sc_canvas_v1_events").first()).eventJson)) as CanvasEventV01;
+    if (persisted.status === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(persisted?.status, "failed");
+  assert.equal(persisted?.providerSubmitted, true);
+  assert.equal(persisted?.taskCreated, true);
+  assert.equal(persisted?.outputRegistered, false);
+  assert.equal(persisted?.error?.code, "CANVAS_PROVIDER_FAILED");
+  assert.doesNotMatch(JSON.stringify(persisted), /Bearer|asset:\/\/|storage response/iu);
 });
 
 test("SYNC_PROVIDER_ASSET is low-cost while the frozen five commands still require approval", async (context) => {

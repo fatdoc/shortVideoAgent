@@ -77,13 +77,18 @@ export interface StartShotProductionInput {
   referenceAssetUris: string[];
 }
 
+export interface StartShotProductionResult {
+  taskId: string;
+  completion?: Promise<{ outputAssetId: string }>;
+}
+
 export interface CanvasCommandServiceOptions {
   database: Knex;
   resolveScope(command: CanvasCommandV01): Promise<CanvasProductionScope>;
   validateApproval(command: CanvasCommandV01, scope: CanvasProductionScope): Promise<boolean>;
   getReadiness(readinessId: string, scope: CanvasProductionScope): Promise<ShotReadinessV01 | null>;
   resolveProviderAssetUris(assetIds: string[], scope: CanvasProductionScope): Promise<string[]>;
-  startShotProduction(input: StartShotProductionInput): Promise<{ taskId: string }>;
+  startShotProduction(input: StartShotProductionInput): Promise<StartShotProductionResult>;
   syncProviderAsset?(assetId: string, scope: CanvasProductionScope): Promise<ProviderAssetBindingV01>;
   bindAssetToEntity?(assetId: string, entityId: string, scope: CanvasProductionScope): Promise<EntityBindingV01>;
   assertOutputAsset?(outputAssetId: string, scope: CanvasProductionScope): Promise<boolean>;
@@ -224,6 +229,64 @@ export class CanvasCommandService {
     });
   }
 
+  private async advanceEvent(
+    command: CanvasCommandV01,
+    expected: CanvasEventV01,
+    event: CanvasEventV01,
+  ): Promise<void> {
+    const timestamp = this.now().toISOString();
+    await this.options.database.transaction(async (transaction) => {
+      const commandChanged = await transaction("sc_canvas_v1_commands")
+        .where({ commandId: command.commandId, resultEventJson: JSON.stringify(expected) })
+        .update({ resultEventJson: JSON.stringify(event), updatedAt: timestamp });
+      const eventChanged = await transaction("sc_canvas_v1_events")
+        .where({ eventId: expected.eventId, eventJson: JSON.stringify(expected) })
+        .update({ status: event.status, eventJson: JSON.stringify(event) });
+      if (commandChanged !== 1 || eventChanged !== 1) {
+        throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
+      }
+    });
+  }
+
+  private async observeGenerationCompletion(
+    command: CanvasCommandV01,
+    scope: CanvasProductionScope,
+    taskCreated: CanvasEventV01,
+    completion: Promise<{ outputAssetId: string }>,
+  ): Promise<void> {
+    try {
+      const output = await completion;
+      if (!this.options.assertOutputAsset
+        || !await this.options.assertOutputAsset(output.outputAssetId, scope)) {
+        throw new CanvasCommandServiceError("CANVAS_OUTPUT_REGISTRATION_FAILED");
+      }
+      const registered = this.event(command, {
+        eventId: taskCreated.eventId,
+        status: "output_registered",
+        providerSubmitted: true,
+        taskCreated: true,
+        outputRegistered: true,
+        taskId: taskCreated.taskId,
+        outputAssetId: output.outputAssetId,
+      });
+      await this.advanceEvent(command, taskCreated, registered);
+    } catch {
+      const failed = this.event(command, {
+        eventId: taskCreated.eventId,
+        status: "failed",
+        providerSubmitted: true,
+        taskCreated: true,
+        taskId: taskCreated.taskId,
+        error: {
+          code: "CANVAS_PROVIDER_FAILED",
+          message: "Canvas production provider failed.",
+          retryable: false,
+        },
+      });
+      await this.advanceEvent(command, taskCreated, failed).catch(() => undefined);
+    }
+  }
+
   private async generate(
     command: CanvasCommandV01,
     scope: CanvasProductionScope,
@@ -269,6 +332,9 @@ export class CanvasCommandService {
         replayed: Boolean(recovering),
       });
       await this.updateEvent(command, taskCreated);
+      if (started.completion) {
+        void this.observeGenerationCompletion(command, scope, taskCreated, started.completion);
+      }
       return taskCreated;
     } catch {
       const error = new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
