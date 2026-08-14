@@ -178,16 +178,17 @@ export class CanvasCommandService {
       if (this.generationObservers.has(row.eventId)) continue;
       let event: CanvasEventV01;
       let command: CanvasCommandV01;
-      let commandRow: CommandRow;
+      let commandRow: CommandRow | null = null;
       try {
         const parsedEvent = parseCanvasV1Contract(JSON.parse(row.eventJson));
-        commandRow = await this.options.database<CommandRow>("sc_canvas_v1_commands")
+        const storedCommand = await this.options.database<CommandRow>("sc_canvas_v1_commands")
           .where({ commandId: row.commandId })
           .first();
-        if (parsedEvent.objectType !== "CanvasEvent" || !commandRow) {
+        if (parsedEvent.objectType !== "CanvasEvent" || !storedCommand) {
           throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
         }
-        const parsedCommand = parseCanvasV1Contract(JSON.parse(commandRow.commandJson));
+        commandRow = storedCommand;
+        const parsedCommand = parseCanvasV1Contract(JSON.parse(storedCommand.commandJson));
         if (parsedCommand.objectType !== "CanvasCommand") {
           throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
         }
@@ -196,6 +197,7 @@ export class CanvasCommandService {
       } catch {
         throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
       }
+      if (!commandRow) throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
       if (event.eventId !== row.eventId || event.commandId !== command.commandId
         || event.commandType !== "GENERATE_SHOT" || event.status !== "task_created"
         || command.commandType !== "GENERATE_SHOT"
