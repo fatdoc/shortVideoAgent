@@ -16,6 +16,8 @@
     "test:e2e": "playwright test",
     "test:e2e:pilot": "apps/control-api/node_modules/.bin/tsx tests/e2e/pilot/run-pilot-browser-e2e.ts",
     "test:e2e:pilot:ab-golden-path": "apps/control-api/node_modules/.bin/tsx tests/e2e/pilot/run-ab-golden-path.ts",
+    "local-case:canvas": "apps/storycanvas/node_modules/.bin/tsx --tsconfig apps/storycanvas/tsconfig.json scripts/local-test/canvas-manual-case.ts",
+    "test:local-case:canvas": "apps/storycanvas/node_modules/.bin/tsx --tsconfig apps/storycanvas/tsconfig.json --test scripts/local-test/canvas-manual-case.test.ts",
     "format": "prettier --write .",
     "validate:governance": "node scripts/validate-governance.mjs",
     "test:joint-gate:manifest": "node --test scripts/joint-gate-manifest.test.mjs",
