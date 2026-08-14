@@ -253,12 +253,15 @@ describe('PilotProjectContentPage real Control facts', () => {
     const createdProject = { ...project, id: 'project-created' };
     const createProject = vi.fn().mockResolvedValue({ project: createdProject, replayed: false });
     const createBriefVersion = vi.fn().mockResolvedValue({
-      value: brief(1, {
-        merchantName: '南门咖啡',
-        city: '郑州',
-        campaignGoal: '到店核销',
-        brandFacts: ['手冲咖啡'],
-      }),
+      value: {
+        ...brief(1, {
+          merchantName: '南门咖啡',
+          city: '郑州',
+          campaignGoal: '到店核销',
+          brandFacts: ['手冲咖啡'],
+        }),
+        projectId: createdProject.id,
+      },
       replayed: false,
     });
     const onProjectCreated = vi.fn().mockResolvedValue(undefined);
