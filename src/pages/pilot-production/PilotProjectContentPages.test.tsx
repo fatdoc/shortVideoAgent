@@ -34,10 +34,7 @@ const eligibility: PilotProductionEligibility = {
   storyboardApproval: null,
 };
 
-function brief(
-  version: number,
-  payload: PilotBriefVersion['payload'],
-): PilotBriefVersion {
+function brief(version: number, payload: PilotBriefVersion['payload']): PilotBriefVersion {
   return {
     id: `brief-${version}`,
     projectId: project.id,
@@ -173,7 +170,7 @@ describe('PilotProjectContentPage real Control facts', () => {
           requiredDisclosures: [],
           factsConfirmed: true,
           sourceDigest: 'raw-secret',
-        }),
+        } as unknown as PilotBriefVersion['payload']),
       ]),
     });
 
@@ -243,7 +240,7 @@ describe('PilotProjectContentPage real Control facts', () => {
       projectId: project.id,
       packageId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       packageVersion: 1,
-      scriptVersionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      scriptVersionId: 'script-v2',
       storyboardVersionId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
       capabilityRequirements: ['video.generate' as const, 'media.export' as const],
       status: 'ready' as const,
@@ -269,9 +266,7 @@ describe('PilotProjectContentPage real Control facts', () => {
       />,
     );
 
-    expect(await screen.findByTestId('pilot-production-packages')).toHaveTextContent(
-      'Package v1',
-    );
+    expect(await screen.findByTestId('pilot-production-packages')).toHaveTextContent('Package v1');
     expect(screen.getByTestId('pilot-production-packages')).toHaveTextContent('Package v2');
     expect(onOpenCanvas).not.toHaveBeenCalled();
 

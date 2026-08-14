@@ -236,7 +236,7 @@ export function createContentRouter(options: ContentRouterOptions): Router {
         return;
       }
       try {
-        if (!(await authorizeProject(response, options, id, 'project.content.write'))) return;
+        if (!(await authorizeProject(response, options, id, 'project.manage'))) return;
         const result = await options.store.createBriefVersion(
           actor(response),
           id,

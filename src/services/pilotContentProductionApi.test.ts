@@ -43,7 +43,7 @@ const scriptVersionResponse = {
 } as const;
 const scriptVersion: PilotScriptVersion = scriptVersionResponse;
 
-const briefVersionResponse = {
+const briefVersionResponse: PilotBriefVersion = {
   id: '10000000-0000-4000-8000-000000000013',
   projectId,
   version: 1,
@@ -59,7 +59,7 @@ const briefVersionResponse = {
   },
   createdBy: actorId,
   createdAt: '2026-08-11T00:59:00.000Z',
-} as const;
+};
 const briefVersion: PilotBriefVersion = briefVersionResponse;
 
 const storyboardDraftRevision = {

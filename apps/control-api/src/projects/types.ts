@@ -1,4 +1,5 @@
 import type { OrganizationType, RoleCode } from '../auth/types.js';
+import type { BrowserSafeBriefPayload } from '../briefs/schema.js';
 
 export type SessionActor = {
   userId: string;
@@ -30,7 +31,7 @@ export type BriefVersion = {
   projectId: string;
   version: number;
   status: 'draft' | 'approved' | 'superseded';
-  payload: Record<string, unknown>;
+  payload: BrowserSafeBriefPayload;
   createdBy: string;
   createdAt: string;
 };
@@ -173,7 +174,7 @@ export interface ContentStore {
   createBriefVersion(
     actor: SessionActor,
     projectId: string,
-    payload: Record<string, unknown>,
+    payload: BrowserSafeBriefPayload,
     idempotency: IdempotencyInput,
   ): Promise<IdempotentResult<BriefVersion> | null>;
   listBriefVersions(actor: SessionActor, projectId: string): Promise<BriefVersion[] | null>;

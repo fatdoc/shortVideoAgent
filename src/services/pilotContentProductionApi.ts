@@ -24,6 +24,21 @@ export interface PilotMutationResult<T> {
   replayed: boolean;
 }
 
+export interface PilotBriefFact {
+  text: string;
+  sourceReference: string;
+}
+
+export interface PilotBriefPayload {
+  objective: string;
+  audience: string[];
+  platforms: string[];
+  brandFacts: PilotBriefFact[];
+  prohibitedTerms: string[];
+  requiredDisclosures: string[];
+  factsConfirmed: true;
+}
+
 export interface PilotScriptVersion {
   id: string;
   projectId: string;
@@ -39,7 +54,7 @@ export interface PilotBriefVersion {
   projectId: string;
   version: number;
   status: PilotBriefStatus;
-  payload: Record<string, unknown>;
+  payload: PilotBriefPayload;
   createdBy: string;
   createdAt: string;
 }
@@ -221,7 +236,7 @@ export interface PilotContentProductionApi {
   listBriefVersions(projectId: string, options?: PilotRequestOptions): Promise<PilotBriefVersion[]>;
   createBriefVersion(
     projectId: string,
-    input: { payload: Record<string, unknown> },
+    input: { payload: PilotBriefPayload },
     idempotencyKey: string,
     options?: PilotRequestOptions,
   ): Promise<PilotMutationResult<PilotBriefVersion>>;
@@ -393,6 +408,67 @@ function parsePayload(value: unknown): Record<string, unknown> {
   return value;
 }
 
+function parseBriefText(value: unknown, maxLength: number): string {
+  if (!requiredString(value, maxLength) || value.trim() !== value) {
+    throw new Error('invalid brief text');
+  }
+  return value;
+}
+
+function parseBriefTextList(
+  value: unknown,
+  maxItems: number,
+  maxLength: number,
+  allowEmpty: boolean,
+): string[] {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0) || value.length > maxItems) {
+    throw new Error('invalid brief text list');
+  }
+  const items = value.map((item) => parseBriefText(item, maxLength));
+  if (new Set(items).size !== items.length) throw new Error('duplicate brief text');
+  return items;
+}
+
+function parseBriefPayload(value: unknown): PilotBriefPayload {
+  const keys = [
+    'objective',
+    'audience',
+    'platforms',
+    'brandFacts',
+    'prohibitedTerms',
+    'requiredDisclosures',
+    'factsConfirmed',
+  ] as const;
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, keys) ||
+    value.factsConfirmed !== true ||
+    !Array.isArray(value.brandFacts) ||
+    value.brandFacts.length === 0 ||
+    value.brandFacts.length > 20
+  ) {
+    throw new Error('invalid browser-safe brief payload');
+  }
+  const brandFacts = value.brandFacts.map((fact) => {
+    if (!isRecord(fact) || !hasOnlyKeys(fact, ['text', 'sourceReference'])) {
+      throw new Error('invalid browser-safe brief fact');
+    }
+    return {
+      text: parseBriefText(fact.text, 500),
+      sourceReference: parseBriefText(fact.sourceReference, 500),
+    };
+  });
+  return {
+    objective: parseBriefText(value.objective, 2_000),
+    audience: parseBriefTextList(value.audience, 20, 200, false),
+    platforms: parseBriefTextList(value.platforms, 10, 100, false),
+    brandFacts,
+    prohibitedTerms: parseBriefTextList(value.prohibitedTerms, 50, 200, true),
+    requiredDisclosures: parseBriefTextList(value.requiredDisclosures, 50, 500, true),
+    factsConfirmed: true,
+  };
+}
+
 function parseBriefVersion(value: unknown): PilotBriefVersion {
   const keys = [
     'id',
@@ -421,7 +497,7 @@ function parseBriefVersion(value: unknown): PilotBriefVersion {
     projectId: value.projectId,
     version: value.version,
     status: value.status as PilotBriefStatus,
-    payload: parsePayload(value.payload),
+    payload: parseBriefPayload(value.payload),
     createdBy: value.createdBy,
     createdAt: value.createdAt,
   };
@@ -1159,13 +1235,19 @@ export function createPilotContentProductionApi(
 
     async createBriefVersion(projectId, input, idempotencyKey, options) {
       assertProjectId(projectId);
-      if (!isRecord(input) || !hasOnlyKeys(input, ['payload']) || !isRecord(input.payload)) {
+      if (!isRecord(input) || !hasOnlyKeys(input, ['payload'])) {
+        throw invalidClientInput();
+      }
+      let payload: PilotBriefPayload;
+      try {
+        payload = parseBriefPayload(input.payload);
+      } catch {
         throw invalidClientInput();
       }
       const response = await transport.request({
         method: 'POST',
         path: `/api/v1/projects/${projectId}/brief-versions`,
-        body: input,
+        body: { payload },
         idempotencyKey,
         ...requestOptions(options),
         expectedStatuses: [200, 201],
