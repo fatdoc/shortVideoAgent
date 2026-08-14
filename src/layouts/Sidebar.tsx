@@ -158,7 +158,7 @@ function SidebarFrame({
   return (
     <Sider
       width={layout.sidebarWidth}
-      theme="dark"
+      theme="light"
       style={{
         overflow: 'hidden',
         height: '100vh',
@@ -171,14 +171,16 @@ function SidebarFrame({
       }}
     >
       <div className="sidebar-brand">
-        <div className="sidebar-brand-mark">VA</div>
+        <div className="sidebar-brand-mark" aria-hidden="true">
+          AI
+        </div>
         <div>
-          <div className="sidebar-brand-title">短视频 Agent</div>
+          <div className="sidebar-brand-title">源核 AI 社群</div>
           <div className="sidebar-brand-sub">{subtitle}</div>
         </div>
       </div>
       <Menu
-        theme="dark"
+        theme="light"
         mode="inline"
         selectedKeys={selected ? [selected] : []}
         items={[...items] as MenuProps['items']}
@@ -219,7 +221,7 @@ function DemoSidebar() {
       footer={
         <>
           <Typography.Text className="sidebar-footer-state">{snapshot.stateName}</Typography.Text>
-          <div>{snapshot.fixtureId}</div>
+          <div>演示状态已受控</div>
           <small>{snapshot.truthManifest.disclaimer}</small>
         </>
       }
@@ -275,9 +277,7 @@ function PilotSidebar() {
           <>
             <Typography.Text className="sidebar-footer-state">PILOT · {status}</Typography.Text>
             <div>{session?.activeContext.organizationDisplayName ?? '组织上下文不可用'}</div>
-            <small>
-              {context ? `${context.projectName} · ${context.projectId}` : '未选择项目'}
-            </small>
+            <small>{context ? context.projectName : '未选择项目'}</small>
           </>
         ) : (
           <>

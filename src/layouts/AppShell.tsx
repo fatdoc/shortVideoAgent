@@ -17,7 +17,11 @@ const { Content } = Layout;
 
 function ShellFrame({ children, pilot = false }: { children: React.ReactNode; pilot?: boolean }) {
   return (
-    <Layout style={{ minHeight: '100vh' }} {...(pilot ? { 'data-testid': 'pilot-app-shell' } : {})}>
+    <Layout
+      className="va-shell"
+      style={{ minHeight: '100vh' }}
+      {...(pilot ? { 'data-testid': 'pilot-app-shell' } : {})}
+    >
       <Sidebar />
       <Layout style={{ marginLeft: layout.sidebarWidth }}>
         <Topbar />

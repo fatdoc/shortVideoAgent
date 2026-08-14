@@ -1,14 +1,13 @@
 .d1-topbar {
-  height: 56px;
+  height: var(--va-topbar-height);
   padding: 0 20px;
   line-height: normal;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  background: rgba(255, 255, 255, 0.97);
-  border-bottom: 1px solid #eef1f5;
-  backdrop-filter: blur(12px);
+  background: var(--va-color-elevated);
+  border-bottom: 1px solid var(--va-color-border);
 }
 
 .d1-topbar-title {
@@ -22,6 +21,10 @@
   font-size: 11px;
 }
 
+.d1-topbar-title .ant-typography {
+  color: var(--va-color-text);
+}
+
 .d1-topbar-actions {
   flex: 1;
   justify-content: flex-end;
@@ -33,7 +36,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-width: 540px;
+  min-width: 420px;
 }
 
 .d1-context-selects {
@@ -42,7 +45,7 @@
 }
 
 .d1-context-selects .ant-select {
-  width: 184px;
+  width: 172px;
 }
 
 .d1-context-selects .ant-select-selector {
@@ -56,7 +59,7 @@
 }
 
 .d1-context-copy {
-  width: 345px;
+  width: 260px;
   display: flex;
   flex-direction: column;
   line-height: 1.15;
@@ -68,19 +71,19 @@
 
 .d1-truth-bar {
   position: fixed;
-  top: 56px;
-  left: 220px;
+  top: var(--va-topbar-height);
+  left: var(--va-sidebar-width);
   right: 0;
   z-index: 19;
-  height: 36px;
+  height: var(--va-truthbar-height);
   padding: 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  color: #334155;
-  background: #f8fafc;
-  border-bottom: 1px solid #e8edf3;
+  color: var(--va-color-text-secondary);
+  background: var(--va-color-bg-subtle);
+  border-bottom: 1px solid var(--va-color-border);
   font-size: 12px;
 }
 
@@ -90,12 +93,11 @@
 }
 
 .d1-truth-digest {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
 }
 
 .sidebar-brand {
-  min-height: 68px;
+  min-height: 66px;
   padding: 14px 16px;
   display: flex;
   align-items: center;
@@ -103,21 +105,21 @@
 }
 
 .sidebar-brand-mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: #1677ff;
+  color: var(--va-color-primary);
+  background: #fff1ea;
   font-weight: 800;
-  letter-spacing: -0.04em;
-  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.26);
+  letter-spacing: 0;
+  border: 1px solid #ffd8c9;
 }
 
 .sidebar-footer-state {
   display: inline-flex;
-  color: #a7f3d0 !important;
+  color: var(--va-color-primary) !important;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -126,7 +128,7 @@
 .sidebar-footer small {
   display: block;
   margin-top: 5px;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--va-color-text-tertiary);
   line-height: 1.35;
 }
 
@@ -136,6 +138,58 @@
   flex-direction: column;
   gap: 18px;
   animation: d1-page-enter 240ms ease-out both;
+}
+
+.va-shell .ant-layout-sider {
+  border-right: 1px solid var(--va-color-border);
+}
+
+.va-shell .ant-menu {
+  color: var(--va-color-text-secondary);
+  background: var(--va-color-elevated);
+}
+
+.va-shell .ant-menu-item {
+  height: 42px;
+  margin-inline: 8px;
+  border-radius: 8px;
+}
+
+.va-shell .ant-menu-item-selected {
+  color: var(--va-color-primary);
+  background: #fff1ea;
+  box-shadow: inset 3px 0 var(--va-color-primary);
+}
+
+.va-shell .ant-menu-item-selected .anticon {
+  color: var(--va-color-primary);
+}
+
+.va-shell .ant-btn-primary {
+  background: var(--va-color-primary);
+  box-shadow: none;
+}
+
+.va-shell .ant-btn-primary:hover {
+  background: var(--va-color-primary-hover) !important;
+}
+
+@media (max-width: 1180px) {
+  .d1-context-copy,
+  .d1-topbar-title .ant-breadcrumb {
+    display: none;
+  }
+
+  .d1-context-switcher {
+    min-width: 180px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d1-page-stack,
+  .d1-production-stack {
+    animation: none;
+  }
 }
 
 @keyframes d1-page-enter {
