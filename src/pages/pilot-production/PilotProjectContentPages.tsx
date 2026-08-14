@@ -7,6 +7,7 @@ import {
 } from '../../services/pilotControlApi';
 import {
   pilotContentProductionApi,
+  type PilotBriefPayload,
   type PilotBriefVersion,
   type PilotContentProductionApi,
   type PilotProductionEligibility,
@@ -50,16 +51,7 @@ interface ProjectFacts {
 }
 
 type ProjectFactsState =
-  | { phase: 'loading' }
-  | { phase: 'ready'; facts: ProjectFacts }
-  | { phase: 'error' };
-
-interface BrandFacts {
-  merchantName: string;
-  city: string | null;
-  campaignGoal: string | null;
-  brandFacts: string[];
-}
+  { phase: 'loading' } | { phase: 'ready'; facts: ProjectFacts } | { phase: 'error' };
 
 interface ScriptFacts {
   title: string;
@@ -108,25 +100,80 @@ function safeText(value: unknown, maxLength: number): string | null {
   return normalized;
 }
 
-function optionalSafeText(value: unknown, maxLength: number): string | null | undefined {
-  if (value === undefined) return null;
-  return safeText(value, maxLength) ?? undefined;
+function projectTextList(
+  value: unknown,
+  maxItems: number,
+  maxLength: number,
+  allowEmpty: boolean,
+): string[] | null {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0) || value.length > maxItems) {
+    return null;
+  }
+  const items = value.map((item) => safeText(item, maxLength));
+  if (items.some((item) => item === null)) return null;
+  const safeItems = items as string[];
+  return new Set(safeItems).size === safeItems.length ? safeItems : null;
 }
 
-function projectBrandFacts(payload: Record<string, unknown>): BrandFacts | null {
-  if (!exactKeys(payload, ['merchantName', 'city', 'campaignGoal', 'brandFacts'])) return null;
-  const merchantName = safeText(payload.merchantName, 200);
-  const city = optionalSafeText(payload.city, 100);
-  const campaignGoal = optionalSafeText(payload.campaignGoal, 500);
-  if (!merchantName || city === undefined || campaignGoal === undefined) return null;
-  if (!Array.isArray(payload.brandFacts) || payload.brandFacts.length > 20) return null;
-  const brandFacts = payload.brandFacts.map((fact) => safeText(fact, 500));
+function projectBrandFacts(payload: unknown): PilotBriefPayload | null {
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload) ||
+    !exactKeys(payload as Record<string, unknown>, [
+      'objective',
+      'audience',
+      'platforms',
+      'brandFacts',
+      'prohibitedTerms',
+      'requiredDisclosures',
+      'factsConfirmed',
+    ])
+  ) {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  const objective = safeText(record.objective, 2_000);
+  const audience = projectTextList(record.audience, 20, 200, false);
+  const platforms = projectTextList(record.platforms, 10, 100, false);
+  const prohibitedTerms = projectTextList(record.prohibitedTerms, 50, 200, true);
+  const requiredDisclosures = projectTextList(record.requiredDisclosures, 50, 500, true);
+  if (
+    !objective ||
+    !audience ||
+    !platforms ||
+    !prohibitedTerms ||
+    !requiredDisclosures ||
+    record.factsConfirmed !== true ||
+    !Array.isArray(record.brandFacts) ||
+    record.brandFacts.length === 0 ||
+    record.brandFacts.length > 20
+  ) {
+    return null;
+  }
+  const brandFacts = record.brandFacts.map((fact) => {
+    if (
+      !fact ||
+      typeof fact !== 'object' ||
+      Array.isArray(fact) ||
+      !exactKeys(fact as Record<string, unknown>, ['text', 'sourceReference'])
+    ) {
+      return null;
+    }
+    const factRecord = fact as Record<string, unknown>;
+    const text = safeText(factRecord.text, 500);
+    const sourceReference = safeText(factRecord.sourceReference, 500);
+    return text && sourceReference ? { text, sourceReference } : null;
+  });
   if (brandFacts.some((fact) => fact === null)) return null;
   return {
-    merchantName,
-    city,
-    campaignGoal,
-    brandFacts: brandFacts as string[],
+    objective,
+    audience,
+    platforms,
+    brandFacts: brandFacts as PilotBriefPayload['brandFacts'],
+    prohibitedTerms,
+    requiredDisclosures,
+    factsConfirmed: true,
   };
 }
 
@@ -158,14 +205,21 @@ function latestExact<T extends { projectId: string; version: number }>(
   return ordered[0] ?? null;
 }
 
-function ProjectHeader({ routeKey, project }: { routeKey: PilotProjectContentRouteKey; project: PilotProject }) {
+function ProjectHeader({
+  routeKey,
+  project,
+}: {
+  routeKey: PilotProjectContentRouteKey;
+  project: PilotProject;
+}) {
   return (
     <header className="d1-page-header">
       <div>
         <Tag color="orange">REAL CONTROL FACTS</Tag>
         <Typography.Title level={2}>{ROUTE_TITLES[routeKey]}</Typography.Title>
         <Typography.Paragraph type="secondary">
-          {project.name} · {project.platform} · {project.aspectRatio} · {project.targetDurationSeconds} 秒
+          {project.name} · {project.platform} · {project.aspectRatio} ·{' '}
+          {project.targetDurationSeconds} 秒
         </Typography.Paragraph>
       </div>
     </header>
@@ -213,39 +267,49 @@ function BrandPanel({ facts, projectId }: { facts: ProjectFacts; projectId: stri
     <section className="d1-surface" data-testid="pilot-brand-facts">
       <div className="d1-section-heading">
         <div>
-          <Typography.Title level={3}>{brand.merchantName}</Typography.Title>
-          <Typography.Paragraph type="secondary">Brief v{latest.version} · {latest.status}</Typography.Paragraph>
+          <Typography.Title level={3}>已核验品牌事实</Typography.Title>
+          <Typography.Paragraph type="secondary">
+            Brief v{latest.version} · {latest.status}
+          </Typography.Paragraph>
         </div>
       </div>
-      <p>城市：{brand.city ?? '未填写'}</p>
-      <p>获客目标：{brand.campaignGoal ?? '未填写'}</p>
+      <p>获客目标：{brand.objective}</p>
+      <p>目标人群：{brand.audience.join(' · ')}</p>
+      <p>目标平台：{brand.platforms.join(' · ')}</p>
       <div className="v3-ops-table">
-        {brand.brandFacts.length > 0 ? (
-          brand.brandFacts.map((fact, index) => (
-            <div className="v3-ops-row" key={`${index}-${fact}`}>
-              <strong>事实 {index + 1}</strong>
-              <span>{fact}</span>
-            </div>
-          ))
-        ) : (
-          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚未填写品牌事实" />
-        )}
+        {brand.brandFacts.map((fact, index) => (
+          <div className="v3-ops-row" key={`${index}-${fact.text}-${fact.sourceReference}`}>
+            <strong>事实 {index + 1}</strong>
+            <span>{fact.text}</span>
+            <span>来源：{fact.sourceReference}</span>
+          </div>
+        ))}
       </div>
+      {brand.prohibitedTerms.length > 0 ? (
+        <p>禁用表达：{brand.prohibitedTerms.join(' · ')}</p>
+      ) : null}
+      {brand.requiredDisclosures.length > 0 ? (
+        <p>必要披露：{brand.requiredDisclosures.join(' · ')}</p>
+      ) : null}
     </section>
   );
 }
 
 function ScriptPanel({ facts, projectId }: { facts: ProjectFacts; projectId: string }) {
-  const latest = latestExact(facts.scripts, projectId);
-  if (!latest) return <Empty data-testid="pilot-script-empty" description="当前项目没有真实脚本版本" />;
-  const script = projectScriptFacts(latest.payload);
-  if (!script) {
+  const latestScript = latestExact(facts.scripts, projectId);
+  if (!latestScript) {
+    return <Empty data-testid="pilot-script-empty" description="当前项目没有真实脚本版本" />;
+  }
+  const latestBrief = latestExact(facts.briefs, projectId);
+  const script = projectScriptFacts(latestScript.payload);
+  const brief = latestBrief ? projectBrandFacts(latestBrief.payload) : null;
+  if (!script || !latestBrief || !brief) {
     return (
       <Alert
         data-testid="pilot-script-invalid"
         type="error"
         message="脚本无法安全投影"
-        description="最新脚本 payload 不符合安全字段格式，未显示原始内容。"
+        description="最新脚本或其 Brief 上下文不符合安全字段格式，未显示原始内容。"
       />
     );
   }
@@ -254,10 +318,15 @@ function ScriptPanel({ facts, projectId }: { facts: ProjectFacts; projectId: str
       <div className="d1-section-heading">
         <div>
           <Typography.Title level={3}>{script.title}</Typography.Title>
-          <Typography.Paragraph type="secondary">Script v{latest.version} · {latest.status}</Typography.Paragraph>
+          <Typography.Paragraph type="secondary">
+            Script v{latestScript.version} · {latestScript.status}
+          </Typography.Paragraph>
         </div>
       </div>
-      <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>{script.content}</Typography.Paragraph>
+      <p>Brief 目标：{brief.objective}</p>
+      <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>
+        {script.content}
+      </Typography.Paragraph>
     </section>
   );
 }
@@ -317,14 +386,20 @@ function ProductionEmptyPanel({
 function ProductionPackagesPanel({
   packages,
   projectId,
+  scripts,
   onOpenCanvas,
 }: {
   packages: PilotProductionPackage[];
   projectId: string;
+  scripts: PilotScriptVersion[];
   onOpenCanvas?: (packageId: string) => void;
 }) {
   if (packages.length === 0) return null;
-  if (packages.some((candidate) => candidate.projectId !== projectId)) {
+  if (
+    packages.some((candidate) => candidate.projectId !== projectId) ||
+    scripts.some((script) => script.projectId !== projectId) ||
+    new Set(scripts.map((script) => script.id)).size !== scripts.length
+  ) {
     return (
       <Alert
         type="error"
@@ -344,20 +419,32 @@ function ProductionPackagesPanel({
         </div>
       </div>
       <div className="v3-ops-table">
-        {packages.map((candidate) => (
-          <div className="v3-ops-row" key={candidate.packageId}>
-            <strong>Package v{candidate.packageVersion}</strong>
-            <span>{candidate.capabilityRequirements.join(' · ')}</span>
-            <span>{candidate.status}</span>
-            <Button
-              type="primary"
-              disabled={!onOpenCanvas}
-              onClick={() => onOpenCanvas?.(candidate.packageId)}
-            >
-              选择 Package v{candidate.packageVersion} 进入画布
-            </Button>
-          </div>
-        ))}
+        {packages.map((candidate) => {
+          const bound = scripts.find((script) => script.id === candidate.scriptVersionId);
+          const script = bound ? projectScriptFacts(bound.payload) : null;
+          return (
+            <div className="v3-ops-row" key={candidate.packageId}>
+              <strong>Package v{candidate.packageVersion}</strong>
+              {script ? (
+                <>
+                  <span>{script.title}</span>
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{script.content}</span>
+                </>
+              ) : (
+                <Alert type="error" message="绑定脚本无法安全确认" />
+              )}
+              <span>{candidate.capabilityRequirements.join(' · ')}</span>
+              <span>{candidate.status}</span>
+              <Button
+                type="primary"
+                disabled={!onOpenCanvas || !script}
+                onClick={() => onOpenCanvas?.(candidate.packageId)}
+              >
+                选择 Package v{candidate.packageVersion} 进入画布
+              </Button>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -473,6 +560,7 @@ function RealProjectPage({
           <ProductionPackagesPanel
             packages={state.facts.packages}
             projectId={projectId}
+            scripts={state.facts.scripts}
             onOpenCanvas={onOpenCanvas}
           />
         </>
@@ -484,6 +572,7 @@ function RealProjectPage({
             <ProductionPackagesPanel
               packages={state.facts.packages}
               projectId={projectId}
+              scripts={state.facts.scripts}
               onOpenCanvas={onOpenCanvas}
             />
           ) : (
@@ -500,19 +589,37 @@ function RealProjectPage({
 
 interface CreateFormState {
   projectName: string;
-  merchantName: string;
-  city: string;
-  campaignGoal: string;
+  objective: string;
+  audience: string;
   brandFacts: string;
+  factsConfirmed: boolean;
 }
 
 const EMPTY_CREATE_FORM: CreateFormState = {
   projectName: '',
-  merchantName: '',
-  city: '',
-  campaignGoal: '',
+  objective: '',
+  audience: '',
   brandFacts: '',
+  factsConfirmed: false,
 };
+
+function parseBrandFactLines(value: string): PilotBriefPayload['brandFacts'] | null {
+  const lines = value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0 || lines.length > 20) return null;
+  const facts = lines.map((line) => {
+    const parts = line.split(/[｜|]/u).map((part) => part.trim());
+    if (parts.length !== 2) return null;
+    const [text, sourceReference] = parts;
+    if (!text || text.length > 500 || !sourceReference || sourceReference.length > 500) {
+      return null;
+    }
+    return { text, sourceReference };
+  });
+  return facts.some((fact) => fact === null) ? null : (facts as PilotBriefPayload['brandFacts']);
+}
 
 function ProjectCreatePage({
   controlApi,
@@ -529,10 +636,20 @@ function ProjectCreatePage({
   const [status, setStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
   const mutationRef = useRef<{ fingerprint: string; baseKey: string } | null>(null);
 
-  const brandFacts = useMemo(
-    () => form.brandFacts.split('\n').map((fact) => fact.trim()).filter(Boolean),
-    [form.brandFacts],
+  const audience = useMemo(
+    () =>
+      projectTextList(
+        form.audience
+          .split('\n')
+          .map((item) => item.trim())
+          .filter(Boolean),
+        20,
+        200,
+        false,
+      ),
+    [form.audience],
   );
+  const brandFacts = useMemo(() => parseBrandFactLines(form.brandFacts), [form.brandFacts]);
 
   const update = (key: keyof CreateFormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -541,17 +658,20 @@ function ProjectCreatePage({
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    const payload = {
-      merchantName: form.merchantName.trim(),
-      city: form.city.trim(),
-      campaignGoal: form.campaignGoal.trim(),
+    if (!audience || !brandFacts || !form.factsConfirmed) {
+      setStatus('error');
+      return;
+    }
+    const payload: PilotBriefPayload = {
+      objective: form.objective.trim(),
+      audience,
+      platforms: ['douyin'],
       brandFacts,
+      prohibitedTerms: [],
+      requiredDisclosures: [],
+      factsConfirmed: true,
     };
-    if (
-      !form.projectName.trim() ||
-      !projectBrandFacts(payload) ||
-      !onProjectCreated
-    ) {
+    if (!form.projectName.trim() || !projectBrandFacts(payload) || !onProjectCreated) {
       setStatus('error');
       return;
     }
@@ -612,37 +732,42 @@ function ProjectCreatePage({
           />
         </label>
         <label>
-          门店名称
-          <input
-            value={form.merchantName}
-            maxLength={200}
-            required
-            onChange={(event) => update('merchantName', event.target.value)}
-          />
-        </label>
-        <label>
-          城市
-          <input
-            value={form.city}
-            maxLength={100}
-            onChange={(event) => update('city', event.target.value)}
-          />
-        </label>
-        <label>
           获客目标
           <input
-            value={form.campaignGoal}
-            maxLength={500}
-            onChange={(event) => update('campaignGoal', event.target.value)}
+            value={form.objective}
+            maxLength={2000}
+            required
+            onChange={(event) => update('objective', event.target.value)}
           />
         </label>
         <label>
-          品牌事实（每行一条）
+          目标人群（每行一条）
+          <textarea
+            value={form.audience}
+            rows={3}
+            required
+            onChange={(event) => update('audience', event.target.value)}
+          />
+        </label>
+        <label>
+          品牌事实与来源（事实｜来源）
           <textarea
             value={form.brandFacts}
             rows={4}
+            required
             onChange={(event) => update('brandFacts', event.target.value)}
           />
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={form.factsConfirmed}
+            onChange={(event) => {
+              setForm((current) => ({ ...current, factsConfirmed: event.target.checked }));
+              setStatus('idle');
+            }}
+          />
+          我已核验以上品牌事实和来源
         </label>
         <Button type="primary" htmlType="submit" loading={status === 'submitting'}>
           创建真实项目与 Brief

@@ -11,6 +11,15 @@ const tenantId = '10000000-0000-4000-8000-000000000001';
 const userId = '10000000-0000-4000-8000-000000000002';
 const membershipId = '10000000-0000-4000-8000-000000000003';
 const projectId = '10000000-0000-4000-8000-000000000004';
+const safeBriefPayload = {
+  objective: '到店核销',
+  audience: ['周边消费者'],
+  platforms: ['douyin'],
+  brandFacts: [{ text: '手冲咖啡', sourceReference: '门店菜单' }],
+  prohibitedTerms: [],
+  requiredDisclosures: [],
+  factsConfirmed: true as const,
+};
 
 function store(): ContentStore {
   return {
@@ -248,10 +257,66 @@ describe('project HTTP context and policy boundary', () => {
       .post(`/api/v1/projects/${projectId}/brief-versions`)
       .set('cookie', 'videoagent_session=operator-session')
       .set('idempotency-key', 'viewer-write-1')
-      .send({ payload: { title: 'Denied' } });
+      .send({ payload: safeBriefPayload });
 
     expect(response.status).toBe(403);
     expect(response.body.error.code).toBe('PERMISSION_DENIED');
+    expect(contentStore.createBriefVersion).not.toHaveBeenCalled();
+  });
+
+  it('requires manager authority and returns only a browser-safe Brief projection', async () => {
+    const contentStore = store();
+    contentStore.createBriefVersion = vi.fn(async (_actor, id, payload) => ({
+      replayed: false,
+      value: {
+        id: '10000000-0000-4000-8000-000000000005',
+        projectId: id,
+        version: 1,
+        status: 'draft',
+        payload,
+        createdBy: userId,
+        createdAt: '2026-08-14T00:00:00.000Z',
+      },
+    }));
+
+    const manager = await request(app(contentStore, policy('manager')))
+      .post(`/api/v1/projects/${projectId}/brief-versions`)
+      .set('cookie', 'videoagent_session=admin-session')
+      .set('idempotency-key', 'safe-brief-1')
+      .send({ payload: safeBriefPayload });
+    expect(manager.status).toBe(201);
+    expect(manager.body.payload).toEqual(safeBriefPayload);
+    expect(JSON.stringify(manager.body)).not.toMatch(/sourceDigest|brandPolicySnapshot|sha256:/u);
+    expect(contentStore.createBriefVersion).toHaveBeenCalledWith(
+      expect.any(Object),
+      projectId,
+      safeBriefPayload,
+      expect.objectContaining({ payload: { payload: safeBriefPayload } }),
+    );
+
+    const editor = await request(app(contentStore, policy('editor')))
+      .post(`/api/v1/projects/${projectId}/brief-versions`)
+      .set('cookie', 'videoagent_session=operator-session')
+      .set('idempotency-key', 'safe-brief-2')
+      .send({ payload: safeBriefPayload });
+    expect(editor.status).toBe(403);
+    expect(editor.body.error.code).toBe('PERMISSION_DENIED');
+  });
+
+  it('rejects canonical authority and legacy flat Brief payloads at the browser route', async () => {
+    const contentStore = store();
+    for (const [key, payload] of [
+      ['raw-authority', { ...safeBriefPayload, sourceDigest: `sha256:${'a'.repeat(64)}` }],
+      ['legacy-flat', { merchantName: 'Legacy', city: '郑州', brandFacts: [] }],
+    ] as const) {
+      const response = await request(app(contentStore, policy('manager')))
+        .post(`/api/v1/projects/${projectId}/brief-versions`)
+        .set('cookie', 'videoagent_session=admin-session')
+        .set('idempotency-key', key)
+        .send({ payload });
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('INVALID_BRIEF_VERSION');
+    }
     expect(contentStore.createBriefVersion).not.toHaveBeenCalled();
   });
 

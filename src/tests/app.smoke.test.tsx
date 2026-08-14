@@ -170,6 +170,14 @@ describe('app smoke', () => {
 
     expect(await screen.findByRole('heading', { level: 3, name: '门店经营工作台' })).toBeInTheDocument();
     expect(screen.getByText('源核 AI 社群')).toBeInTheDocument();
+    expect(document.querySelector('.sidebar-brand-mark img')).toHaveAttribute(
+      'src',
+      '/brand/yuanhe-assistant-v2.png',
+    );
+    expect(screen.getByAltText('海底捞火锅·北京三里屯店 门店素材')).toHaveAttribute(
+      'src',
+      '/media/storefront-v3.webp',
+    );
     expect(screen.queryByText('demo-local-001')).not.toBeInTheDocument();
     expect(screen.getByText(/从门店建档、商品套餐、门店资产到获客任务/)).toBeInTheDocument();
   });

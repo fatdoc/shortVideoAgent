@@ -21,7 +21,7 @@
 }
 
 .store-product-head {
-  grid-template-columns: 30px minmax(260px, 1.2fr) minmax(120px, 0.45fr) minmax(120px, 0.45fr) 122px;
+  grid-template-columns: 30px minmax(260px, 1fr) 122px;
   padding: 9px 12px;
   border: 1px solid #ebe6df;
   border-bottom: 0;
@@ -34,6 +34,10 @@
 
 .store-product-head span:first-child {
   grid-column: 2;
+}
+
+.store-product-head span:last-child {
+  text-align: right;
 }
 
 .store-product-catalog .d1-product-list {

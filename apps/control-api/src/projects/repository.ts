@@ -1,5 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { Knex } from 'knex';
+import {
+  deriveCanonicalBriefPayload,
+  projectBrowserSafeBriefPayload,
+} from '../briefs/authority.js';
+import { browserSafeBriefPayloadSchema, type BrowserSafeBriefPayload } from '../briefs/schema.js';
 import { ContentConflictError, IdempotencyConflictError } from './errors.js';
 import { payloadDigest } from './digest.js';
 import { evaluateProductionEligibility } from './productionEligibility.js';
@@ -111,9 +116,17 @@ function briefFromRow(row: BriefRow): BriefVersion {
     projectId: row.project_id,
     version: row.version,
     status: row.status,
-    payload: row.payload,
+    payload: projectBrowserSafeBriefPayload(row.payload),
     createdBy: row.created_by,
     createdAt: iso(row.created_at),
+  };
+}
+
+function safeBriefVersion(value: BriefVersion): BriefVersion {
+  const alreadySafe = browserSafeBriefPayloadSchema.safeParse(value.payload);
+  return {
+    ...value,
+    payload: alreadySafe.success ? alreadySafe.data : projectBrowserSafeBriefPayload(value.payload),
   };
 }
 
@@ -223,13 +236,14 @@ export class PostgresContentStore implements ContentStore {
   async createBriefVersion(
     actor: SessionActor,
     projectId: string,
-    payload: Record<string, unknown>,
+    payload: BrowserSafeBriefPayload,
     idempotency: IdempotencyInput,
   ): Promise<IdempotentResult<BriefVersion> | null> {
     try {
-      return await this.idempotent(actor, idempotency, async (transaction) => {
+      const result = await this.idempotent(actor, idempotency, async (transaction) => {
         if (!(await this.lockProject(transaction, actor, projectId)))
           throw new ResourceNotFoundError();
+        const canonicalPayload = deriveCanonicalBriefPayload(payload);
         const latest = (await transaction('control_plane.creative_briefs')
           .select('version')
           .where({ tenant_id: actor.tenantId, project_id: projectId })
@@ -242,14 +256,15 @@ export class PostgresContentStore implements ContentStore {
             project_id: projectId,
             version: (latest?.version ?? 0) + 1,
             status: 'draft',
-            payload,
-            payload_digest: payloadDigest(payload),
+            payload: canonicalPayload,
+            payload_digest: payloadDigest(canonicalPayload),
             created_by: actor.userId,
           })
           .returning('*')) as BriefRow[];
         if (!row) throw new Error('brief insert returned no row');
         return briefFromRow(row);
       });
+      return { ...result, value: safeBriefVersion(result.value) };
     } catch (error) {
       if (error instanceof ResourceNotFoundError) return null;
       throw error;

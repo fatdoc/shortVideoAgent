@@ -43,15 +43,23 @@ const scriptVersionResponse = {
 } as const;
 const scriptVersion: PilotScriptVersion = scriptVersionResponse;
 
-const briefVersionResponse = {
+const briefVersionResponse: PilotBriefVersion = {
   id: '10000000-0000-4000-8000-000000000013',
   projectId,
   version: 1,
   status: 'draft',
-  payload: { merchantName: '海底捞三里屯店', city: '北京', brandFacts: [] },
+  payload: {
+    objective: '到店核销',
+    audience: ['周边消费者'],
+    platforms: ['douyin'],
+    brandFacts: [{ text: '手冲咖啡', sourceReference: '门店菜单' }],
+    prohibitedTerms: [],
+    requiredDisclosures: [],
+    factsConfirmed: true,
+  },
   createdBy: actorId,
   createdAt: '2026-08-11T00:59:00.000Z',
-} as const;
+};
 const briefVersion: PilotBriefVersion = briefVersionResponse;
 
 const storyboardDraftRevision = {
@@ -255,6 +263,30 @@ describe('pilotContentProductionApi', () => {
       }),
     );
     expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects raw canonical Brief authority instead of exposing it to the browser', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse({
+        briefVersions: [
+          {
+            ...briefVersionResponse,
+            payload: {
+              objective: 'raw canonical',
+              brandPolicySnapshot: {
+                facts: [],
+                sourceDigest: `sha256:${'b'.repeat(64)}`,
+              },
+            },
+          },
+        ],
+      }),
+    );
+    const api = createPilotContentProductionApi({ runtime, fetchImpl });
+
+    await expect(api.listBriefVersions(projectId)).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+    });
   });
 
   it('creates Script and Storyboard authority facts with exact paths, bodies and stable idempotency keys', async () => {
