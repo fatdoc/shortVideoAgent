@@ -210,6 +210,7 @@ function store(overrides: Partial<ProductionStore> = {}): ProductionStore {
   return {
     createPackage: vi.fn(async () => ({ value: packageFixture(), replayed: false })),
     getPackage: vi.fn(async () => packageFixture()),
+    listPackages: vi.fn(async () => [packageFixture()]),
     issueGrant: vi.fn(async () => null),
     ...overrides,
   };
@@ -257,6 +258,50 @@ function createPackageCommand() {
 }
 
 describe('A05 production HTTP boundary', () => {
+  it('lists explicit browser-safe Package choices without authority evidence', async () => {
+    const listPackages = vi
+      .fn<ProductionStore['listPackages']>()
+      .mockResolvedValue([packageFixture()]);
+    const app = testApp(store({ listPackages }));
+
+    const response = await request(app)
+      .get(`/api/v1/projects/${projectId}/production-packages`)
+      .set('cookie', 'videoagent_session=valid-session')
+      .set('x-request-id', 'package-list');
+
+    expect(response.status).toBe(200);
+    expect(listPackages).toHaveBeenCalledTimes(1);
+    expect(response.body).toEqual({
+      packages: [
+        {
+          objectType: 'ProjectProductionPackage',
+          contractVersion: '0.3',
+          projectId,
+          packageId,
+          packageVersion: 1,
+          scriptVersionId,
+          storyboardVersionId,
+          capabilityRequirements: ['video.generate'],
+          status: 'ready',
+          createdAt: '2026-08-11T01:00:00.000Z',
+          expiresAt: '2026-08-11T02:00:00.000Z',
+        },
+      ],
+    });
+    for (const forbidden of [
+      'tenantId',
+      'payloadDigest',
+      'approvedScriptDigest',
+      'approvedStoryboardDigest',
+      'snapshot',
+      'grant',
+      'accessToken',
+      'idempotencyKey',
+    ]) {
+      expect(response.text).not.toContain(forbidden);
+    }
+  });
+
   it('accepts only the exact four-key v0.3 command and returns the exact 15-key DTO', async () => {
     const createPackage = vi.fn<ProductionStore['createPackage']>().mockResolvedValue({
       value: packageFixture(),
