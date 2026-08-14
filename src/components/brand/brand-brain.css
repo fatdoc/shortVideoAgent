@@ -771,7 +771,7 @@
 }
 
 .brand-v3-store-card img {
-  filter: grayscale(1) sepia(0.16) saturate(0.72) contrast(0.94);
+  filter: saturate(0.82) contrast(0.96) brightness(1.01);
 }
 
 .brand-v3-photo-empty {

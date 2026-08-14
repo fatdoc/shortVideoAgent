@@ -7,6 +7,7 @@ import {
 import { Button, Descriptions, Drawer, Space, Tag, Typography } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { pilotRuntime } from '../../config/pilotRuntime';
 import { ROUTES } from '../../domain/constants';
 import {
   selectTenantCommercialView,
@@ -39,6 +40,12 @@ const purchaseStateMeta = {
     dotClassName: 'locked',
   },
 } as const;
+
+const demoCatalogVisuals = [
+  '/media/offer-four-grid-hotpot-v3.webp',
+  '/media/offer-duo-hotpot-v3.webp',
+  '/media/storefront-v3.webp',
+] as const;
 
 export function ProductCatalog({ compact = false }: ProductCatalogProps) {
   const navigate = useNavigate();
@@ -81,16 +88,14 @@ export function ProductCatalog({ compact = false }: ProductCatalogProps) {
       </div>
 
       <div className="store-product-head">
-        <span>套餐/能力</span>
-        <span>权益</span>
-        <span>期限</span>
-        <span>平台状态</span>
+        <span>套餐 / 能力与授权状态</span>
         <span>操作</span>
       </div>
       <div className={compact ? 'd1-product-list is-compact' : 'd1-product-list'}>
-        {view.products.map((item) => {
+        {view.products.map((item, index) => {
           const { product } = item;
           const meta = purchaseStateMeta[item.purchaseState];
+          const visual = demoCatalogVisuals[index % demoCatalogVisuals.length];
 
           return (
             <article className="d1-product-row" key={product.productId}>
@@ -98,23 +103,39 @@ export function ProductCatalog({ compact = false }: ProductCatalogProps) {
                 <span className={`d1-state-dot is-${meta.dotClassName}`} />
               </div>
               <div className="d1-product-main">
-                <Space size={8} wrap>
-                  <Typography.Text strong>{product.displayName}</Typography.Text>
-                  <Tag color={meta.color} icon={meta.icon}>
-                    {meta.label}
-                  </Tag>
-                </Space>
-                <Typography.Text type="secondary">{product.description}</Typography.Text>
-                <div className="d1-product-meta">
-                  <span>
-                    权益{' '}
-                    {item.capabilities.map((capability) => capability.displayName).join('、') ||
-                      '待配置'}
-                  </span>
-                  <span>期限 {formatValidity(item)}</span>
-                  <span>
-                    状态 <strong>{platformState(item)}</strong>
-                  </span>
+                <div
+                  className={
+                    pilotRuntime.mode === 'demo'
+                      ? 'd1-product-visual-copy'
+                      : 'd1-product-visual-copy is-data-only'
+                  }
+                >
+                  {pilotRuntime.mode === 'demo' ? (
+                    <figure className="d1-product-thumb" aria-label="套餐视觉示意，非运行数据">
+                      <img src={visual} alt="" />
+                      <figcaption>视觉示意</figcaption>
+                    </figure>
+                  ) : null}
+                  <div className="d1-product-copy">
+                    <Space size={8} wrap>
+                      <Typography.Text strong>{product.displayName}</Typography.Text>
+                      <Tag color={meta.color} icon={meta.icon}>
+                        {meta.label}
+                      </Tag>
+                    </Space>
+                    <Typography.Text type="secondary">{product.description}</Typography.Text>
+                    <div className="d1-product-meta">
+                      <span>
+                        权益{' '}
+                        {item.capabilities.map((capability) => capability.displayName).join('、') ||
+                          '待配置'}
+                      </span>
+                      <span>期限 {formatValidity(item)}</span>
+                      <span>
+                        状态 <strong>{platformState(item)}</strong>
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="d1-product-actions">
