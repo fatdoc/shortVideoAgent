@@ -2,7 +2,19 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
-import { PilotApiError } from './pilotApiTransport';
+import type {
+  AssetRecordV01,
+  CanvasBootstrapV01,
+  CanvasCommandV01,
+} from '../features/canvas-v1/model/contracts';
+import type { CanvasWorkspaceV01 } from '../features/canvas-v1/model/workspaceContract';
+import type {
+  CanvasActivationResponse,
+  CanvasApprovalProjection,
+  LegacyCanvasOpenResponse,
+  PilotStoryCanvasHttpPort,
+} from '../features/canvas-v1/api';
+import { createPilotStoryCanvasBridge } from './pilotStoryCanvasBridge';
 
 const BRIDGE_SOURCE_PATH = resolve(process.cwd(), 'src/services/pilotStoryCanvasBridge.ts');
 const FORBIDDEN_DEMO_MODULES = new Set([
@@ -180,228 +192,128 @@ describe('Pilot StoryCanvas shared bridge isolation boundary (RED-only)', () => 
   });
 });
 
-const tenantId = '11111111-1111-4111-8111-111111111111';
-const projectId = '22222222-2222-4222-8222-222222222222';
-const packageId = '33333333-3333-4333-8333-333333333333';
-const handle = `ce_${'A'.repeat(32)}`;
-const bootstrap = {
-  schemaVersion: 'pilot-canvas-bootstrap.v1' as const,
-  status: 'ready' as const,
-  projectId,
-  packageId,
-  canvasSessionId: `pcs_${'B'.repeat(32)}`,
-  expiresAt: '2026-08-13T01:02:00.000Z',
-  requestId: 'request-canvas-ready-1',
-};
-const canvasEntry = {
-  objectType: 'CanvasEntry' as const,
-  contractVersion: '0.2' as const,
-  handle,
-  tenantId,
-  projectId,
-  packageId,
-  state: 'active' as const,
-  issuedAt: '2026-08-13T01:00:00.000Z',
-  expiresAt: '2026-08-13T01:02:00.000Z',
-};
-
-async function loadBridgeModule() {
-  if (!existsSync(BRIDGE_SOURCE_PATH)) fail('PILOT_STORYCANVAS_BRIDGE_IMPLEMENTATION_REQUIRED');
-  const modulePath = `./pilotStoryCanvasBridge.ts?contract=${Date.now()}`;
-  return import(/* @vite-ignore */ modulePath);
+interface ActivationFixture {
+  activationRequest: { activationAttemptId: string };
+  activationResponse: CanvasActivationResponse;
+  legacyOpenResponse: LegacyCanvasOpenResponse;
+  approvalPrepareResponse: CanvasApprovalProjection;
+  commandDispatchRequest: CanvasCommandV01;
+  formalBootstrapResponse: CanvasBootstrapV01;
 }
 
-describe('Pilot StoryCanvas shared bridge orchestration contract (RED-only)', () => {
-  it('creates one exact non-secret Entry and hands only its reference to the browser-facing port', async () => {
-    const { createPilotStoryCanvasBridge } = await loadBridgeModule();
-    const createCanvasEntry = vi.fn().mockResolvedValue({ value: canvasEntry, replayed: false });
-    const openEntry = vi.fn().mockResolvedValue(bootstrap);
-    const onPhase = vi.fn();
-    const bridge = createPilotStoryCanvasBridge({
-      contentApi: { createCanvasEntry },
-      canvasPort: { openEntry },
+const activationFixture = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/activation-transport.json'),
+    'utf8',
+  ),
+) as ActivationFixture;
+const workspaceFixture = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json',
+    ),
+    'utf8',
+  ),
+) as { workspaceResponse: CanvasWorkspaceV01 };
+const assetFixture = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/asset-record.json'),
+    'utf8',
+  ),
+) as AssetRecordV01;
+
+function successfulPort(order: string[]): PilotStoryCanvasHttpPort {
+  return {
+    acquireControlCsrf: vi.fn(async () => {
+      order.push('csrf');
+      return 'A'.repeat(43);
+    }),
+    activate: vi.fn(async () => {
+      order.push('activate');
+      return activationFixture.activationResponse;
+    }),
+    openLegacy: vi.fn(async () => {
+      order.push('legacy');
+      return activationFixture.legacyOpenResponse;
+    }),
+    readBootstrap: vi.fn(async () => {
+      order.push('bootstrap');
+      return workspaceFixture.workspaceResponse.bootstrap;
+    }),
+    readWorkspace: vi.fn(async () => {
+      order.push('workspace');
+      return workspaceFixture.workspaceResponse;
+    }),
+    readDocument: vi.fn(async () => {
+      order.push('document');
+      return workspaceFixture.workspaceResponse.document;
+    }),
+    readAssets: vi.fn(async () => {
+      order.push('assets');
+      return [assetFixture];
+    }),
+    readReadiness: vi.fn(async () => {
+      order.push('readiness');
+      return workspaceFixture.workspaceResponse.shots[0].readiness;
+    }),
+    prepareApproval: vi.fn(async () => {
+      order.push('approval');
+      return activationFixture.approvalPrepareResponse;
+    }),
+    dispatch: vi.fn(async () => {
+      order.push('dispatch');
+      return workspaceFixture.workspaceResponse.shots[0]!.event!;
+    }),
+  };
+}
+
+describe('Pilot StoryCanvas bridge exact activation and refresh', () => {
+  it('orders CSRF, activation, legacy open, formal bootstrap/workspace, and post-rotation CSRF', async () => {
+    const order: string[] = [];
+    const bridge = createPilotStoryCanvasBridge({ port: successfulPort(order) });
+    const state = await bridge.activate({
+      projectId: activationFixture.activationResponse.entry.projectId,
+      packageId: activationFixture.activationResponse.entry.packageId,
+      activationAttemptId: activationFixture.activationRequest.activationAttemptId,
     });
 
-    await expect(
-      bridge.open({ tenantId, projectId, packageId, bootstrapCycleId: 'cycle-1' }, { onPhase }),
-    ).resolves.toEqual(bootstrap);
+    expect(order).toEqual(['csrf', 'activate', 'legacy', 'bootstrap', 'workspace', 'csrf']);
+    expect(state.workspace).toEqual(workspaceFixture.workspaceResponse);
+  });
 
-    expect(createCanvasEntry).toHaveBeenCalledWith(
-      projectId,
-      { packageId, ttlSeconds: 120 },
-      `pilot-canvas-entry-v1:${projectId}:${packageId}:cycle-1`,
-      { maxAttempts: 2, signal: undefined },
+  it('refreshes every real workspace projection in canonical order and binds approval scope', async () => {
+    const order: string[] = [];
+    const port = successfulPort(order);
+    const bridge = createPilotStoryCanvasBridge({ port });
+    const state = await bridge.activate({
+      projectId: activationFixture.activationResponse.entry.projectId,
+      packageId: activationFixture.activationResponse.entry.packageId,
+      activationAttemptId: activationFixture.activationRequest.activationAttemptId,
+    });
+    order.length = 0;
+    await bridge.refreshWorkspace(state);
+    expect(order).toEqual(['workspace', 'document', 'assets', 'readiness']);
+
+    const command = activationFixture.commandDispatchRequest as CanvasCommandV01;
+    order.length = 0;
+    await bridge.prepareApproval(state, {
+      tenantId: command.tenantId,
+      projectId: command.projectId,
+      packageId: command.packageId,
+      canvasSessionId: command.canvasSessionId,
+      requestedByActorId: command.requestedByActorId,
+      commandType: 'GENERATE_SHOT',
+      action: { commandId: command.commandId, payload: command.payload },
+    });
+    expect(order).toEqual(['csrf', 'approval']);
+    expect(port.prepareApproval).toHaveBeenCalledWith(
+      command.projectId,
+      expect.objectContaining({
+        expiresInSeconds: 60,
+        action: { commandId: command.commandId, payload: command.payload },
+      }),
+      'A'.repeat(43),
     );
-    expect(openEntry).toHaveBeenCalledWith({ handle, tenantId, projectId, packageId });
-    expect(Object.keys(openEntry.mock.calls[0]?.[0] ?? {}).sort()).toEqual([
-      'handle',
-      'packageId',
-      'projectId',
-      'tenantId',
-    ]);
-    expect(onPhase.mock.calls.map(([phase]) => phase)).toEqual([
-      'creating-entry',
-      'redeeming',
-      'ready',
-    ]);
-  });
-
-  it('deduplicates concurrent and completed calls within one bootstrap cycle', async () => {
-    const { createPilotStoryCanvasBridge } = await loadBridgeModule();
-    let releaseEntry!: () => void;
-    const entryPending = new Promise<void>((resolvePending) => {
-      releaseEntry = resolvePending;
-    });
-    const createCanvasEntry = vi.fn(async () => {
-      await entryPending;
-      return { value: canvasEntry, replayed: false };
-    });
-    const openEntry = vi.fn().mockResolvedValue(bootstrap);
-    const bridge = createPilotStoryCanvasBridge({
-      contentApi: { createCanvasEntry },
-      canvasPort: { openEntry },
-    });
-    const input = { tenantId, projectId, packageId, bootstrapCycleId: 'strict-cycle' };
-
-    const first = bridge.open(input);
-    const second = bridge.open(input);
-    releaseEntry();
-
-    await expect(Promise.all([first, second])).resolves.toEqual([bootstrap, bootstrap]);
-    await expect(bridge.open(input)).resolves.toEqual(bootstrap);
-    expect(createCanvasEntry).toHaveBeenCalledTimes(1);
-    expect(openEntry).toHaveBeenCalledTimes(1);
-  });
-
-  it('starts a new Entry handoff only for an explicit new bootstrap cycle', async () => {
-    const { createPilotStoryCanvasBridge } = await loadBridgeModule();
-    const createCanvasEntry = vi.fn().mockResolvedValue({ value: canvasEntry, replayed: false });
-    const openEntry = vi.fn().mockResolvedValue(bootstrap);
-    const bridge = createPilotStoryCanvasBridge({
-      contentApi: { createCanvasEntry },
-      canvasPort: { openEntry },
-    });
-
-    await bridge.open({ tenantId, projectId, packageId, bootstrapCycleId: 'cycle-a' });
-    await bridge.open({ tenantId, projectId, packageId, bootstrapCycleId: 'cycle-b' });
-
-    expect(createCanvasEntry).toHaveBeenCalledTimes(2);
-    expect(createCanvasEntry.mock.calls.map((call) => call[2])).toEqual([
-      `pilot-canvas-entry-v1:${projectId}:${packageId}:cycle-a`,
-      `pilot-canvas-entry-v1:${projectId}:${packageId}:cycle-b`,
-    ]);
-    expect(openEntry).toHaveBeenCalledTimes(2);
-  });
-
-  it('fails closed before redemption when the Entry binding does not match the exact Package scope', async () => {
-    const { createPilotStoryCanvasBridge, PilotStoryCanvasBridgeError } = await loadBridgeModule();
-    const createCanvasEntry = vi.fn().mockResolvedValue({
-      value: { ...canvasEntry, packageId: '44444444-4444-4444-8444-444444444444' },
-      replayed: false,
-    });
-    const openEntry = vi.fn();
-    const bridge = createPilotStoryCanvasBridge({
-      contentApi: { createCanvasEntry },
-      canvasPort: { openEntry },
-    });
-
-    const promise = bridge.open({
-      tenantId,
-      projectId,
-      packageId,
-      bootstrapCycleId: 'cycle-scope',
-    });
-    await expect(promise).rejects.toBeInstanceOf(PilotStoryCanvasBridgeError);
-    await expect(promise).rejects.toMatchObject({
-      status: 500,
-      code: 'PILOT_CANVAS_ENTRY_SCOPE_INVALID',
-      retryable: false,
-      requestId: null,
-    });
-    expect(openEntry).not.toHaveBeenCalled();
-  });
-
-  it.each([401, 403, 404, 409, 410, 422, 500, 503])(
-    'preserves safe Control API status %s and Request ID without leaking the source message',
-    async (status) => {
-      const { createPilotStoryCanvasBridge, PilotStoryCanvasBridgeError } =
-        await loadBridgeModule();
-      const source = new PilotApiError(
-        `CONTROL_${status}`,
-        'private provider response and stack',
-        status,
-        `request-control-${status}`,
-        status === 503,
-      );
-      const createCanvasEntry = vi.fn().mockRejectedValue(source);
-      const openEntry = vi.fn();
-      const bridge = createPilotStoryCanvasBridge({
-        contentApi: { createCanvasEntry },
-        canvasPort: { openEntry },
-      });
-
-      const promise = bridge.open({
-        tenantId,
-        projectId,
-        packageId,
-        bootstrapCycleId: `cycle-error-${status}`,
-      });
-      await expect(promise).rejects.toBeInstanceOf(PilotStoryCanvasBridgeError);
-      await expect(promise).rejects.toMatchObject({
-        status,
-        code: `CONTROL_${status}`,
-        requestId: `request-control-${status}`,
-        retryable: status === 503,
-        message: 'Pilot StoryCanvas could not be opened.',
-      });
-      expect(openEntry).not.toHaveBeenCalled();
-    },
-  );
-
-  it('normalizes unknown transport and browser-port failures to safe errors', async () => {
-    const { createPilotStoryCanvasBridge } = await loadBridgeModule();
-    const transportBridge = createPilotStoryCanvasBridge({
-      contentApi: {
-        createCanvasEntry: vi.fn().mockRejectedValue(new TypeError('private network target')),
-      },
-      canvasPort: { openEntry: vi.fn() },
-    });
-    await expect(
-      transportBridge.open({
-        tenantId,
-        projectId,
-        packageId,
-        bootstrapCycleId: 'cycle-network',
-      }),
-    ).rejects.toMatchObject({
-      status: 503,
-      code: 'PILOT_CANVAS_DEPENDENCY_UNAVAILABLE',
-      retryable: true,
-      requestId: null,
-      message: 'Pilot StoryCanvas could not be opened.',
-    });
-
-    const portBridge = createPilotStoryCanvasBridge({
-      contentApi: {
-        createCanvasEntry: vi.fn().mockResolvedValue({ value: canvasEntry, replayed: false }),
-      },
-      canvasPort: {
-        openEntry: vi.fn().mockRejectedValue(new Error('private StoryCanvas stack')),
-      },
-    });
-    await expect(
-      portBridge.open({
-        tenantId,
-        projectId,
-        packageId,
-        bootstrapCycleId: 'cycle-port',
-      }),
-    ).rejects.toMatchObject({
-      status: 500,
-      code: 'PILOT_CANVAS_BOOTSTRAP_FAILED',
-      retryable: false,
-      requestId: null,
-      message: 'Pilot StoryCanvas could not be opened.',
-    });
   });
 });

@@ -46,6 +46,21 @@ import { CommissionSettlementService } from './settlements/service.js';
 import { PostgresMemberDirectoryRepository } from './members/repository.js';
 import { createMemberDirectoryRouter } from './members/routes.js';
 import { MemberDirectoryService } from './members/service.js';
+import { PostgresCanvasAssetAuthorityRepository } from './assets/repository.js';
+import { CanvasAssetAuthorityService } from './assets/service.js';
+import { createCanvasAssetRouter } from './assets/routes.js';
+import { createInternalCanvasAssetSessionRouter } from './assets/internalSessionRoutes.js';
+import { PostgresCanvasAssetSessionAuthorityRepository } from './assets/sessionRepository.js';
+import { CanvasAssetSessionAuthorityService } from './assets/sessionService.js';
+import { createInternalCanvasApprovalRouter } from './assets/internalApprovalRoutes.js';
+import { CanvasActivationService } from './assets/activationService.js';
+import { PostgresCanvasAssetMaterializationRepository } from './assets/materializationRepository.js';
+import { CanvasAssetMaterializationService } from './assets/materializationService.js';
+import { LocalCanvasAssetStorageReader } from './assets/materializationStorage.js';
+import { createInternalCanvasAssetMaterializationRouter } from './assets/internalMaterializationRoutes.js';
+import { createInternalCanvasWorkspaceAuthorityRouter } from './assets/internalWorkspaceAuthorityRoutes.js';
+import { CanvasWorkspaceAuthorityService } from './assets/workspaceAuthorityService.js';
+import { PostgresCanvasWorkspaceAuthorityRepository } from './production/workspaceAuthorityRepository.js';
 
 const config = loadConfig();
 const database = createDatabase(config);
@@ -138,6 +153,40 @@ const memberDirectoryRouter = createMemberDirectoryRouter({
   sessionTtlSeconds: config.sessionTtlSeconds,
 });
 const projectPolicy = new PostgresProjectPolicy(database);
+const canvasAssetSessionAuthorityService = new CanvasAssetSessionAuthorityService(
+  new PostgresCanvasAssetSessionAuthorityRepository(database),
+);
+const canvasAssetAuthorityRepository = new PostgresCanvasAssetAuthorityRepository(database);
+const canvasAssetAuthorityService = new CanvasAssetAuthorityService(
+  canvasAssetAuthorityRepository,
+  config.canvasApprovalFingerprintSecret,
+  { sessionAuthority: canvasAssetSessionAuthorityService },
+);
+const internalCanvasAssetSessionRouter = createInternalCanvasAssetSessionRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: canvasAssetSessionAuthorityService,
+});
+const internalCanvasApprovalRouter = createInternalCanvasApprovalRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: canvasAssetAuthorityService,
+});
+const internalCanvasAssetMaterializationRouter = createInternalCanvasAssetMaterializationRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: new CanvasAssetMaterializationService({
+    sessionAuthority: canvasAssetSessionAuthorityService,
+    assets: canvasAssetAuthorityRepository,
+    storage: new LocalCanvasAssetStorageReader(config.canvasAssetStorageRoot),
+    attempts: new PostgresCanvasAssetMaterializationRepository(database),
+  }),
+});
+const internalCanvasWorkspaceAuthorityRouter = createInternalCanvasWorkspaceAuthorityRouter({
+  internalToken: config.productionPlaneInternalToken,
+  service: new CanvasWorkspaceAuthorityService({
+    sessionAuthority: canvasAssetSessionAuthorityService,
+    productionAuthority: new PostgresCanvasWorkspaceAuthorityRepository(database),
+    assets: canvasAssetAuthorityRepository,
+  }),
+});
 const contentRouter = createContentRouter({
   store: new PostgresContentStore(database),
   policy: projectPolicy,
@@ -172,6 +221,20 @@ const canvasEntryService = new CanvasEntryService(
   new PostgresCanvasEntryRepository(database, undefined, undefined, productionStore),
   config.rechargePaymentDigestSecret,
 );
+const canvasActivationService = new CanvasActivationService(
+  canvasEntryService,
+  config.canvasActivationIdempotencySecret,
+);
+const assetRouter = createCanvasAssetRouter({
+  service: canvasAssetAuthorityService,
+  activationService: canvasActivationService,
+  policy: projectPolicy,
+  resolveSession: (token) => authService.resolve(token),
+  secureCookies: config.nodeEnv === 'production',
+  sessionTtlSeconds: config.sessionTtlSeconds,
+  allowedOrigins: config.canvasAssetAllowedOrigins,
+  csrfSecret: config.canvasAssetCsrfSecret,
+});
 const internalCanvasEntryRouter = createInternalCanvasEntryRouter({
   internalToken: config.productionPlaneInternalToken,
   service: canvasEntryService,
@@ -193,6 +256,10 @@ const app = createApp({
   registrationRouter,
   internalProductionRouter,
   internalCanvasEntryRouter,
+  internalCanvasAssetSessionRouter,
+  internalCanvasApprovalRouter,
+  internalCanvasAssetMaterializationRouter,
+  internalCanvasWorkspaceAuthorityRouter,
   contentRouter,
   storyboardRouter,
   productionRouter,
@@ -202,6 +269,7 @@ const app = createApp({
   commissionAuditRouter,
   commissionSettlementRouter,
   memberDirectoryRouter,
+  assetRouter,
   trustProxy: config.trustProxy,
 });
 

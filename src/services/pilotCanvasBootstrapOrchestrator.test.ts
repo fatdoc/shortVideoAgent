@@ -59,14 +59,16 @@ const productionPackage = {
   createdAt: '2026-08-13T15:02:00.000Z',
   expiresAt: '2026-08-13T15:12:00.000Z',
 } as const;
-const bootstrap = {
-  schemaVersion: 'pilot-canvas-bootstrap.v1',
-  status: 'ready',
-  projectId,
-  packageId,
+const activationAttemptId = '99999999-9999-4999-8999-999999999999';
+const activationState = {
+  selection: { projectId, packageId },
   canvasSessionId: `pcs_${'A'.repeat(32)}`,
-  expiresAt: '2026-08-13T15:04:00.000Z',
-  requestId: 'request-orchestrator-ready-1',
+  workspace: {
+    tenantId,
+    projectId,
+    packageId,
+    canvasSessionId: `pcs_${'A'.repeat(32)}`,
+  },
 } as const;
 
 function implementationRequired(): never {
@@ -90,29 +92,32 @@ function dependencies(
     value: overrides.productionPackage ?? productionPackage,
     replayed: false,
   });
-  const bridgeOpen = vi.fn().mockResolvedValue(bootstrap);
+  const bridgeActivate = vi.fn().mockResolvedValue(activationState);
+  const createActivationAttemptId = vi.fn(() => activationAttemptId);
   return {
     readProductionEligibility,
     createProductionPackage,
-    bridgeOpen,
+    bridgeActivate,
+    createActivationAttemptId,
     value: {
       contentApi: { readProductionEligibility, createProductionPackage },
-      storyCanvasBridge: { open: bridgeOpen },
+      storyCanvasBridge: { activate: bridgeActivate },
       packagePolicy: policy,
       now: () => new Date('2026-08-13T15:03:00.000Z'),
+      createActivationAttemptId,
     },
   };
 }
 
-describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () => {
-  it('uses exact eligible authorities to create one Package and opens the exact Bridge cycle', async () => {
+describe('Pilot Canvas Package bootstrap orchestration contract', () => {
+  it('uses exact eligible authorities to create one Package and activates the formal Bridge', async () => {
     const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
     const deps = dependencies();
     const orchestrator = createPilotCanvasBootstrapOrchestrator(deps.value);
 
     await expect(
       orchestrator.open({ tenantId, projectId, bootstrapCycleId: 'route-cycle-1' }),
-    ).resolves.toEqual(bootstrap);
+    ).resolves.toEqual(activationState);
 
     expect(deps.readProductionEligibility).toHaveBeenCalledWith(projectId, expect.anything());
     expect(deps.createProductionPackage).toHaveBeenCalledWith(
@@ -130,10 +135,11 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
     );
     const packageKey = deps.createProductionPackage.mock.calls[0]?.[2];
     expect(packageKey).toHaveLength(83);
-    expect(deps.bridgeOpen).toHaveBeenCalledWith(
-      { tenantId, projectId, packageId, bootstrapCycleId: 'route-cycle-1' },
-      expect.anything(),
-    );
+    expect(deps.bridgeActivate).toHaveBeenCalledWith({
+      projectId,
+      packageId,
+      activationAttemptId,
+    });
   });
 
   it('keeps the Package idempotency key bounded for the longest valid cycle', async () => {
@@ -182,7 +188,7 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
       );
       expect(deps.readProductionEligibility).not.toHaveBeenCalled();
       expect(deps.createProductionPackage).not.toHaveBeenCalled();
-      expect(deps.bridgeOpen).not.toHaveBeenCalled();
+      expect(deps.bridgeActivate).not.toHaveBeenCalled();
     },
   );
 
@@ -195,12 +201,13 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
     const first = orchestrator.open(input);
     const second = orchestrator.open(input);
     expect(first).toBe(second);
-    await expect(first).resolves.toEqual(bootstrap);
-    await expect(orchestrator.open(input)).resolves.toEqual(bootstrap);
+    await expect(first).resolves.toEqual(activationState);
+    await expect(orchestrator.open(input)).resolves.toEqual(activationState);
 
     expect(deps.readProductionEligibility).toHaveBeenCalledTimes(1);
     expect(deps.createProductionPackage).toHaveBeenCalledTimes(1);
-    expect(deps.bridgeOpen).toHaveBeenCalledTimes(1);
+    expect(deps.bridgeActivate).toHaveBeenCalledTimes(1);
+    expect(deps.createActivationAttemptId).toHaveBeenCalledTimes(1);
   });
 
   it('rejects an eligibility Project mismatch before Package creation', async () => {
@@ -222,7 +229,7 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
       requestId: null,
     });
     expect(deps.createProductionPackage).not.toHaveBeenCalled();
-    expect(deps.bridgeOpen).not.toHaveBeenCalled();
+    expect(deps.bridgeActivate).not.toHaveBeenCalled();
   });
 
   it('stops before Package creation when current Script and Storyboard are not eligible', async () => {
@@ -248,7 +255,7 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
       requestId: null,
     });
     expect(deps.createProductionPackage).not.toHaveBeenCalled();
-    expect(deps.bridgeOpen).not.toHaveBeenCalled();
+    expect(deps.bridgeActivate).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -261,7 +268,7 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
     ],
     ['capability', { ...productionPackage, capabilityRequirements: ['media.export'] }],
     ['expiry', { ...productionPackage, expiresAt: '2026-08-13T15:02:00.000Z' }],
-  ])('rejects a %s Package binding mismatch before Bridge open', async (_label, mismatch) => {
+  ])('rejects a %s Package binding mismatch before Bridge activation', async (_label, mismatch) => {
     const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
     const deps = dependencies({ productionPackage: mismatch });
     const orchestrator = createPilotCanvasBootstrapOrchestrator(deps.value);
@@ -274,7 +281,48 @@ describe('Pilot Canvas Package bootstrap orchestration contract (RED-only)', () 
       retryable: false,
       requestId: null,
     });
-    expect(deps.bridgeOpen).not.toHaveBeenCalled();
+    expect(deps.bridgeActivate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a formal Bridge workspace that escapes the exact Tenant scope', async () => {
+    const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
+    const deps = dependencies();
+    deps.bridgeActivate.mockResolvedValueOnce({
+      ...activationState,
+      workspace: {
+        ...activationState.workspace,
+        tenantId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      },
+    });
+    const orchestrator = createPilotCanvasBootstrapOrchestrator(deps.value);
+
+    await expect(
+      orchestrator.open({ tenantId, projectId, bootstrapCycleId: 'route-cycle-tenant' }),
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'PILOT_CANVAS_ACTIVATION_SCOPE_INVALID',
+      retryable: false,
+      requestId: null,
+    });
+  });
+
+  it('rejects a malformed generated activation attempt before calling the formal Bridge', async () => {
+    const { createPilotCanvasBootstrapOrchestrator } = await loadOrchestratorModule();
+    const deps = dependencies();
+    const orchestrator = createPilotCanvasBootstrapOrchestrator({
+      ...deps.value,
+      createActivationAttemptId: () => 'not-a-uuid',
+    });
+
+    await expect(
+      orchestrator.open({ tenantId, projectId, bootstrapCycleId: 'route-cycle-attempt' }),
+    ).rejects.toMatchObject({
+      status: 500,
+      code: 'PILOT_CANVAS_ACTIVATION_ATTEMPT_INVALID',
+      retryable: false,
+      requestId: null,
+    });
+    expect(deps.bridgeActivate).not.toHaveBeenCalled();
   });
 
   it('does not import Demo bridges or browser storage into the package orchestrator source', async () => {

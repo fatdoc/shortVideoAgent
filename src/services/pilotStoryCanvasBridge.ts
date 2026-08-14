@@ -1,259 +1,230 @@
-import type { PilotCanvasEntry, PilotContentProductionApi } from './pilotContentProductionApi';
-import { PilotApiError } from './pilotApiTransport';
+import type { PrepareHighCostApprovalRequest } from '../features/canvas-v1/hooks/useCanvasCommandApprovalFlow';
+import type {
+  AssetRecordV01,
+  CanvasCommandV01,
+  CanvasDocumentV01,
+  CanvasV1Scope,
+  ShotReadinessV01,
+} from '../features/canvas-v1/model/contracts';
+import type { CanvasWorkspaceV01 } from '../features/canvas-v1/model/workspaceContract';
+import {
+  legacyOpenRequest,
+  parseCanonicalCanvasRouteSelection,
+  type CanvasRouteSelection,
+} from '../features/canvas-v1/api/activation';
+import { PilotStoryCanvasBridgeError } from '../features/canvas-v1/api/errors';
+import {
+  createPilotStoryCanvasHttpPort,
+  type CanvasApprovalProjection,
+  type PilotStoryCanvasHttpPort,
+} from '../features/canvas-v1/api/httpPort';
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const CYCLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
-const HANDLE_PATTERN = /^ce_[A-Za-z0-9_-]{32,64}$/;
-const SESSION_PATTERN = /^pcs_[A-Za-z0-9_-]{32,64}$/;
-const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
-const ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
-const SAFE_STATUSES = new Set([401, 403, 404, 409, 410, 422, 500, 503]);
-const ENTRY_TTL_SECONDS = 120;
-const ENTRY_MAX_ATTEMPTS = 2;
-
-export interface PilotStoryCanvasPackageReference {
-  tenantId: string;
-  projectId: string;
-  packageId: string;
+export interface PilotCanvasActivationInput extends CanvasRouteSelection {
+  activationAttemptId: string;
 }
 
-export interface PilotStoryCanvasEntryReference extends PilotStoryCanvasPackageReference {
-  handle: string;
-}
-
-export interface PilotStoryCanvasBootstrap {
-  schemaVersion: 'pilot-canvas-bootstrap.v1';
-  status: 'ready';
-  projectId: string;
-  packageId: string;
+export interface PilotCanvasActivationState {
+  selection: CanvasRouteSelection;
   canvasSessionId: string;
-  expiresAt: string;
-  requestId: string;
-}
-
-export interface PilotStoryCanvasEntryPort {
-  openEntry(entry: PilotStoryCanvasEntryReference): Promise<PilotStoryCanvasBootstrap>;
-}
-
-export type PilotStoryCanvasBridgePhase = 'creating-entry' | 'redeeming' | 'ready';
-
-export interface OpenPilotStoryCanvasInput extends PilotStoryCanvasPackageReference {
-  bootstrapCycleId: string;
-}
-
-export interface OpenPilotStoryCanvasOptions {
-  signal?: AbortSignal;
-  onPhase?: (phase: PilotStoryCanvasBridgePhase) => void;
+  workspace: CanvasWorkspaceV01;
 }
 
 export interface PilotStoryCanvasBridge {
-  open(
-    input: OpenPilotStoryCanvasInput,
-    options?: OpenPilotStoryCanvasOptions,
-  ): Promise<PilotStoryCanvasBootstrap>;
+  activate(input: PilotCanvasActivationInput): Promise<PilotCanvasActivationState>;
+  prepareApproval(
+    state: PilotCanvasActivationState,
+    request: PrepareHighCostApprovalRequest,
+  ): Promise<CanvasApprovalProjection>;
+  dispatch(
+    state: PilotCanvasActivationState,
+    command: CanvasCommandV01,
+  ): ReturnType<PilotStoryCanvasHttpPort['dispatch']>;
+  refreshWorkspace(state: PilotCanvasActivationState): Promise<PilotCanvasActivationState>;
 }
 
-export interface PilotStoryCanvasBridgeDependencies {
-  contentApi: Pick<PilotContentProductionApi, 'createCanvasEntry'>;
-  canvasPort: PilotStoryCanvasEntryPort;
+function fail(code: string): never {
+  throw new PilotStoryCanvasBridgeError(code);
 }
 
-export class PilotStoryCanvasBridgeError extends Error {
-  readonly status: number;
-  readonly code: string;
-  readonly retryable: boolean;
-  readonly requestId: string | null;
-
-  constructor(status: number, code: string, retryable: boolean, requestId: string | null) {
-    super('Pilot StoryCanvas could not be opened.');
-    this.name = 'PilotStoryCanvasBridgeError';
-    this.status = status;
-    this.code = code;
-    this.retryable = retryable;
-    this.requestId = requestId;
-  }
+function sameScope(value: CanvasV1Scope, expected: CanvasWorkspaceV01): boolean {
+  return (
+    value.tenantId === expected.tenantId &&
+    value.projectId === expected.projectId &&
+    value.packageId === expected.packageId &&
+    value.canvasSessionId === expected.canvasSessionId
+  );
 }
 
-function safeRequestId(value: unknown): string | null {
-  return typeof value === 'string' && REQUEST_ID_PATTERN.test(value) ? value : null;
-}
-
-function safeCode(value: unknown, fallback: string): string {
-  return typeof value === 'string' && ERROR_CODE_PATTERN.test(value) ? value : fallback;
-}
-
-function assertInput(input: OpenPilotStoryCanvasInput): void {
+function assertBootstrapAgreement(
+  formal: CanvasWorkspaceV01['bootstrap'],
+  workspace: CanvasWorkspaceV01,
+): void {
+  const embedded = workspace.bootstrap;
   if (
-    !input ||
-    typeof input !== 'object' ||
-    !UUID_PATTERN.test(input.tenantId) ||
-    !UUID_PATTERN.test(input.projectId) ||
-    !UUID_PATTERN.test(input.packageId) ||
-    !CYCLE_PATTERN.test(input.bootstrapCycleId)
+    !sameScope(formal, workspace) ||
+    formal.status !== embedded.status ||
+    formal.approvedScript.scriptId !== embedded.approvedScript.scriptId ||
+    formal.approvedScript.version !== embedded.approvedScript.version ||
+    formal.approvedStoryboard.storyboardId !== embedded.approvedStoryboard.storyboardId ||
+    formal.approvedStoryboard.version !== embedded.approvedStoryboard.version ||
+    formal.document.documentId !== embedded.document.documentId ||
+    formal.document.version !== embedded.document.version
   ) {
-    throw new PilotStoryCanvasBridgeError(422, 'PILOT_CANVAS_INPUT_INVALID', false, null);
+    fail('CANVAS_BOOTSTRAP_WORKSPACE_MISMATCH');
   }
 }
 
-function exactEntryReference(
-  entry: PilotCanvasEntry,
-  input: OpenPilotStoryCanvasInput,
-): PilotStoryCanvasEntryReference {
+function assertDocument(document: CanvasDocumentV01, workspace: CanvasWorkspaceV01): void {
   if (
-    !HANDLE_PATTERN.test(entry.handle) ||
-    entry.tenantId !== input.tenantId ||
-    entry.projectId !== input.projectId ||
-    entry.packageId !== input.packageId
+    !sameScope(document, workspace) ||
+    JSON.stringify(document) !== JSON.stringify(workspace.document)
   ) {
-    throw new PilotStoryCanvasBridgeError(500, 'PILOT_CANVAS_ENTRY_SCOPE_INVALID', false, null);
+    fail('CANVAS_DOCUMENT_REFRESH_MISMATCH');
   }
-  return {
-    handle: entry.handle,
-    tenantId: entry.tenantId,
-    projectId: entry.projectId,
-    packageId: entry.packageId,
-  };
 }
 
-function exactBootstrap(
-  value: PilotStoryCanvasBootstrap,
-  input: OpenPilotStoryCanvasInput,
-): PilotStoryCanvasBootstrap {
-  const candidate = value as unknown as Record<string, unknown>;
-  const expectedKeys = [
-    'canvasSessionId',
-    'expiresAt',
-    'packageId',
-    'projectId',
-    'requestId',
-    'schemaVersion',
-    'status',
-  ];
+function assertAssets(assets: AssetRecordV01[], workspace: CanvasWorkspaceV01): void {
+  if (assets.length !== workspace.assets.length) fail('CANVAS_ASSET_REFRESH_MISMATCH');
+  for (const [index, asset] of assets.entries()) {
+    const expected = workspace.assets[index];
+    if (
+      !expected ||
+      !sameScope(asset, workspace) ||
+      asset.assetId !== expected.assetId ||
+      asset.category !== expected.category ||
+      asset.displayName !== expected.displayName ||
+      asset.rights.status !== expected.rightsStatus ||
+      asset.approval.status !== expected.approvalStatus ||
+      asset.controlledPreviewUrl !== expected.controlledPreviewUrl
+    ) {
+      fail('CANVAS_ASSET_REFRESH_MISMATCH');
+    }
+  }
+}
+
+function assertReadiness(
+  readiness: ShotReadinessV01,
+  workspace: CanvasWorkspaceV01,
+  shotId: string,
+): void {
+  const expected = workspace.shots.find((shot) => shot.shotId === shotId)?.readiness;
   if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    JSON.stringify(Object.keys(candidate).sort()) !== JSON.stringify(expectedKeys) ||
-    value.schemaVersion !== 'pilot-canvas-bootstrap.v1' ||
-    value.status !== 'ready' ||
-    value.projectId !== input.projectId ||
-    value.packageId !== input.packageId ||
-    !SESSION_PATTERN.test(value.canvasSessionId) ||
-    !Number.isFinite(Date.parse(value.expiresAt)) ||
-    !REQUEST_ID_PATTERN.test(value.requestId)
+    !expected ||
+    !sameScope(readiness, workspace) ||
+    readiness.shotId !== shotId ||
+    JSON.stringify(readiness) !== JSON.stringify(expected)
   ) {
-    throw new PilotStoryCanvasBridgeError(500, 'PILOT_CANVAS_BOOTSTRAP_INVALID', false, null);
+    fail('CANVAS_READINESS_REFRESH_MISMATCH');
   }
-  return value;
 }
 
-function errorShape(value: unknown): {
-  status?: unknown;
-  code?: unknown;
-  retryable?: unknown;
-  requestId?: unknown;
-} | null {
-  return value && typeof value === 'object'
-    ? (value as {
-        status?: unknown;
-        code?: unknown;
-        retryable?: unknown;
-        requestId?: unknown;
-      })
-    : null;
-}
-
-function normalizeControlError(error: unknown): PilotStoryCanvasBridgeError {
-  if (error instanceof PilotStoryCanvasBridgeError) return error;
-  if (error instanceof PilotApiError && error.status !== null && SAFE_STATUSES.has(error.status)) {
-    return new PilotStoryCanvasBridgeError(
-      error.status,
-      safeCode(error.code, 'PILOT_CANVAS_ENTRY_FAILED'),
-      error.retryable,
-      safeRequestId(error.requestId),
-    );
-  }
-  return new PilotStoryCanvasBridgeError(503, 'PILOT_CANVAS_DEPENDENCY_UNAVAILABLE', true, null);
-}
-
-function normalizePortError(error: unknown): PilotStoryCanvasBridgeError {
-  if (error instanceof PilotStoryCanvasBridgeError) return error;
-  const shape = errorShape(error);
+function assertState(state: PilotCanvasActivationState): void {
   if (
-    shape &&
-    typeof shape.status === 'number' &&
-    SAFE_STATUSES.has(shape.status) &&
-    typeof shape.retryable === 'boolean'
+    state.selection.projectId !== state.workspace.projectId ||
+    state.selection.packageId !== state.workspace.packageId ||
+    state.canvasSessionId !== state.workspace.canvasSessionId
   ) {
-    return new PilotStoryCanvasBridgeError(
-      shape.status,
-      safeCode(shape.code, 'PILOT_CANVAS_BOOTSTRAP_FAILED'),
-      shape.retryable,
-      safeRequestId(shape.requestId),
-    );
+    fail('CANVAS_STATE_SCOPE_MISMATCH');
   }
-  return new PilotStoryCanvasBridgeError(500, 'PILOT_CANVAS_BOOTSTRAP_FAILED', false, null);
-}
-
-function cycleKey(input: OpenPilotStoryCanvasInput): string {
-  return `${input.tenantId}:${input.projectId}:${input.packageId}:${input.bootstrapCycleId}`;
-}
-
-function entryIdempotencyKey(input: OpenPilotStoryCanvasInput): string {
-  return `pilot-canvas-entry-v1:${input.projectId}:${input.packageId}:${input.bootstrapCycleId}`;
 }
 
 export function createPilotStoryCanvasBridge(
-  dependencies: PilotStoryCanvasBridgeDependencies,
+  options: {
+    port?: PilotStoryCanvasHttpPort;
+  } = {},
 ): PilotStoryCanvasBridge {
-  const cycles = new Map<string, Promise<PilotStoryCanvasBootstrap>>();
+  const port = options.port ?? createPilotStoryCanvasHttpPort();
 
   return {
-    open(input, options = {}) {
-      try {
-        assertInput(input);
-      } catch (error) {
-        return Promise.reject(error);
-      }
-
-      const key = cycleKey(input);
-      const existing = cycles.get(key);
-      if (existing) return existing;
-
-      const pending = (async () => {
-        options.onPhase?.('creating-entry');
-        let entry: PilotCanvasEntry;
-        try {
-          const result = await dependencies.contentApi.createCanvasEntry(
-            input.projectId,
-            { packageId: input.packageId, ttlSeconds: ENTRY_TTL_SECONDS },
-            entryIdempotencyKey(input),
-            { maxAttempts: ENTRY_MAX_ATTEMPTS, signal: options.signal },
-          );
-          entry = result.value;
-        } catch (error) {
-          throw normalizeControlError(error);
-        }
-
-        const reference = exactEntryReference(entry, input);
-        options.onPhase?.('redeeming');
-        let bootstrap: PilotStoryCanvasBootstrap;
-        try {
-          bootstrap = await dependencies.canvasPort.openEntry(reference);
-        } catch (error) {
-          throw normalizePortError(error);
-        }
-
-        const exact = exactBootstrap(bootstrap, input);
-        options.onPhase?.('ready');
-        return exact;
-      })();
-
-      cycles.set(key, pending);
-      void pending.catch(() => {
-        if (cycles.get(key) === pending) cycles.delete(key);
+    async activate(input) {
+      const selection = parseCanonicalCanvasRouteSelection({
+        projectId: input.projectId,
+        search: `?packageId=${encodeURIComponent(input.packageId)}`,
       });
-      return pending;
+      const firstCsrf = await port.acquireControlCsrf(selection.projectId);
+      const activation = await port.activate(
+        selection.projectId,
+        selection.packageId,
+        { activationAttemptId: input.activationAttemptId },
+        firstCsrf,
+      );
+      const opened = await port.openLegacy(legacyOpenRequest(activation.entry));
+      const formal = await port.readBootstrap(opened.canvasSessionId, selection);
+      const workspace = await port.readWorkspace(opened.canvasSessionId, selection);
+      if (
+        activation.entry.tenantId !== formal.tenantId ||
+        activation.entry.tenantId !== workspace.tenantId
+      ) {
+        fail('CANVAS_ACTIVATION_TENANT_MISMATCH');
+      }
+      assertBootstrapAgreement(formal, workspace);
+      // Acquire again because activation may rotate the authenticated browser session.
+      await port.acquireControlCsrf(selection.projectId);
+      return { selection, canvasSessionId: opened.canvasSessionId, workspace };
+    },
+
+    async prepareApproval(state, request) {
+      assertState(state);
+      if (
+        request.tenantId !== state.workspace.tenantId ||
+        request.projectId !== state.workspace.projectId ||
+        request.packageId !== state.workspace.packageId ||
+        request.canvasSessionId !== state.workspace.canvasSessionId ||
+        request.requestedByActorId !== state.workspace.project.requestedByActorId
+      ) {
+        fail('CANVAS_APPROVAL_SCOPE_MISMATCH');
+      }
+      const csrf = await port.acquireControlCsrf(state.selection.projectId);
+      return port.prepareApproval(
+        state.selection.projectId,
+        {
+          packageId: state.selection.packageId,
+          canvasSessionId: state.canvasSessionId,
+          commandType: request.commandType,
+          action: {
+            commandId: request.action.commandId,
+            payload: structuredClone(request.action.payload),
+          },
+          expiresInSeconds: 60,
+          replayPolicy: 'single_use_replay_same_command',
+        },
+        csrf,
+      );
+    },
+
+    dispatch(state, command) {
+      assertState(state);
+      if (
+        !sameScope(command, state.workspace) ||
+        command.requestedByActorId !== state.workspace.project.requestedByActorId
+      ) {
+        fail('CANVAS_COMMAND_SCOPE_MISMATCH');
+      }
+      return port.dispatch(command);
+    },
+
+    async refreshWorkspace(state) {
+      assertState(state);
+      const workspace = await port.readWorkspace(state.canvasSessionId, state.selection);
+      if (
+        workspace.tenantId !== state.workspace.tenantId ||
+        workspace.project.requestedByActorId !== state.workspace.project.requestedByActorId ||
+        workspace.document.documentId !== state.workspace.document.documentId
+      ) {
+        fail('CANVAS_WORKSPACE_REFRESH_MISMATCH');
+      }
+      const document = await port.readDocument(
+        state.canvasSessionId,
+        workspace.document.documentId,
+      );
+      assertDocument(document, workspace);
+      const assets = await port.readAssets(state.canvasSessionId);
+      assertAssets(assets, workspace);
+      for (const shot of workspace.shots) {
+        const readiness = await port.readReadiness(state.canvasSessionId, shot.shotId);
+        assertReadiness(readiness, workspace, shot.shotId);
+      }
+      return { selection: state.selection, canvasSessionId: state.canvasSessionId, workspace };
     },
   };
 }

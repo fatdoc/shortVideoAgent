@@ -537,19 +537,16 @@ describe('A-BIZ-06E.4C Shared Router production boundary RED', () => {
     expect(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
   });
 
-  it('loads the B Pilot Canvas boundary in a fail-closed state until an exact Package reference exists', async () => {
+  it('blocks a real Tenant Canvas route when the B Pilot boundary is unavailable', async () => {
     setTenantContext();
     window.history.replaceState({}, '', '/production/canvas/project-alpha');
     render(<App />);
 
     expect(await screen.findByTestId('pilot-app-shell')).toBeInTheDocument();
-    expect(screen.getByTestId('pilot-production-canvas-route')).toHaveAttribute(
-      'data-project-id',
-      'project-alpha',
-    );
     expect(screen.getByTestId('pilot-storycanvas-boundary-blocked')).toHaveTextContent(
-      '生产包尚未准备',
+      '不会回退 Demo',
     );
+    expect(screen.queryByTestId('pilot-production-canvas-route')).not.toBeInTheDocument();
     expect(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
     expect(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
     expect(integratedStoryCanvasRender).not.toHaveBeenCalled();

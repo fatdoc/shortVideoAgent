@@ -1,0 +1,188 @@
+{
+  "schemaVersion": "cv6-shared-g5-policy.v1",
+  "baseline": "6e7fd7f73483bfd4061cfb26b4dff5a7f03c4cd7",
+  "publicSurfaces": [
+    {
+      "path": "src/features/canvas-v1/api/index.ts",
+      "exports": [
+        "parseCanonicalCanvasRouteSelection",
+        "createCanvasActivationAttemptId",
+        "createPilotStoryCanvasHttpPort",
+        "CanvasV1RouteContainer",
+        "PilotStoryCanvasBridgeError"
+      ]
+    },
+    {
+      "path": "src/features/canvas-v1/api/CanvasV1RouteContainer.tsx",
+      "exports": ["CanvasV1RouteContainer"]
+    },
+    {
+      "path": "src/services/pilotStoryCanvasBridge.ts",
+      "exports": ["createPilotStoryCanvasBridge"]
+    }
+  ],
+  "bridgePublicMethods": {
+    "activate": "activate({projectId,packageId,activationAttemptId}) -> activation state",
+    "prepareApproval": "prepareApproval(state, request); bridge reacquires Control CSRF internally",
+    "dispatch": "dispatch(state, unchanged complete command)",
+    "refresh": "refreshWorkspace(state) reads workspace, document, assets and shot readiness in order"
+  },
+  "canonicalRoute": {
+    "pattern": "/production/canvas/:projectId?packageId=<uuid>",
+    "requiredQueryKeys": ["packageId"],
+    "forbiddenQueryKeys": ["activationAttemptId"],
+    "rejects": [
+      "missing packageId",
+      "duplicate packageId",
+      "unknown query key",
+      "malformed UUID",
+      "uppercase or noncanonical UUID",
+      "latest inference"
+    ]
+  },
+  "attemptContainment": {
+    "lifetime": "one logical activation kept only in page component memory",
+    "forbiddenSinks": [
+      "URL",
+      "query",
+      "fragment",
+      "history state",
+      "localStorage",
+      "sessionStorage",
+      "indexedDB",
+      "DOM",
+      "console",
+      "public log"
+    ]
+  },
+  "transportSecurity": {
+    "session": "HttpOnly cookie with credentials include on every request",
+    "origin": "browser-managed exact configured same origin on every request",
+    "controlCsrf": "session-bound X-CSRF-Token on activation and approval only",
+    "storyCsrf": "literal X-StoryCanvas-CSRF pilot-canvas-bootstrap-v1 on legacy open only",
+    "canvasSession": "exact X-Canvas-Session-ID on formal reads and command dispatch",
+    "cors": "no cross-origin URL and no changeOrigin rewrite"
+  },
+  "httpSequence": [
+    {
+      "name": "control activation",
+      "method": "POST",
+      "path": "/api/v1/projects/:projectId/production-packages/:packageId/canvas-activation",
+      "session": "HttpOnly same-origin credentials",
+      "csrf": "X-CSRF-Token"
+    },
+    {
+      "name": "legacy open",
+      "method": "POST",
+      "path": "/api/production/pilot/canvas/bootstrap",
+      "session": "HttpOnly same-origin credentials",
+      "csrf": "X-StoryCanvas-CSRF: pilot-canvas-bootstrap-v1"
+    },
+    {
+      "name": "formal bootstrap",
+      "method": "GET",
+      "path": "/api/production/pilot/canvas/v1/bootstrap",
+      "session": "HttpOnly same-origin credentials",
+      "canvasSession": "X-Canvas-Session-ID"
+    },
+    {
+      "name": "workspace",
+      "method": "GET",
+      "path": "/api/production/pilot/canvas/v1/workspace",
+      "session": "HttpOnly same-origin credentials",
+      "canvasSession": "X-Canvas-Session-ID"
+    },
+    {
+      "name": "approval prepare",
+      "method": "POST",
+      "path": "/api/v1/projects/:projectId/canvas-command-approvals",
+      "session": "HttpOnly same-origin credentials",
+      "csrf": "X-CSRF-Token"
+    },
+    {
+      "name": "command dispatch",
+      "method": "POST",
+      "path": "/api/production/pilot/canvas/v1/commands",
+      "session": "HttpOnly same-origin credentials",
+      "canvasSession": "X-Canvas-Session-ID"
+    },
+    {
+      "name": "refresh",
+      "method": "GET",
+      "paths": [
+        "/api/production/pilot/canvas/v1/workspace",
+        "/api/production/pilot/canvas/v1/documents/:documentId",
+        "/api/production/pilot/canvas/v1/assets",
+        "/api/production/pilot/canvas/v1/assets/readiness/:shotId"
+      ],
+      "session": "HttpOnly same-origin credentials",
+      "canvasSession": "X-Canvas-Session-ID"
+    }
+  ],
+  "proxy": {
+    "requiredFlags": {
+      "PILOT_E2E": "true",
+      "PILOT_E2E_AB_GOLDEN_PATH": "true"
+    },
+    "routes": {
+      "/api/v1": "http://127.0.0.1:<valid-control-port>",
+      "/api/production/pilot/canvas": "http://127.0.0.1:<valid-story-port>"
+    },
+    "changeOrigin": false,
+    "invalidPort": "fail closed"
+  },
+  "strictParserRules": [
+    "activation response is strict and exact project/package matched",
+    "legacy open request is exactly handle/tenantId/projectId/packageId",
+    "legacy open response is not formal bootstrap",
+    "formal bootstrap is strict and exact session/project/package matched",
+    "workspace is strict, complete and hydrates CanvasV1Page without defaults",
+    "approval action is exactly commandId plus payload",
+    "dispatch is the unchanged complete command",
+    "unknown fields stop the sequence without a fallback"
+  ],
+  "forbiddenProductMarkers": [
+    "demo-local-001",
+    "IntegratedStoryCanvasPage",
+    "storyCanvasBridge",
+    "controlPlaneMockAdapter",
+    "x-storycanvas-demo-grant",
+    "/api/mvp/"
+  ],
+  "forbiddenBrowserMarkers": [
+    "activationAttemptId",
+    "Idempotency-Key",
+    "derivedIdempotencyKey",
+    "rawGrant",
+    "packageSnapshot",
+    "payloadDigest",
+    "accessToken",
+    "internalToken",
+    "providerAssetId",
+    "providerGroupId",
+    "storageReference",
+    "contentBase64",
+    "localPath",
+    "signedUrl",
+    "asset://"
+  ],
+  "historicalRed": [
+    {
+      "path": "src/services/pilotStoryCanvasBridge.test.ts",
+      "title": "requires the future shared bridge implementation to satisfy the frozen isolation policy"
+    },
+    {
+      "path": "src/app/Router.pilot.test.tsx",
+      "title": "blocks a real Tenant Canvas route when the B Pilot boundary is unavailable"
+    },
+    {
+      "path": "src/config/pilotE2eProxy.test.ts",
+      "title": "adds the StoryCanvas loopback transport only for the explicit A/B Golden Path harness"
+    },
+    {
+      "path": "src/config/pilotE2eProxy.test.ts",
+      "title": "fails closed when the A/B Golden Path StoryCanvas loopback port is invalid"
+    }
+  ],
+  "requiredActivationVectorCount": 25
+}

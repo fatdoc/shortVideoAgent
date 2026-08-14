@@ -6,10 +6,11 @@ import type {
 } from './pilotContentProductionApi';
 import { PilotApiError } from './pilotApiTransport';
 import {
-  PilotStoryCanvasBridgeError,
-  type PilotStoryCanvasBootstrap,
+  type PilotCanvasActivationState,
   type PilotStoryCanvasBridge,
 } from './pilotStoryCanvasBridge';
+import { PilotStoryCanvasBridgeError } from '../features/canvas-v1/api/errors';
+import { createCanvasActivationAttemptId } from '../features/canvas-v1/api/activation';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const CYCLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
@@ -45,7 +46,7 @@ export interface PilotCanvasBootstrapOrchestrator {
   open(
     input: OpenPilotCanvasBootstrapInput,
     options?: OpenPilotCanvasBootstrapOptions,
-  ): Promise<PilotStoryCanvasBootstrap>;
+  ): Promise<PilotCanvasActivationState>;
 }
 
 export interface PilotCanvasBootstrapOrchestratorDependencies {
@@ -53,9 +54,10 @@ export interface PilotCanvasBootstrapOrchestratorDependencies {
     PilotContentProductionApi,
     'readProductionEligibility' | 'createProductionPackage'
   >;
-  storyCanvasBridge: Pick<PilotStoryCanvasBridge, 'open'>;
+  storyCanvasBridge: Pick<PilotStoryCanvasBridge, 'activate'>;
   packagePolicy: PilotCanvasPackagePolicy;
   now?: () => Date;
+  createActivationAttemptId?: () => string;
 }
 
 export class PilotCanvasBootstrapOrchestratorError extends Error {
@@ -198,6 +200,42 @@ function exactPackage(
   return value;
 }
 
+function exactActivationState(
+  state: PilotCanvasActivationState,
+  input: OpenPilotCanvasBootstrapInput,
+  packageId: string,
+): PilotCanvasActivationState {
+  if (
+    !state ||
+    state.selection.projectId !== input.projectId ||
+    state.selection.packageId !== packageId ||
+    state.workspace.tenantId !== input.tenantId ||
+    state.workspace.projectId !== input.projectId ||
+    state.workspace.packageId !== packageId ||
+    state.canvasSessionId !== state.workspace.canvasSessionId
+  ) {
+    throw new PilotCanvasBootstrapOrchestratorError(
+      500,
+      'PILOT_CANVAS_ACTIVATION_SCOPE_INVALID',
+      false,
+      null,
+    );
+  }
+  return state;
+}
+
+function exactActivationAttemptId(value: string): string {
+  if (!UUID_PATTERN.test(value)) {
+    throw new PilotCanvasBootstrapOrchestratorError(
+      500,
+      'PILOT_CANVAS_ACTIVATION_ATTEMPT_INVALID',
+      false,
+      null,
+    );
+  }
+  return value;
+}
+
 function fnv1a32(value: string, seed: number): string {
   let hash = seed >>> 0;
   for (let index = 0; index < value.length; index += 1) {
@@ -241,10 +279,10 @@ function normalizeError(error: unknown): PilotCanvasBootstrapOrchestratorError {
   if (error instanceof PilotCanvasBootstrapOrchestratorError) return error;
   if (error instanceof PilotStoryCanvasBridgeError) {
     return new PilotCanvasBootstrapOrchestratorError(
-      error.status,
-      error.code,
+      error.status !== null && SAFE_STATUSES.has(error.status) ? error.status : 500,
+      safeCode(error.code, 'PILOT_CANVAS_ACTIVATION_FAILED'),
       error.retryable,
-      error.requestId,
+      safeRequestId(error.requestId),
     );
   }
   if (error instanceof PilotApiError && error.status !== null && SAFE_STATUSES.has(error.status)) {
@@ -272,7 +310,9 @@ export function createPilotCanvasBootstrapOrchestrator(
 ): PilotCanvasBootstrapOrchestrator {
   const policy = exactPolicy(dependencies.packagePolicy);
   const now = dependencies.now ?? (() => new Date());
-  const cycles = new Map<string, Promise<PilotStoryCanvasBootstrap>>();
+  const activationAttemptId =
+    dependencies.createActivationAttemptId ?? createCanvasActivationAttemptId;
+  const cycles = new Map<string, Promise<PilotCanvasActivationState>>();
 
   return {
     open(input, options = {}) {
@@ -305,15 +345,12 @@ export function createPilotCanvasBootstrapOrchestrator(
             { signal: options.signal, maxAttempts: PACKAGE_MAX_ATTEMPTS },
           );
           const productionPackage = exactPackage(result.value, input, authority, policy, now());
-          return await dependencies.storyCanvasBridge.open(
-            {
-              tenantId: input.tenantId,
-              projectId: input.projectId,
-              packageId: productionPackage.packageId,
-              bootstrapCycleId: input.bootstrapCycleId,
-            },
-            { signal: options.signal },
-          );
+          const state = await dependencies.storyCanvasBridge.activate({
+            projectId: input.projectId,
+            packageId: productionPackage.packageId,
+            activationAttemptId: exactActivationAttemptId(activationAttemptId()),
+          });
+          return exactActivationState(state, input, productionPackage.packageId);
         } catch (error) {
           throw normalizeError(error);
         }

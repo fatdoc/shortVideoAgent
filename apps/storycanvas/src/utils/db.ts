@@ -9,6 +9,7 @@ import type { DB } from "@/types/database";
 import crypto from "crypto";
 import fixDB from "@/lib/fixDB";
 import { runStoryCanvasMigrations } from "@/lib/storycanvasMigrations";
+import canvasV1AssetCommandMigration from "../../migrations/005_canvas_v1_asset_command";
 import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
@@ -63,7 +64,10 @@ const db = knex({
 
 const databaseReady = (async () => {
   await db.raw("PRAGMA foreign_keys = ON");
-  if (pilotRuntime) return;
+  if (pilotRuntime) {
+    await runStoryCanvasMigrations(db, [canvasV1AssetCommandMigration]);
+    return;
+  }
   await initDB(db);
   await fixDB(db);
   await runStoryCanvasMigrations(db);

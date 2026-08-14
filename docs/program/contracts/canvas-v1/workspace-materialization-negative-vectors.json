@@ -1,0 +1,479 @@
+{
+  "schemaVersion": "canvas-v1-workspace-materialization-negative-vectors.v1",
+  "fixture": "fixtures/workspace-materialization.json",
+  "workspaceReasonCodeOrder": [
+    "WORKSPACE_CAPABILITY_BLOCKED",
+    "WORKSPACE_SHOT_BLOCKED",
+    "WORKSPACE_ASSET_AGGREGATE_INCOMPLETE",
+    "WORKSPACE_REQUIREMENTS_INCOMPLETE",
+    "WORKSPACE_READINESS_INCOMPLETE",
+    "WORKSPACE_OUTPUTS_INCOMPLETE",
+    "WORKSPACE_EVENTS_INCOMPLETE",
+    "WORKSPACE_CONTROLLED_MEDIA_INCOMPLETE"
+  ],
+  "categoryLabels": {
+    "human": "真人",
+    "virtual_character": "虚拟人物",
+    "store": "门店",
+    "product": "商品",
+    "brand": "品牌",
+    "prop": "道具",
+    "voice": "声音",
+    "image": "图片",
+    "video": "视频"
+  },
+  "forbiddenWorkspaceKeys": [
+    "storageReference",
+    "checksum",
+    "contentBase64",
+    "materializationAttemptId",
+    "materializationId",
+    "providerAssetId",
+    "providerGroupId",
+    "assetUri",
+    "accessToken",
+    "authorization",
+    "internalToken",
+    "idempotencyKey",
+    "grant",
+    "projectGrant",
+    "productionPackage",
+    "packageSnapshot",
+    "payloadDigest",
+    "localPath",
+    "signedUrl"
+  ],
+  "forbiddenWorkspaceValuePatterns": [
+    "asset://",
+    "bearer ",
+    "x-amz-credential=",
+    "x-amz-signature=",
+    "x-tos-signature=",
+    "access_token=",
+    "blob:",
+    "data:"
+  ],
+  "vectors": [
+    {
+      "id": "workspace-rejects-unknown-top-level-field",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "add", "path": "/unexpected", "value": true }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-rejects-out-of-range-canonical-timestamp",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-99-99T99:99:99.999Z" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-rejects-calendar-rollover-timestamp",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-02-30T02:07:00.000Z" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-rejects-offset-timestamp-drift",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/occurredAt", "value": "2026-08-14T02:07:00.000+00:00" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-blocked-error-rejects-unknown-casting-code",
+      "operation": "parse-workspace-error",
+      "mutations": [{ "op": "replace", "path": "/error/code", "value": "PRIMARY_CHARACTER_UNKNOWN" }],
+      "expectedCode": "CANVAS_WORKSPACE_ERROR_INVALID"
+    },
+    {
+      "id": "workspace-blocked-error-is-fixed-nonretryable",
+      "operation": "parse-workspace-error",
+      "mutations": [{ "op": "replace", "path": "/error/retryable", "value": true }],
+      "expectedCode": "CANVAS_WORKSPACE_ERROR_INVALID"
+    },
+    {
+      "id": "workspace-casting-block-never-returns-partial-success",
+      "operation": "transport-only",
+      "httpStatus": 409,
+      "forbiddenOutcome": "partial CanvasWorkspace/0.1",
+      "expectedOutcome": "fixed_error_envelope"
+    },
+    {
+      "id": "workspace-rejects-legacy-open-bootstrap",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/bootstrap", "value": { "schemaVersion": "pilot-canvas-bootstrap.v1", "status": "ready" } }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-rejects-nested-package-scope-mismatch",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/bootstrap/packageId", "value": "30303030-3030-4030-8030-303030303030" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCOPE_MISMATCH"
+    },
+    {
+      "id": "workspace-rejects-document-session-scope-mismatch",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/document/canvasSessionId", "value": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCOPE_MISMATCH"
+    },
+    {
+      "id": "workspace-document-reference-must-match",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/bootstrap/document/version", "value": 3 }],
+      "expectedCode": "CANVAS_WORKSPACE_DOCUMENT_MISMATCH"
+    },
+    {
+      "id": "workspace-shot-must-exist-in-document",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/shotId", "value": "17171717-1717-4717-8717-171717171717" }],
+      "expectedCode": "CANVAS_WORKSPACE_SHOT_MISMATCH"
+    },
+    {
+      "id": "workspace-shot-sequence-is-contiguous",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/sequence", "value": 2 }],
+      "expectedCode": "CANVAS_WORKSPACE_SHOT_MISMATCH"
+    },
+    {
+      "id": "workspace-shot-title-is-deterministic-sequence-label",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/title", "value": "AI invented title" }],
+      "expectedCode": "CANVAS_WORKSPACE_SHOT_MISMATCH"
+    },
+    {
+      "id": "workspace-shot-script-is-not-empty-default",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/scriptText", "value": "" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-shot-storyboard-is-not-empty-default",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/storyboardText", "value": "" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCHEMA_INVALID"
+    },
+    {
+      "id": "workspace-requirement-must-bind-shot",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/requirements/0/shotId", "value": "17171717-1717-4717-8717-171717171717" }],
+      "expectedCode": "CANVAS_WORKSPACE_REQUIREMENT_MISMATCH"
+    },
+    {
+      "id": "workspace-requirement-must-bind-approved-script",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/requirements/0/source/scriptVersion", "value": 2 }],
+      "expectedCode": "CANVAS_WORKSPACE_REQUIREMENT_MISMATCH"
+    },
+    {
+      "id": "workspace-readiness-must-bind-approved-storyboard",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/readiness/storyboard/version", "value": 1 }],
+      "expectedCode": "CANVAS_WORKSPACE_READINESS_MISMATCH"
+    },
+    {
+      "id": "workspace-readiness-requirements-must-be-exact",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/readiness/requirements/0/requirementId", "value": "18181818-1818-4818-8818-181818181818" }],
+      "expectedCode": "CANVAS_WORKSPACE_READINESS_MISMATCH"
+    },
+    {
+      "id": "workspace-required-labels-are-derived-not-invented",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/requiredAssetLabels/0", "value": "神秘素材" }],
+      "expectedCode": "CANVAS_WORKSPACE_REQUIREMENT_MISMATCH"
+    },
+    {
+      "id": "workspace-asset-aggregate-must-equal-bootstrap-summary",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/assets/0/displayName", "value": "drifted" }],
+      "expectedCode": "CANVAS_WORKSPACE_ASSET_MISMATCH"
+    },
+    {
+      "id": "workspace-materialization-ready-needs-null-reason",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/assets/0/materialization/reasonCode", "value": "MATERIALIZATION_REQUIRED" }],
+      "expectedCode": "CANVAS_WORKSPACE_ASSET_MISMATCH"
+    },
+    {
+      "id": "workspace-nonvirtual-asset-cannot-claim-materialized",
+      "operation": "parse-workspace",
+      "mutations": [
+        { "op": "replace", "path": "/assets/0/category", "value": "store" },
+        { "op": "replace", "path": "/bootstrap/assetSummaries/0/category", "value": "store" }
+      ],
+      "expectedCode": "CANVAS_WORKSPACE_ASSET_MISMATCH"
+    },
+    {
+      "id": "workspace-selected-output-must-match-document",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/outputs/0/selected", "value": false }],
+      "expectedCode": "CANVAS_WORKSPACE_OUTPUT_MISMATCH"
+    },
+    {
+      "id": "workspace-thumbnail-must-be-selected-controlled-output",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/thumbnailUrl", "value": "/api/production/pilot/canvas/v1/media/99999999-9999-4999-8999-999999999999/preview" }],
+      "expectedCode": "CANVAS_WORKSPACE_OUTPUT_MISMATCH"
+    },
+    {
+      "id": "workspace-output-signed-url-forbidden",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/outputs/0/previewUrl", "value": "https://bucket.example/a?X-Tos-Signature=secret" }],
+      "expectedCode": "CANVAS_WORKSPACE_BROWSER_UNSAFE"
+    },
+    {
+      "id": "workspace-event-must-be-generate-shot-event",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/event/commandType", "value": "SAVE_CANVAS_DOCUMENT" }],
+      "expectedCode": "CANVAS_WORKSPACE_EVENT_MISMATCH"
+    },
+    {
+      "id": "workspace-event-must-bind-active-session",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/shots/0/event/canvasSessionId", "value": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321" }],
+      "expectedCode": "CANVAS_WORKSPACE_SCOPE_MISMATCH"
+    },
+    {
+      "id": "workspace-incomplete-assets-requires-stable-reason",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/completeness/assets", "value": false }],
+      "expectedCode": "CANVAS_WORKSPACE_STATUS_INCONSISTENT"
+    },
+    {
+      "id": "workspace-ready-cannot-have-reason",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "add", "path": "/reasonCodes/0", "value": "WORKSPACE_EVENTS_INCOMPLETE" }],
+      "expectedCode": "CANVAS_WORKSPACE_STATUS_INCONSISTENT"
+    },
+    {
+      "id": "workspace-blocked-cannot-hide-reason",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "replace", "path": "/status", "value": "blocked" }],
+      "expectedCode": "CANVAS_WORKSPACE_STATUS_INCONSISTENT"
+    },
+    {
+      "id": "workspace-production-package-snapshot-forbidden",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "add", "path": "/packageSnapshot", "value": { "approvedScript": "raw" } }],
+      "expectedCode": "CANVAS_WORKSPACE_BROWSER_UNSAFE"
+    },
+    {
+      "id": "workspace-storage-reference-forbidden",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "add", "path": "/assets/0/storageReference", "value": "tenant-assets/private.png" }],
+      "expectedCode": "CANVAS_WORKSPACE_BROWSER_UNSAFE"
+    },
+    {
+      "id": "workspace-provider-asset-uri-forbidden",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "add", "path": "/assets/0/assetUri", "value": "asset://secret-provider-id" }],
+      "expectedCode": "CANVAS_WORKSPACE_BROWSER_UNSAFE"
+    },
+    {
+      "id": "workspace-materialization-bytes-forbidden",
+      "operation": "parse-workspace",
+      "mutations": [{ "op": "add", "path": "/assets/0/contentBase64", "value": "c2VjcmV0" }],
+      "expectedCode": "CANVAS_WORKSPACE_BROWSER_UNSAFE"
+    },
+    {
+      "id": "materialization-request-rejects-unknown-field",
+      "operation": "parse-materialization-request",
+      "mutations": [{ "op": "add", "path": "/mimeType", "value": "image/png" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_REQUEST_INVALID"
+    },
+    {
+      "id": "materialization-request-requires-exact-active-session",
+      "operation": "parse-materialization-request",
+      "mutations": [{ "op": "replace", "path": "/canvasSessionId", "value": "latest" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_REQUEST_INVALID"
+    },
+    {
+      "id": "materialization-same-attempt-changed-project-conflicts",
+      "operation": "materialization-replay",
+      "mutations": [{ "op": "replace", "path": "/projectId", "value": "30303030-3030-4030-8030-303030303030" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "id": "materialization-same-attempt-changed-asset-conflicts",
+      "operation": "materialization-replay",
+      "mutations": [{ "op": "replace", "path": "/assetId", "value": "99999999-9999-4999-8999-999999999999" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_IDEMPOTENCY_CONFLICT"
+    },
+    {
+      "id": "materialization-internal-auth-runs-before-json-parser",
+      "operation": "transport-only",
+      "surface": "POST /api/v1/internal/canvas-assets/materializations",
+      "expectedCode": "CANVAS_MATERIALIZATION_INTERNAL_AUTH_INVALID"
+    },
+    {
+      "id": "materialization-request-body-limit-is-16kib",
+      "operation": "transport-only",
+      "inputBytes": 16385,
+      "expectedCode": "CANVAS_MATERIALIZATION_REQUEST_TOO_LARGE"
+    },
+    {
+      "id": "materialization-response-rejects-unknown-field",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "add", "path": "/storageReference", "value": "tenant-assets/private.png" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
+    },
+    {
+      "id": "materialization-response-scope-matches-request",
+      "operation": "materialization-response-match",
+      "mutations": [{ "op": "replace", "path": "/packageId", "value": "30303030-3030-4030-8030-303030303030" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_SCOPE_MISMATCH"
+    },
+    {
+      "id": "materialization-response-attempt-matches-request",
+      "operation": "materialization-response-match",
+      "mutations": [{ "op": "replace", "path": "/materializationAttemptId", "value": "19191919-1919-4919-8919-191919191919" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_SCOPE_MISMATCH"
+    },
+    {
+      "id": "materialization-category-first-day-only-virtual-character",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/category", "value": "store" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_CATEGORY_UNSUPPORTED"
+    },
+    {
+      "id": "materialization-decoded-source-must-not-be-empty",
+      "operation": "parse-materialization-response",
+      "mutations": [
+        { "op": "replace", "path": "/contentBase64", "value": "" },
+        { "op": "replace", "path": "/byteSize", "value": 0 }
+      ],
+      "expectedCode": "CANVAS_MATERIALIZATION_SOURCE_EMPTY"
+    },
+    {
+      "id": "materialization-decoded-source-hard-limit-8mib",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/byteSize", "value": 8388609 }],
+      "expectedCode": "CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE"
+    },
+    {
+      "id": "materialization-mime-first-day-allowlist",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/mimeType", "value": "image/gif" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_MIME_UNSUPPORTED"
+    },
+    {
+      "id": "materialization-mime-must-match-magic-bytes",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/mimeType", "value": "image/jpeg" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED"
+    },
+    {
+      "id": "materialization-byte-size-must-match-decoded-bytes",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/byteSize", "value": 67 }],
+      "expectedCode": "CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED"
+    },
+    {
+      "id": "materialization-checksum-must-match-decoded-bytes",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/checksum", "value": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED"
+    },
+    {
+      "id": "materialization-base64-must-be-canonical",
+      "operation": "parse-materialization-response",
+      "mutations": [{ "op": "replace", "path": "/contentBase64", "value": "not base64" }],
+      "expectedCode": "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
+    },
+    {
+      "id": "materialization-one-byte-codec-is-canonical-but-mime-unsupported",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 1,
+      "expectedCode": "CANVAS_MATERIALIZATION_MIME_UNSUPPORTED"
+    },
+    {
+      "id": "materialization-minimal-three-byte-jpeg-magic-passes",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 3,
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "materialization-exact-eight-mib-valid-jpeg-passes-without-parser-overflow",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 8388608,
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "materialization-eight-mib-plus-one-fails-before-persistence",
+      "operation": "materialization-boundary",
+      "decodedByteSize": 8388609,
+      "expectedCode": "CANVAS_MATERIALIZATION_SOURCE_TOO_LARGE"
+    },
+    {
+      "id": "materialization-noncanonical-padding-fails-fixed",
+      "operation": "materialization-boundary",
+      "contentBase64": "/9j",
+      "expectedCode": "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
+    },
+    {
+      "id": "materialization-preview-url-cannot-replace-bytes",
+      "operation": "parse-materialization-response",
+      "mutations": [
+        { "op": "remove", "path": "/contentBase64" },
+        { "op": "add", "path": "/signedUrl", "value": "https://bucket.example/private?X-Tos-Signature=secret" }
+      ],
+      "expectedCode": "CANVAS_MATERIALIZATION_RESPONSE_INVALID"
+    },
+    {
+      "id": "materialization-same-request-replays",
+      "operation": "materialization-replay-same",
+      "expectedOutcome": "replay"
+    },
+    {
+      "id": "materialization-response-loss-retries-same-attempt",
+      "operation": "transport-only",
+      "expectedOutcome": "same_authority_facts_replayed"
+    },
+    {
+      "id": "materialization-unreadable-source-fails-closed",
+      "operation": "transport-only",
+      "expectedCode": "CANVAS_MATERIALIZATION_SOURCE_UNAVAILABLE"
+    },
+    {
+      "id": "materialization-authority-checksum-drift-fails-closed",
+      "operation": "transport-only",
+      "expectedCode": "CANVAS_MATERIALIZATION_CONTENT_INTEGRITY_FAILED"
+    },
+    {
+      "id": "materialization-error-never-echoes-storage-reference",
+      "operation": "transport-only",
+      "forbiddenMarker": "storageReference",
+      "expectedCode": "CANVAS_MATERIALIZATION_DEPENDENCY_UNAVAILABLE"
+    },
+    {
+      "id": "materialization-error-never-echoes-internal-token",
+      "operation": "transport-only",
+      "forbiddenMarker": "x-production-plane-internal-token",
+      "expectedCode": "CANVAS_MATERIALIZATION_INTERNAL_AUTH_INVALID"
+    },
+    {
+      "id": "materialization-response-is-no-store",
+      "operation": "transport-only",
+      "requiredHeader": "Cache-Control: no-store",
+      "expectedOutcome": "pass"
+    },
+    {
+      "id": "materialization-story-persists-unique-control-asset-mapping",
+      "operation": "persistence-only",
+      "mapping": {
+        "system": "saas-control-plane",
+        "entityType": "canvas-v1-asset"
+      },
+      "expectedOutcome": "unique_exact_asset_mapping"
+    },
+    {
+      "id": "materialization-story-same-content-replay-does-not-overwrite",
+      "operation": "persistence-only",
+      "expectedOutcome": "same_mapping_replay"
+    },
+    {
+      "id": "materialization-story-changed-content-never-overwrites",
+      "operation": "persistence-only",
+      "expectedCode": "CANVAS_MATERIALIZATION_IDEMPOTENCY_CONFLICT"
+    }
+  ]
+}
