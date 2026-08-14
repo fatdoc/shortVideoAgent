@@ -23,6 +23,18 @@ function digest(seed: string): `sha256:${string}` {
   return `sha256:${createHash('sha256').update(seed).digest('hex')}`;
 }
 
+function browserBrief(objective: string) {
+  return {
+    objective,
+    audience: ['周边消费者'],
+    platforms: ['douyin'],
+    brandFacts: [{ text: '门店每日供应手冲咖啡', sourceReference: '门店菜单' }],
+    prohibitedTerms: ['全网最低价'],
+    requiredDisclosures: ['供应以门店当日菜单为准'],
+    factsConfirmed: true as const,
+  };
+}
+
 async function insertStoryboardVersion(
   database: Knex,
   input: {
@@ -279,20 +291,22 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     expect(crossTenantEligibility.status).toBe(404);
     expect(crossTenantEligibility.body.error.code).toBe('PROJECT_NOT_FOUND');
 
-    for (const [index, goal] of ['awareness', 'conversion'].entries()) {
+    for (const [index, objective] of ['awareness', 'conversion'].entries()) {
       const brief = await request(app)
         .post(`/api/v1/projects/${projectId}/brief-versions`)
         .set('cookie', 'videoagent_session=tenant-a-session')
         .set('idempotency-key', `brief-${index + 1}`)
-        .send({ payload: { goal } });
+        .send({ payload: browserBrief(objective) });
       expect(brief.status).toBe(201);
       expect(brief.body.version).toBe(index + 1);
+      expect(brief.body.payload).toEqual(browserBrief(objective));
+      expect(JSON.stringify(brief.body)).not.toMatch(/sourceDigest|brandPolicySnapshot|sha256:/u);
     }
     const briefReplay = await request(app)
       .post(`/api/v1/projects/${projectId}/brief-versions`)
       .set('cookie', 'videoagent_session=tenant-a-session')
       .set('idempotency-key', 'brief-2')
-      .send({ payload: { goal: 'conversion' } });
+      .send({ payload: browserBrief('conversion') });
     expect(briefReplay.status).toBe(200);
     expect(briefReplay.body.version).toBe(2);
     expect(
@@ -301,6 +315,23 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
         .count('* as count')
         .first(),
     ).toMatchObject({ count: '2' });
+    const storedBrief = (await database('control_plane.creative_briefs')
+      .select('payload')
+      .where({ project_id: projectId, version: 2 })
+      .first()) as { payload: Record<string, unknown> };
+    expect(storedBrief.payload).toMatchObject({
+      objective: 'conversion',
+      brandPolicySnapshot: {
+        facts: [
+          expect.objectContaining({
+            text: '门店每日供应手冲咖啡',
+            sourceReference: '门店菜单',
+            approved: true,
+          }),
+        ],
+        sourceDigest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+      },
+    });
 
     let latestScriptId = '';
     for (const [index, title] of ['draft one', 'draft two'].entries()) {
@@ -405,6 +436,8 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     expect(
       briefs.body.briefVersions.map((version: { version: number }) => version.version),
     ).toEqual([1, 2]);
+    expect(briefs.body.briefVersions[1].payload).toEqual(browserBrief('conversion'));
+    expect(JSON.stringify(briefs.body)).not.toMatch(/sourceDigest|brandPolicySnapshot|sha256:/u);
     expect(
       scripts.body.scriptVersions.map((version: { version: number }) => version.version),
     ).toEqual([1, 2]);

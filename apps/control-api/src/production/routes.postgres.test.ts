@@ -9,6 +9,8 @@ import { up as hardenProductionSecurity } from '../db/migrations/005_production_
 import { up as addStoryboardAuthority } from '../db/migrations/020_storyboard_authority.js';
 import { up as addProductionStoryboardAuthority } from '../db/migrations/022_production_storyboard_authority.js';
 import type { ProjectPolicy } from '../projects/policy.js';
+import { PostgresContentStore } from '../projects/repository.js';
+import { createContentRouter } from '../projects/routes.js';
 import { tokenDigest } from './digest.js';
 import { ProjectGrantTokenService } from './grantToken.js';
 import { PostgresProductionStore } from './repository.js';
@@ -81,6 +83,21 @@ function packageCommand() {
     expiresInSeconds: 3_600,
   };
 }
+
+const browserSafeBrief = {
+  objective: 'Create a browser-originated controlled production package.',
+  audience: ['pilot-reviewers'],
+  platforms: ['douyin'],
+  brandFacts: [
+    {
+      text: 'Browser-confirmed store fact.',
+      sourceReference: 'Tenant source record 2026-08-14',
+    },
+  ],
+  prohibitedTerms: [],
+  requiredDisclosures: ['TEST only'],
+  factsConfirmed: true as const,
+};
 
 async function seedApprovedAuthority(database: Knex): Promise<void> {
   await database('control_plane.projects').insert({
@@ -245,10 +262,22 @@ describe.runIf(hasDedicatedTestDatabase)('Strict Production Package v0.3 HTTP Po
       secureCookies: false,
       sessionTtlSeconds: 28_800,
     });
+    const contentRouter = createContentRouter({
+      store: new PostgresContentStore(database),
+      policy: projectPolicy,
+      resolveSession: async (token) => {
+        if (token === 'tenant-a-session') return session(tenantA, userA);
+        if (token === 'tenant-b-session') return session(tenantB, userB);
+        return null;
+      },
+      secureCookies: false,
+      sessionTtlSeconds: 28_800,
+    });
     app = createApp({
       appVersion: 'test',
       nodeEnv: 'test',
       readinessProbe: async () => undefined,
+      contentRouter,
       productionRouter,
     });
   });
@@ -377,6 +406,46 @@ describe.runIf(hasDedicatedTestDatabase)('Strict Production Package v0.3 HTTP Po
         .where({ package_id: created.body.packageId })
         .update({ snapshot: JSON.stringify({ tampered: true }) }),
     ).rejects.toThrow(/immutable/);
+  });
+
+  it('derives canonical authority from a browser-safe Brief before creating a real Package', async () => {
+    await database('control_plane.creative_briefs').where({ project_id: projectA }).delete();
+
+    const brief = await request(app)
+      .post(`/api/v1/projects/${projectA}/brief-versions`)
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'browser-brief-to-package')
+      .send({ payload: browserSafeBrief });
+    expect(brief.status).toBe(201);
+    expect(brief.body.payload).toEqual(browserSafeBrief);
+    expect(JSON.stringify(brief.body)).not.toMatch(/sourceDigest|brandPolicySnapshot|sha256:/u);
+
+    const stored = (await database('control_plane.creative_briefs')
+      .select('payload')
+      .where({ project_id: projectA })
+      .first()) as { payload: Record<string, unknown> };
+    expect(stored.payload).toMatchObject({
+      objective: browserSafeBrief.objective,
+      brandPolicySnapshot: {
+        facts: [
+          expect.objectContaining({
+            text: browserSafeBrief.brandFacts[0].text,
+            sourceReference: browserSafeBrief.brandFacts[0].sourceReference,
+            approved: true,
+          }),
+        ],
+        sourceDigest: expect.stringMatching(/^sha256:[a-f0-9]{64}$/u),
+      },
+    });
+
+    const productionPackage = await createPackage('browser-brief-package');
+    expect(productionPackage.status).toBe(201);
+    expect(productionPackage.body).toMatchObject({
+      projectId: projectA,
+      scriptVersionId: scriptA,
+      storyboardVersionId: storyboardA,
+      status: 'ready',
+    });
   });
 
   it('returns one no-store 404 for cross-tenant and unknown Package reads', async () => {
