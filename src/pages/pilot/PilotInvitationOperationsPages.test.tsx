@@ -69,7 +69,8 @@ function invitation(
     targetOrganizationId: invitationType === 'TENANT_MEMBER' ? TENANT_ID : null,
     targetRoleCode: invitationType === 'TENANT_MEMBER' ? 'content_operator' : null,
     targetEmail: invitationType === 'CHANNEL' ? null : 'invitee@example.com',
-    attributionChannelId: invitationType === 'PLATFORM' ? CHANNEL_ID : null,
+    attributionChannelId:
+      invitationType === 'PLATFORM' || invitationType === 'CHANNEL' ? CHANNEL_ID : null,
     status,
     validFrom: '2026-08-10T01:00:00.000Z',
     expiresAt: '2026-08-17T01:00:00.000Z',
@@ -149,6 +150,27 @@ describe('A-BIZ-06C.4 Organization Invitation Operations Pages', () => {
       100,
     );
     expect(screen.getByText('真实渠道 A')).toBeInTheDocument();
+  });
+
+  it('renders the canonical revoked Channel directory without a historical token', async () => {
+    usePilotAuthStore.setState({
+      status: 'authenticated',
+      session: session('CHANNEL', 'channel_admin'),
+      error: null,
+      requestId: null,
+    });
+    vi.spyOn(pilotControlApi, 'readCurrentChannel').mockResolvedValue(channelReference);
+    vi.spyOn(pilotControlApi, 'listChannelInvitations').mockResolvedValue([
+      invitation('revoked', 'CHANNEL'),
+    ]);
+
+    renderPage(<PilotChannelInvitationsPage />);
+
+    const ready = await screen.findByTestId('pilot-invitations-ready');
+    expect(ready).toHaveTextContent('revoked');
+    expect(ready).toHaveTextContent('Channel reusable invitation');
+    expect(ready).not.toHaveTextContent(CHANNEL_ID);
+    expect(ready).not.toHaveTextContent(TOKEN);
   });
 
   it('uses only Session tenantId and rejects content_operator before any API call', async () => {
