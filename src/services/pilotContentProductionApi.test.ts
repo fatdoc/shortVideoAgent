@@ -386,6 +386,38 @@ describe('pilotContentProductionApi', () => {
     expect(JSON.stringify(packageProjection)).not.toContain('digest');
   });
 
+  it('lists explicit Package choices from a strict digest-free projection', async () => {
+    const selection = {
+      objectType: packageResponse.objectType,
+      contractVersion: packageResponse.contractVersion,
+      projectId,
+      packageId,
+      packageVersion: 1,
+      scriptVersionId,
+      storyboardVersionId,
+      capabilityRequirements: ['video.generate'],
+      status: 'ready',
+      createdAt: packageResponse.createdAt,
+      expiresAt: packageResponse.expiresAt,
+    } as const;
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ packages: [selection] }))
+      .mockResolvedValueOnce(jsonResponse({ packages: [{ ...selection, payloadDigest: digest }] }));
+    const api = createPilotContentProductionApi({ runtime, fetchImpl });
+
+    await expect(api.listProductionPackages(projectId)).resolves.toEqual([packageProjection]);
+    await expect(api.listProductionPackages(projectId)).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+      status: 200,
+    });
+    expect(fetchImpl).toHaveBeenNthCalledWith(
+      1,
+      `https://control.example.com/api/v1/projects/${projectId}/production-packages`,
+      expect.objectContaining({ method: 'GET', credentials: 'include', cache: 'no-store' }),
+    );
+  });
+
   it('creates and reads only an exact non-secret Canvas Entry projection', async () => {
     const fetchImpl = vi
       .fn()

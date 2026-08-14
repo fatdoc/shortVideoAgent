@@ -218,10 +218,7 @@ export interface PilotCreateCanvasEntryInput {
 }
 
 export interface PilotContentProductionApi {
-  listBriefVersions(
-    projectId: string,
-    options?: PilotRequestOptions,
-  ): Promise<PilotBriefVersion[]>;
+  listBriefVersions(projectId: string, options?: PilotRequestOptions): Promise<PilotBriefVersion[]>;
   createBriefVersion(
     projectId: string,
     input: { payload: Record<string, unknown> },
@@ -272,6 +269,10 @@ export interface PilotContentProductionApi {
     idempotencyKey: string,
     options?: PilotRequestOptions,
   ): Promise<PilotMutationResult<PilotProductionPackage>>;
+  listProductionPackages(
+    projectId: string,
+    options?: PilotRequestOptions,
+  ): Promise<PilotProductionPackage[]>;
   readProductionPackage(
     projectId: string,
     packageId: string,
@@ -934,6 +935,60 @@ function parseProductionPackage(value: unknown): PilotProductionPackage {
   };
 }
 
+function parseProductionPackageSelection(value: unknown): PilotProductionPackage {
+  const keys = [
+    'objectType',
+    'contractVersion',
+    'projectId',
+    'packageId',
+    'packageVersion',
+    'scriptVersionId',
+    'storyboardVersionId',
+    'capabilityRequirements',
+    'status',
+    'createdAt',
+    'expiresAt',
+  ] as const;
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, keys) ||
+    value.objectType !== 'ProjectProductionPackage' ||
+    value.contractVersion !== '0.3' ||
+    !uuid(value.projectId) ||
+    !uuid(value.packageId) ||
+    !positiveInteger(value.packageVersion) ||
+    !uuid(value.scriptVersionId) ||
+    !uuid(value.storyboardVersionId) ||
+    !Array.isArray(value.capabilityRequirements) ||
+    value.capabilityRequirements.length < 1 ||
+    value.capabilityRequirements.length > 4 ||
+    value.capabilityRequirements.some(
+      (capability) =>
+        typeof capability !== 'string' ||
+        !CAPABILITIES.has(capability as PilotProductionCapability),
+    ) ||
+    new Set(value.capabilityRequirements).size !== value.capabilityRequirements.length ||
+    value.status !== 'ready' ||
+    !timestamp(value.createdAt) ||
+    !timestamp(value.expiresAt)
+  ) {
+    throw new Error('invalid production package selection');
+  }
+  return {
+    objectType: 'ProjectProductionPackage',
+    contractVersion: '0.3',
+    projectId: value.projectId,
+    packageId: value.packageId,
+    packageVersion: value.packageVersion,
+    scriptVersionId: value.scriptVersionId,
+    storyboardVersionId: value.storyboardVersionId,
+    capabilityRequirements: value.capabilityRequirements as PilotProductionCapability[],
+    status: 'ready',
+    createdAt: value.createdAt,
+    expiresAt: value.expiresAt,
+  };
+}
+
 function normalizedKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -1253,6 +1308,18 @@ export function createPilotContentProductionApi(
         parse: parseProductionPackage,
       });
       return mutationResult(response.data, response.replayed, response.status);
+    },
+
+    async listProductionPackages(projectId, options) {
+      assertProjectId(projectId);
+      const response = await transport.request({
+        method: 'GET',
+        path: `/api/v1/projects/${projectId}/production-packages`,
+        ...requestOptions(options),
+        expectedStatuses: [200],
+        parse: (value) => parseList(value, 'packages', parseProductionPackageSelection),
+      });
+      return response.data;
     },
 
     async readProductionPackage(projectId, packageId, options) {

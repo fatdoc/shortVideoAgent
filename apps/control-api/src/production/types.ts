@@ -192,6 +192,7 @@ export interface ProductionStore {
     projectId: string,
     packageId: string,
   ): Promise<ProjectProductionPackage | null>;
+  listPackages(actor: SessionActor, projectId: string): Promise<ProjectProductionPackage[]>;
   issueGrant(
     actor: SessionActor,
     projectId: string,

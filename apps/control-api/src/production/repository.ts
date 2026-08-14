@@ -419,6 +419,17 @@ export class PostgresProductionStore implements ProductionStore {
     return row ? jsonValue(row.snapshot) : null;
   }
 
+  async listPackages(actor: SessionActor, projectId: string): Promise<ProjectProductionPackage[]> {
+    const rows = (await this.database('control_plane.production_packages')
+      .select('snapshot')
+      .where({ tenant_id: actor.tenantId, project_id: projectId })
+      .orderBy('package_version', 'desc')
+      .orderBy('created_at', 'desc')) as Array<{
+      snapshot: ProjectProductionPackage | string;
+    }>;
+    return rows.map((row) => jsonValue(row.snapshot));
+  }
+
   async issueGrant(
     actor: SessionActor,
     projectId: string,
