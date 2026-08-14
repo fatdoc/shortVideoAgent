@@ -93,6 +93,26 @@ vi.mock('../pages/pilot-production/PilotProjectContentPages', () => ({
   ),
 }));
 
+vi.mock('../pages/pilot-production/PilotTenantOverviewPages', () => ({
+  PilotTenantOverviewPage: ({
+    routeKey,
+    activeProjectId,
+    projects,
+  }: {
+    routeKey: string;
+    activeProjectId: string | null;
+    projects: PilotProject[];
+  }) => (
+    <div
+      data-testid={`pilot-tenant-overview-${routeKey}`}
+      data-project-id={activeProjectId ?? ''}
+      data-project-count={projects.length}
+    >
+      Real Pilot tenant overview
+    </div>
+  ),
+}));
+
 import App from './App';
 import type { PilotProject, PilotSession } from '../services/pilotControlApi';
 import { usePilotAuthStore } from '../stores/pilotAuthStore';
@@ -291,6 +311,27 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     expect(screen.queryByRole('menuitem', { name: /企业工作台/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /已购能力/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /新建 \/ Brief/ })).not.toBeInTheDocument();
+  });
+
+  it('routes tenant administrators to real Dashboard and production capability pages', async () => {
+    setTenantContext('tenant_admin');
+    window.history.replaceState({}, '', '/dashboard');
+    const view = render(<App />);
+
+    expect(await screen.findByTestId('pilot-tenant-overview-dashboard')).toHaveAttribute(
+      'data-project-id',
+      'project-alpha',
+    );
+    expect(screen.queryByTestId('pilot-route-unavailable')).not.toBeInTheDocument();
+
+    window.history.pushState({}, '', '/enterprise/products');
+    view.rerender(<App />);
+    expect(await screen.findByTestId('pilot-tenant-overview-products')).toHaveAttribute(
+      'data-project-count',
+      '1',
+    );
+    expect(screen.getAllByText('生产能力').length).toBeGreaterThan(0);
+    expect(screen.queryByText('企业已购能力')).not.toBeInTheDocument();
   });
 
   it('routes an empty server Project Scope to the explicit project empty state', async () => {

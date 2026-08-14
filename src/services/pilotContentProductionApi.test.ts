@@ -435,10 +435,17 @@ describe('pilotContentProductionApi', () => {
     const fetchImpl = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ packages: [selection] }))
-      .mockResolvedValueOnce(jsonResponse({ packages: [{ ...selection, payloadDigest: digest }] }));
+      .mockResolvedValueOnce(jsonResponse({ packages: [{ ...selection, payloadDigest: digest }] }))
+      .mockResolvedValueOnce(
+        jsonResponse({ packages: [{ ...selection, purchaseState: 'purchased', price: 100 }] }),
+      );
     const api = createPilotContentProductionApi({ runtime, fetchImpl });
 
     await expect(api.listProductionPackages(projectId)).resolves.toEqual([packageProjection]);
+    await expect(api.listProductionPackages(projectId)).rejects.toMatchObject({
+      code: 'INVALID_API_RESPONSE',
+      status: 200,
+    });
     await expect(api.listProductionPackages(projectId)).rejects.toMatchObject({
       code: 'INVALID_API_RESPONSE',
       status: 200,
