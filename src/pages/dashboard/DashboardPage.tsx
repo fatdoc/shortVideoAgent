@@ -1,18 +1,17 @@
 import {
   ArrowRightOutlined,
-  CheckSquareOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
   PlusOutlined,
   SearchOutlined,
   VideoCameraOutlined,
-  WalletOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
-import { Alert, Button, Empty, Input, Progress, Select, Tag, Typography } from 'antd';
+import { Alert, Button, Empty, Input, Progress, Tag, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ProjectMetricCard, WorkflowProgress } from '../../components/project';
-import { TruthBadge } from '../../components/workbench/TruthBadge';
 import '../../components/project/project-workflow.css';
 import { DEMO_PROJECT_ID, PROJECT_STATUS_LABEL, ROUTES } from '../../domain/constants';
 import { selectTenantProjectDeliveryView } from '../../domain/controlPlaneDeliveryView';
@@ -21,6 +20,13 @@ import { summarizeWorkspace } from '../../domain/selectors';
 import { DEMO_TENANT_ID } from '../../mocks/controlPlaneDemo';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { useProjectStore } from '../../stores/projectStore';
+
+const shotStatusLabel = {
+  matched: '素材已匹配',
+  reshoot: '需要补拍',
+  missing: '缺少素材',
+  ai_placeholder: '待人工确认',
+} as const;
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -33,7 +39,6 @@ export function DashboardPage() {
   const lastReceiptSync = useControlPlaneStore((state) => state.lastReceiptSync);
   const controlPlaneError = useControlPlaneStore((state) => state.error);
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
 
   const summary = useMemo(() => summarizeWorkspace(workspace), [workspace]);
   const tenantView = useMemo(() => selectTenantCommercialView(controlPlane), [controlPlane]);
@@ -51,10 +56,32 @@ export function DashboardPage() {
   const activeEntitlementCount = tenantView.entitlements.filter(
     (entitlement) => entitlement.status === 'active',
   ).length;
-  const visibleProject =
-    workspace.project.id &&
-    workspace.project.name.toLowerCase().includes(query.trim().toLowerCase()) &&
-    (statusFilter === 'all' || workspace.project.status === statusFilter);
+  const assetById = useMemo(
+    () => new Map(workspace.assets.map((asset) => [asset.id, asset])),
+    [workspace.assets],
+  );
+  const storefrontAsset =
+    workspace.assets.find((asset) => asset.tags.includes('门头') || asset.id.includes('storefront')) ??
+    workspace.assets[0];
+  const visibleShots = workspace.storyboard.filter((shot) => {
+    const asset = shot.assetId ? assetById.get(shot.assetId) : undefined;
+    const haystack = `${workspace.project.name} ${workspace.brief.merchantName} ${shot.description} ${asset?.name ?? ''}`;
+    return haystack.toLowerCase().includes(query.trim().toLowerCase());
+  });
+  const blockingShots = workspace.storyboard.filter(
+    (shot) => shot.matchStatus === 'missing' || shot.matchStatus === 'reshoot',
+  );
+  const approvedFacts = workspace.brand.facts.filter((fact) => fact.status === 'approved').length;
+  const packageFactCount = workspace.brand.packages.reduce(
+    (count, item) => count + item.claimIds.length,
+    0,
+  );
+  const deliveryReady =
+    deliveryView.package.status === 'ready' &&
+    deliveryView.grant.status === 'active' &&
+    deliveryView.transport.connected;
+  const receiptIssueCount =
+    deliveryView.receiptSync.rejected + deliveryView.receiptSync.ackError;
 
   const dueDays = Math.max(
     0,
@@ -65,9 +92,9 @@ export function DashboardPage() {
     <div className="project-workflow-page" data-testid="dashboard-page">
       <div className="project-page-toolbar">
         <div className="project-page-toolbar-copy">
-          <Typography.Title level={3}>工作台</Typography.Title>
+          <Typography.Title level={3}>门店经营工作台</Typography.Title>
           <Typography.Text type="secondary">
-            查看统一 Demo 的生产进度、待办风险与下一步动作。
+            从门店建档、商品套餐、门店资产到获客任务，按真实工作区资料排队处理。
           </Typography.Text>
         </div>
         <Button
@@ -77,46 +104,9 @@ export function DashboardPage() {
           onClick={() => navigate(ROUTES.projectNew)}
           data-testid="dashboard-new-project"
         >
-          新建项目
+          新建获客任务
         </Button>
       </div>
-
-      <section className="d1-enterprise-context">
-        <div className="d1-enterprise-context-main">
-          <span className="d1-enterprise-context-icon">
-            <WalletOutlined />
-          </span>
-          <div>
-            <Typography.Text type="secondary">当前企业</Typography.Text>
-            <Typography.Text strong>{tenantView.tenant.displayName}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">团队成员</Typography.Text>
-            <Typography.Text strong>{tenantView.team.activeMemberCount}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">活跃项目</Typography.Text>
-            <Typography.Text strong>{workspace.project.id ? 1 : 0}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">可用额度</Typography.Text>
-            <Typography.Text strong>{tenantView.wallet.available.value}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">冻结额度</Typography.Text>
-            <Typography.Text strong>{tenantView.wallet.reserved.value}</Typography.Text>
-          </div>
-          <div>
-            <Typography.Text type="secondary">已购能力</Typography.Text>
-            <Typography.Text strong>{activeEntitlementCount}</Typography.Text>
-          </div>
-        </div>
-        <div className="d1-enterprise-context-actions">
-          <TruthBadge capabilityId="demo.local-life-golden-path" compact />
-          <Tag>{tenantView.disclaimer}</Tag>
-          <Button onClick={() => navigate(ROUTES.enterpriseProducts)}>查看已购 / 未购买</Button>
-        </div>
-      </section>
 
       {error ? (
         <Alert
@@ -134,112 +124,90 @@ export function DashboardPage() {
         />
       ) : null}
 
-      <div className="project-metrics-grid">
-        <ProjectMetricCard
-          icon={<FolderOpenOutlined />}
-          label="活跃项目"
-          value={workspace.project.id ? 1 : 0}
-          hint={`统一 Demo · ${PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status}`}
-        />
-        <ProjectMetricCard
-          icon={<FileTextOutlined />}
-          label="品牌事实"
-          value={summary.factCount}
-          hint="C1—C8 可供脚本引用"
-          tone="cyan"
-        />
-        <ProjectMetricCard
-          icon={<VideoCameraOutlined />}
-          label="分镜任务"
-          value={summary.shotCount}
-          hint={`${summary.matchedShots} 镜已匹配 · ${summary.reshootShots} 镜待补拍`}
-          tone="green"
-        />
-        <ProjectMetricCard
-          icon={<CheckSquareOutlined />}
-          label="待处理风险"
-          value={summary.missingShots + summary.reshootShots}
-          hint="缺镜与补拍将影响导出"
-          tone="orange"
-        />
-      </div>
+      <section className="store-workbench-hero" data-testid="dashboard-store-hero">
+        <div className="store-hero-media">
+          {storefrontAsset ? (
+            <img src={storefrontAsset.thumbnail} alt={`${workspace.brief.merchantName} 门店素材`} />
+          ) : (
+            <div className="store-hero-empty">门店素材待配置</div>
+          )}
+        </div>
+        <div className="store-hero-copy">
+          <Typography.Text type="secondary">门店素材</Typography.Text>
+          <Typography.Text type="secondary">{tenantView.tenant.displayName}</Typography.Text>
+          <Typography.Title level={2}>{workspace.project.name}</Typography.Title>
+          <Typography.Paragraph type="secondary">
+            {workspace.brief.city || '城市待填写'} · {workspace.brief.address || '地址待填写'} ·{' '}
+            {workspace.brief.platforms.join(' / ') || '平台待选择'}
+          </Typography.Paragraph>
+          <div className="store-progress-line">
+            <span>门店资料</span>
+            <Progress
+              percent={summary.factCount ? Math.round((approvedFacts / summary.factCount) * 100) : 0}
+              showInfo={false}
+            />
+            <strong>{approvedFacts}/{summary.factCount}</strong>
+          </div>
+          <div className="store-hero-facts">
+            <span>商品套餐 {workspace.brand.packages.length}</span>
+            <span>门店资产 {summary.assetCount}</span>
+            <span>有效权益 {activeEntitlementCount}</span>
+            <span>套餐事实引用 {packageFactCount}</span>
+          </div>
+        </div>
+      </section>
 
-      <section className="project-surface" data-testid="dashboard-delivery-status">
+      <section className="store-flow-strip" aria-label="门店经营链路">
+        {[
+          ['门店建档', `${approvedFacts}/${summary.factCount} 已确认`, <FileTextOutlined />],
+          ['商品套餐', `${workspace.brand.packages.length} 项`, <FolderOpenOutlined />],
+          ['门店资产', `${summary.matchedShots} 镜已匹配`, <VideoCameraOutlined />],
+          ['获客任务', `${blockingShots.length} 项待处理`, <CheckCircleOutlined />],
+        ].map(([label, meta, icon]) => (
+          <button type="button" key={String(label)} className="store-flow-step">
+            <span>{icon}</span>
+            <strong>{label}</strong>
+            <small>{meta}</small>
+          </button>
+        ))}
+      </section>
+
+      <section className="project-surface store-delivery-panel" data-testid="dashboard-delivery-status">
         <div className="project-section-heading">
           <div>
-            <Typography.Title level={5}>项目交付状态</Typography.Title>
+            <Typography.Title level={5}>门店资产入口</Typography.Title>
             <Typography.Text type="secondary">
-              由租户 / 项目安全投影汇总，不直接展示 Bridge 或 Receipt 原始载荷。
+              只展示安全投影后的结果；无真实生成结果时保持待配置。
             </Typography.Text>
           </div>
-          <div className="dashboard-delivery-disclaimer">
-            <Tag color="blue">{deliveryView.disclaimer.dataMode}</Tag>
-            <Tag color="gold">{deliveryView.disclaimer.truthMode}</Tag>
-            <Tag>{deliveryView.disclaimer.authority}</Tag>
-          </div>
-        </div>
-
-        <div className="dashboard-delivery-status-rail">
-          <Tag color={deliveryView.package.status === 'ready' ? 'green' : 'default'}>
-            Package {deliveryView.package.status}
-          </Tag>
-          <Tag color={deliveryView.grant.status === 'active' ? 'green' : 'default'}>
-            Grant {deliveryView.grant.status}
-          </Tag>
-          <Tag color={deliveryView.transport.connected ? 'processing' : 'default'}>
-            传输 {deliveryView.transport.status}
-          </Tag>
-          <Tag color={deliveryView.receiptSync.status === 'partial_failure' ? 'orange' : 'default'}>
-            最近同步 {deliveryView.receiptSync.status}
+          <Tag color={deliveryReady ? 'green' : 'default'}>
+            {deliveryReady ? '可进入资产工作流' : '待配置'}
           </Tag>
         </div>
 
-        <div className="d1-enterprise-result-grid">
-          <article className="d1-enterprise-result-card">
-            <Typography.Text type="secondary">任务终态</Typography.Text>
-            <Typography.Text strong className="d1-enterprise-result-value">
-              唯一任务 {deliveryView.summary.uniqueTaskCount}
-            </Typography.Text>
-            <div>
-              <Tag color="green">成功 {deliveryView.summary.succeeded}</Tag>
-              <Tag color={deliveryView.summary.failed > 0 ? 'error' : 'default'}>
-                失败 {deliveryView.summary.failed}
-              </Tag>
-              <Tag>进行中 {deliveryView.summary.inProgress}</Tag>
-            </div>
-          </article>
-          <article className="d1-enterprise-result-card">
-            <Typography.Text type="secondary">交付证据</Typography.Text>
+        <div className="store-delivery-grid">
+          <div>
+            <Typography.Text type="secondary">生成状态</Typography.Text>
             <Typography.Text strong>
-              可交付 Asset {deliveryView.summary.deliverableAssetCount}
+              {deliveryView.summary.uniqueTaskCount > 0
+                ? `已生成 ${deliveryView.summary.succeeded}`
+                : '没有可展示的生成结果'}
             </Typography.Text>
-            <Typography.Text strong>Export {deliveryView.summary.exportCount}</Typography.Text>
-            <div>
-              <Tag>accepted {deliveryView.receiptSync.accepted}</Tag>
-              <Tag>duplicate {deliveryView.receiptSync.duplicate}</Tag>
-              <Tag color={deliveryView.receiptSync.rejected > 0 ? 'error' : 'default'}>
-                rejected {deliveryView.receiptSync.rejected}
-              </Tag>
-              <Tag color={deliveryView.receiptSync.ackError > 0 ? 'orange' : 'default'}>
-                ACK error {deliveryView.receiptSync.ackError}
-              </Tag>
-            </div>
-          </article>
-          <article className="d1-enterprise-result-card">
-            <Typography.Text type="secondary">AI 视频额度证据</Typography.Text>
-            <div className="dashboard-delivery-credit-list">
-              <Typography.Text strong>
-                reserved {deliveryView.summary.credits.reserved}
-              </Typography.Text>
-              <Typography.Text strong>
-                consumed {deliveryView.summary.credits.consumed}
-              </Typography.Text>
-              <Typography.Text strong>
-                released {deliveryView.summary.credits.released}
-              </Typography.Text>
-            </div>
-            <Typography.Text type="secondary">{deliveryView.summary.credits.unit}</Typography.Text>
-          </article>
+          </div>
+          <div>
+            <Typography.Text type="secondary">可交付素材</Typography.Text>
+            <Typography.Text strong>
+              可交付素材 {deliveryView.summary.deliverableAssetCount}
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">导出</Typography.Text>
+            <Typography.Text strong>导出 {deliveryView.summary.exportCount}</Typography.Text>
+          </div>
+          <div>
+            <Typography.Text type="secondary">回执确认</Typography.Text>
+            <Typography.Text strong>{receiptIssueCount > 0 ? '回执确认待处理' : '无待处理'}</Typography.Text>
+          </div>
         </div>
 
         {deliveryView.lastError ? (
@@ -253,12 +221,12 @@ export function DashboardPage() {
         ) : null}
       </section>
 
-      <div className="project-dashboard-grid">
-        <section className="project-surface">
+      <div className="project-dashboard-grid store-dashboard-grid">
+        <section className="project-surface" data-testid="dashboard-operations-queue">
           <div className="project-section-heading">
             <div>
-              <Typography.Title level={5}>项目列表</Typography.Title>
-              <Typography.Text type="secondary">当前工作区只使用统一 Demo 项目</Typography.Text>
+              <Typography.Title level={5}>生产队列</Typography.Title>
+              <Typography.Text type="secondary">按分镜、素材和风险状态推进获客内容。</Typography.Text>
             </div>
             <div className="project-list-tools">
               <Input
@@ -269,74 +237,52 @@ export function DashboardPage() {
                 onChange={(event) => setQuery(event.target.value)}
                 style={{ width: 190 }}
               />
-              <Select
-                value={statusFilter}
-                onChange={setStatusFilter}
-                style={{ width: 122 }}
-                options={[
-                  { value: 'all', label: '全部状态' },
-                  {
-                    value: workspace.project.status,
-                    label: PROJECT_STATUS_LABEL[workspace.project.status] ?? '进行中',
-                  },
-                ]}
-              />
             </div>
           </div>
 
-          {visibleProject ? (
-            <div className="project-list-row" data-testid="dashboard-project-row">
-              <div className="project-list-main">
-                <div className="project-list-thumb">Hi</div>
-                <div className="project-list-copy">
-                  <Typography.Text strong className="project-list-title">
-                    {workspace.project.name}
-                  </Typography.Text>
-                  <div className="project-list-meta">
-                    <Typography.Text type="secondary">
-                      本地探店 · 抖音 · {workspace.brief.aspectRatio} · {workspace.brief.duration}s
-                    </Typography.Text>
-                    <Tag color="blue" style={{ width: 'fit-content', margin: 0 }}>
-                      demo-local-001
-                    </Tag>
+          {visibleShots.length ? (
+            <div className="store-queue-table">
+              <div className="store-queue-head">
+                <span>内容</span>
+                <span>类型</span>
+                <span>状态</span>
+                <span>负责人</span>
+                <span>下一步</span>
+              </div>
+              {visibleShots.map((shot) => {
+                const asset = shot.assetId ? assetById.get(shot.assetId) : undefined;
+                const blocked = shot.matchStatus === 'missing' || shot.matchStatus === 'reshoot';
+                return (
+                  <div className="store-queue-row" key={shot.id} data-testid="dashboard-project-row">
+                    <div className="store-queue-title">
+                      {asset ? <img src={asset.thumbnail} alt="" /> : <span />}
+                      <div>
+                        <Typography.Text strong>{shot.description}</Typography.Text>
+                        <Typography.Text type="secondary">
+                          {workspace.brief.aspectRatio} · {shot.duration}s · {workspace.brief.cta || 'CTA 待填写'}
+                        </Typography.Text>
+                      </div>
+                    </div>
+                    <Typography.Text>探店视频</Typography.Text>
+                    <Tag color={blocked ? 'orange' : 'green'}>{shotStatusLabel[shot.matchStatus]}</Tag>
+                    <Typography.Text>{shot.assignee ?? workspace.project.owner}</Typography.Text>
+                    <Button
+                      onClick={() =>
+                        navigate(blocked ? ROUTES.projectNew : ROUTES.script(DEMO_PROJECT_ID))
+                      }
+                      data-testid={blocked ? undefined : 'dashboard-open-project'}
+                    >
+                      {blocked ? '补齐资料' : '确认脚本'}
+                    </Button>
                   </div>
-                </div>
-              </div>
-              <div className="project-cell-stack">
-                <Typography.Text type="secondary">当前进度</Typography.Text>
-                <div className="project-list-progress">
-                  <Progress percent={workspace.project.progress} showInfo={false} />
-                  <Typography.Text strong>{workspace.project.progress}%</Typography.Text>
-                </div>
-                <Tag color="processing" style={{ width: 'fit-content', margin: 0 }}>
-                  {PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status}
-                </Tag>
-              </div>
-              <div className="project-cell-stack project-cell-due">
-                <Typography.Text type="secondary">负责人 / 截止</Typography.Text>
-                <Typography.Text>{workspace.project.owner}</Typography.Text>
-                <Typography.Text type={dueDays <= 3 ? 'danger' : 'secondary'}>
-                  {workspace.project.dueDate} · {dueDays} 天
-                </Typography.Text>
-              </div>
-              <div className="project-row-actions">
-                <Button onClick={() => navigate(ROUTES.projectNew)}>编辑 Brief</Button>
-                <Button
-                  type="primary"
-                  icon={<ArrowRightOutlined />}
-                  onClick={() => navigate(ROUTES.script(DEMO_PROJECT_ID))}
-                  data-testid="dashboard-open-project"
-                >
-                  继续制作
-                </Button>
-              </div>
+                );
+              })}
             </div>
           ) : (
             <Empty description="没有匹配的项目" image={Empty.PRESENTED_IMAGE_SIMPLE}>
               <Button
                 onClick={() => {
                   setQuery('');
-                  setStatusFilter('all');
                 }}
               >
                 清除筛选
@@ -345,51 +291,55 @@ export function DashboardPage() {
           )}
         </section>
 
-        <aside className="project-surface">
+        <aside className="project-surface" data-testid="dashboard-inspector">
           <div className="project-section-heading">
             <div>
-              <Typography.Title level={5}>当前待办</Typography.Title>
-              <Typography.Text type="secondary">优先处理会阻断导出的事项</Typography.Text>
+              <Typography.Title level={5}>当前对象</Typography.Title>
+              <Typography.Text type="secondary">来源、阻断原因和下一步。</Typography.Text>
             </div>
           </div>
           <div className="project-task-list">
             <div className="project-task-item">
               <span className="project-task-icon">
-                <VideoCameraOutlined />
+                <ClockCircleOutlined />
               </span>
               <span className="project-task-copy">
-                <Typography.Text strong>虾滑制作待补拍</Typography.Text>
-                <Typography.Text type="secondary">分镜 05 · matchStatus=reshoot</Typography.Text>
+                <Typography.Text strong>项目状态</Typography.Text>
+                <Typography.Text type="secondary">
+                  {PROJECT_STATUS_LABEL[workspace.project.status] ?? workspace.project.status} · {dueDays} 天
+                </Typography.Text>
               </span>
-              <Tag color="orange">1</Tag>
+              <Tag>{workspace.project.owner}</Tag>
             </div>
             <div className="project-task-item">
               <span className="project-task-icon">
-                <FileTextOutlined />
+                <WarningOutlined />
               </span>
               <span className="project-task-copy">
-                <Typography.Text strong>会员权益缺镜</Typography.Text>
-                <Typography.Text type="secondary">分镜 07 · 将阻断导出</Typography.Text>
+                <Typography.Text strong>待确认</Typography.Text>
+                <Typography.Text type="secondary">
+                  {blockingShots.length > 0
+                    ? blockingShots.map((shot) => shot.description).join('、')
+                    : '暂无阻断项'}
+                </Typography.Text>
               </span>
-              <Tag color="red">1</Tag>
+              <Tag color={blockingShots.length > 0 ? 'orange' : 'green'}>{blockingShots.length}</Tag>
             </div>
             <div className="project-task-item">
               <span className="project-task-icon">
-                <CheckSquareOutlined />
+                <ArrowRightOutlined />
               </span>
               <span className="project-task-copy">
-                <Typography.Text strong>复核脚本版本</Typography.Text>
+                <Typography.Text strong>下一步</Typography.Text>
                 <Typography.Text type="secondary">{summary.activeScriptName}</Typography.Text>
               </span>
-              <Button type="link" onClick={() => navigate(ROUTES.script(DEMO_PROJECT_ID))}>
+              <Button onClick={() => navigate(ROUTES.script(DEMO_PROJECT_ID))}>
                 去处理
               </Button>
             </div>
           </div>
         </aside>
       </div>
-
-      <WorkflowProgress progress={workspace.project.progress} />
     </div>
   );
 }
