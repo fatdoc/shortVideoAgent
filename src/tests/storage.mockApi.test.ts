@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DEMO_PROJECT_ID, STORAGE_KEY } from '../domain/constants';
+import { DEMO_PROJECT_ID } from '../domain/constants';
 import { mockApi } from '../services/mockApi';
 import { clearWorkspace, loadWorkspace, saveWorkspace } from '../services/storage';
 import { cloneDemoWorkspace } from '../mocks/demoWorkspace';
@@ -10,10 +10,10 @@ describe('storage + mockApi', () => {
     window.localStorage.clear();
   });
 
-  it('persists workspace under versioned storage key', () => {
+  it('keeps workspace in runtime memory without browser storage business facts', () => {
     const workspace = cloneDemoWorkspace();
     saveWorkspace(workspace);
-    expect(window.localStorage.getItem(STORAGE_KEY)).toBeTruthy();
+    expect(window.localStorage.length).toBe(0);
     expect(loadWorkspace()?.project.id).toBe(DEMO_PROJECT_ID);
   });
 

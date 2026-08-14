@@ -18,6 +18,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const DIRECTORY_LIMIT = 100;
 
@@ -175,7 +176,7 @@ const ERROR_CONTENT: Record<
   'service-error': {
     status: '500',
     title: '邀请服务暂不可用',
-    description: '无法完成真实 Control API 操作；不会回退 Demo、Mock 或本地数据。',
+    description: '无法完成真实 Control API 操作；不会回退演示或本地数据。',
     retryable: true,
   },
   'invalid-response': {
@@ -259,45 +260,55 @@ function InvitationDirectory({
 }) {
   return (
     <section className="d1-surface" data-testid="pilot-invitations-ready">
-      <Space direction="vertical" size={14} style={{ width: '100%' }}>
+      <div className="d1-section-heading">
+        <div>
+          <Typography.Title level={4}>Invitation Directory</Typography.Title>
+          <Typography.Text type="secondary">
+            bounded {invitations.length} 条；Token 不从历史目录恢复。
+          </Typography.Text>
+        </div>
+        <Tag>{invitations.length} 条</Tag>
+      </div>
+      <div className="d1-receipt-list">
         {invitations.map((record) => (
-          <article
-            key={record.invitationId}
-            style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}
-          >
-            <Space direction="vertical" size={6} style={{ width: '100%' }}>
-              <Space wrap>
-                <Tag color={statusColor(record.status)}>{record.status}</Tag>
-                <Tag>{record.invitationType}</Tag>
+          <div className="d1-receipt-row" key={record.invitationId}>
+            <span className="d1-receipt-icon is-asset">
+              <KeyOutlined />
+            </span>
+            <div>
+              <Space wrap size={6}>
                 <Typography.Text strong>
                   {record.targetEmail ??
                     (record.invitationType === 'CHANNEL'
                       ? 'Channel reusable invitation'
                       : '未指定邮箱')}
                 </Typography.Text>
+                <Tag color={statusColor(record.status)}>{record.status}</Tag>
+                <Tag>{record.invitationType}</Tag>
               </Space>
               <Typography.Text type="secondary">
                 邀请引用 {shortReference(record.invitationId)} · 使用 {record.usedCount}/
-                {record.maxUses} · 剩余 {record.remainingUses}
+                {record.maxUses} · 剩余 {record.remainingUses} · 有效期{' '}
+                {formatTime(record.validFrom)} — {formatTime(record.expiresAt)}
               </Typography.Text>
-              <Typography.Text type="secondary">
-                有效期 {formatTime(record.validFrom)} — {formatTime(record.expiresAt)}
-              </Typography.Text>
-              {record.status === 'active' ? (
-                <Button
-                  aria-label="撤销邀请"
-                  danger
-                  icon={<StopOutlined />}
-                  disabled={submitting}
-                  onClick={() => onRevoke(record)}
-                >
-                  撤销邀请
-                </Button>
-              ) : null}
-            </Space>
-          </article>
+            </div>
+            <Typography.Text type="secondary">{record.remainingUses} remaining</Typography.Text>
+            {record.status === 'active' ? (
+              <Button
+                aria-label="撤销邀请"
+                danger
+                icon={<StopOutlined />}
+                disabled={submitting}
+                onClick={() => onRevoke(record)}
+              >
+                撤销
+              </Button>
+            ) : (
+              <Tag>只读</Tag>
+            )}
+          </div>
         ))}
-      </Space>
+      </div>
     </section>
   );
 }
@@ -465,7 +476,7 @@ function InvitationOperationsPage({ scope }: { scope: InvitationScope }) {
 
   if (!access.allowed) {
     return (
-      <section className="d1-surface" data-testid="pilot-invitations-permission-denied">
+      <section className="d1-surface v3-ops-page" data-testid="pilot-invitations-permission-denied">
         <Result status="403" title="无邀请管理权限" subTitle={access.deniedMessage} />
       </section>
     );
@@ -476,11 +487,15 @@ function InvitationOperationsPage({ scope }: { scope: InvitationScope }) {
       directory.phase === 'error' && directory.error.kind === 'unauthorized'
         ? directory.error
         : { kind: 'unauthorized' as const, requestId: null };
-    return <ErrorPanel error={error} onRetry={() => undefined} />;
+    return (
+      <div className="v3-ops-page">
+        <ErrorPanel error={error} onRetry={() => undefined} />
+      </div>
+    );
   }
 
   return (
-    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+    <Space className="v3-ops-page" direction="vertical" size={20} style={{ width: '100%' }}>
       <header className="d1-page-header">
         <div>
           <Space wrap>

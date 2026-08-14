@@ -14,6 +14,7 @@
     "db:rollback": "tsx src/db/rollback.ts",
     "auth:bootstrap": "tsx src/auth/bootstrap.ts",
     "e2e:reset-seed": "tsx src/e2e/resetSeed.ts",
+    "e2e:seed-local-accounts": "tsx src/e2e/localAccounts.ts",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "project-assignment:backfill": "tsx src/projects/projectAssignmentBackfillCli.ts"

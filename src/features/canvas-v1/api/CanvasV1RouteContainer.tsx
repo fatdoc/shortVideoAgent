@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import type { CanvasCommandV01, CanvasEventV01 } from '../model/contracts';
 import type { CanvasWorkspaceV01 } from '../model/workspaceContract';
@@ -18,6 +18,22 @@ const productionBridge = createPilotStoryCanvasBridge();
 
 export interface CanvasV1RouteContainerProps {
   bridge?: PilotStoryCanvasBridge;
+  pollIntervalMs?: number;
+}
+
+const RUNNING_EVENT_STATUSES = new Set(['accepted', 'provider_submitted', 'task_created']);
+
+function runningEventKey(workspace: CanvasWorkspaceV01): string {
+  return workspace.shots
+    .flatMap(({ event }) => event && RUNNING_EVENT_STATUSES.has(event.status)
+      ? [`${event.commandId}:${event.status}`]
+      : [])
+    .sort()
+    .join('|');
+}
+
+function pollDelay(value: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, value));
 }
 
 function BoundaryBlocked({ projectId }: { projectId: string | undefined }) {
@@ -73,6 +89,7 @@ function selectionFor(projectId: string | undefined, search: string): CanvasRout
 
 export function CanvasV1RouteContainer({
   bridge = productionBridge,
+  pollIntervalMs = 5_000,
 }: CanvasV1RouteContainerProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
@@ -83,6 +100,16 @@ export function CanvasV1RouteContainer({
   const [activationAttemptId] = useState(createCanvasActivationAttemptId);
   const [activationState, setActivationState] = useState<PilotCanvasActivationState | null>(null);
   const [failed, setFailed] = useState(false);
+  const activationStateRef = useRef<PilotCanvasActivationState | null>(null);
+  const safePollIntervalMs = Number.isFinite(pollIntervalMs)
+    && pollIntervalMs >= 1
+    && pollIntervalMs <= 60_000
+    ? pollIntervalMs
+    : 5_000;
+
+  useEffect(() => {
+    activationStateRef.current = activationState;
+  }, [activationState]);
 
   useEffect(() => {
     let active = true;
@@ -99,6 +126,36 @@ export function CanvasV1RouteContainer({
     );
     return () => { active = false; };
   }, [activationAttemptId, bridge, selection]);
+
+  const activeProductionKey = activationState ? runningEventKey(activationState.workspace) : '';
+  useEffect(() => {
+    if (!activeProductionKey) return undefined;
+    let active = true;
+    const poll = async () => {
+      let attempts = 0;
+      let failures = 0;
+      while (active && attempts < 240) {
+        attempts += 1;
+        await pollDelay(safePollIntervalMs);
+        if (!active) return;
+        const current = activationStateRef.current;
+        if (!current || !runningEventKey(current.workspace)) return;
+        try {
+          const refreshed = await bridge.refreshWorkspace(current);
+          if (!active) return;
+          activationStateRef.current = refreshed;
+          setActivationState(refreshed);
+          failures = 0;
+          if (!runningEventKey(refreshed.workspace)) return;
+        } catch {
+          failures += 1;
+          if (failures >= 3) return;
+        }
+      }
+    };
+    void poll();
+    return () => { active = false; };
+  }, [activeProductionKey, bridge, safePollIntervalMs]);
 
   if (!selection || failed) return <BoundaryBlocked projectId={projectId} />;
   if (!activationState) {
@@ -117,6 +174,7 @@ export function CanvasV1RouteContainer({
   const onCommand = async (command: CanvasCommandV01): Promise<void> => {
     await bridge.dispatch(activationState, command);
     const refreshed = await bridge.refreshWorkspace(activationState);
+    activationStateRef.current = refreshed;
     setActivationState(refreshed);
   };
 

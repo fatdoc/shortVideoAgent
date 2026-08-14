@@ -206,6 +206,25 @@ describe('useCanvasCommandApprovalFlow', () => {
     await waitFor(() => expect(onCommand).toHaveBeenCalledTimes(1));
   });
 
+  it('closes a cancellable confirmation with Escape and restores invoking focus', async () => {
+    const user = userEvent.setup();
+    const prepare = vi.fn<PrepareHighCostApproval>();
+    const onCommand = vi.fn();
+    render(<Harness prepareHighCostApproval={prepare} onCommand={onCommand} />);
+
+    const requestButton = screen.getByRole('button', { name: '请求命令' });
+    requestButton.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('dialog', { name: '确认高成本操作' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(requestButton).toHaveFocus();
+    expect(prepare).not.toHaveBeenCalled();
+    expect(onCommand).not.toHaveBeenCalled();
+  });
+
   it.each([
     ['cancelled', async () => null],
     ['expired', async () => ({ approvalId: preparedApprovalId, status: 'expired' as const })],

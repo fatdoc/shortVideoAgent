@@ -10,6 +10,8 @@ import {
 } from './controlApprovalClient';
 import {
   CanvasV1ShotProductionAdapter,
+  isCanvasV1ShotProductionConfigured,
+  resolveCanvasV1OutputStorageMode,
   type CanvasV1ApprovedPackage,
   type CanvasV1ShotProvider,
 } from './shotProductionAdapter';
@@ -90,6 +92,25 @@ async function database(): Promise<Knex> {
   });
   return db;
 }
+
+test('local output mode enables Canvas production without pretending TOS is configured', () => {
+  const common = {
+    ARK_API_KEY: 'provider-key',
+    ARK_ASSET_ACCESS_KEY: 'asset-access',
+    ARK_ASSET_SECRET_KEY: 'asset-secret',
+    ARK_ASSET_GROUP_ID: 'asset-group',
+  };
+  assert.equal(resolveCanvasV1OutputStorageMode({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'local' }), 'local');
+  assert.equal(isCanvasV1ShotProductionConfigured({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'local' }), true);
+  assert.equal(isCanvasV1ShotProductionConfigured({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'tos' }), false);
+  assert.equal(isCanvasV1ShotProductionConfigured({
+    ...common,
+    CANVAS_V1_OUTPUT_STORAGE: 'tos',
+    ARK_ASSET_TOS_BUCKET: 'bucket',
+    ARK_ASSET_TOS_ENDPOINT: 'tos.example.test',
+  }), true);
+  assert.equal(isCanvasV1ShotProductionConfigured({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'fallback' }), false);
+});
 
 test('runtime authority acceptance requires an existing canonical project mapping and persists exact v0.3 facts', async (context) => {
   const db = knex({
@@ -325,6 +346,85 @@ test('production adapter persists before provider submission and same-command re
   assert.equal(row.externalTaskId, 'provider-task-server-only');
   assert.doesNotMatch(String(row.inputJson), /asset:\/\/|provider-task|signed\?|secret/iu);
   releaseProvider();
+  assert.deepEqual(await first.completion, { outputAssetId: '19191919-1919-4919-8919-191919191919' });
+  assert.equal((await db('sc_tasks').first()).status, 'succeeded');
+});
+
+test('production adapter resumes an exact persisted provider task after restart without another paid submission', async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  let paidStarts = 0;
+  const firstAdapter = new CanvasV1ShotProductionAdapter({
+    database: db,
+    readiness: () => true,
+    resolveApprovedPackage: () => approvedPackage,
+    provider: {
+      start: async (_input, hooks) => {
+        paidStarts += 1;
+        await hooks.onTaskCreated('provider-task-restart-safe');
+        return await new Promise<never>(() => undefined);
+      },
+    },
+    newId: () => '18181818-1818-4818-8818-181818181818',
+  });
+  const input = {
+    scope,
+    commandId,
+    shotId,
+    prompt: 'prompt',
+    referenceAssetIds: [assetId],
+    referenceAssetUris: ['asset://server-only'],
+  };
+  const submitted = await firstAdapter.start(input);
+  assert.equal(submitted.taskId, '18181818-1818-4818-8818-181818181818');
+  assert.equal((await db('sc_tasks').first()).status, 'running');
+
+  let readOnlyResumes = 0;
+  let persistedOutputs = 0;
+  const resumedProvider = {
+    start: async () => {
+      paidStarts += 1;
+      throw new Error('restart recovery must not submit a second paid task');
+    },
+    resume: async (externalTaskId: string) => {
+      readOnlyResumes += 1;
+      assert.equal(externalTaskId, 'provider-task-restart-safe');
+      return {
+        externalTaskId,
+        videoUrl: 'https://provider.invalid/recovered-result',
+      };
+    },
+  } as CanvasV1ShotProvider & {
+    resume(externalTaskId: string): Promise<{ externalTaskId: string; videoUrl: string }>;
+  };
+  const restartedAdapter = new CanvasV1ShotProductionAdapter({
+    database: db,
+    readiness: () => true,
+    resolveApprovedPackage: () => approvedPackage,
+    provider: resumedProvider,
+    persistOutput: async ({ externalTaskId }) => {
+      persistedOutputs += 1;
+      assert.equal(externalTaskId, 'provider-task-restart-safe');
+      return { outputAssetId: '19191919-1919-4919-8919-191919191919' };
+    },
+  });
+  const recovered = await restartedAdapter.start(input);
+  assert.ok(recovered.completion, 'restart recovery must expose the persisted task completion');
+  assert.deepEqual(await recovered.completion, {
+    outputAssetId: '19191919-1919-4919-8919-191919191919',
+  });
+  assert.equal(paidStarts, 1);
+  assert.equal(readOnlyResumes, 1);
+  assert.equal(persistedOutputs, 1);
+  assert.equal((await db('sc_tasks').first()).status, 'succeeded');
+
+  const replay = await restartedAdapter.start(input);
+  assert.deepEqual(await replay.completion, {
+    outputAssetId: '19191919-1919-4919-8919-191919191919',
+  });
+  assert.equal(paidStarts, 1);
+  assert.equal(readOnlyResumes, 1);
+  assert.equal(persistedOutputs, 1);
 });
 
 test('production adapter does not resolve until a real provider task id is durably persisted', async (context) => {
@@ -479,7 +579,10 @@ test('provider failure persists only a fixed safe error and remains non-repeatab
   };
   await adapter.start(input);
   await new Promise((resolve) => setTimeout(resolve, 20));
-  await adapter.start(input);
+  await assert.rejects(
+    () => adapter.start(input),
+    (error: unknown) => (error as { code?: unknown }).code === 'CANVAS_PROVIDER_FAILED',
+  );
   assert.equal(providerStarts, 1);
   const serialized = JSON.stringify(await db('sc_tasks'));
   assert.doesNotMatch(serialized, /paid-secret|asset:\/\/|providerRawBody|credential=x/iu);

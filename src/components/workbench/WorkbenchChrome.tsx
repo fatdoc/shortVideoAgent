@@ -60,7 +60,7 @@ export function WorkbenchSwitcher() {
               ? [
                   {
                     value: identity.activeOrganization.organizationId,
-                    label: `${identity.activeOrganization.organizationName} · ${identity.activeOrganization.organizationId}`,
+                    label: identity.activeOrganization.organizationName,
                   },
                 ]
               : []
@@ -70,16 +70,11 @@ export function WorkbenchSwitcher() {
       </div>
       <div className="d1-context-copy">
         <Typography.Text strong ellipsis>
-          Active · {identity?.activeOrganization.organizationName ?? '未登录'}
+          {identity?.activeOrganization.organizationName ?? '未登录'}
         </Typography.Text>
         <Typography.Text type="secondary" ellipsis>
-          Organization [{identity?.activeOrganization.organizationType ?? 'UNRESOLVED'}]{' '}
-          {identity?.activeOrganization.organizationId ?? 'unresolved'}
-          {' · '}Workbench {selectedKind}
-        </Typography.Text>
-        <Typography.Text type="secondary" ellipsis>
-          Membership {identity?.activeMembership.membershipId ?? 'N/A'}
-          {' · '}Role {identity?.activeMembership.roleCodes.join(' · ') || '无有效角色'}
+          {identity?.activeOrganization.organizationType ?? 'UNRESOLVED'} · {selectedKind}
+          {' · '}角色 {identity?.activeMembership.roleCodes.join(' · ') || '无有效角色'}
         </Typography.Text>
       </div>
     </div>
@@ -89,7 +84,7 @@ export function WorkbenchSwitcher() {
 export function DemoTruthBar() {
   const snapshot = useControlPlaneStore((state) => state.snapshot);
   return (
-    <div className="d1-truth-bar">
+    <div className="d1-truth-bar va-truth-bar" data-testid="demo-truth-bar">
       <Space size={10} wrap>
         <SafetyCertificateOutlined />
         <Typography.Text strong>{snapshot.truthManifest.disclaimer}</Typography.Text>
@@ -100,7 +95,7 @@ export function DemoTruthBar() {
         <TruthBadge capabilityId="production.storycanvas-foundation" compact />
       </Space>
       <Typography.Text type="secondary" className="d1-truth-digest">
-        Fixture {snapshot.fixtureId} · {snapshot.fixtureDigest.slice(0, 19)}…
+        状态受控，内部指纹已隐藏
       </Typography.Text>
     </div>
   );

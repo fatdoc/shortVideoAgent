@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DemoSession } from '../domain/demoIdentity';
-import {
-  DEMO_AUTH_PASSWORD,
-  DEMO_AUTH_STORAGE_KEY,
-} from '../services/demoAuth';
+import { DEMO_AUTH_PASSWORD, DEMO_SESSION_DURATION_MS } from '../services/demoAuth';
 import { useAuthStore } from './authStore';
 
 function resetAuthStore(): void {
@@ -29,6 +25,7 @@ describe('authStore', () => {
   });
 
   afterEach(() => {
+    useAuthStore.getState().logout();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -51,20 +48,12 @@ describe('authStore', () => {
     expect(state.error).toBeNull();
   });
 
-  it('hydrates anonymously and removes an expired persisted session', () => {
+  it('hydrates anonymously when the runtime session has expired', () => {
     useAuthStore.getState().login({
       loginName: 'tenant',
       password: DEMO_AUTH_PASSWORD,
     });
-    const raw = window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY);
-    const session = JSON.parse(raw as string) as DemoSession;
-    window.localStorage.setItem(
-      DEMO_AUTH_STORAGE_KEY,
-      JSON.stringify({
-        ...session,
-        expiresAt: '2026-07-31T09:59:59.000Z',
-      }),
-    );
+    vi.setSystemTime(new Date(Date.now() + DEMO_SESSION_DURATION_MS));
     resetAuthStore();
 
     expect(useAuthStore.getState().hydrate()).toBeNull();
@@ -74,7 +63,7 @@ describe('authStore', () => {
       currentIdentity: null,
       isAuthenticated: false,
     });
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.length).toBe(0);
   });
 
   it('does not restore a previous identity after a failed switch', () => {
@@ -95,10 +84,10 @@ describe('authStore', () => {
     expect(state.identity).toBeNull();
     expect(state.isAuthenticated).toBe(false);
     expect(state.error).toBe('Demo 账号或统一演示密码不正确。');
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.length).toBe(0);
   });
 
-  it('clears both the persisted session and in-memory identity on logout', () => {
+  it('clears the runtime session and in-memory identity on logout', () => {
     useAuthStore.getState().login({
       loginName: 'platform',
       password: DEMO_AUTH_PASSWORD,
@@ -113,6 +102,6 @@ describe('authStore', () => {
       isAuthenticated: false,
       error: null,
     });
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.length).toBe(0);
   });
 });

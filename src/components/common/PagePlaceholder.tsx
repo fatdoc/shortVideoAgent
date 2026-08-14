@@ -78,8 +78,8 @@ export function PagePlaceholder({ title, owner, description, route }: PagePlaceh
       <Alert
         type="info"
         showIcon
-        message="统一 Demo 已接通"
-        description={`当前工作区来自 mockApi + LocalStorage，项目 ID 固定为 ${DEMO_PROJECT_ID}。业务线程将在此基础上替换完整页面交互。`}
+        message="当前工作区已受控"
+        description={`当前页面只展示已授权的演示工作区状态。业务线程将在此基础上替换完整页面交互。`}
       />
 
       {error ? (

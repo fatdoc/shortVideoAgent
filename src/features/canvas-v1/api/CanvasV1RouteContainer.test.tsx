@@ -29,13 +29,17 @@ function bridge(): PilotStoryCanvasBridge {
   };
 }
 
-function renderRoute(entry: string, adapter: PilotStoryCanvasBridge) {
+function renderRoute(
+  entry: string,
+  adapter: PilotStoryCanvasBridge,
+  options: { pollIntervalMs?: number } = {},
+) {
   return render(
     <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route
           path="/production/canvas/:projectId"
-          element={<CanvasV1RouteContainer bridge={adapter} />}
+          element={<CanvasV1RouteContainer bridge={adapter} {...options} />}
         />
       </Routes>
     </MemoryRouter>,
@@ -84,5 +88,51 @@ describe('CanvasV1RouteContainer production hydration', () => {
     });
     expect(screen.queryByText(workspace.project.projectName)).not.toBeInTheDocument();
     expect(screen.queryByText('unsafe raw upstream detail')).not.toBeInTheDocument();
+  });
+
+  it('polls authoritative workspace facts until a submitted generation becomes terminal', async () => {
+    const taskCreated = {
+      ...workspace.shots[0].event,
+      status: 'task_created',
+      providerSubmitted: true,
+      taskCreated: true,
+      outputRegistered: false,
+      taskId: '18181818-1818-4818-8818-181818181818',
+      outputAssetId: null,
+    };
+    const outputRegistered = {
+      ...taskCreated,
+      status: 'output_registered',
+      outputRegistered: true,
+      outputAssetId: workspace.shots[0].outputs[0].assetId,
+    };
+    const runningWorkspace = {
+      ...workspace,
+      shots: [{ ...workspace.shots[0], event: taskCreated }],
+    };
+    const terminalWorkspace = {
+      ...workspace,
+      shots: [{ ...workspace.shots[0], event: outputRegistered }],
+    };
+    const adapter = bridge();
+    vi.mocked(adapter.activate).mockResolvedValueOnce({
+      selection: { projectId: workspace.projectId, packageId: workspace.packageId },
+      canvasSessionId: workspace.canvasSessionId,
+      workspace: runningWorkspace,
+    });
+    vi.mocked(adapter.refreshWorkspace).mockResolvedValueOnce({
+      selection: { projectId: workspace.projectId, packageId: workspace.packageId },
+      canvasSessionId: workspace.canvasSessionId,
+      workspace: terminalWorkspace,
+    });
+
+    renderRoute(
+      `/production/canvas/${workspace.projectId}?packageId=${workspace.packageId}`,
+      adapter,
+      { pollIntervalMs: 1 },
+    );
+    expect(await screen.findByText(workspace.project.projectName)).toBeInTheDocument();
+    await waitFor(() => expect(adapter.refreshWorkspace).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(adapter.refreshWorkspace).mock.calls[0][0].workspace).toEqual(runningWorkspace);
   });
 });

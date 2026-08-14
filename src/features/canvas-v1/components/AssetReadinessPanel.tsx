@@ -27,14 +27,15 @@ function checkAsset(asset: CanvasAssetView) {
 }
 
 export function AssetReadinessPanel({ assets }: AssetReadinessPanelProps) {
+  const readyCount = assets.filter((asset) => checkAsset(asset).length === 0).length;
   return (
     <section className="cv1-asset-readiness" aria-labelledby="cv1-asset-readiness-title">
       <div className="cv1-asset-readiness__heading">
-        <div><span>ASSET READINESS</span><h2 id="cv1-asset-readiness-title">资产门禁</h2></div>
-        <small>{assets.filter((asset) => checkAsset(asset).length === 0).length}/{assets.length} 就绪</small>
+        <div><span>项目资产</span><h2 id="cv1-asset-readiness-title">资产门禁</h2></div>
+        <small>{readyCount}/{assets.length} 就绪</small>
       </div>
       <ul>
-        {assets.map((asset) => {
+        {assets.length ? assets.map((asset) => {
           const issues = checkAsset(asset);
           return (
             <li key={asset.assetId}>
@@ -42,7 +43,7 @@ export function AssetReadinessPanel({ assets }: AssetReadinessPanelProps) {
               <span><strong>{asset.displayName}</strong><small>{categoryLabels[asset.category]} · {issues[0] ?? '权利、审批与绑定已通过'}</small></span>
             </li>
           );
-        })}
+        }) : <li className="cv1-asset-readiness__empty"><IconAlertCircle size={15} /><span><strong>没有项目资产</strong><small>同步真实门店资产后再继续。</small></span></li>}
       </ul>
     </section>
   );

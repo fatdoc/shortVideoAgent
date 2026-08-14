@@ -1,12 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  DEMO_SESSION_VERSION,
-  type DemoSession,
-  findDemoIdentityByLoginName,
-} from '../domain/demoIdentity';
+import { findDemoIdentityByLoginName } from '../domain/demoIdentity';
 import {
   DEMO_AUTH_PASSWORD,
-  DEMO_AUTH_STORAGE_KEY,
   DEMO_SESSION_DURATION_MS,
   DemoAuthError,
   hydrateDemoSession,
@@ -16,12 +11,6 @@ import {
 } from './demoAuth';
 
 const NOW = new Date('2026-07-31T10:00:00.000Z');
-
-function readSession(): DemoSession {
-  const raw = window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY);
-  expect(raw).toBeTruthy();
-  return JSON.parse(raw as string) as DemoSession;
-}
 
 function login(loginName = 'tenant') {
   return loginWithDemoAccount({
@@ -33,58 +22,52 @@ function login(loginName = 'tenant') {
 describe('demoAuth', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
+    logoutDemoAccount();
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
 
   afterEach(() => {
+    logoutDemoAccount();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
-  it('writes the complete versioned Demo session contract', () => {
-    login();
+  it('keeps the Demo session in runtime memory instead of browser storage', () => {
+    const identity = login();
 
-    expect(readSession()).toEqual({
-      version: DEMO_SESSION_VERSION,
-      sessionId: expect.any(String),
-      identityId: 'demo-account-tenant',
-      role: 'enterprise_admin',
-      organizationId: 'tenant-demo-hdl',
-      organizationType: 'enterprise',
-      defaultWorkbench: 'enterprise',
-      issuedAt: NOW.toISOString(),
-      expiresAt: new Date(NOW.getTime() + DEMO_SESSION_DURATION_MS).toISOString(),
-    });
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+    expect(hydrateDemoSession()).toEqual(identity);
   });
 
   it.each([
-    ['platform', 'platform_admin', 'platform-videoagent', 'platform', 'platform'],
-    ['channel', 'channel_agent', 'channel-demo-level-1', 'channel', 'channel'],
-    ['tenant', 'enterprise_admin', 'tenant-demo-hdl', 'enterprise', 'enterprise'],
-    ['production', 'content_operator', 'tenant-demo-hdl', 'enterprise', 'production'],
+    ['platform', 'platform-videoagent', 'PLATFORM', 'platform'],
+    ['channel', 'channel-demo-level-1', 'CHANNEL', 'channel'],
+    ['tenant', 'tenant-demo-hdl', 'TENANT', 'projects'],
+    ['production', 'tenant-demo-hdl', 'TENANT', 'production'],
   ] as const)(
     'creates and restores the canonical %s identity session',
-    (loginName, role, organizationId, organizationType, defaultWorkbench) => {
+    (loginName, organizationId, organizationType, defaultRouteFragment) => {
       const identity = login(loginName);
-      const session = readSession();
 
-      expect(session).toMatchObject({
-        identityId: identity.accountId,
-        role,
-        organizationId,
-        organizationType,
-        defaultWorkbench,
+      expect(identity.accountId).toBe(`demo-account-${loginName}`);
+      expect(hydrateDemoSession()).toMatchObject({
+        accountId: identity.accountId,
+        activeOrganization: { organizationId, organizationType },
       });
+      expect(identity.defaultRoute).toContain(defaultRouteFragment);
       expect(hydrateDemoSession()).toEqual(identity);
     },
   );
 
   it('rejects incorrect credentials without persisting a session', () => {
-    expect(() => loginWithDemoAccount({ loginName: 'tenant', password: 'wrong' })).toThrowError(
-      DemoAuthError,
-    );
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(() =>
+      loginWithDemoAccount({ loginName: 'tenant', password: 'wrong' }),
+    ).toThrowError(DemoAuthError);
+    expect(window.localStorage.length).toBe(0);
+    expect(hydrateDemoSession()).toBeNull();
   });
 
   it('hydrates a valid unexpired session and clears it on logout', () => {
@@ -93,73 +76,46 @@ describe('demoAuth', () => {
     expect(hydrateDemoSession()).toEqual(loggedInIdentity);
 
     logoutDemoAccount();
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.length).toBe(0);
     expect(hydrateDemoSession()).toBeNull();
   });
 
-  it('clears an expired session', () => {
+  it('clears an expired runtime session', () => {
     login();
     vi.setSystemTime(new Date(NOW.getTime() + DEMO_SESSION_DURATION_MS));
 
     expect(hydrateDemoSession()).toBeNull();
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.length).toBe(0);
   });
 
-  it.each([
-    ['damaged JSON', '{not-json'],
-    ['missing field', (session: DemoSession) => ({ ...session, sessionId: undefined })],
-    ['wrong version', (session: DemoSession) => ({ ...session, version: 2 })],
-    ['unknown identity', (session: DemoSession) => ({ ...session, identityId: 'missing-account' })],
-    [
-      'unknown organization',
-      (session: DemoSession) => ({ ...session, organizationId: 'missing-org' }),
-    ],
-    ['mismatched role', (session: DemoSession) => ({ ...session, role: 'platform_admin' })],
-  ])('clears a session with %s', (_label, mutate) => {
-    login();
-    const validSession = readSession();
-    const invalidSession = typeof mutate === 'function' ? mutate(validSession) : mutate;
-    window.localStorage.setItem(
-      DEMO_AUTH_STORAGE_KEY,
-      typeof invalidSession === 'string' ? invalidSession : JSON.stringify(invalidSession),
-    );
+  it('does not hydrate from tampered browser storage', () => {
+    window.localStorage.setItem('videoagent:demo-auth:session:v1', '{not-json');
 
     expect(hydrateDemoSession()).toBeNull();
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem('videoagent:demo-auth:session:v1')).toBe('{not-json');
   });
 
-  it('replaces the previous identity with a new independent session', () => {
-    login('tenant');
-    const tenantSession = readSession();
-
+  it('replaces the previous identity with a new independent runtime session', () => {
+    const tenantIdentity = login('tenant');
     const platformIdentity = login('platform');
-    const platformSession = readSession();
 
-    expect(platformSession.sessionId).not.toBe(tenantSession.sessionId);
-    expect(platformSession.identityId).toBe('demo-account-platform');
-    expect(platformSession.role).toBe('platform_admin');
-    expect(platformSession.organizationId).toBe('platform-videoagent');
+    expect(platformIdentity.accountId).not.toBe(tenantIdentity.accountId);
     expect(hydrateDemoSession()).toEqual(platformIdentity);
   });
 
-  it('fails safely when localStorage cannot persist the session', () => {
-    login('tenant');
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+  it('does not depend on browser storage APIs for runtime sessions', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new DOMException('blocked', 'SecurityError');
     });
 
-    expect(() => login('platform')).toThrowError(
-      expect.objectContaining({ code: 'SESSION_UNAVAILABLE' }),
-    );
-    expect(window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY)).toBeNull();
-  });
+    const identity = login('platform');
 
-  it('fails anonymously when localStorage cannot be read', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('blocked', 'SecurityError');
-    });
-
-    expect(hydrateDemoSession()).toBeNull();
+    expect(hydrateDemoSession()).toEqual(identity);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(getItem).not.toHaveBeenCalled();
   });
 
   it('accepts only an internal path in the current identity workbench', () => {

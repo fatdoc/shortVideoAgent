@@ -79,6 +79,20 @@ vi.mock('../pages/pilot/PilotMemberOperationsPages', () => ({
   PilotTenantMembersPage: () => <div data-testid="pilot-tenant-members">Tenant 成员管理</div>,
 }));
 
+vi.mock('../pages/pilot-production/PilotProjectContentPages', () => ({
+  PilotProjectContentPage: ({
+    routeKey,
+    projectId,
+  }: {
+    routeKey: string;
+    projectId: string | null;
+  }) => (
+    <div data-testid={`pilot-project-content-${routeKey}`} data-project-id={projectId ?? ''}>
+      Real Pilot content
+    </div>
+  ),
+}));
+
 import App from './App';
 import type { PilotProject, PilotSession } from '../services/pilotControlApi';
 import { usePilotAuthStore } from '../stores/pilotAuthStore';
@@ -257,8 +271,11 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
     expect(screen.getByRole('menuitem', { name: /品牌大脑/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /生产概览/ })).toBeInTheDocument();
-    expect(screen.getByTestId('pilot-route-handoff')).toHaveTextContent('project-alpha');
-    expect(screen.getByTestId('pilot-route-handoff')).toHaveTextContent('尚未接入真实 Pilot 数据');
+    expect(screen.getByTestId('pilot-project-content-brand')).toHaveAttribute(
+      'data-project-id',
+      'project-alpha',
+    );
+    expect(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
     expect(screen.queryByTestId('pilot-session-page')).not.toBeInTheDocument();
     expect(screen.queryByText(/海底捞/)).not.toBeInTheDocument();
   });
@@ -430,7 +447,10 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       expect(window.location.pathname).toBe('/projects/project-alpha/script');
       expect(window.location.search).toBe('?tab=draft');
     });
-    expect(screen.getByTestId('pilot-route-handoff')).toBeInTheDocument();
+    expect(screen.getByTestId('pilot-project-content-script')).toHaveAttribute(
+      'data-project-id',
+      'project-alpha',
+    );
   });
 
   it('keeps a Project API service failure inside the authenticated Pilot shell', async () => {
@@ -502,7 +522,7 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/projects/project-alpha/brand');
     });
-    expect(screen.getByTestId('pilot-route-handoff')).toBeInTheDocument();
+    expect(screen.getByTestId('pilot-project-content-brand')).toBeInTheDocument();
   });
 });
 

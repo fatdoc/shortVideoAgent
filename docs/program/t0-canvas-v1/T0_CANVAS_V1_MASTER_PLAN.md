@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.12`
+> 版本：`v0.16`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -79,6 +79,15 @@ G5 Story Workspace/Materialization independent QA integrated head:
 
 G5 Shared Bridge/Router/Proxy independent QA integrated head:
 6032b2e56423ad586d7d38638a4cf81abf8be83b
+
+G6 safe no-provider browser independent QA integrated head:
+603caf90759020a2b02541f25e2c74d07e063589
+
+G6 platform local-output product head:
+1dca807e0ff82576f83ac9165ef05d8b656afa72
+
+G6 persisted-task restart recovery product head:
+871a193d2eb491c94001bd1f4428a962b992ab32
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -442,7 +451,7 @@ raw Idempotency-Key
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
 | CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `ACCEPTED` | Control、Story 与 Shared Bridge/Router/Proxy 已独立验收 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `READY` | G5 已独立验收；进入 G6 外部真实浏览器 Golden Path |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `BLOCKED` | 非付费真实浏览器与一次本地落盘付费 smoke 已通过；TOS 签名访问及完整产品输出链仍阻塞 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -574,11 +583,11 @@ Gate 状态：
 |---|---|---|
 | G0 | `ACCEPTED` | `handoffs/CV6_G0_BASELINE_HANDOFF.md`；带已知基线失败放行 |
 | G1 | `ACCEPTED` | 含 EntityBinding missing amendment；66/66 PASS、10 fixtures、38/38 双 parser parity |
-| G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；未执行真实付费 smoke |
+| G2 | `ACCEPTED` | 审批消费、资产同步/绑定、连续性、任务幂等与 Provider 任务事实链独立 Gate 通过；G6 已另行完成一次本地落盘真实 Provider smoke |
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
 | G5 | `ACCEPTED` | Control、Story、Shared 同源 API/Bridge/Router/Proxy 均通过独立 Gate；历史 4 个 Shared RED 以真实产品实现转绿 |
-| G6 | `READY` | G5 已放行；待启动三服务、真实浏览器、真实项目与受控付费 smoke |
+| G6 | `BLOCKED` | 真实三服务、Chromium 双视口、刷新恢复与安全扫描已通过；一次直连受控 Seedance task 已成功。平台现已支持显式本地受控输出、`output_registered` 事实推进和 UI 轮询，但尚未从真实平台页面再次执行付费命令闭环 |
 
 状态词只使用：
 
@@ -816,8 +825,11 @@ G2、G3、G4 和 G5 已由 CV0 验收。当前进入 Wave 4 / G6 Delivery：
 4. CV3 已完成 12 个白名单 Agent tools，只读分析、资产计划和单镜头命令全部经同一 CanvasCommand Service
 5. CV1 冻结 browser-safe `CanvasWorkspace/0.1` 与 server-only `CanvasAssetMaterialization/0.1`
 6. CV2 已完成 formal bootstrap/workspace/materialization；CV5 已完成 Activation/Bridge/Proxy/Router
-7. CV6 已完成 G5 独立 Gate；下一步启动 Control、StoryCanvas、Vite 三服务执行真实浏览器链路
-8. 真实付费 Seedance smoke 只能在明确受控确认后执行；当前仍未调用 Provider
+7. CV6 已使用 dedicated PostgreSQL `_test`、Control、StoryCanvas、Vite 和真实 Chromium 完成双视口安全浏览器切片
+8. G6 期间修复并独立复验了 Session 重投影、同源 GET provenance、StrictMode 并发 Legacy Open 与 Formal Bootstrap
+9. 用户已明确授权并完成一次受控 Seedance 付费 smoke：单次 POST、4 秒、480p、无音频，Provider `succeeded` 且 MP4 本地校验通过；TOS 签名读取仍为 403，因此未执行 TOS 写入或产品输出登记
+10. 用户随后明确要求回到平台开发；本地环境已开启 Seedance 音频并显式选择 `local` 输出模式。平台生成结果可原子写入受控 StoryCanvas 项目目录、登记 `sc_media_assets`、经 authenticated controlled-media route 回显，并在完成后推进 `CanvasEvent` 到 `output_registered`
+11. Canvas 路由容器会对 `accepted/provider_submitted/task_created` 事实执行 bounded authoritative workspace polling，终态后停止；本切片未发起第二次付费 Provider 调用
 ```
 
 G1 证据：
@@ -852,6 +864,16 @@ G5 additive parser Gate:  facts 7; Story 7; parity/boundary 11; browser/UI 6 PAS
 G5 Shared Gate:           activation 6/6; static 7/7; runtime 7/7; historical 37/37 PASS
 G5 owner/root:            Shared owner 67/67; root 521/521 PASS
 G5 product status:        ACCEPTED; external browser and paid Provider remain G6
+G6 safe browser:          real 3-service Chromium 1440x900 + 1672x941 2/2 PASS
+G6 session recovery:      3/3 PASS; reload authority and document facts stable
+G6 no-provider result:    formal workspace hydrated; generation blocked; approval/command/provider 0
+G6 paid local smoke:      one Provider POST; succeeded; H.264 4.041667s; local SHA-256 verified
+G6 TOS status:            signed object GET 403 AccessDenied; no TOS write attempted
+G6 platform local output: atomic 0600 file + sc_media_assets + controlled Range + output_registered GREEN
+G6 platform polling:      bounded authoritative workspace refresh GREEN
+G6 task restart recovery: existing provider task read-only resume + same event output_registered GREEN
+G6 audio config:          enabled in ignored local env; no second paid task executed
+G6 status:                BLOCKED; real browser approval→CanvasCommand→paid Seedance→local output evidence not yet run
 ```
 
 G0 已知基线事实：
@@ -871,6 +893,41 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.16 · 2026-08-14
+
+- 冻结并修复 StoryCanvas 重启后已付费任务长期停留在 `task_created` 的产品缺口：formal Workspace 刷新会在 exact actor/tenant/project/package/session/command/event/task authority 下恢复未完成任务；
+- 恢复路径只查询已持久化的 Provider task ID，不创建新任务、不重复 POST、不改变 command/event/task identity；同一进程的并发刷新共享 completion observer；
+- Provider 成功后使用 task 派生的稳定输出资产 UUID，继续走本地或 TOS 的既有严格持久化与 `output_registered` 推进；持久任务、输出或 authority 漂移均 fail closed；
+- 原子切片：RED `54d2123a370b335f55a9a8be051cbc2c609725d5`、GREEN `26a2ffb0af85d4586e85720f1d5937f1648d66f7`、类型收敛 `871a193d2eb491c94001bd1f4428a962b992ab32`；
+- 验证：Canvas/Story targeted 55/55、Root 522/522、v0.2+Media/TTS/Storage 22/22、Root build、StoryCanvas build、target ESLint、Governance、diff-check 全部通过；StoryCanvas strict tsc 保留 28 个既有 AI SDK/Zod 基线错误，变更路径 0；`byteplus.ts` 未触碰；
+- 本切片零 Provider POST、零付费调用。G6 继续 `BLOCKED`，仍需新的明确付费授权才能执行真实浏览器动态审批→CanvasCommand→带音频 Seedance→本地登记→controlled media 回显。
+
+### v0.15 · 2026-08-14
+
+- 用户纠正目标为继续开发平台而非继续直连接口测试；CV0 将主项目与集成工作树的忽略本地配置切换为 `SEEDANCE_GENERATE_AUDIO=true`、`CANVAS_V1_OUTPUT_STORAGE=local`，TOS 配置原样保留；
+- 新增显式本地输出后端：生成结果原子写入 StoryCanvas 受控项目目录、文件权限 0600、same/same 幂等、changed-content conflict、task/project exact binding，并登记 `sc_media_assets`；
+- controlled-media route 在完整 command→event→task→media authority join 后支持本地 MP4 与单 Range 流式读取；本地绝对路径不进入 browser DTO、DOM、URL 或响应；
+- `CanvasCommandService` 现在仅在持久输出通过 `assertOutputAsset` 后推进 `task_created → output_registered`，异步失败写固定安全事件；UI 对运行中事件执行 bounded authoritative workspace polling并在终态停止；
+- 原子切片：RED `0ff2bdc21b99f2d2e95556e4fac633ef1887d3db`、GREEN `db5a52a740b3b4ca31b9833bdcb4426f4c709914`；RED `c6c454e5d2177ce6d36121ef763eee74c641f089`、GREEN `31ad3d1e8ecb55700fedebe50e51082a3cfb55c6`；RED `482625d93e531fa49ee816753abb18c9f842217a`、GREEN `1dca807e0ff82576f83ac9165ef05d8b656afa72`；
+- 验证：Canvas/Story targeted 58/58、Root 522/522、Canvas UI 59/59、Root build、StoryCanvas build、Governance、diff-check 全部通过；`byteplus.ts` 未触碰；
+- 本切片零 Provider POST、零付费调用。G6 继续 `BLOCKED`，下一门为真实平台浏览器的动态审批→CanvasCommand→带音频 Seedance→本地登记→controlled media 回显；该真实付费任务需要新的明确授权。
+
+### v0.14 · 2026-08-14
+
+- 用户明确授权一次 Seedance 受控付费 smoke；CV0 以单次 POST、无自动付费重试提交 4 秒、480p、9:16、无音频任务，Provider 达到 `succeeded`；
+- Asset Group 与两个 Active Image 资产预检通过；现有资产 URL 可读取，但当前 AK/SK 对匹配 bucket/prefix 的签名 TOS GET 返回 HTTP 403 `AccessDenied`；
+- 经用户裁决，本轮保留 TOS 配置并改为本地落盘；MP4 为 H.264、496×864、24fps、4.041667 秒、493718 字节，SHA-256 已校验；
+- 原始 Provider task ID 只保存在仓库外 0600 本地状态，持久报告仅记录安全指纹；未写 TOS、未触碰 `byteplus.ts`、未发起第二次付费任务；
+- G6 继续为 `BLOCKED`：本地 Provider smoke 成功不等于浏览器动态审批、CanvasCommand、TOS 输出登记、controlled media、Golden Path 或 Joint Gate 完成。
+
+### v0.13 · 2026-08-14
+
+- 真实 Chromium 复现并修复 formal GET 缺少 `Origin`、StrictMode 并发 Legacy Open 200/409、并发 Formal Bootstrap 502，以及新 `pcs_*` 会话下 Provider/Entity authority 无法恢复；
+- 冻结浏览器 provenance 与并发 replay additive 合同；同源 formal GET 通过 Session、exact `pcs_*`、Fetch Metadata 与 Referer 组合验证，mutation 继续 exact Origin + CSRF；
+- 使用 dedicated `videoagent_control_test`、Control API、StoryCanvas、Vite 和真实 Chromium 完成 1440×900、1672×941 双视口验证，formal Workspace 加载、刷新恢复、无秘密泄漏均通过；
+- Provider 未配置时 UI 明确显示 Seedance unavailable，生成按钮禁用；approval、command、paid Provider 调用均为 0；
+- CV0 接受 `G6 SAFE NO-PROVIDER BROWSER` 切片，但 G6 整体标记 `BLOCKED`：当前环境缺少六项 BytePlus/TOS 配置，且尚未获得付费 smoke 授权，因此没有真实 task/output，Golden Path 仍未完成。
 
 ### v0.12 · 2026-08-14
 

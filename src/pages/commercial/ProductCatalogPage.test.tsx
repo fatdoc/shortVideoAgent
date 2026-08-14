@@ -25,15 +25,19 @@ describe('ProductCatalogPage', () => {
     useControlPlaneStore.setState({ snapshot: createControlPlaneDemoState() });
   });
 
-  it('separates purchased entitlements, explanation-only products and locked products', () => {
+  it('renders V3 store packages with entitlement, validity and platform state', () => {
     renderPage();
 
     expect(screen.getByText('2 项已购 · 2 项说明态 · 2 项锁定')).toBeInTheDocument();
     expect(screen.getAllByText('已购 Entitlement')).toHaveLength(2);
     expect(screen.getAllByText('产品说明 · 未开通')).toHaveLength(2);
     expect(screen.getAllByText('锁定 · 未授权')).toHaveLength(2);
+    expect(screen.getByText('权益')).toBeInTheDocument();
+    expect(screen.getByText('期限')).toBeInTheDocument();
+    expect(screen.getByText('平台状态')).toBeInTheDocument();
+    expect(screen.getAllByText('到店可用')).toHaveLength(2);
+    expect(screen.getByText('未接通发布平台')).toBeInTheDocument();
     expect(screen.queryByText('演示 RateCard')).not.toBeInTheDocument();
-    expect(screen.getByText(/平台目录不等于企业已购产品/)).toBeInTheDocument();
   });
 
   it('opens the canonical brand entry from a purchased usable product', async () => {
