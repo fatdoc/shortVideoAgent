@@ -104,11 +104,88 @@ test("complete case is repeatable, persistent, blocked without Provider, and zer
     connection: databaseUrl,
     pool: { min: 0, max: 1 },
   });
+  const invitationRows = await verificationDatabase("control_plane.invitations")
+    .select(
+      "invitation_type",
+      "target_email_normalized",
+      "status",
+      "token_digest",
+      "creation_idempotency_key",
+    )
+    .whereIn("creation_idempotency_key", [
+      "canvas-local-manual-case-v1:invitation:platform",
+      "canvas-local-manual-case-v1:invitation:channel",
+      "canvas-local-manual-case-v1:invitation:tenant",
+    ])
+    .orderBy("invitation_type");
+  assert.deepEqual(invitationRows.map((row) => ({
+    type: row.invitation_type,
+    email: row.target_email_normalized,
+    status: row.status,
+    hasDigestOnly: /^sha256:v1:[0-9a-f]{64}$/u.test(String(row.token_digest)),
+  })), [
+    { type: "CHANNEL", email: null, status: "revoked", hasDigestOnly: true },
+    {
+      type: "PLATFORM",
+      email: "canvas-local-platform@example.invalid",
+      status: "revoked",
+      hasDigestOnly: true,
+    },
+    {
+      type: "TENANT_MEMBER",
+      email: "canvas-local-tenant@example.invalid",
+      status: "revoked",
+      hasDigestOnly: true,
+    },
+  ]);
+  const termsDocument = await verificationDatabase("control_plane.terms_documents")
+    .where({ document_code: "canvas-local-case-terms" }).first();
+  assert.equal(termsDocument?.status, "active");
+  assert.match(String(termsDocument?.title), /CANVAS_FULL_CASE_TERMS/u);
+  const termsVersions = await verificationDatabase("control_plane.terms_versions")
+    .where({ terms_document_id: termsDocument?.terms_document_id });
+  assert.equal(termsVersions.length, 1);
+  assert.deepEqual(termsVersions.map((row) => ({
+    status: row.status,
+    locale: row.locale,
+    mustReaccept: row.must_reaccept,
+    publishedAt: row.published_at,
+  })), [{ status: "DRAFT", locale: "zh-CN", mustReaccept: false, publishedAt: null }]);
+  assert.match(String(termsVersions[0]?.content), /CANVAS_FULL_CASE_TERMS/u);
+  assert.equal(Number((await verificationDatabase("control_plane.user_consents")
+    .where({ terms_version_id: termsVersions[0]?.terms_version_id })
+    .count("* as count").first())?.count ?? 0), 0);
+  const forbiddenCommerceTables = [
+    "credit_conversion_rule_versions",
+    "wallets",
+    "recharge_orders",
+    "recharge_order_events",
+    "payment_events",
+    "commission_rule_versions",
+    "commission_calculation_outcomes",
+    "commission_accruals",
+    "commission_reversals",
+    "commission_settlements",
+    "commission_settlement_items",
+  ] as const;
+  const forbiddenCommerceSnapshot = Object.fromEntries(await Promise.all(
+    forbiddenCommerceTables.map(async (table) => [
+      table,
+      Number((await verificationDatabase(`control_plane.${table}`).count("* as count").first())?.count ?? 0),
+    ]),
+  ));
   const beforeReplay = {
     users: await verificationDatabase("control_plane.users").count("* as count").first(),
     projects: await verificationDatabase("control_plane.projects").count("* as count").first(),
     hashes: await verificationDatabase("control_plane.users")
       .select("user_id", "password_hash").orderBy("user_id"),
+    invitations: await verificationDatabase("control_plane.invitations")
+      .select("invitation_id", "status", "updated_at").orderBy("invitation_id"),
+    termsDocuments: await verificationDatabase("control_plane.terms_documents")
+      .select("terms_document_id", "status", "updated_at").orderBy("terms_document_id"),
+    termsVersions: await verificationDatabase("control_plane.terms_versions")
+      .select("terms_version_id", "status", "updated_at").orderBy("terms_version_id"),
+    forbiddenCommerce: forbiddenCommerceSnapshot,
   };
   const persistedMarkers = JSON.stringify({
     project: await verificationDatabase("control_plane.projects")
@@ -135,6 +212,18 @@ test("complete case is repeatable, persistent, blocked without Provider, and zer
     projects: await verificationDatabase("control_plane.projects").count("* as count").first(),
     hashes: await verificationDatabase("control_plane.users")
       .select("user_id", "password_hash").orderBy("user_id"),
+    invitations: await verificationDatabase("control_plane.invitations")
+      .select("invitation_id", "status", "updated_at").orderBy("invitation_id"),
+    termsDocuments: await verificationDatabase("control_plane.terms_documents")
+      .select("terms_document_id", "status", "updated_at").orderBy("terms_document_id"),
+    termsVersions: await verificationDatabase("control_plane.terms_versions")
+      .select("terms_version_id", "status", "updated_at").orderBy("terms_version_id"),
+    forbiddenCommerce: Object.fromEntries(await Promise.all(
+      forbiddenCommerceTables.map(async (table) => [
+        table,
+        Number((await verificationDatabase(`control_plane.${table}`).count("* as count").first())?.count ?? 0),
+      ]),
+    )),
   };
   await verificationDatabase.destroy();
 
@@ -154,6 +243,11 @@ test("complete case is repeatable, persistent, blocked without Provider, and zer
     assets: 4,
     authorizedAssets: 4,
     approvedAssets: 4,
+  });
+  assert.deepEqual(first.control.operationsCounts, {
+    members: { platform: 2, channel: 1, tenant: 3 },
+    revokedInvitations: { platform: 1, channel: 1, tenant: 1 },
+    terms: { documents: 1, drafts: 1, published: 0, consents: 0 },
   });
   assert.deepEqual(first.story.factCounts, {
     projectMapping: 1,
@@ -177,6 +271,7 @@ test("complete case is repeatable, persistent, blocked without Provider, and zer
   assert.equal(first.status, "BLOCKED_NO_PROVIDER");
   assert.equal(replay.semanticFingerprint, first.semanticFingerprint);
   assert.deepEqual(replay.control.authorityCounts, first.control.authorityCounts);
+  assert.deepEqual(replay.control.operationsCounts, first.control.operationsCounts);
   assert.deepEqual(replay.story.factCounts, first.story.factCounts);
   assert.equal(replay.entry.handle, first.entry.handle);
   assert.deepEqual(afterReplay, beforeReplay);

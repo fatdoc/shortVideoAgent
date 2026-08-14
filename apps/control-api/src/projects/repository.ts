@@ -4,7 +4,12 @@ import {
   deriveCanonicalBriefPayload,
   projectBrowserSafeBriefPayload,
 } from '../briefs/authority.js';
-import { browserSafeBriefPayloadSchema, type BrowserSafeBriefPayload } from '../briefs/schema.js';
+import {
+  browserSafeBriefPayloadSchema,
+  canonicalBriefPayloadSchema,
+  type BrowserSafeBriefPayload,
+  type CanonicalBriefPayload,
+} from '../briefs/schema.js';
 import { ContentConflictError, IdempotencyConflictError } from './errors.js';
 import { payloadDigest } from './digest.js';
 import { evaluateProductionEligibility } from './productionEligibility.js';
@@ -90,6 +95,10 @@ type StoryboardApprovalRow = {
   approval_sequence: string;
 };
 
+export type TrustedCanonicalBriefVersion = Omit<BriefVersion, 'payload'> & {
+  payload: CanonicalBriefPayload;
+};
+
 class ResourceNotFoundError extends Error {}
 
 function iso(value: Date | string): string {
@@ -117,6 +126,18 @@ function briefFromRow(row: BriefRow): BriefVersion {
     version: row.version,
     status: row.status,
     payload: projectBrowserSafeBriefPayload(row.payload),
+    createdBy: row.created_by,
+    createdAt: iso(row.created_at),
+  };
+}
+
+function trustedCanonicalBriefFromRow(row: BriefRow): TrustedCanonicalBriefVersion {
+  return {
+    id: row.brief_id,
+    projectId: row.project_id,
+    version: row.version,
+    status: row.status,
+    payload: canonicalBriefPayloadSchema.parse(row.payload),
     createdBy: row.created_by,
     createdAt: iso(row.created_at),
   };
@@ -265,6 +286,64 @@ export class PostgresContentStore implements ContentStore {
         return briefFromRow(row);
       });
       return { ...result, value: safeBriefVersion(result.value) };
+    } catch (error) {
+      if (error instanceof ResourceNotFoundError) return null;
+      throw error;
+    }
+  }
+
+  /** Trusted migration/local-seed boundary only. Never expose this method through an HTTP router. */
+  async createCanonicalBriefVersionForTrustedSeed(
+    actor: SessionActor,
+    projectId: string,
+    payload: CanonicalBriefPayload,
+    idempotency: IdempotencyInput,
+  ): Promise<IdempotentResult<TrustedCanonicalBriefVersion> | null> {
+    const canonicalPayload = canonicalBriefPayloadSchema.parse(payload);
+    const expectedOperation = `brief.create:${projectId}`;
+    if (idempotency.operation !== expectedOperation) {
+      throw new Error('trusted canonical Brief operation does not match Project scope');
+    }
+    const canonicalIdempotency: IdempotencyInput = {
+      operation: expectedOperation,
+      key: idempotency.key,
+      payload: { payload: canonicalPayload },
+    };
+    try {
+      const result = await this.idempotent(actor, canonicalIdempotency, async (transaction) => {
+        if (!(await this.lockProject(transaction, actor, projectId))) {
+          throw new ResourceNotFoundError();
+        }
+        const latest = (await transaction('control_plane.creative_briefs')
+          .select('version')
+          .where({ tenant_id: actor.tenantId, project_id: projectId })
+          .orderBy('version', 'desc')
+          .first()) as Pick<BriefRow, 'version'> | undefined;
+        const [row] = (await transaction('control_plane.creative_briefs')
+          .insert({
+            brief_id: randomUUID(),
+            tenant_id: actor.tenantId,
+            project_id: projectId,
+            version: (latest?.version ?? 0) + 1,
+            status: 'draft',
+            payload: canonicalPayload,
+            payload_digest: payloadDigest(canonicalPayload),
+            created_by: actor.userId,
+          })
+          .returning('*')) as BriefRow[];
+        if (!row) throw new Error('trusted canonical brief insert returned no row');
+        return trustedCanonicalBriefFromRow(row);
+      });
+      const persisted = (await this.database('control_plane.creative_briefs')
+        .select('*')
+        .where({
+          tenant_id: actor.tenantId,
+          project_id: projectId,
+          brief_id: result.value.id,
+        })
+        .first()) as BriefRow | undefined;
+      if (!persisted) throw new Error('trusted canonical brief replay authority is missing');
+      return { ...result, value: trustedCanonicalBriefFromRow(persisted) };
     } catch (error) {
       if (error instanceof ResourceNotFoundError) return null;
       throw error;
