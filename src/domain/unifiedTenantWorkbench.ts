@@ -99,7 +99,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'storyboard',
@@ -110,7 +110,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'rough-cut',
@@ -154,7 +154,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'production-tasks',

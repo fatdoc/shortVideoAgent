@@ -61,6 +61,18 @@ describe('A-BIZ-01.4 unified Tenant route manifest', () => {
     expect(menu.map((item) => item.path)).toContain(ROUTES.productionTasks(DEMO_PROJECT_ID));
   });
 
+  it('marks only the synchronized Pilot production boundaries as ready', () => {
+    const readiness = Object.fromEntries(
+      TENANT_ROUTE_MANIFEST.map((route) => [route.key, route.pilotReadiness]),
+    );
+
+    expect(readiness.script).toBe('ready');
+    expect(readiness.storyboard).toBe('ready');
+    expect(readiness['production-canvas']).toBe('ready');
+    expect(readiness.brand).toBe('handoff-required');
+    expect(readiness['production-inbox']).toBe('handoff-required');
+  });
+
   it('uses one Tenant workbench for both supported Tenant roles', () => {
     expect(getTenantWorkbenchOptions(['tenant_admin'])).toEqual([
       { kind: 'tenant', label: '统一创作工作台' },

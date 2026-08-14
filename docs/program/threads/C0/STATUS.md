@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `A_CANVAS_ENTRY_REDEMPTION_READY / A_BIZ_06E_5A_COMPLETE / A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_REDEMPTION_CONSUMER_REMEDIATION_REQUIRED / SHARED_ACTIVATION_GREEN_BLOCKED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A 已完成 Shared transport RED、Golden Path semantic evidence Oracle 与 remediation HTTP/log security Oracle，已完成 remediation Git attestation 主线程验收；同时等待 B 修复 Pilot parser/error、legacy tokenKey false-ready、authority lifecycle、bounded shutdown 与 Pilot 日志泄漏，复验通过前不进入 Shared activation Green
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `B_REMEDIATION_ACCEPTED / SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
+- 当前任务：A 已完成 B remediation 正式验收、Shared Proxy/Bridge/Router partial Green、canonical Production Package scope preservation、DI-only Package Bootstrap Orchestrator 及 bounded capability/idempotency hardening；下一步先与 B 冻结 Canvas Boundary `openCanvas()` controller 合同，确保 Shared Bridge 独占 Entry creation/redemption 编排，再实现 canonical Router → Package Orchestrator → Canvas Boundary 数据流。真实浏览器 Golden Path 与 Full Joint Gate 仍保持阻断
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -1422,3 +1422,27 @@
 - Shared Router、Bridge 与 Proxy RED 继续保留；本次验收不代表 Shared activation Green、真实编辑器加载、Golden Path 或 Joint Gate 完成。
 - B-owned 未跟踪文件 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
 - 当前状态仅为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · A-BIZ-06E.4B / 06E.4C Shared Activation Partial Green
+
+- `9d82e58` 完成 explicit Golden Path test harness 的 Shared Canvas runtime proxy：仅在 `mode=test`、`PILOT_E2E=true`、`PILOT_E2E_AB_GOLDEN_PATH=true` 时安装 `/api/production/pilot/canvas` → loopback StoryCanvas proxy；普通 Demo/Pilot runtime 不启用该代理。
+- `f317ecd` / `65073da` 分别冻结并实现 Shared Pilot Bridge：使用 A strict client 创建固定 120 秒的 non-secret Canvas Entry，以 `projectId/packageId/bootstrapCycleId` 生成稳定幂等键，再将 exact `handle/tenantId/projectId/packageId` 交给 B browser-facing consumer；同 cycle 并发/完成调用去重，失败不回退 Demo/Mock/Storage。
+- `6ef169c` / `3357f78` 冻结 Shared Router 与 route-readiness RED；`409dfdf` 将 canonical Script、Storyboard、Canvas 路由激活到 B Pilot boundaries，并把对应 manifest readiness 标记为 `ready`。
+- Script 与 Storyboard 现在加载 B Pilot boundary；Canvas route 只加载 B Canvas boundary 的 fail-closed blocked 状态。Router 当前只有 canonical `projectId`，没有可信 `packageId`、Entry handle 或 bootstrap cycle，因此明确传入 `entry=null`，不得从列表首项、URL、Demo Store、LocalStorage 或临时 UUID 猜测 Package。
+- 验证：Router/manifest/Bridge/B Pilot pages/Proxy targeted `71/71 PASS`；changed-file ESLint、Root Build、Governance、Prettier 与 diff-check PASS。
+- 下一原子切片必须先冻结 approved Script + approved Storyboard → exact Production Package reference → deterministic bootstrap cycle → Bridge `open()` → B Canvas boundary Entry 注入的数据流；在此之前不得宣称真实 editor 已加载或 Shared Activation 全绿。
+- B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未修改、未删除、未暂存、未提交。
+- 当前状态：`SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANVAS_PACKAGE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Canonical Package Bootstrap Orchestrator 与 Policy Hardening
+
+- `0198180` / `415dd95` 分别冻结并修复 strict Content Production Client 的 canonical Package scope；`PilotProductionPackage` 现在保留 Control API 返回的 exact `tenantId`，不得以 `organizationId`、route project 或调用方输入替代 Package Tenant authority。
+- `e497283` / `d79ed56` / `f71ef20` 分别完成 Package Bootstrap Orchestrator RED、合同细化与 Green。Orchestrator 固定执行 `readProductionEligibility → createProductionPackage → exact Package validation → Shared Bridge open()`。
+- eligibility 非 eligible 时以安全 `409 PILOT_CANVAS_PACKAGE_NOT_PREPARED` 停止且不创建 Package；eligibility scope mismatch 与 Package tenant/project/Script/Storyboard/capability/expiry mismatch 均 fail closed。
+- 同一 `tenantId/projectId/bootstrapCycleId` 的 in-flight 与 completed 调用去重；失败后仅允许复用同一 deterministic identity 显式重试，不创建替代 Package，也不切换 Demo、Mock 或 Storage。
+- `ad697a2` / `81bd075` 完成 Package policy/idempotency hardening RED/GREEN：runtime capability 只接受 `image.generate`、`video.generate`、`audio.tts`、`media.export` 的非空、唯一、最多四项集合；非法 policy 在任何 API/Bridge side effect 前以安全 `422 PILOT_CANVAS_PACKAGE_POLICY_INVALID` 拒绝。
+- Package idempotency key 固定为 `pilot-production-package-v1:<projectId>:h_<16 lowercase hex>`；bounded deterministic digest 完整绑定 tenant、project、current Script、current Storyboard、policy version、capabilities、expiry 与 bootstrap cycle，最长合法 cycle 下仍低于 Control API 200 字符上限。
+- 定向验证：Orchestrator + strict Content Client + Shared Bridge `44/44 PASS`；changed-file ESLint、Prettier 与 diff-check PASS。
+- Orchestrator 尚未接入 Router。Canvas route 继续以 `entry=null` fail closed，不表示 browser-facing Bootstrap 或真实编辑器已加载。
+- 审计确认 Shared Bridge 已负责 Entry creation 与 B consumer redemption，而 B `PilotCanvasBoundaryPage` 仍采用 `entry + consumer.openEntry()`；下一 shared 原子切片必须先冻结零参数 `openCanvas()` controller，避免重复 redemption 或 raw Entry authority 穿过 React props。
+- 当前状态：`CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

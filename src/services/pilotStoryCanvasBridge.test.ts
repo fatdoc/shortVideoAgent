@@ -1,7 +1,20 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type {
+  AssetRecordV01,
+  CanvasBootstrapV01,
+  CanvasCommandV01,
+} from '../features/canvas-v1/model/contracts';
+import type { CanvasWorkspaceV01 } from '../features/canvas-v1/model/workspaceContract';
+import type {
+  CanvasActivationResponse,
+  CanvasApprovalProjection,
+  LegacyCanvasOpenResponse,
+  PilotStoryCanvasHttpPort,
+} from '../features/canvas-v1/api';
+import { createPilotStoryCanvasBridge } from './pilotStoryCanvasBridge';
 
 const BRIDGE_SOURCE_PATH = resolve(process.cwd(), 'src/services/pilotStoryCanvasBridge.ts');
 const FORBIDDEN_DEMO_MODULES = new Set([
@@ -176,5 +189,131 @@ describe('Pilot StoryCanvas shared bridge isolation boundary (RED-only)', () => 
 
     const source = readFileSync(BRIDGE_SOURCE_PATH, 'utf8');
     expect(() => assertPilotStoryCanvasBridgeSourcePolicy(source)).not.toThrow();
+  });
+});
+
+interface ActivationFixture {
+  activationRequest: { activationAttemptId: string };
+  activationResponse: CanvasActivationResponse;
+  legacyOpenResponse: LegacyCanvasOpenResponse;
+  approvalPrepareResponse: CanvasApprovalProjection;
+  commandDispatchRequest: CanvasCommandV01;
+  formalBootstrapResponse: CanvasBootstrapV01;
+}
+
+const activationFixture = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/activation-transport.json'),
+    'utf8',
+  ),
+) as ActivationFixture;
+const workspaceFixture = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json',
+    ),
+    'utf8',
+  ),
+) as { workspaceResponse: CanvasWorkspaceV01 };
+const assetFixture = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/asset-record.json'),
+    'utf8',
+  ),
+) as AssetRecordV01;
+
+function successfulPort(order: string[]): PilotStoryCanvasHttpPort {
+  return {
+    acquireControlCsrf: vi.fn(async () => {
+      order.push('csrf');
+      return 'A'.repeat(43);
+    }),
+    activate: vi.fn(async () => {
+      order.push('activate');
+      return activationFixture.activationResponse;
+    }),
+    openLegacy: vi.fn(async () => {
+      order.push('legacy');
+      return activationFixture.legacyOpenResponse;
+    }),
+    readBootstrap: vi.fn(async () => {
+      order.push('bootstrap');
+      return workspaceFixture.workspaceResponse.bootstrap;
+    }),
+    readWorkspace: vi.fn(async () => {
+      order.push('workspace');
+      return workspaceFixture.workspaceResponse;
+    }),
+    readDocument: vi.fn(async () => {
+      order.push('document');
+      return workspaceFixture.workspaceResponse.document;
+    }),
+    readAssets: vi.fn(async () => {
+      order.push('assets');
+      return [assetFixture];
+    }),
+    readReadiness: vi.fn(async () => {
+      order.push('readiness');
+      return workspaceFixture.workspaceResponse.shots[0].readiness;
+    }),
+    prepareApproval: vi.fn(async () => {
+      order.push('approval');
+      return activationFixture.approvalPrepareResponse;
+    }),
+    dispatch: vi.fn(async () => {
+      order.push('dispatch');
+      return workspaceFixture.workspaceResponse.shots[0]!.event!;
+    }),
+  };
+}
+
+describe('Pilot StoryCanvas bridge exact activation and refresh', () => {
+  it('orders CSRF, activation, legacy open, formal bootstrap/workspace, and post-rotation CSRF', async () => {
+    const order: string[] = [];
+    const bridge = createPilotStoryCanvasBridge({ port: successfulPort(order) });
+    const state = await bridge.activate({
+      projectId: activationFixture.activationResponse.entry.projectId,
+      packageId: activationFixture.activationResponse.entry.packageId,
+      activationAttemptId: activationFixture.activationRequest.activationAttemptId,
+    });
+
+    expect(order).toEqual(['csrf', 'activate', 'legacy', 'bootstrap', 'workspace', 'csrf']);
+    expect(state.workspace).toEqual(workspaceFixture.workspaceResponse);
+  });
+
+  it('refreshes every real workspace projection in canonical order and binds approval scope', async () => {
+    const order: string[] = [];
+    const port = successfulPort(order);
+    const bridge = createPilotStoryCanvasBridge({ port });
+    const state = await bridge.activate({
+      projectId: activationFixture.activationResponse.entry.projectId,
+      packageId: activationFixture.activationResponse.entry.packageId,
+      activationAttemptId: activationFixture.activationRequest.activationAttemptId,
+    });
+    order.length = 0;
+    await bridge.refreshWorkspace(state);
+    expect(order).toEqual(['workspace', 'document', 'assets', 'readiness']);
+
+    const command = activationFixture.commandDispatchRequest as CanvasCommandV01;
+    order.length = 0;
+    await bridge.prepareApproval(state, {
+      tenantId: command.tenantId,
+      projectId: command.projectId,
+      packageId: command.packageId,
+      canvasSessionId: command.canvasSessionId,
+      requestedByActorId: command.requestedByActorId,
+      commandType: 'GENERATE_SHOT',
+      action: { commandId: command.commandId, payload: command.payload },
+    });
+    expect(order).toEqual(['csrf', 'approval']);
+    expect(port.prepareApproval).toHaveBeenCalledWith(
+      command.projectId,
+      expect.objectContaining({
+        expiresInSeconds: 60,
+        action: { commandId: command.commandId, payload: command.payload },
+      }),
+      'A'.repeat(43),
+    );
   });
 });

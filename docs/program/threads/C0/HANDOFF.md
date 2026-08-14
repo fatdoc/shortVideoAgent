@@ -1068,3 +1068,29 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 下一阶段仅可基于已接受 remediation 规划 Shared activation Green；Shared Router、Bridge、Proxy RED 必须继续保留，未完成独立 Green 前不得宣称真实编辑器或联合 Golden Path 已打通。
 - `apps/storycanvas/data/vendor/byteplus.ts` 保持 B-owned untracked，未触碰、未暂存、未提交。
 - 当前状态仅为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Activation Partial Green Handoff
+
+- Shared 提交链：Proxy Green `9d82e58`；Bridge RED `f317ecd`；Bridge Green `65073da`；Router boundary RED `6ef169c`；route readiness RED `3357f78`；Router Green `409dfdf`。
+- B 下一次同步 shared Router/Bridge/Proxy 或相关测试前必须完整纳入上述祖先链，并验证 commit object、ancestor 与 exact write set；不得只复制最终文件或跳过 RED commits。
+- Proxy 只属于 explicit Golden Path test harness；非 `mode=test + PILOT_E2E=true + PILOT_E2E_AB_GOLDEN_PATH=true` 时不得安装 StoryCanvas proxy，也不得改变真实 Pilot/Demo 默认网络边界。
+- Bridge 只接受 exact tenant/project/package binding 和 deterministic bootstrap cycle；固定 Entry TTL 120 秒，失败保持安全 `status/code/retryable/requestId`，不暴露 raw Grant、token、grantId、digest、stack 或 response body，也不回退 Demo/Mock/Storage。
+- Router canonical 路由为 `/projects/:projectId/script`、`/projects/:projectId/storyboard`、`/production/canvas/:projectId`。Script/Storyboard 已加载 B Pilot boundary；Canvas 当前因缺少 canonical Package reference 而安全 blocked，`entry=null` 是有意停止线。
+- 后续必须以独立合同/RED/Green 实现 approved Script + approved Storyboard → exact Package → Entry → B consumer 数据流；不得选择第一条 Package、从 URL/Storage/Demo 猜 packageId 或把 blocked boundary 解释为 editor 已加载。
+- 验证证据：targeted `71/71 PASS`、ESLint PASS、Root Build PASS、Governance PASS、Prettier PASS、diff-check PASS。
+- 保持：`CANVAS_PACKAGE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`；禁止宣称 `SHARED_ACTIVATION_GREEN / REAL_EDITOR_LOADED / GOLDEN_PATH_COMPLETE / JOINT_GATE_PASS / FULL_JOINT_GATE_PASS`。
+- `apps/storycanvas/data/vendor/byteplus.ts` 仍为 B-owned untracked 文件，未触碰且必须继续排除。
+
+## 2026-08-13 · Canvas Package Bootstrap / Boundary Controller Handoff
+
+- Package scope RED/GREEN：`0198180` → `415dd95`。strict Content Production Client 现在保留 canonical Package `tenantId`；Route/Boundary 不得从 Session organization、URL、Storage、Demo Store 或 route project 推断 Package Tenant。
+- Package Orchestrator RED/refinement/Green：`e497283` → `d79ed56` → `f71ef20`；Package hardening RED/Green：`ad697a2` → `81bd075`。
+- Orchestrator 是 DI-only service，不依赖 React、Router、Zustand、Demo Store 或 browser Storage；它只执行 current approved Script + Storyboard eligibility、exact Package creation/validation 和 Shared Bridge `open()`。
+- Runtime Package policy 只接受四个 canonical capabilities 的非空、唯一、最多四项集合；非法 policy 必须在任何 HTTP/Bridge side effect 前返回安全 `422 PILOT_CANVAS_PACKAGE_POLICY_INVALID`。
+- Package identity 必须完整绑定 tenant/project/Script/Storyboard/policy/capabilities/expiry/bootstrap cycle，同时只外发 bounded deterministic digest；禁止 `Math.random`、当前时间或临时 UUID。
+- 审计确认当前存在 shared 编排所有权冲突：A `pilotStoryCanvasBridge.open()` 已创建 Canvas Entry 并调用 B browser-facing `openEntry()`；B `PilotCanvasBoundaryPage` 又要求接收 Entry 并自行调用 `consumer.openEntry(entry)`。当前没有发生双重 redemption，仅因为 Router 固定传 `entry=null`。
+- 下一合同冻结为 B Boundary 只接收不透明零参数 controller：`controller: { openCanvas(): Promise<PilotCanvasBootstrap> } | null`。Boundary 仅展示 blocked/loading/error/retry/ready，不接收 Entry handle、tenantId、packageId input、bootstrapCycleId 或 consumer，也不得直接调用第二次 redemption。
+- B 先以独立 RED/GREEN 修改 `src/pages/pilot-production/PilotProductionBoundaryPages.test.tsx` 与 `src/pages/pilot-production/PilotProductionBoundaryPages.tsx`；A 再以独立 RED/GREEN 新增 Route Adapter，最后以独立 shared Router commit 接线并通知 B。
+- 第一个 RED：Boundary 使用 `controller={{ openCanvas }}` 后只调用一次零参数 `openCanvas()`，成功显示 safe ready selector，DOM 不出现 Entry handle 或 packageId；当前 `entry + consumer` 实现必须失败。
+- 在 controller 合同和 Route Adapter 完成前，不修改 Bridge/Orchestrator/StoryCanvas server capability，不把 raw Entry 捕获到 React props，不从 URL/Storage/Demo 猜 Package，不回退 legacy StoryCanvas。
+- 当前保持：`SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。

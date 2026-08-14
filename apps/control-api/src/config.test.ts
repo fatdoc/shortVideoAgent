@@ -7,6 +7,15 @@ describe('loadConfig', () => {
     PROJECT_GRANT_ACTIVE_KID: 'pilot-test-kid-1',
     PRODUCTION_PLANE_INTERNAL_TOKEN: 'independent-production-plane-internal-token-for-tests',
   };
+  const canvasAuthorityConfig = {
+    CANVAS_APPROVAL_FINGERPRINT_SECRET:
+      'independent-canvas-approval-fingerprint-secret-for-tests',
+    CANVAS_ASSET_CSRF_SECRET: 'independent-canvas-asset-csrf-secret-for-tests',
+    CANVAS_ACTIVATION_IDEMPOTENCY_SECRET:
+      'independent-canvas-activation-idempotency-secret-for-tests',
+    CANVAS_ASSET_STORAGE_ROOT: '/srv/videoagent/canvas-assets',
+    CANVAS_ASSET_ALLOWED_ORIGINS: 'https://pilot.example.test',
+  };
 
   it('provides safe local pilot defaults', () => {
     const config = loadConfig({ NODE_ENV: 'test', ...projectGrantConfig });
@@ -25,6 +34,8 @@ describe('loadConfig', () => {
     expect(config.registrationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
     expect(config.rechargePaymentDigestSecret.length).toBeGreaterThanOrEqual(32);
     expect(config.testPaymentInternalToken.length).toBeGreaterThanOrEqual(32);
+    expect(config.canvasActivationIdempotencySecret.length).toBeGreaterThanOrEqual(32);
+    expect(config.canvasAssetStorageRoot).toMatch(/canvas-assets$/);
     expect(config.rechargePaymentDigestSecret).not.toBe(config.testPaymentInternalToken);
     expect(config.registrationMaxAttempts).toBe(5);
     expect(config.registrationWindowSeconds).toBe(900);
@@ -55,6 +66,7 @@ describe('loadConfig', () => {
       ...projectGrantConfig,
       RECHARGE_PAYMENT_DIGEST_SECRET: 'independent-payment-digest-secret-for-tests',
       TEST_PAYMENT_INTERNAL_TOKEN: 'independent-test-payment-internal-token-for-tests',
+      ...canvasAuthorityConfig,
     };
     expect(() => loadConfig(production)).toThrow('REGISTRATION_IDEMPOTENCY_SECRET');
     expect(() =>
@@ -72,6 +84,7 @@ describe('loadConfig', () => {
       SESSION_SECRET: 'a-production-session-secret-with-more-than-32-characters',
       ...projectGrantConfig,
       REGISTRATION_IDEMPOTENCY_SECRET: 'independent-registration-secret-for-tests',
+      ...canvasAuthorityConfig,
     };
     expect(() => loadConfig(production)).toThrow('RECHARGE_PAYMENT_DIGEST_SECRET');
     expect(() =>
@@ -92,6 +105,98 @@ describe('loadConfig', () => {
     expect(configured.testPaymentInternalToken).toBe(
       'independent-test-payment-internal-token-for-tests',
     );
+  });
+
+  it('requires explicit independent Canvas authority security in production', () => {
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://pilot:secure@db.internal/videoagent',
+      SESSION_SECRET: 'a-production-session-secret-with-more-than-32-characters',
+      ...projectGrantConfig,
+      REGISTRATION_IDEMPOTENCY_SECRET: 'independent-registration-secret-for-tests',
+      RECHARGE_PAYMENT_DIGEST_SECRET: 'independent-payment-digest-secret-for-tests',
+      TEST_PAYMENT_INTERNAL_TOKEN: 'independent-test-payment-internal-token-for-tests',
+    };
+    expect(() => loadConfig(production)).toThrow('CANVAS_APPROVAL_FINGERPRINT_SECRET');
+    expect(() =>
+      loadConfig({
+        ...production,
+        CANVAS_APPROVAL_FINGERPRINT_SECRET:
+          'independent-canvas-approval-fingerprint-secret-for-tests',
+      }),
+    ).toThrow('CANVAS_ASSET_CSRF_SECRET');
+    expect(() =>
+      loadConfig({
+        ...production,
+        CANVAS_APPROVAL_FINGERPRINT_SECRET:
+          'independent-canvas-approval-fingerprint-secret-for-tests',
+        CANVAS_ASSET_CSRF_SECRET: 'independent-canvas-asset-csrf-secret-for-tests',
+      }),
+    ).toThrow('CANVAS_ACTIVATION_IDEMPOTENCY_SECRET');
+    expect(() =>
+      loadConfig({
+        ...production,
+        ...canvasAuthorityConfig,
+        CANVAS_ASSET_ALLOWED_ORIGINS: 'https://user:secret@pilot.example.test',
+      }),
+    ).toThrow('CANVAS_ASSET_ALLOWED_ORIGINS');
+
+    const configured = loadConfig({ ...production, ...canvasAuthorityConfig });
+    expect(configured.canvasAssetAllowedOrigins).toEqual(['https://pilot.example.test']);
+    expect(configured.canvasAssetStorageRoot).toBe('/srv/videoagent/canvas-assets');
+  });
+
+  it('requires a safe absolute Canvas asset storage root', () => {
+    for (const root of ['relative/private-assets', '/']) {
+      expect(() =>
+        loadConfig({
+          NODE_ENV: 'test',
+          ...projectGrantConfig,
+          CANVAS_ASSET_STORAGE_ROOT: root,
+        }),
+      ).toThrow('CANVAS_ASSET_STORAGE_ROOT');
+    }
+  });
+
+  it('rejects Canvas authority secret reuse across security boundaries', () => {
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        CANVAS_APPROVAL_FINGERPRINT_SECRET: projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
+      }),
+    ).toThrow('Canvas authority secrets must be independent');
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        CANVAS_APPROVAL_FINGERPRINT_SECRET:
+          'shared-canvas-authority-secret-with-enough-bytes',
+        CANVAS_ASSET_CSRF_SECRET: 'shared-canvas-authority-secret-with-enough-bytes',
+      }),
+    ).toThrow('Canvas authority secrets must be independent');
+    for (const reusedSecret of [
+      projectGrantConfig.PROJECT_GRANT_SIGNING_SECRET,
+      projectGrantConfig.PRODUCTION_PLANE_INTERNAL_TOKEN,
+      canvasAuthorityConfig.CANVAS_APPROVAL_FINGERPRINT_SECRET,
+      canvasAuthorityConfig.CANVAS_ASSET_CSRF_SECRET,
+    ]) {
+      expect(() =>
+        loadConfig({
+          NODE_ENV: 'test',
+          ...projectGrantConfig,
+          ...canvasAuthorityConfig,
+          CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: reusedSecret,
+        }),
+      ).toThrow('Canvas authority secrets must be independent');
+    }
+    expect(() =>
+      loadConfig({
+        NODE_ENV: 'test',
+        ...projectGrantConfig,
+        CANVAS_ACTIVATION_IDEMPOTENCY_SECRET: 'too-short',
+      }),
+    ).toThrow('at least 32 bytes');
   });
 
   it('rejects Payment secret reuse across security boundaries', () => {

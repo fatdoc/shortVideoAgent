@@ -430,7 +430,11 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       expect(window.location.pathname).toBe('/projects/project-alpha/script');
       expect(window.location.search).toBe('?tab=draft');
     });
-    expect(screen.getByTestId('pilot-route-handoff')).toBeInTheDocument();
+    expect(screen.getByTestId('pilot-script-boundary')).toHaveAttribute(
+      'data-project-id',
+      'project-alpha',
+    );
+    expect(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
   });
 
   it('keeps a Project API service failure inside the authenticated Pilot shell', async () => {
@@ -506,7 +510,7 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
   });
 });
 
-describe('A-BIZ-06E.4P Shared Router fail-closed boundary RED', () => {
+describe('A-BIZ-06E.4C Shared Router production boundary RED', () => {
   beforeEach(() => {
     integratedStoryCanvasRender.mockClear();
     window.localStorage.clear();
@@ -520,23 +524,32 @@ describe('A-BIZ-06E.4P Shared Router fail-closed boundary RED', () => {
     usePilotProjectContextStore.getState().reset();
   });
 
+  it.each([
+    ['/projects/project-alpha/script', 'pilot-script-boundary'],
+    ['/projects/project-alpha/storyboard', 'pilot-storyboard-boundary'],
+  ])('loads the B Pilot boundary for canonical route %s', async (path, testId) => {
+    setTenantContext();
+    window.history.replaceState({}, '', path);
+    render(<App />);
+
+    expect(await screen.findByTestId(testId)).toHaveAttribute('data-project-id', 'project-alpha');
+    expect(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
+  });
+
   it('blocks a real Tenant Canvas route when the B Pilot boundary is unavailable', async () => {
     setTenantContext();
     window.history.replaceState({}, '', '/production/canvas/project-alpha');
     render(<App />);
 
     expect(await screen.findByTestId('pilot-app-shell')).toBeInTheDocument();
-    expect.soft(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
-    expect.soft(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
-    expect.soft(integratedStoryCanvasRender).not.toHaveBeenCalled();
-
-    const blockedState = screen.queryByTestId('pilot-storycanvas-boundary-blocked');
-    expect.soft(blockedState).not.toBeNull();
-    if (blockedState) {
-      expect.soft(blockedState).toHaveTextContent('Project project-alpha');
-      expect.soft(blockedState).toHaveTextContent(/StoryCanvas Pilot (边界|服务).*暂不可用/);
-      expect.soft(blockedState).toHaveTextContent('不会回退 Demo');
-    }
+    expect(screen.getByTestId('pilot-storycanvas-boundary-blocked')).toHaveTextContent(
+      '不会回退 Demo',
+    );
+    expect(screen.queryByTestId('pilot-production-canvas-route')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('pilot-route-handoff')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('demo-integrated-storycanvas-page')).not.toBeInTheDocument();
+    expect(integratedStoryCanvasRender).not.toHaveBeenCalled();
   });
 });
 

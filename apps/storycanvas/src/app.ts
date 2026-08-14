@@ -17,9 +17,23 @@ import { ensureThumbnail, ThumbnailSize } from "@/utils/image";
 import { databaseReady, db } from "@/utils/db";
 import { initializeModels } from "@/config/initializeModels";
 import { capturePilotV02RawBody } from "@/routes/production/v0.2";
-import { closePilotCanvasRuntimeResources, getPilotCanvasRuntimeCapability } from "@/services/storycanvas/pilotCanvasCapability";
-import pilotCanvasBootstrapRouter, { clearPilotCanvasAuthorityRegistry } from "@/routes/production/pilot/canvas/bootstrap";
+import {
+  closePilotCanvasRuntimeResources,
+  createControlApiSessionVerifier,
+  getPilotCanvasRuntimeCapability,
+} from "@/services/storycanvas/pilotCanvasCapability";
+import pilotCanvasBootstrapRouter, {
+  clearPilotCanvasAuthorityRegistry,
+  readPilotCanvasServerAuthority,
+} from "@/routes/production/pilot/canvas/bootstrap";
 import pilotCanvasCapabilityRouter from "@/routes/production/pilot/canvas/capability";
+import { createCanvasV1RuntimeRouter } from "@/services/storycanvas/canvas-v1/runtime";
+import { ControlCanvasApprovalClient } from "@/services/storycanvas/canvas-v1/controlApprovalClient";
+import {
+  CanvasV1ShotProductionAdapter,
+  isCanvasV1ShotProductionConfigured,
+} from "@/services/storycanvas/canvas-v1/shotProductionAdapter";
+import { createCanvasV1ApprovalValidator } from "@/services/storycanvas/canvas-v1/runtimeApprovalValidator";
 
 const app = express();
 const server = http.createServer(app);
@@ -29,6 +43,43 @@ let webSocketServer: ReturnType<typeof expressWs>["getWss"] extends () => infer 
 function installPilotCanvasRequestBoundary() {
   app.use("/api/production/pilot/canvas/bootstrap", pilotCanvasBootstrapRouter);
   app.use("/api/production/pilot/canvas/capability", pilotCanvasCapabilityRouter);
+  if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED === "true") {
+    const controlApiBaseUrl = process.env.CONTROL_API_BASE_URL?.trim() ?? "";
+    const allowedOrigin = process.env.STORYCANVAS_PILOT_ALLOWED_ORIGIN?.trim() ?? "";
+    const internalToken = process.env.PRODUCTION_PLANE_INTERNAL_TOKEN?.trim() ?? "";
+    const approvalClient = new ControlCanvasApprovalClient({
+      controlApiBaseUrl,
+      internalToken,
+    });
+    const production = new CanvasV1ShotProductionAdapter({
+      database: db,
+      readiness: () => isCanvasV1ShotProductionConfigured(),
+      resolveApprovedPackage: (scope) => {
+        const authority = readPilotCanvasServerAuthority(scope.canvasSessionId);
+        if (
+          !authority ||
+          authority.actorId !== scope.actorId ||
+          authority.redemption.tenantId !== scope.tenantId ||
+          authority.redemption.projectId !== scope.projectId ||
+          authority.redemption.packageId !== scope.packageId
+        ) return null;
+        return authority.redemption.productionPackage;
+      },
+    });
+    const validateApproval = createCanvasV1ApprovalValidator({
+      readAuthority: readPilotCanvasServerAuthority,
+      shotProductionConfigured: () => isCanvasV1ShotProductionConfigured(),
+      consume: (command, scope) => approvalClient.consume(command, scope),
+    });
+    app.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
+      database: db,
+      allowedOrigin,
+      verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
+      readAuthority: readPilotCanvasServerAuthority,
+      validateApproval,
+      startShotProduction: (input) => production.start(input),
+    }));
+  }
 }
 
 async function checkPermissions() {
@@ -87,7 +138,7 @@ export default async function startServe(randomPort: Boolean = false) {
         origin: allowedOrigin || false,
         credentials: true,
         methods: ["GET", "POST", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "X-StoryCanvas-CSRF", "X-Request-ID"],
+        allowedHeaders: ["Content-Type", "X-StoryCanvas-CSRF", "X-Request-ID", "X-Canvas-Session-ID"],
       });
       return;
     }

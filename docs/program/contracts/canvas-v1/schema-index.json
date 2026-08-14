@@ -1,0 +1,29 @@
+{
+  "contractFamily": "Canvas V1",
+  "contractVersion": "0.1",
+  "schema": "canvas-v1.schema.json",
+  "definitions": {
+    "CanvasBootstrap": "#/$defs/canvasBootstrap",
+    "CanvasDocument": "#/$defs/canvasDocument",
+    "AssetRecord": "#/$defs/assetRecord",
+    "ProviderAssetBinding": "#/$defs/providerAssetBinding",
+    "EntityBinding": "#/$defs/entityBinding",
+    "ShotAssetRequirement": "#/$defs/shotAssetRequirement",
+    "ShotReadiness": "#/$defs/shotReadiness",
+    "CanvasCommand": "#/$defs/canvasCommand",
+    "CanvasEvent": "#/$defs/canvasEvent"
+  },
+  "classification": {
+    "browserSafe": [
+      "CanvasBootstrap",
+      "CanvasDocument",
+      "AssetRecord",
+      "EntityBinding",
+      "ShotAssetRequirement",
+      "ShotReadiness",
+      "CanvasCommand",
+      "CanvasEvent"
+    ],
+    "serverOnly": ["ProviderAssetBinding", "HighCostCommandApproval"]
+  }
+}

@@ -12,10 +12,15 @@ export type ControlApiDependencies = {
   registrationRouter?: Router;
   internalProductionRouter?: Router;
   internalCanvasEntryRouter?: Router;
+  internalCanvasAssetSessionRouter?: Router;
+  internalCanvasApprovalRouter?: Router;
+  internalCanvasAssetMaterializationRouter?: Router;
+  internalCanvasWorkspaceAuthorityRouter?: Router;
   contentRouter?: Router;
   storyboardRouter?: Router;
   productionRouter?: Router;
   canvasEntryRouter?: Router;
+  assetRouter?: Router;
   paymentRouter?: Router;
   commercialChannelRouter?: Router;
   commissionAuditRouter?: Router;
@@ -43,6 +48,18 @@ export function createApp(dependencies: ControlApiDependencies) {
   app.disable('x-powered-by');
   if (dependencies.trustProxy) app.set('trust proxy', 1);
   app.use(requestContext());
+  if (dependencies.internalCanvasAssetSessionRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasAssetSessionRouter);
+  }
+  if (dependencies.internalCanvasApprovalRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasApprovalRouter);
+  }
+  if (dependencies.internalCanvasAssetMaterializationRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasAssetMaterializationRouter);
+  }
+  if (dependencies.internalCanvasWorkspaceAuthorityRouter) {
+    app.use('/api/v1/internal', dependencies.internalCanvasWorkspaceAuthorityRouter);
+  }
   app.use(express.json({ limit: '1mb', strict: true }));
 
   app.get('/health/live', (_request, response) => {
@@ -76,6 +93,7 @@ export function createApp(dependencies: ControlApiDependencies) {
   if (dependencies.storyboardRouter) app.use('/api/v1', dependencies.storyboardRouter);
   if (dependencies.productionRouter) app.use('/api/v1', dependencies.productionRouter);
   if (dependencies.canvasEntryRouter) app.use('/api/v1', dependencies.canvasEntryRouter);
+  if (dependencies.assetRouter) app.use('/api/v1', dependencies.assetRouter);
   if (dependencies.paymentRouter) app.use('/api/v1', dependencies.paymentRouter);
   if (dependencies.commercialChannelRouter) {
     app.use('/api/v1', dependencies.commercialChannelRouter);

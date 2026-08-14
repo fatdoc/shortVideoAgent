@@ -23,6 +23,9 @@ export const CONTROL_API_MIGRATION_NAMES = [
   '022_production_storyboard_authority.ts',
   '023_canvas_entry_grant_package_binding.ts',
   '024_canvas_entry_redemption.ts',
+  '025_canvas_asset_authority.ts',
+  '026_canvas_asset_session_authority.ts',
+  '027_canvas_asset_materialization.ts',
 ] as const;
 
 export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
@@ -60,4 +63,8 @@ export const CONTROL_API_MIGRATION_FINGERPRINT_TABLES = [
   'commission_settlements',
   'commission_settlement_items',
   'users',
+  'canvas_asset_records',
+  'high_cost_command_approvals',
+  'canvas_asset_sessions',
+  'canvas_asset_materialization_attempts',
 ] as const;

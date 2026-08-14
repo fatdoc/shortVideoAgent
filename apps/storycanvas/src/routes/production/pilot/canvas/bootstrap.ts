@@ -4,6 +4,7 @@ import {
   PilotCanvasAuthorityRegistry,
   PilotCanvasRedemptionClient,
   PilotCanvasRedemptionError,
+  PilotCanvasSessionRegistrationClient,
   createControlApiSessionVerifier,
   createPilotCanvasSafeBootstrapRouter,
 } from "@/services/storycanvas/pilotCanvasCapability";
@@ -19,6 +20,10 @@ export function clearPilotCanvasAuthorityRegistry(): void {
   delegate = null;
 }
 
+export function readPilotCanvasServerAuthority(authorityId: string) {
+  return authorityRegistry?.readServerSessionAuthority(authorityId) ?? null;
+}
+
 function loadDelegate(): express.Router | null {
   if (delegate) return delegate;
   if (process.env.STORYCANVAS_PILOT_CANVAS_ENABLED !== "true") return null;
@@ -29,11 +34,16 @@ function loadDelegate(): express.Router | null {
     authorityRegistry = new PilotCanvasAuthorityRegistry(new PilotCanvasRedemptionClient({
       controlApiBaseUrl,
       internalToken,
-    }));
+    }), {
+      registrar: new PilotCanvasSessionRegistrationClient({
+        controlApiBaseUrl,
+        internalToken,
+      }),
+    });
     delegate = createPilotCanvasSafeBootstrapRouter({
       allowedOrigin,
       verifySession: createControlApiSessionVerifier({ controlApiBaseUrl }),
-      redeem: (entry) => authorityRegistry!.openEntry(entry),
+      redeem: (entry, session) => authorityRegistry!.openEntry(entry, session.actorId),
     });
     return delegate;
   } catch (error) {

@@ -5,6 +5,7 @@ import express from "express";
 import http from "node:http";
 import {
   PilotCanvasRedemptionClient,
+  PilotCanvasSessionRegistrationClient,
   PilotCanvasRedemptionError,
   PilotCanvasAuthorityRegistry,
   closePilotCanvasRuntimeResources,
@@ -172,6 +173,83 @@ test("redeems server-side with a stable key and exact response-loss replay", asy
   assert.equal(firstHeaders.get("x-production-plane-internal-token"), internalToken);
 });
 
+test("registers the minted pcs authority with Control using exact response-loss replay", async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  let attempt = 0;
+  const registrar = new PilotCanvasSessionRegistrationClient({
+    controlApiBaseUrl: "https://control.example.test",
+    internalToken,
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      attempt += 1;
+      if (attempt === 1) throw new Error("response lost");
+      return new Response(JSON.stringify({
+        status: "active",
+        expiresAt: "2026-08-12T01:30:00.000Z",
+        replayed: true,
+      }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "idempotency-replayed": "true",
+          "x-request-id": "register-replay",
+        },
+      });
+    },
+  });
+  const registration = {
+    ...entry,
+    canvasSessionId: "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+    actorId: userId,
+  };
+  const result = await registrar.register(registration);
+  assert.equal(result.replayed, true);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0]?.url, "https://control.example.test/api/v1/internal/canvas-asset-sessions");
+  assert.equal(calls[0]?.init?.body, JSON.stringify(registration));
+  assert.equal(calls[1]?.init?.body, calls[0]?.init?.body);
+  assert.equal(
+    new Headers(calls[0]?.init?.headers).get("x-production-plane-internal-token"),
+    internalToken,
+  );
+});
+
+test("does not save raw redemption or return pcs authority when Control registration fails", async () => {
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => redemption() as never,
+  } as never, {
+    registrar: {
+      register: async () => {
+        throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      },
+    },
+    now: () => Date.parse(now),
+  });
+  await assert.rejects(() => registry.openEntry(entry, userId), (error: unknown) =>
+    error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_DEPENDENCY_UNAVAILABLE",
+  );
+  assert.equal(registry.activeCount(), 0);
+});
+
+test("rejects Control expiry drift without saving raw redemption or pcs authority", async () => {
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => redemption() as never,
+  } as never, {
+    registrar: {
+      register: async () => ({
+        status: "active" as const,
+        expiresAt: "2026-08-12T01:29:59.000Z",
+        replayed: false,
+      }),
+    },
+    now: () => Date.parse(now),
+  });
+  await assert.rejects(() => registry.openEntry(entry, userId), (error: unknown) =>
+    error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_INVALID_RESPONSE",
+  );
+  assert.equal(registry.activeCount(), 0);
+});
+
 test("fails closed for strict response, scope, changed-handle binding and unsafe errors", async () => {
   for (const invalid of [
     redemption({ projectId: "99999999-9999-4999-8999-999999999999" }),
@@ -220,9 +298,9 @@ test("browser bootstrap enforces Session, Origin and CSRF and returns only a saf
   application.use("/api/production/pilot/canvas/bootstrap", createPilotCanvasBootstrapRouter({
     allowedOrigin: "https://pilot.example.test",
     verifySession: async (cookie) => cookie === "videoagent_session=session-value"
-      ? { tenantId, organizationType: "TENANT" as const, roles: ["content_operator" as const] }
+      ? { actorId: tenantId, tenantId, organizationType: "TENANT" as const, roles: ["content_operator" as const] }
       : cookie === "videoagent_session=no-production-role"
-        ? { tenantId, organizationType: "TENANT" as const, roles: ["pilot_support" as const] }
+        ? { actorId: tenantId, tenantId, organizationType: "TENANT" as const, roles: ["pilot_support" as const] }
         : null,
     redeem: async () => ({ authorityId: "server-authority-1", expiresAt: "2026-08-12T01:30:00.000Z", requestId: "request-bootstrap" }),
   }));
@@ -319,12 +397,24 @@ test("authority registry and shutdown expose bounded lifecycle semantics", async
       calls += 1;
       return redemption() as never;
     },
-  } as never, { capacity: 2, now: () => clock });
-  const first = await registry.openEntry(entry);
-  assert.equal((await registry.openEntry(entry)).authorityId, first.authorityId);
+  } as never, {
+    capacity: 2,
+    now: () => clock,
+    registrar: {
+      register: async () => ({ status: "active" as const, expiresAt: "2026-08-12T01:30:00.000Z", replayed: false }),
+    },
+  });
+  const first = await registry.openEntry(entry, userId);
+  assert.equal((await registry.openEntry(entry, userId)).authorityId, first.authorityId);
   assert.equal(calls, 1);
-  await registry.openEntry({ ...entry, handle: `ce_${"B".repeat(32)}` });
-  const third = await registry.openEntry({ ...entry, handle: `ce_${"C".repeat(32)}` });
+  const secondActorId = "99999999-9999-4999-8999-999999999999";
+  const secondActor = await registry.openEntry(entry, secondActorId);
+  assert.notEqual(secondActor.authorityId, first.authorityId);
+  assert.equal(registry.readServerSessionAuthority(first.authorityId)?.actorId, userId);
+  assert.equal(registry.readServerSessionAuthority(secondActor.authorityId)?.actorId, secondActorId);
+  assert.equal(calls, 2);
+  await registry.openEntry({ ...entry, handle: `ce_${"B".repeat(32)}` }, userId);
+  const third = await registry.openEntry({ ...entry, handle: `ce_${"C".repeat(32)}` }, userId);
   assert.equal(registry.activeCount(), 2);
   assert.equal(registry.readServerAuthority(first.authorityId), null);
 
@@ -351,6 +441,78 @@ test("authority registry and shutdown expose bounded lifecycle semantics", async
     webSocketClosed: true,
     pendingTimerCount: 0,
   });
+});
+
+test("authority registry shares one in-flight open and evicts a failed attempt before retry", async () => {
+  let redeemCalls = 0;
+  let registerCalls = 0;
+  let releaseRedeem!: () => void;
+  let signalRedeemStarted!: () => void;
+  const redeemStarted = new Promise<void>((resolve) => { signalRedeemStarted = resolve; });
+  const redeemReleased = new Promise<void>((resolve) => { releaseRedeem = resolve; });
+  let fail = false;
+  const registry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => {
+      redeemCalls += 1;
+      signalRedeemStarted();
+      await redeemReleased;
+      if (fail) throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      return redemption() as never;
+    },
+  } as never, {
+    registrar: {
+      register: async () => {
+        registerCalls += 1;
+        return { status: "active" as const, expiresAt: "2026-08-12T01:30:00.000Z", replayed: false };
+      },
+    },
+    now: () => Date.parse(now),
+  });
+
+  const first = registry.openEntry(entry, userId);
+  await redeemStarted;
+  const concurrentReplay = registry.openEntry(entry, userId);
+  releaseRedeem();
+  const [firstResult, replayResult] = await Promise.all([first, concurrentReplay]);
+  assert.deepEqual(replayResult, firstResult);
+  assert.equal(redeemCalls, 1);
+  assert.equal(registerCalls, 1);
+
+  let releaseFailure!: () => void;
+  let signalFailureStarted!: () => void;
+  const failureStarted = new Promise<void>((resolve) => { signalFailureStarted = resolve; });
+  const failureReleased = new Promise<void>((resolve) => { releaseFailure = resolve; });
+  fail = true;
+  const changedEntry = { ...entry, handle: `ce_${"D".repeat(32)}` };
+  const failedRegistry = new PilotCanvasAuthorityRegistry({
+    redeem: async () => {
+      redeemCalls += 1;
+      signalFailureStarted();
+      await failureReleased;
+      if (fail) throw new PilotCanvasRedemptionError("PILOT_CANVAS_DEPENDENCY_UNAVAILABLE", 503, true);
+      return redemption({ handle: changedEntry.handle }) as never;
+    },
+  } as never, {
+    registrar: {
+      register: async () => {
+        registerCalls += 1;
+        return { status: "active" as const, expiresAt: "2026-08-12T01:30:00.000Z", replayed: false };
+      },
+    },
+    now: () => Date.parse(now),
+  });
+  const failed = failedRegistry.openEntry(changedEntry, userId);
+  await failureStarted;
+  const failedReplay = failedRegistry.openEntry(changedEntry, userId);
+  releaseFailure();
+  await assert.rejects(() => Promise.all([failed, failedReplay]), (error: unknown) =>
+    error instanceof PilotCanvasRedemptionError && error.code === "PILOT_CANVAS_DEPENDENCY_UNAVAILABLE",
+  );
+  fail = false;
+  const recovered = await failedRegistry.openEntry(changedEntry, userId);
+  assert.match(recovered.authorityId, /^pcs_/u);
+  assert.equal(redeemCalls, 3);
+  assert.equal(registerCalls, 2);
 });
 
 test("reports a dedicated deterministic capability without exposing configuration values", async () => {

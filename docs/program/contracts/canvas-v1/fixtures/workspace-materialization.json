@@ -1,0 +1,274 @@
+{
+  "workspaceResponse": {
+    "objectType": "CanvasWorkspace",
+    "contractVersion": "0.1",
+    "tenantId": "11111111-1111-4111-8111-111111111111",
+    "projectId": "22222222-2222-4222-8222-222222222222",
+    "packageId": "33333333-3333-4333-8333-333333333333",
+    "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+    "status": "ready",
+    "reasonCodes": [],
+    "completeness": {
+      "assets": true,
+      "requirements": true,
+      "readiness": true,
+      "outputs": true,
+      "events": true,
+      "controlledMedia": true
+    },
+    "project": {
+      "projectName": "门店探店获客视频",
+      "requestedByActorId": "12121212-1212-4212-8212-121212121212"
+    },
+    "bootstrap": {
+      "objectType": "CanvasBootstrap",
+      "contractVersion": "0.1",
+      "tenantId": "11111111-1111-4111-8111-111111111111",
+      "projectId": "22222222-2222-4222-8222-222222222222",
+      "packageId": "33333333-3333-4333-8333-333333333333",
+      "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+      "status": "ready",
+      "approvedScript": {
+        "scriptId": "44444444-4444-4444-8444-444444444444",
+        "version": 3,
+        "status": "approved"
+      },
+      "approvedStoryboard": {
+        "storyboardId": "55555555-5555-4555-8555-555555555555",
+        "version": 2,
+        "status": "approved"
+      },
+      "document": {
+        "documentId": "77777777-7777-4777-8777-777777777777",
+        "version": 4
+      },
+      "assetSummaries": [
+        {
+          "assetId": "88888888-8888-4888-8888-888888888888",
+          "category": "virtual_character",
+          "displayName": "门店讲解员",
+          "rightsStatus": "authorized",
+          "approvalStatus": "approved",
+          "providerStatus": "active",
+          "entityBindingStatus": "approved",
+          "controlledPreviewUrl": "/api/canvas-v1/assets/88888888-8888-4888-8888-888888888888/preview"
+        }
+      ],
+      "capabilities": [
+        {
+          "capability": "video_generation",
+          "available": true,
+          "reasonCode": null
+        },
+        {
+          "capability": "playlist_export",
+          "available": true,
+          "reasonCode": null
+        }
+      ],
+      "requestId": "req-canvas-workspace-bootstrap-001",
+      "occurredAt": "2026-08-14T02:05:00.000Z"
+    },
+    "document": {
+      "objectType": "CanvasDocument",
+      "contractVersion": "0.1",
+      "tenantId": "11111111-1111-4111-8111-111111111111",
+      "projectId": "22222222-2222-4222-8222-222222222222",
+      "packageId": "33333333-3333-4333-8333-333333333333",
+      "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+      "documentId": "77777777-7777-4777-8777-777777777777",
+      "status": "active",
+      "version": 4,
+      "shots": [
+        {
+          "shotId": "66666666-6666-4666-8666-666666666666",
+          "position": 0,
+          "selectedOutputAssetId": "13131313-1313-4313-8313-131313131313",
+          "prompt": "门店讲解员站在明亮入口，向镜头介绍招牌套餐。",
+          "updatedAt": "2026-08-14T02:01:00.000Z"
+        }
+      ],
+      "playlist": {
+        "shotIds": ["66666666-6666-4666-8666-666666666666"]
+      },
+      "createdAt": "2026-08-14T01:30:00.000Z",
+      "updatedAt": "2026-08-14T02:01:00.000Z",
+      "occurredAt": "2026-08-14T02:01:00.000Z"
+    },
+    "shots": [
+      {
+        "shotId": "66666666-6666-4666-8666-666666666666",
+        "sequence": 1,
+        "title": "镜头 01",
+        "durationSeconds": 6,
+        "scriptText": "今天带你探一家适合朋友聚餐的门店，先看招牌套餐。",
+        "storyboardText": "门店讲解员站在明亮入口，向镜头介绍招牌套餐。",
+        "thumbnailUrl": "/api/production/pilot/canvas/v1/media/13131313-1313-4313-8313-131313131313/preview",
+        "requirements": [
+          {
+            "objectType": "ShotAssetRequirement",
+            "contractVersion": "0.1",
+            "tenantId": "11111111-1111-4111-8111-111111111111",
+            "projectId": "22222222-2222-4222-8222-222222222222",
+            "packageId": "33333333-3333-4333-8333-333333333333",
+            "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+            "requirementId": "a1795f30-1ab9-5faf-8c6a-14533f30b29f",
+            "shotId": "66666666-6666-4666-8666-666666666666",
+            "assetCategory": "virtual_character",
+            "entityId": "c1d64353-4315-535e-aa18-9948be4a5d25",
+            "status": "required",
+            "source": {
+              "scriptId": "44444444-4444-4444-8444-444444444444",
+              "scriptVersion": 3,
+              "storyboardId": "55555555-5555-4555-8555-555555555555",
+              "storyboardVersion": 2
+            },
+            "requiredCapabilities": ["video_generation"],
+            "createdAt": "2026-08-14T01:50:00.000Z",
+            "updatedAt": "2026-08-14T01:51:00.000Z",
+            "occurredAt": "2026-08-14T01:51:00.000Z"
+          }
+        ],
+        "readiness": {
+          "objectType": "ShotReadiness",
+          "contractVersion": "0.1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "projectId": "22222222-2222-4222-8222-222222222222",
+          "packageId": "33333333-3333-4333-8333-333333333333",
+          "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+          "readinessId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "shotId": "66666666-6666-4666-8666-666666666666",
+          "ready": true,
+          "reasonCodes": [],
+          "script": {
+            "scriptId": "44444444-4444-4444-8444-444444444444",
+            "version": 3,
+            "current": true
+          },
+          "storyboard": {
+            "storyboardId": "55555555-5555-4555-8555-555555555555",
+            "version": 2,
+            "current": true
+          },
+          "requirements": [
+            {
+              "requirementId": "a1795f30-1ab9-5faf-8c6a-14533f30b29f",
+              "assetId": "88888888-8888-4888-8888-888888888888",
+              "scopeMatched": true,
+              "rightsStatus": "authorized",
+              "approvalStatus": "approved",
+              "providerStatus": "active",
+              "entityBindingStatus": "approved",
+              "capabilityAvailable": true,
+              "ready": true,
+              "reasonCodes": []
+            }
+          ],
+          "evaluatedAt": "2026-08-14T01:55:00.000Z",
+          "occurredAt": "2026-08-14T01:55:00.000Z"
+        },
+        "requiredAssetLabels": ["虚拟人物"],
+        "outputs": [
+          {
+            "assetId": "13131313-1313-4313-8313-131313131313",
+            "kind": "video",
+            "previewUrl": "/api/production/pilot/canvas/v1/media/13131313-1313-4313-8313-131313131313/preview",
+            "selected": true
+          }
+        ],
+        "event": {
+          "objectType": "CanvasEvent",
+          "contractVersion": "0.1",
+          "tenantId": "11111111-1111-4111-8111-111111111111",
+          "projectId": "22222222-2222-4222-8222-222222222222",
+          "packageId": "33333333-3333-4333-8333-333333333333",
+          "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+          "eventId": "ffffffff-ffff-4fff-8fff-ffffffffffff",
+          "commandId": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          "commandType": "GENERATE_SHOT",
+          "status": "accepted",
+          "providerSubmitted": false,
+          "taskCreated": false,
+          "outputRegistered": false,
+          "receiptRecorded": false,
+          "taskId": null,
+          "outputAssetId": null,
+          "receiptId": null,
+          "replayed": false,
+          "error": null,
+          "requestId": "req-canvas-command-001",
+          "occurredAt": "2026-08-14T02:02:00.100Z"
+        }
+      }
+    ],
+    "assets": [
+      {
+        "assetId": "88888888-8888-4888-8888-888888888888",
+        "category": "virtual_character",
+        "displayName": "门店讲解员",
+        "rightsStatus": "authorized",
+        "approvalStatus": "approved",
+        "providerStatus": "active",
+        "entityBindingStatus": "approved",
+        "controlledPreviewUrl": "/api/canvas-v1/assets/88888888-8888-4888-8888-888888888888/preview",
+        "targetEntityId": "c1d64353-4315-535e-aa18-9948be4a5d25",
+        "materialization": {
+          "status": "ready",
+          "reasonCode": null
+        }
+      }
+    ],
+    "saveState": "saved",
+    "requestId": "req-canvas-workspace-001",
+    "occurredAt": "2026-08-14T02:05:00.000Z"
+  },
+  "materializationRequest": {
+    "objectType": "CanvasAssetMaterializationRequest",
+    "contractVersion": "0.1",
+    "tenantId": "11111111-1111-4111-8111-111111111111",
+    "projectId": "22222222-2222-4222-8222-222222222222",
+    "packageId": "33333333-3333-4333-8333-333333333333",
+    "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+    "assetId": "88888888-8888-4888-8888-888888888888",
+    "actorId": "12121212-1212-4212-8212-121212121212",
+    "materializationAttemptId": "14141414-1414-4414-8414-141414141414",
+    "requestId": "req-canvas-materialization-001",
+    "occurredAt": "2026-08-14T02:06:00.000Z"
+  },
+  "materializationResponse": {
+    "objectType": "CanvasAssetMaterialization",
+    "contractVersion": "0.1",
+    "tenantId": "11111111-1111-4111-8111-111111111111",
+    "projectId": "22222222-2222-4222-8222-222222222222",
+    "packageId": "33333333-3333-4333-8333-333333333333",
+    "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+    "assetId": "88888888-8888-4888-8888-888888888888",
+    "materializationAttemptId": "14141414-1414-4414-8414-141414141414",
+    "materializationId": "15151515-1515-4515-8515-151515151515",
+    "category": "virtual_character",
+    "mimeType": "image/png",
+    "byteSize": 68,
+    "checksum": "sha256:431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+    "contentEncoding": "base64",
+    "contentBase64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "replayed": false,
+    "requestId": "req-canvas-materialization-001",
+    "occurredAt": "2026-08-14T02:06:00.100Z"
+  },
+  "workspaceError": {
+    "error": {
+      "code": "PRIMARY_VIRTUAL_CHARACTER_MISSING",
+      "message": "A primary virtual character is required.",
+      "retryable": false,
+      "requestId": "req-canvas-workspace-blocked-001"
+    }
+  },
+  "materializationError": {
+    "error": {
+      "code": "CANVAS_MATERIALIZATION_SOURCE_UNAVAILABLE",
+      "message": "Canvas asset source is unavailable.",
+      "retryable": true,
+      "requestId": "req-canvas-materialization-002"
+    }
+  }
+}

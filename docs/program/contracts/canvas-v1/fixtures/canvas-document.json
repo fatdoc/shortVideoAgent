@@ -1,0 +1,26 @@
+{
+  "objectType": "CanvasDocument",
+  "contractVersion": "0.1",
+  "tenantId": "11111111-1111-4111-8111-111111111111",
+  "projectId": "22222222-2222-4222-8222-222222222222",
+  "packageId": "33333333-3333-4333-8333-333333333333",
+  "canvasSessionId": "pcs_ABCDEFGHIJKLMNOPQRSTUVWX12345678",
+  "documentId": "77777777-7777-4777-8777-777777777777",
+  "status": "active",
+  "version": 4,
+  "shots": [
+    {
+      "shotId": "66666666-6666-4666-8666-666666666666",
+      "position": 0,
+      "selectedOutputAssetId": "13131313-1313-4313-8313-131313131313",
+      "prompt": "店员在明亮的门店入口介绍招牌套餐。",
+      "updatedAt": "2026-08-14T02:01:00.000Z"
+    }
+  ],
+  "playlist": {
+    "shotIds": ["66666666-6666-4666-8666-666666666666"]
+  },
+  "createdAt": "2026-08-14T01:30:00.000Z",
+  "updatedAt": "2026-08-14T02:01:00.000Z",
+  "occurredAt": "2026-08-14T02:01:00.000Z"
+}
