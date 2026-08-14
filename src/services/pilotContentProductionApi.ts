@@ -7,6 +7,7 @@ import {
 } from './pilotApiTransport';
 
 export type PilotContentStatus = 'draft' | 'approved' | 'revoked' | 'superseded';
+export type PilotBriefStatus = 'draft' | 'approved' | 'superseded';
 export type PilotApprovalStatus = 'approved' | 'revoked' | 'blocked';
 export type PilotFactRiskStatus = 'cleared' | 'unresolved';
 export type PilotStoryboardSourceMode = 'uploaded' | 'generated' | 'mixed';
@@ -28,6 +29,16 @@ export interface PilotScriptVersion {
   projectId: string;
   version: number;
   status: PilotContentStatus;
+  payload: Record<string, unknown>;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface PilotBriefVersion {
+  id: string;
+  projectId: string;
+  version: number;
+  status: PilotBriefStatus;
   payload: Record<string, unknown>;
   createdBy: string;
   createdAt: string;
@@ -207,6 +218,16 @@ export interface PilotCreateCanvasEntryInput {
 }
 
 export interface PilotContentProductionApi {
+  listBriefVersions(
+    projectId: string,
+    options?: PilotRequestOptions,
+  ): Promise<PilotBriefVersion[]>;
+  createBriefVersion(
+    projectId: string,
+    input: { payload: Record<string, unknown> },
+    idempotencyKey: string,
+    options?: PilotRequestOptions,
+  ): Promise<PilotMutationResult<PilotBriefVersion>>;
   listScriptVersions(
     projectId: string,
     options?: PilotRequestOptions,
@@ -284,6 +305,7 @@ const CONTENT_STATUSES = new Set<PilotContentStatus>([
   'revoked',
   'superseded',
 ]);
+const BRIEF_STATUSES = new Set<PilotBriefStatus>(['draft', 'approved', 'superseded']);
 const APPROVAL_STATUSES = new Set<PilotApprovalStatus>(['approved', 'revoked', 'blocked']);
 const FACT_RISK_STATUSES = new Set<PilotFactRiskStatus>(['cleared', 'unresolved']);
 const SOURCE_MODES = new Set<PilotStoryboardSourceMode>(['uploaded', 'generated', 'mixed']);
@@ -368,6 +390,40 @@ function assertProjectId(value: string): void {
 function parsePayload(value: unknown): Record<string, unknown> {
   if (!isRecord(value)) throw new Error('invalid payload');
   return value;
+}
+
+function parseBriefVersion(value: unknown): PilotBriefVersion {
+  const keys = [
+    'id',
+    'projectId',
+    'version',
+    'status',
+    'payload',
+    'createdBy',
+    'createdAt',
+  ] as const;
+  if (
+    !isRecord(value) ||
+    !hasOnlyKeys(value, keys) ||
+    !uuid(value.id) ||
+    !uuid(value.projectId) ||
+    !positiveInteger(value.version) ||
+    typeof value.status !== 'string' ||
+    !BRIEF_STATUSES.has(value.status as PilotBriefStatus) ||
+    !uuid(value.createdBy) ||
+    !timestamp(value.createdAt)
+  ) {
+    throw new Error('invalid brief version');
+  }
+  return {
+    id: value.id,
+    projectId: value.projectId,
+    version: value.version,
+    status: value.status as PilotBriefStatus,
+    payload: parsePayload(value.payload),
+    createdBy: value.createdBy,
+    createdAt: value.createdAt,
+  };
 }
 
 function parseScriptVersion(value: unknown): PilotScriptVersion {
@@ -1034,6 +1090,35 @@ export function createPilotContentProductionApi(
     });
 
   return {
+    async listBriefVersions(projectId, options) {
+      assertProjectId(projectId);
+      const response = await transport.request({
+        method: 'GET',
+        path: `/api/v1/projects/${projectId}/brief-versions`,
+        ...requestOptions(options),
+        expectedStatuses: [200],
+        parse: (value) => parseList(value, 'briefVersions', parseBriefVersion),
+      });
+      return response.data;
+    },
+
+    async createBriefVersion(projectId, input, idempotencyKey, options) {
+      assertProjectId(projectId);
+      if (!isRecord(input) || !hasOnlyKeys(input, ['payload']) || !isRecord(input.payload)) {
+        throw invalidClientInput();
+      }
+      const response = await transport.request({
+        method: 'POST',
+        path: `/api/v1/projects/${projectId}/brief-versions`,
+        body: input,
+        idempotencyKey,
+        ...requestOptions(options),
+        expectedStatuses: [200, 201],
+        parse: parseBriefVersion,
+      });
+      return mutationResult(response.data, response.replayed, response.status);
+    },
+
     async listScriptVersions(projectId, options) {
       assertProjectId(projectId);
       const response = await transport.request({
