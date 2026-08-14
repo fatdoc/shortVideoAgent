@@ -1004,19 +1004,19 @@ const briefPayload = {
         factId: caseIds.brandFacts[0],
         text: "[CANVAS_FULL_CASE_BRAND] 门店主营现磨咖啡与手冲体验。",
         sourceReference: "local-case://store-profile/menu",
-        approved: true,
+        approved: true as const,
       },
       {
         factId: caseIds.brandFacts[1],
         text: "招牌套餐包含一杯当日手冲与一份烘焙点心。",
         sourceReference: "local-case://store-profile/signature-set",
-        approved: true,
+        approved: true as const,
       },
       {
         factId: caseIds.brandFacts[2],
         text: "门店提供现场咖啡豆风味讲解，不承诺医疗或功效结果。",
         sourceReference: "local-case://store-profile/service-boundary",
-        approved: true,
+        approved: true as const,
       },
     ],
     prohibitedTerms: ["治愈", "全网最低", "百分百有效"],
@@ -1044,11 +1044,16 @@ async function ensureApprovedContent(database: Knex, authority: CaseAuthority): 
   const currentActor = authority.actor;
   const projectId = authority.projectId;
   const content = new PostgresContentStore(database);
-  const brief = await content.createBriefVersion(currentActor, projectId, briefPayload, {
-    operation: `brief.create:${projectId}`,
-    key: `${CASE_VERSION}:brief`,
-    payload: { payload: briefPayload },
-  });
+  const brief = await content.createCanonicalBriefVersionForTrustedSeed(
+    currentActor,
+    projectId,
+    briefPayload,
+    {
+      operation: `brief.create:${projectId}`,
+      key: `${CASE_VERSION}:brief`,
+      payload: { payload: briefPayload },
+    },
+  );
   if (!brief) fail("LOCAL_CASE_BRIEF_FAILED");
   const script = await content.createScriptVersion(currentActor, projectId, scriptPayload, {
     operation: `script.create:${projectId}`,

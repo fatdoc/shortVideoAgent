@@ -135,13 +135,20 @@ async function seedProductionAuthority(projectGrantSecret: string) {
       audience: ['internal-pilot-reviewers'],
       platforms: ['douyin'],
       brandPolicySnapshot: {
-        facts: [],
+        facts: [
+          {
+            factId: '76000000-0000-4000-8000-000000000001',
+            text: 'G6 local TEST uses no paid provider dispatch.',
+            sourceReference: 'g6-safe-browser-gate://test-policy',
+            approved: true as const,
+          },
+        ],
         prohibitedTerms: [],
         requiredDisclosures: ['TEST only; no paid provider dispatch'],
         sourceDigest: `sha256:${'c'.repeat(64)}`,
       },
     };
-    await content.createBriefVersion(currentActor, projectId, briefPayload, {
+    await content.createCanonicalBriefVersionForTrustedSeed(currentActor, projectId, briefPayload, {
       operation: `brief.create:${projectId}`,
       key: 'g6-safe-brief-v1',
       payload: { payload: briefPayload },
