@@ -111,6 +111,7 @@ function contentApi(overrides: Partial<PilotContentProductionApi> = {}): PilotCo
     createStoryboardApproval: vi.fn(),
     readProductionEligibility: vi.fn().mockResolvedValue(eligibility),
     createProductionPackage: vi.fn(),
+    listProductionPackages: vi.fn().mockResolvedValue([]),
     readProductionPackage: vi.fn(),
     createCanvasEntry: vi.fn(),
     readCanvasEntry: vi.fn(),
@@ -202,6 +203,50 @@ describe('PilotProjectContentPage real Control facts', () => {
     expect(screen.getByTestId('pilot-production-empty')).toHaveTextContent('没有可验证的真实任务');
     expect(document.body).not.toHaveTextContent('task-001');
     expect(document.body).not.toHaveTextContent('output.mp4');
+  });
+
+  it('lists explicit package candidates and opens Canvas only after the operator selects one', async () => {
+    const packageA = {
+      objectType: 'ProjectProductionPackage' as const,
+      contractVersion: '0.3' as const,
+      projectId: project.id,
+      packageId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      packageVersion: 1,
+      scriptVersionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      storyboardVersionId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      capabilityRequirements: ['video.generate' as const, 'media.export' as const],
+      status: 'ready' as const,
+      createdAt: '2026-08-14T01:00:00.000Z',
+      expiresAt: '2026-08-14T02:00:00.000Z',
+    };
+    const packageB = {
+      ...packageA,
+      packageId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      packageVersion: 2,
+    };
+    const onOpenCanvas = vi.fn();
+
+    render(
+      <PilotProjectContentPage
+        routeKey="production-inbox"
+        projectId={project.id}
+        project={project}
+        contentApi={contentApi({
+          listProductionPackages: vi.fn().mockResolvedValue([packageA, packageB]),
+        })}
+        onOpenCanvas={onOpenCanvas}
+      />,
+    );
+
+    expect(await screen.findByTestId('pilot-production-packages')).toHaveTextContent(
+      'Package v1',
+    );
+    expect(screen.getByTestId('pilot-production-packages')).toHaveTextContent('Package v2');
+    expect(onOpenCanvas).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '选择 Package v2 进入画布' }));
+    expect(onOpenCanvas).toHaveBeenCalledTimes(1);
+    expect(onOpenCanvas).toHaveBeenCalledWith(packageB.packageId);
   });
 
   it('creates a real Project and its first strict Brief before activating it', async () => {
