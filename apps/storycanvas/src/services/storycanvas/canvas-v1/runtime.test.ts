@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import crypto from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
 import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import express from "express";
 import knex from "knex";
 
+import storyCanvasCoreMigration from "../../../../migrations/001_storycanvas_core";
 import canvasV1Migration from "../../../../migrations/005_canvas_v1_asset_command";
 import type {
   AssetRecordV01,
@@ -11,6 +16,7 @@ import type {
   ProviderAssetBindingV01,
   ShotReadinessV01,
 } from "@/contracts/canvas-v1";
+import type { CanvasWorkspaceAuthorityV01 } from "@/contracts/canvas-v1/workspaceMaterialization";
 import type { PilotCanvasServerAuthority } from "../pilotCanvasCapability";
 import { createCanvasV1RuntimeRouter } from "./runtime";
 
@@ -23,6 +29,51 @@ const assetId = "88888888-8888-4888-8888-888888888888";
 const shotId = "66666666-6666-4666-8666-666666666666";
 const occurredAt = "2026-08-14T02:00:00.000Z";
 const origin = "https://pilot.example.test";
+
+test("runtime keeps non-formal reads bound to exact Origin", async (context) => {
+  const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
+  context.after(() => database.destroy());
+  await canvasV1Migration.up(database);
+  const authority = {
+    actorId,
+    redemption: { tenantId, projectId, packageId },
+    expiresAt: "2099-08-14T03:00:00.000Z",
+  } as unknown as PilotCanvasServerAuthority;
+  const application = express();
+  application.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
+    database,
+    allowedOrigin: origin,
+    verifySession: async (cookie) => cookie === "videoagent_session=valid"
+      ? { actorId, tenantId, organizationType: "TENANT", roles: ["content_operator"] }
+      : null,
+    readAuthority: (id) => id === canvasSessionId ? authority : null,
+    acceptAuthority: async () => 42,
+  }));
+  const server = http.createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  }));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/assets`;
+  const authorityHeaders = {
+    cookie: "videoagent_session=valid",
+    "x-canvas-session-id": canvasSessionId,
+  };
+
+  const exactOriginRead = await fetch(url, { headers: { ...authorityHeaders, origin } });
+  assert.equal(exactOriginRead.status, 200);
+
+  for (const headers of [
+    authorityHeaders,
+    { ...authorityHeaders, origin: "https://attacker.example.test" },
+  ]) {
+    const blocked = await fetch(url, { headers });
+    assert.equal(blocked.status, 401);
+    assert.equal((await blocked.json() as { error: { code: string } }).error.code, "CANVAS_SESSION_INVALID");
+  }
+});
 
 test("runtime aggregate wires controlled media into the formal preview route", async (context) => {
   const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
@@ -98,6 +149,169 @@ const asset: AssetRecordV01 = {
   updatedAt: occurredAt,
   occurredAt,
 };
+
+test("concurrent exact formal bootstrap opens share prepare and materialization, while failures are evicted", async (context) => {
+  const database = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
+  const projectsRoot = await mkdtemp(path.join(os.tmpdir(), "canvas-runtime-concurrent-bootstrap-"));
+  context.after(async () => { await database.destroy(); await rm(projectsRoot, { recursive: true, force: true }); });
+  await database.schema.createTable("o_project", (table) => table.integer("id").primary());
+  await database.schema.createTable("o_image", (table) => table.integer("id").primary());
+  await database.schema.createTable("o_video", (table) => table.integer("id").primary());
+  await storyCanvasCoreMigration.up(database);
+  await canvasV1Migration.up(database);
+  await database("o_project").insert({ id: 42 });
+  const approvedPackage = {
+    scriptVersionId: "44444444-4444-4444-8444-444444444444",
+    storyboardVersionId: "55555555-5555-4555-8555-555555555555",
+    approvedScript: { content: "欢迎来到门店。" },
+    storyboard: [{ shotId, sequence: 1, description: "门店入口讲解", durationSeconds: 6, sourceMode: "generated" }],
+  };
+  const runtimeAuthority = {
+    actorId,
+    redemption: { tenantId, projectId, packageId, productionPackage: approvedPackage },
+    expiresAt: "2099-08-14T03:00:00.000Z",
+  } as unknown as PilotCanvasServerAuthority;
+  const workspaceAuthority: CanvasWorkspaceAuthorityV01 = {
+    objectType: "CanvasWorkspaceAuthority" as const,
+    contractVersion: "0.1" as const,
+    tenantId,
+    projectId,
+    packageId,
+    canvasSessionId,
+    project: { projectName: "门店探店获客视频" },
+    approvedScript: { scriptId: approvedPackage.scriptVersionId, version: 3 },
+    approvedStoryboard: { storyboardId: approvedPackage.storyboardVersionId, version: 2 },
+    assets: [asset],
+    completeness: { project: true, approvedScript: true, approvedStoryboard: true, assets: true },
+    requestId: "req-workspace-authority",
+    occurredAt,
+  };
+  const materializedBytes = Buffer.from([0xff, 0xd8, 0xff]);
+  const materializedChecksum = `sha256:${crypto.createHash("sha256").update(materializedBytes).digest("hex")}`;
+  let authorityCalls = 0;
+  let materializationCalls = 0;
+  let failAuthority = true;
+  let releaseAuthority!: () => void;
+  let authorityStarted!: () => void;
+  let authorityWait = new Promise<void>((resolve) => { releaseAuthority = resolve; });
+  let started = new Promise<void>((resolve) => { authorityStarted = resolve; });
+  const application = express();
+  application.use("/api/production/pilot/canvas/v1", createCanvasV1RuntimeRouter({
+    database,
+    allowedOrigin: origin,
+    verifySession: async () => ({ actorId, tenantId, organizationType: "TENANT", roles: ["content_operator"] }),
+    readAuthority: (id) => id === canvasSessionId ? runtimeAuthority : null,
+    acceptAuthority: async () => 42,
+    now: () => new Date(occurredAt),
+    capabilityAvailable: () => false,
+    projectsRoot,
+    workspaceAuthorityClient: { fetch: async () => {
+      authorityCalls += 1;
+      authorityStarted();
+      await authorityWait;
+      if (failAuthority) throw new Error("authority unavailable");
+      return workspaceAuthority;
+    } },
+    assetMaterializationClient: { materialize: async (request) => {
+      materializationCalls += 1;
+      return {
+        objectType: "CanvasAssetMaterialization", contractVersion: "0.1", tenantId, projectId, packageId,
+        canvasSessionId, assetId, materializationAttemptId: request.materializationAttemptId,
+        materializationId: "19191919-1919-4919-8919-191919191919", category: "virtual_character",
+        mimeType: "image/jpeg", byteSize: materializedBytes.byteLength, checksum: materializedChecksum,
+        contentEncoding: "base64", contentBase64: materializedBytes.toString("base64"), replayed: false,
+        requestId: request.requestId, occurredAt: request.occurredAt,
+      };
+    } },
+  }));
+  const server = http.createServer(application);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  context.after(() => new Promise<void>((resolve, reject) => {
+    server.close((error) => error ? reject(error) : resolve());
+  }));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/bootstrap`;
+  const workspaceUrl = `http://127.0.0.1:${address.port}/api/production/pilot/canvas/v1/workspace`;
+  const requestStatus = (target: string, requestHeaders: Record<string, string>) => new Promise<number>((resolve, reject) => {
+    const request = http.get(target, { headers: requestHeaders }, (response) => {
+      response.resume();
+      response.once("end", () => resolve(response.statusCode ?? 0));
+    });
+    request.once("error", reject);
+  });
+  const headers = {
+    cookie: "videoagent_session=valid",
+    "x-canvas-session-id": canvasSessionId,
+    referer: `${origin}/canvas/${projectId}`,
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-dest": "empty",
+  };
+
+  const failedFirst = fetch(url, { headers });
+  await started;
+  const failedReplay = fetch(url, { headers });
+  await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  releaseAuthority();
+  assert.deepEqual((await Promise.all([failedFirst, failedReplay])).map(({ status }) => status), [502, 502]);
+  assert.equal(authorityCalls, 1);
+  assert.equal(materializationCalls, 0);
+
+  failAuthority = false;
+  authorityWait = new Promise<void>((resolve) => { releaseAuthority = resolve; });
+  started = new Promise<void>((resolve) => { authorityStarted = resolve; });
+  const first = fetch(url, { headers: { ...headers, "x-request-id": "req-formal-first" } });
+  await started;
+  const replay = fetch(url, { headers: { ...headers, origin, "x-request-id": "req-formal-replay" } });
+  const changedScope = await fetch(url, {
+    headers: { ...headers, "x-canvas-session-id": "pcs_ZYXWVUTSRQPONMLKJIHGFEDC87654321" },
+  });
+  assert.equal(changedScope.status, 401);
+  await new Promise<void>((resolve) => setTimeout(resolve, 25));
+  releaseAuthority();
+  const responses = await Promise.all([first, replay]);
+  assert.deepEqual(responses.map(({ status }) => status), [200, 200], JSON.stringify({ authorityCalls, materializationCalls }));
+  assert.deepEqual(await responses[0].json(), await responses[1].json());
+  assert.equal(authorityCalls, 2);
+  assert.equal(materializationCalls, 1);
+  for (const table of [
+    "sc_canvas_v1_documents", "sc_canvas_v1_requirements", "sc_canvas_v1_readiness",
+    "sc_media_assets", "sc_external_mappings",
+  ]) assert.equal((await database(table)).length, 1, table);
+  assert.equal((await fetch(workspaceUrl, { headers })).status, 200);
+  const workspaceMissingDestination = { ...headers } as Record<string, string>;
+  delete workspaceMissingDestination["sec-fetch-dest"];
+  assert.equal(await requestStatus(workspaceUrl, workspaceMissingDestination), 401);
+
+  for (const poisoned of [
+    { referer: undefined },
+    { "sec-fetch-site": undefined },
+    { "sec-fetch-mode": undefined },
+    { "sec-fetch-dest": undefined },
+    { origin: "null" },
+    { origin: `${origin}/` },
+    { referer: "https://attacker.example.test/canvas" },
+    { "sec-fetch-site": "same-site" },
+    { "sec-fetch-site": "none" },
+    { "sec-fetch-site": "cross-site" },
+    { "sec-fetch-mode": "navigate" },
+    { "sec-fetch-mode": "no-cors" },
+    { "sec-fetch-dest": "document" },
+    { "sec-fetch-dest": "iframe" },
+    { "sec-fetch-site": "same-origin, same-origin" },
+    { referer: `https://user:password@pilot.example.test/canvas/${projectId}` },
+  ]) {
+    const poisonedHeaders = { ...headers } as Record<string, string | undefined>;
+    for (const [name, value] of Object.entries(poisoned)) {
+      if (value === undefined) delete poisonedHeaders[name];
+      else poisonedHeaders[name] = value;
+    }
+    assert.equal(await requestStatus(url, poisonedHeaders as Record<string, string>), 401, JSON.stringify(poisoned));
+  }
+  assert.equal(authorityCalls, 2);
+  assert.equal(materializationCalls, 1);
+});
 
 const generateCommand: CanvasCommandV01 = {
   objectType: "CanvasCommand",

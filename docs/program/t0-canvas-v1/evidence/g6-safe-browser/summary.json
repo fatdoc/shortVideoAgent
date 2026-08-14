@@ -1,0 +1,19 @@
+{
+  "baseline": "e747111d281170ccc061a600a908c0fdf12bf4ed",
+  "testedIntegration": "9cb7b1f9f1e37636b116e510fff175a52fcf0938",
+  "databaseName": "videoagent_control_test",
+  "origins": {
+    "control": "http://127.0.0.1:10601",
+    "story": "http://127.0.0.1:10588",
+    "browser": "http://127.0.0.1:5177"
+  },
+  "canonicalUrl": "http://127.0.0.1:5177/production/canvas/66000000-0000-4000-8000-000000000001?packageId=06e28846-3c04-4177-9c6d-fc08d1d9a041",
+  "assetId": "b354b787-1c43-4a12-a33b-33280a25d275",
+  "sourceByteSize": 3,
+  "sourceMimeType": "image/jpeg",
+  "providerConfigured": false,
+  "approvalRequests": 0,
+  "commandRequests": 0,
+  "paidProviderCalls": 0,
+  "result": "SAFE_NO_PROVIDER_BLOCKED_READINESS"
+}

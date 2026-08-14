@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { test } from "node:test";
 import knex, { type Knex } from "knex";
 
-import type { CanvasCommandV01, ShotReadinessV01 } from "@/contracts/canvas-v1";
+import type { CanvasCommandV01, CanvasEventV01, ShotReadinessV01 } from "@/contracts/canvas-v1";
 import migration from "../../../../migrations/005_canvas_v1_asset_command";
 import {
   CanvasCommandService,
@@ -166,6 +166,114 @@ test("same scope/same payload replays persisted truth; changed payload conflicts
     (error: unknown) => error instanceof CanvasCommandServiceError && error.code === "CANVAS_COMMAND_IDEMPOTENCY_CONFLICT",
   );
   assert.equal(starts, 1);
+});
+
+test("advances a submitted generation to output_registered only after persisted output completion", async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  let complete!: (value: { outputAssetId: string }) => void;
+  const completion = new Promise<{ outputAssetId: string }>((resolve) => { complete = resolve; });
+  const service = new CanvasCommandService(options(db, {
+    startShotProduction: async () => ({
+      taskId: "18181818-1818-4818-8818-181818181818",
+      completion,
+    }),
+    assertOutputAsset: async (candidate) => candidate === "19191919-1919-4919-8919-191919191919",
+  }));
+
+  const submitted = await service.execute(command());
+  assert.equal(submitted.status, "task_created");
+  assert.equal(submitted.outputRegistered, false);
+  complete({ outputAssetId: "19191919-1919-4919-8919-191919191919" });
+
+  let persisted: CanvasEventV01 | null = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const row = await db("sc_canvas_v1_events").where({ eventId: submitted.eventId }).first();
+    persisted = JSON.parse(String(row.eventJson)) as CanvasEventV01;
+    if (persisted.status === "output_registered") break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(persisted?.status, "output_registered");
+  assert.equal(persisted?.providerSubmitted, true);
+  assert.equal(persisted?.taskCreated, true);
+  assert.equal(persisted?.outputRegistered, true);
+  assert.equal(persisted?.taskId, submitted.taskId);
+  assert.equal(persisted?.outputAssetId, "19191919-1919-4919-8919-191919191919");
+  const replay = await service.execute(command({ requestId: "req-output-registered-replay" }));
+  assert.equal(replay.status, "output_registered");
+  assert.equal(replay.replayed, true);
+});
+
+test("workspace recovery resumes persisted task_created events and advances the same event without resubmission", async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  const initial = new CanvasCommandService(options(db));
+  const submitted = await initial.execute(command());
+  assert.equal(submitted.status, "task_created");
+
+  let recoveryStarts = 0;
+  let approvals = 0;
+  let complete!: (value: { outputAssetId: string }) => void;
+  const completion = new Promise<{ outputAssetId: string }>((resolve) => { complete = resolve; });
+  const recovered = new CanvasCommandService(options(db, {
+    validateApproval: async () => { approvals += 1; return true; },
+    startShotProduction: async () => {
+      recoveryStarts += 1;
+      return {
+        taskId: "18181818-1818-4818-8818-181818181818",
+        completion,
+      };
+    },
+    assertOutputAsset: async () => true,
+  }));
+
+  assert.equal(await recovered.resumePendingGenerations(scope), 1);
+  assert.equal(await recovered.resumePendingGenerations(scope), 0);
+  assert.equal(recoveryStarts, 1);
+  assert.equal(approvals, 1);
+  complete({ outputAssetId: "19191919-1919-4919-8919-191919191919" });
+  let persisted: CanvasEventV01 | null = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    persisted = JSON.parse(String((await db("sc_canvas_v1_events").first()).eventJson) as string) as CanvasEventV01;
+    if (persisted.status === "output_registered") break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(persisted?.eventId, submitted.eventId);
+  assert.equal(persisted?.status, "output_registered");
+  assert.equal(persisted?.outputAssetId, "19191919-1919-4919-8919-191919191919");
+  assert.equal(recoveryStarts, 1);
+  assert.equal(approvals, 1);
+  assert.equal(await recovered.resumePendingGenerations(scope), 0);
+});
+
+test("records a fixed failed event when submitted production cannot register an output", async (context) => {
+  const db = await database();
+  context.after(() => db.destroy());
+  let fail!: (error: Error) => void;
+  const completion = new Promise<{ outputAssetId: string }>((_resolve, reject) => { fail = reject; });
+  const service = new CanvasCommandService(options(db, {
+    startShotProduction: async () => ({
+      taskId: "18181818-1818-4818-8818-181818181818",
+      completion,
+    }),
+    assertOutputAsset: async () => false,
+  }));
+  const submitted = await service.execute(command());
+  assert.equal(submitted.status, "task_created");
+  fail(new Error("Bearer secret asset://provider raw storage response"));
+
+  let persisted: CanvasEventV01 | null = null;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    persisted = JSON.parse(String((await db("sc_canvas_v1_events").first()).eventJson)) as CanvasEventV01;
+    if (persisted.status === "failed") break;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(persisted?.status, "failed");
+  assert.equal(persisted?.providerSubmitted, true);
+  assert.equal(persisted?.taskCreated, true);
+  assert.equal(persisted?.outputRegistered, false);
+  assert.equal(persisted?.error?.code, "CANVAS_PROVIDER_FAILED");
+  assert.doesNotMatch(JSON.stringify(persisted), /Bearer|asset:\/\/|storage response/iu);
 });
 
 test("SYNC_PROVIDER_ASSET is low-cost while the frozen five commands still require approval", async (context) => {

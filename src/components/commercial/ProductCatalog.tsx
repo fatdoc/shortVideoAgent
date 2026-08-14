@@ -13,7 +13,7 @@ import {
   type TenantProductView,
 } from '../../domain/controlPlaneViewModels';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
-import { TruthBadge } from '../workbench/TruthBadge';
+import './product-catalog.css';
 
 interface ProductCatalogProps {
   compact?: boolean;
@@ -52,29 +52,45 @@ export function ProductCatalog({ compact = false }: ProductCatalogProps) {
   ).length;
   const lockedCount = view.products.filter((item) => item.purchaseState === 'locked').length;
 
+  const formatValidity = (item: TenantProductView) => {
+    const active = item.entitlements.find((entitlement) => entitlement.status === 'active');
+    const sku = item.skus[0];
+    if (active) return `${active.validFrom.slice(0, 10)} ~ ${active.validTo.slice(0, 10)}`;
+    if (sku) return `${sku.validityDays} 天规格`;
+    return '待配置';
+  };
+
+  const platformState = (item: TenantProductView) => {
+    if (item.purchaseState === 'purchased' && item.product.demoAction === 'usable') {
+      return '到店可用';
+    }
+    if (item.purchaseState === 'locked') return '未授权';
+    return '待配置';
+  };
+
   return (
-    <section className="d1-surface d1-catalog" data-testid="enterprise-product-catalog">
+    <section className="d1-surface d1-catalog store-product-catalog" data-testid="enterprise-product-catalog">
       <div className="d1-section-heading">
         <div>
-          <Typography.Title level={4}>企业产品与能力</Typography.Title>
+          <Typography.Title level={4}>门店商品与获客能力</Typography.Title>
           <Typography.Text type="secondary">
             {purchasedCount} 项已购 · {explanationCount} 项说明态 · {lockedCount} 项锁定
           </Typography.Text>
         </div>
-        <Tag color="gold">{view.disclaimer}</Tag>
+        <Tag>未接通发布平台</Tag>
       </div>
 
+      <div className="store-product-head">
+        <span>套餐/能力</span>
+        <span>权益</span>
+        <span>期限</span>
+        <span>平台状态</span>
+        <span>操作</span>
+      </div>
       <div className={compact ? 'd1-product-list is-compact' : 'd1-product-list'}>
         {view.products.map((item) => {
           const { product } = item;
           const meta = purchaseStateMeta[item.purchaseState];
-          const entitlementStatuses = item.entitlements.map((entitlement) => entitlement.status);
-          const truthCapabilityId =
-            item.purchaseState === 'purchased' && product.demoAction === 'usable'
-              ? 'demo.local-life-golden-path'
-              : product.code === 'product.digital_human_addon'
-                ? product.capabilityIds[0]
-                : null;
 
           return (
             <article className="d1-product-row" key={product.productId}>
@@ -87,26 +103,23 @@ export function ProductCatalog({ compact = false }: ProductCatalogProps) {
                   <Tag color={meta.color} icon={meta.icon}>
                     {meta.label}
                   </Tag>
-                  {truthCapabilityId ? (
-                    <TruthBadge capabilityId={truthCapabilityId} compact />
-                  ) : null}
                 </Space>
                 <Typography.Text type="secondary">{product.description}</Typography.Text>
                 <div className="d1-product-meta">
                   <span>
-                    {item.capabilities.map((capability) => capability.code).join('、') ||
-                      'capability unavailable'}
+                    权益{' '}
+                    {item.capabilities.map((capability) => capability.displayName).join('、') ||
+                      '待配置'}
                   </span>
+                  <span>期限 {formatValidity(item)}</span>
                   <span>
-                    Entitlement{' '}
-                    {entitlementStatuses.length > 0 ? entitlementStatuses.join(' / ') : '未配置'}
+                    状态 <strong>{platformState(item)}</strong>
                   </span>
                 </div>
               </div>
               <div className="d1-product-actions">
                 {item.purchaseState === 'purchased' && product.demoAction === 'usable' ? (
                   <Button
-                    type="primary"
                     icon={<ArrowRightOutlined />}
                     onClick={() => navigate(ROUTES.brand(view.projectId))}
                   >
@@ -142,28 +155,28 @@ export function ProductCatalog({ compact = false }: ProductCatalogProps) {
               size="small"
               items={[
                 {
-                  key: 'product',
-                  label: 'Product',
-                  children: selected.product.code,
+                  key: 'status',
+                  label: '平台状态',
+                  children: platformState(selected),
                 },
                 {
                   key: 'sku',
-                  label: 'SKU',
-                  children: selected.skus.map((sku) => sku.displayName).join('、') || '无演示 SKU',
+                  label: '期限',
+                  children: formatValidity(selected),
                 },
                 {
                   key: 'capability',
-                  label: 'Capability',
+                  label: '权益',
                   children:
                     selected.capabilities.map((capability) => capability.displayName).join('、') ||
-                    '无关联 Capability',
+                    '待配置',
                 },
                 {
                   key: 'entitlement',
                   label: 'Entitlement',
                   children:
                     selected.entitlements
-                      .map((entitlement) => `${entitlement.entitlementId} · ${entitlement.status}`)
+                      .map((entitlement) => entitlement.status)
                       .join('、') || '当前企业无 Entitlement',
                 },
                 {
@@ -178,9 +191,6 @@ export function ProductCatalog({ compact = false }: ProductCatalogProps) {
                 },
               ]}
             />
-            {selected.capabilities.map((capability) => (
-              <TruthBadge key={capability.capabilityId} capabilityId={capability.capabilityId} />
-            ))}
             <Typography.Text type="secondary">{view.disclaimer}</Typography.Text>
           </Space>
         ) : null}

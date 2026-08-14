@@ -52,7 +52,7 @@ export function PlaylistStrip({ shots, orderedShotIds, exportAvailable, commandP
       </header>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={orderedShotIds} strategy={horizontalListSortingStrategy}>
-          <ol>{orderedShots.map((shot) => <SortableShot key={shot.shotId} shot={shot} />)}</ol>
+          <ol>{orderedShots.length ? orderedShots.map((shot) => <SortableShot key={shot.shotId} shot={shot} />) : <li className="cv1-playlist__empty">镜头就绪后会进入成片顺序。</li>}</ol>
         </SortableContext>
       </DndContext>
     </section>

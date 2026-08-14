@@ -11,6 +11,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const LIMIT = 100;
 type ErrorKind =
@@ -75,7 +76,7 @@ const content: Record<ErrorKind, { title: string; detail: string }> = {
   },
   'service-error': {
     title: '成员服务暂不可用',
-    detail: '无法完成真实 Control API 操作，不会回退 Demo 或 Mock。',
+    detail: '无法完成真实 Control API 操作，不会回退演示数据。',
   },
   'invalid-response': {
     title: '成员响应无法安全解析',
@@ -166,7 +167,7 @@ function Page({ type }: { type: PilotOrganizationType }) {
   };
   if (!access.ok)
     return (
-      <section className="d1-surface" data-testid="pilot-members-permission-denied">
+      <section className="d1-surface v3-ops-page" data-testid="pilot-members-permission-denied">
         <Result status="403" title="无成员管理权限" subTitle={access.message} />
       </section>
     );
@@ -175,10 +176,14 @@ function Page({ type }: { type: PilotOrganizationType }) {
       directory.phase === 'error'
         ? directory.error
         : { kind: 'unauthorized' as const, requestId: null };
-    return <ErrorPanel error={error} retry={() => undefined} />;
+    return (
+      <div className="v3-ops-page">
+        <ErrorPanel error={error} retry={() => undefined} />
+      </div>
+    );
   }
   return (
-    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+    <Space className="v3-ops-page" direction="vertical" size={20} style={{ width: '100%' }}>
       <header className="d1-page-header">
         <div>
           <Space wrap>
@@ -258,39 +263,54 @@ function Page({ type }: { type: PilotOrganizationType }) {
       ) : null}
       {directory.phase === 'ready' ? (
         <section className="d1-surface" data-testid="pilot-members-ready">
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <div className="d1-section-heading">
+            <div>
+              <Typography.Title level={4}>Member Directory</Typography.Title>
+              <Typography.Text type="secondary">
+                当前 Session Organization · bounded {directory.members.length}
+              </Typography.Text>
+            </div>
+            <Tag>{filter}</Tag>
+          </div>
+          <div className="d1-receipt-list">
             {directory.members.map((m) => (
-              <article
-                key={m.membershipId}
-                style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}
-              >
-                <Space direction="vertical">
-                  <Space wrap>
+              <div className="d1-receipt-row" key={m.membershipId}>
+                <span className="d1-receipt-icon is-asset">{m.displayName.slice(0, 1)}</span>
+                <div>
+                  <Space wrap size={6}>
                     <Typography.Text strong>{m.displayName}</Typography.Text>
                     <Tag>{m.status}</Tag>
                     <Tag>{m.primaryRole}</Tag>
                     {m.isCurrentActor ? <Tag color="blue">SELF</Tag> : null}
                   </Space>
-                  <Typography.Text>{m.email}</Typography.Text>
-                  <Typography.Text type="secondary">Version {m.version}</Typography.Text>
-                  {m.isCurrentActor ? (
-                    <Typography.Text type="secondary">当前登录成员不可停用</Typography.Text>
-                  ) : m.status === 'active' ? (
-                    <Button
-                      aria-label="停用成员"
-                      danger
-                      icon={<StopOutlined />}
-                      onClick={() => suspend(m)}
-                    >
-                      停用成员
-                    </Button>
-                  ) : (
-                    <Typography.Text type="secondary">非 active 成员无停用动作</Typography.Text>
-                  )}
-                </Space>
-              </article>
+                  <Typography.Text type="secondary">
+                    {m.email} · Version {m.version}
+                  </Typography.Text>
+                </div>
+                <Typography.Text type="secondary">
+                  {m.isCurrentActor
+                    ? '当前登录成员不可停用'
+                    : m.status === 'active'
+                      ? '可停用'
+                      : '无停用动作'}
+                </Typography.Text>
+                {m.isCurrentActor ? (
+                  <Tag>SELF</Tag>
+                ) : m.status === 'active' ? (
+                  <Button
+                    aria-label="停用成员"
+                    danger
+                    icon={<StopOutlined />}
+                    onClick={() => suspend(m)}
+                  >
+                    停用
+                  </Button>
+                ) : (
+                  <Tag>只读</Tag>
+                )}
+              </div>
             ))}
-          </Space>
+          </div>
         </section>
       ) : null}
       {directory.phase === 'error' ? (

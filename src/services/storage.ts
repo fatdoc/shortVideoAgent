@@ -1,29 +1,19 @@
-import { isDemoBrowserPersistenceEnabled } from '../config/demoPersistencePolicy';
-import { STORAGE_KEY } from '../domain/constants';
 import type { DemoWorkspace } from '../domain/types';
 
+let inMemoryWorkspace: DemoWorkspace | null = null;
+
 export function loadWorkspace(): DemoWorkspace | null {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as DemoWorkspace;
-  } catch {
-    return null;
-  }
+  return inMemoryWorkspace ? structuredClone(inMemoryWorkspace) : null;
 }
 
 export function saveWorkspace(workspace: DemoWorkspace): void {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+  inMemoryWorkspace = structuredClone(workspace);
 }
 
 export function clearWorkspace(): void {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  inMemoryWorkspace = null;
 }
 
 export function hasPersistedWorkspace(): boolean {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return false;
-  return window.localStorage.getItem(STORAGE_KEY) != null;
+  return inMemoryWorkspace !== null;
 }
