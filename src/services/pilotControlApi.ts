@@ -37,6 +37,19 @@ export interface PilotProject {
   updatedAt: string;
 }
 
+export interface PilotCreateProjectInput {
+  name: string;
+  status: Extract<PilotProjectStatus, 'draft' | 'active'>;
+  platform: string;
+  aspectRatio: string;
+  targetDurationSeconds: number;
+}
+
+export interface PilotProjectMutationResult {
+  project: PilotProject;
+  replayed: boolean;
+}
+
 export interface PilotLoginCredentials {
   email: string;
   password: string;
@@ -581,6 +594,42 @@ export async function readPilotProject(projectId: string): Promise<PilotProject>
   }
   const { body } = await request(`/api/v1/projects/${encodeURIComponent(projectId)}`);
   return parseProject(body);
+}
+
+export async function createPilotProject(
+  input: PilotCreateProjectInput,
+  idempotencyKey: string,
+): Promise<PilotProjectMutationResult> {
+  const normalized = {
+    ...input,
+    name: input.name.trim(),
+    platform: input.platform.trim(),
+    aspectRatio: input.aspectRatio.trim(),
+  };
+  if (
+    !requiredString(normalized.name) ||
+    normalized.name.length > 200 ||
+    !['draft', 'active'].includes(normalized.status) ||
+    !requiredString(normalized.platform) ||
+    normalized.platform.length > 100 ||
+    !/^\d{1,3}:\d{1,3}$/.test(normalized.aspectRatio) ||
+    !Number.isInteger(normalized.targetDurationSeconds) ||
+    normalized.targetDurationSeconds < 1 ||
+    normalized.targetDurationSeconds > 86_400 ||
+    !IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)
+  ) {
+    throw new PilotControlApiError('INVALID_PROJECT_INPUT', '项目输入无效。', null, null);
+  }
+  const { response, body } = await request('/api/v1/projects', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(normalized),
+  });
+  const replayed = response.headers.get('idempotency-replayed');
+  if (replayed !== 'true' && replayed !== 'false') {
+    throw invalidResponse('Control API 返回了无效的项目幂等状态。');
+  }
+  return { project: parseProject(body), replayed: replayed === 'true' };
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1967,6 +2016,7 @@ export const pilotControlApi = {
   logout: logoutPilotSession,
   listProjects: listPilotProjects,
   readProject: readPilotProject,
+  createProject: createPilotProject,
   listCurrentOrganizationMembers: listPilotCurrentOrganizationMembers,
   suspendCurrentOrganizationMember: suspendPilotCurrentOrganizationMember,
   listTermsDocuments: listPilotTermsDocuments,
