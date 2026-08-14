@@ -5,15 +5,7 @@ import {
   PictureOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import {
-  Alert,
-  Button,
-  Descriptions,
-  Empty,
-  Space,
-  Tag,
-  Typography,
-} from 'antd';
+import { Alert, Button, Descriptions, Empty, Progress, Space, Tag, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { StatusTag } from '../../components/common/StatusTag';
@@ -21,6 +13,7 @@ import { TruthBadge } from '../../components/workbench/TruthBadge';
 import { DEMO_PROJECT_ID } from '../../domain/constants';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 import { useProjectStore } from '../../stores/projectStore';
+import './storyboard.css';
 
 export function StoryboardPage() {
   const navigate = useNavigate();
@@ -29,15 +22,11 @@ export function StoryboardPage() {
   const snapshot = useControlPlaneStore((state) => state.snapshot);
   const loading = useControlPlaneStore((state) => state.loading);
   const error = useControlPlaneStore((state) => state.error);
-  const createPackage = useControlPlaneStore(
-    (state) => state.createCanonicalPackage,
-  );
+  const createPackage = useControlPlaneStore((state) => state.createCanonicalPackage);
   const clearError = useControlPlaneStore((state) => state.clearError);
   const [selectedShotId, setSelectedShotId] = useState('shot-07');
 
-  const generatedAsset = snapshot.assetReceipts.find(
-    (receipt) => receipt.shotId === 'shot-07',
-  );
+  const generatedAsset = snapshot.assetReceipts.find((receipt) => receipt.shotId === 'shot-07');
   const failedReceipt = snapshot.generationTaskReceipts.find(
     (receipt) => receipt.shotId === 'shot-05' && receipt.status === 'failed',
   );
@@ -56,20 +45,23 @@ export function StoryboardPage() {
       ),
     [generatedAsset, workspace.storyboard],
   );
-  const selectedShot =
-    shots.find((shot) => shot.id === selectedShotId) ?? shots[0];
+  const selectedShot = shots.find((shot) => shot.id === selectedShotId) ?? shots[0];
+  const assetById = useMemo(
+    () => new Map(workspace.assets.map((asset) => [asset.id, asset])),
+    [workspace.assets],
+  );
+  const selectedAsset = selectedShot?.assetId ? assetById.get(selectedShot.assetId) : null;
   const matched = shots.filter((shot) => shot.matchStatus === 'matched').length;
   const duration = shots.reduce((total, shot) => total + shot.duration, 0);
+  const shotProgress = shots.length ? Math.round((matched / shots.length) * 100) : 0;
+  const missingShots = shots.filter(
+    (shot) => shot.matchStatus === 'missing' || shot.matchStatus === 'reshoot',
+  );
 
   if (projectId !== DEMO_PROJECT_ID) {
     return (
-      <Empty
-        description={`仅支持 canonical 项目 ${DEMO_PROJECT_ID}，当前为 ${projectId}`}
-      >
-        <Button
-          type="primary"
-          onClick={() => navigate(`/projects/${DEMO_PROJECT_ID}/storyboard`)}
-        >
+      <Empty description={`仅支持 canonical 项目 ${DEMO_PROJECT_ID}，当前为 ${projectId}`}>
+        <Button type="primary" onClick={() => navigate(`/projects/${DEMO_PROJECT_ID}/storyboard`)}>
           打开统一分镜
         </Button>
       </Empty>
@@ -86,7 +78,8 @@ export function StoryboardPage() {
           </Space>
           <Typography.Title level={2}>分镜生产单</Typography.Title>
           <Typography.Paragraph type="secondary">
-            已批准 script-a 拆为 8 镜；真实门店素材优先，缺镜必须通过补拍或有来源的合规生成补齐。
+            已批准脚本拆为 {shots.length}{' '}
+            镜；真实门店素材优先，缺镜必须通过补拍或有来源的合规生成补齐。
           </Typography.Paragraph>
         </div>
         <Space wrap>
@@ -101,10 +94,9 @@ export function StoryboardPage() {
           <Button
             type="primary"
             icon={<ArrowRightOutlined />}
-            disabled={!snapshot.package}
-            onClick={() => navigate(`/production/inbox/${DEMO_PROJECT_ID}`)}
+            onClick={() => navigate(`/projects/${DEMO_PROJECT_ID}/rough-cut`)}
           >
-            进入媒体生产
+            进入粗剪
           </Button>
         </Space>
       </header>
@@ -143,30 +135,37 @@ export function StoryboardPage() {
         </div>
       </section>
 
-      <section className="d1-storyboard-layout">
+      <section className="storyboard-v3-layout">
         <div className="d1-surface d1-shot-list">
           <div className="d1-section-heading">
             <div>
-              <Typography.Title level={4}>8 镜生产计划</Typography.Title>
+              <Typography.Title level={4}>镜头与拍摄进度</Typography.Title>
               <Typography.Text type="secondary">
-                点击镜头查看来源、风险和生成状态。
+                点击镜头查看来源、风险、缺镜原因和下一步。
               </Typography.Text>
             </div>
-            <Tag>{snapshot.truthManifest.disclaimer}</Tag>
+            <Tag>{shotProgress}% 已匹配</Tag>
+          </div>
+          <div className="storyboard-progress-row">
+            <Progress percent={shotProgress} showInfo={false} strokeColor="#ff5a1f" />
+            <Typography.Text type="secondary">
+              已匹配 {matched} / {shots.length} · 待补 {missingShots.length}
+            </Typography.Text>
           </div>
           {shots.map((shot) => (
             <button
               type="button"
               key={shot.id}
-              className={
-                selectedShot?.id === shot.id
-                  ? 'd1-shot-row is-selected'
-                  : 'd1-shot-row'
-              }
+              className={selectedShot?.id === shot.id ? 'd1-shot-row is-selected' : 'd1-shot-row'}
               onClick={() => setSelectedShotId(shot.id)}
             >
-              <span className="d1-shot-order">
-                {String(shot.order).padStart(2, '0')}
+              <span className="d1-shot-order">{String(shot.order).padStart(2, '0')}</span>
+              <span className="storyboard-shot-thumb">
+                {shot.assetId && assetById.get(shot.assetId) ? (
+                  <img src={assetById.get(shot.assetId)?.thumbnail} alt="" loading="lazy" />
+                ) : (
+                  <span>{shot.sourceType === 'ai' ? 'AI' : '待拍'}</span>
+                )}
               </span>
               <span className="d1-shot-icon">
                 {shot.sourceType === 'upload' ? (
@@ -180,7 +179,7 @@ export function StoryboardPage() {
               <span className="d1-shot-copy">
                 <strong>{shot.description}</strong>
                 <small>
-                  {shot.duration}s · {shot.screenText} · {shot.sourceType}
+                  {shot.duration}s · {shot.shotType} · {shot.screenText}
                 </small>
               </span>
               <StatusTag kind="match" value={shot.matchStatus} />
@@ -196,9 +195,7 @@ export function StoryboardPage() {
                   <Typography.Text type="secondary">
                     SHOT {String(selectedShot.order).padStart(2, '0')}
                   </Typography.Text>
-                  <Typography.Title level={4}>
-                    {selectedShot.description}
-                  </Typography.Title>
+                  <Typography.Title level={4}>{selectedShot.description}</Typography.Title>
                 </div>
                 <StatusTag kind="match" value={selectedShot.matchStatus} />
               </div>
@@ -233,11 +230,20 @@ export function StoryboardPage() {
                   },
                   {
                     key: 'asset',
-                    label: 'Asset',
-                    children: selectedShot.assetId ?? '尚无可交付资产',
+                    label: '素材状态',
+                    children: selectedAsset
+                      ? `${selectedAsset.name} · ${selectedAsset.source}`
+                      : '尚无可交付素材',
                   },
                 ]}
               />
+              {selectedAsset ? (
+                <img
+                  className="storyboard-inspector-preview"
+                  src={selectedAsset.thumbnail}
+                  alt=""
+                />
+              ) : null}
 
               {selectedShot.id === 'shot-05' ? (
                 <Alert
@@ -250,7 +256,7 @@ export function StoryboardPage() {
                   }
                   description={
                     failedReceipt?.error?.message ??
-                    '真实补拍素材尚未进入 C4 canonical AssetReceipt，本页不会伪造 matched。'
+                    '真实补拍素材尚未进入回执，本页不会伪造 matched。'
                   }
                 />
               ) : null}
@@ -259,13 +265,11 @@ export function StoryboardPage() {
                   type={generatedAsset ? 'success' : 'info'}
                   showIcon
                   message={
-                    generatedAsset
-                      ? '合规权益图卡已由 AssetReceipt 登记'
-                      : '分镜 07 · 会员权益缺镜'
+                    generatedAsset ? '合规权益图卡已由 AssetReceipt 登记' : '分镜 07 · 会员权益缺镜'
                   }
                   description={
                     generatedAsset
-                      ? `${generatedAsset.assetId} · ${generatedAsset.reviewStatus}`
+                      ? `资产回执已登记 · ${generatedAsset.reviewStatus}`
                       : '进入媒体生产工作台后，按 120 → 100 + 20 成功支线生成并登记。'
                   }
                 />
@@ -273,10 +277,8 @@ export function StoryboardPage() {
 
               {snapshot.package ? (
                 <div className="d1-package-proof">
-                  <span>Package v{snapshot.package.packageVersion}</span>
-                  <Typography.Text copyable={{ text: snapshot.package.digest }}>
-                    {snapshot.package.digest.slice(0, 24)}…
-                  </Typography.Text>
+                  <span>生产包 v{snapshot.package.packageVersion}</span>
+                  <Typography.Text type="secondary">内部校验已记录</Typography.Text>
                 </div>
               ) : (
                 <Alert

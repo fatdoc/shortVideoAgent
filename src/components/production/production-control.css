@@ -1,0 +1,71 @@
+.production-control-v3 .d1-surface,
+.production-control-v3 .d1-production-hero,
+.production-control-v3 .d1-wallet-rail > div,
+.production-control-v3 .d1-storyboard-summary > div {
+  border-color: #ebe4dc;
+  border-radius: 8px;
+  box-shadow: none;
+  background: #fffdf9;
+}
+
+.production-control-v3 .ant-btn-primary {
+  background: #ff5a1f;
+  border-color: #ff5a1f;
+  box-shadow: none;
+}
+
+.production-control-v3 .ant-btn-primary:not(:disabled):hover {
+  background: #e9470e;
+  border-color: #e9470e;
+}
+
+.production-control-v3 .d1-flow-row,
+.production-control-v3 .d1-receipt-row,
+.production-control-v3 .d1-ledger-row {
+  border-color: #f0e8df;
+}
+
+.production-publish-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 12px;
+}
+
+.production-platform-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid #eee5dd;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.production-platform-list > div {
+  min-width: 0;
+  padding: 12px;
+  border-right: 1px solid #eee5dd;
+  background: #fff;
+}
+
+.production-platform-list > div:last-child {
+  border-right: 0;
+}
+
+.production-platform-list .ant-typography {
+  display: block;
+}
+
+.production-leads-empty .ant-empty {
+  margin: 20px 0 8px;
+}
+
+@media (max-width: 1180px) {
+  .production-publish-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .production-platform-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
