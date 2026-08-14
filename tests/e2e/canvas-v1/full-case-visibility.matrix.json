@@ -1,0 +1,255 @@
+{
+  "objectType": "CanvasFullCaseVisibilityGate",
+  "contractVersion": "0.1",
+  "accounts": [
+    {
+      "key": "platform_admin",
+      "label": "平台管理员",
+      "email": "platform@videoagent.test",
+      "organizationType": "PLATFORM",
+      "projectCaseAccess": "denied",
+      "expectedProjectSurface": "pilot-route-not-found"
+    },
+    {
+      "key": "channel_admin",
+      "label": "渠道管理员",
+      "email": "channel@videoagent.test",
+      "organizationType": "CHANNEL",
+      "projectCaseAccess": "denied",
+      "expectedProjectSurface": "pilot-route-not-found"
+    },
+    {
+      "key": "tenant_admin",
+      "label": "门店管理员",
+      "email": "admin@videoagent.test",
+      "organizationType": "TENANT",
+      "projectCaseAccess": "full",
+      "expectedProjectSurface": "pilot-project-list"
+    },
+    {
+      "key": "content_operator",
+      "label": "内容运营",
+      "email": "operator@videoagent.test",
+      "organizationType": "TENANT",
+      "projectCaseAccess": "full_except_brief_create",
+      "expectedProjectSurface": "pilot-project-list"
+    }
+  ],
+  "stages": [
+    {
+      "key": "project",
+      "label": "项目",
+      "routeTemplate": "/projects",
+      "roles": ["tenant_admin", "content_operator"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "expectedSurfaceTestId": "pilot-project-list",
+      "acceptance": "real_server_data",
+      "currentClassification": "implemented_real"
+    },
+    {
+      "key": "brand",
+      "label": "Brand",
+      "routeTemplate": "/projects/:projectId/brand",
+      "roles": ["tenant_admin", "content_operator"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_BRAND_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-brand",
+      "acceptance": "real_server_data",
+      "currentClassification": "implemented_real"
+    },
+    {
+      "key": "brief",
+      "label": "Brief",
+      "routeTemplate": "/projects/new",
+      "roles": ["tenant_admin"],
+      "requiredMarkerEnvironment": null,
+      "expectedSurfaceTestId": "pilot-project-create-page",
+      "acceptance": "real_service_create_surface",
+      "currentClassification": "implemented_real"
+    },
+    {
+      "key": "script",
+      "label": "Script",
+      "routeTemplate": "/projects/:projectId/script",
+      "roles": ["tenant_admin", "content_operator"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_SCRIPT_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-script",
+      "acceptance": "real_server_data",
+      "currentClassification": "implemented_real"
+    },
+    {
+      "key": "storyboard",
+      "label": "Storyboard",
+      "routeTemplate": "/projects/:projectId/storyboard",
+      "roles": ["tenant_admin", "content_operator"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_STORYBOARD_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-storyboard",
+      "acceptance": "real_server_data",
+      "currentClassification": "implemented_real"
+    },
+    {
+      "key": "production",
+      "label": "Production",
+      "routeTemplate": "/production/overview",
+      "roles": ["tenant_admin", "content_operator"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PRODUCTION_MARKER",
+      "expectedSurfaceTestId": "pilot-project-content-production-overview",
+      "acceptance": "real_server_data",
+      "currentClassification": "implemented_real"
+    },
+    {
+      "key": "canvas",
+      "label": "Canvas",
+      "routeTemplate": "/production/canvas/:projectId?packageId=:packageId",
+      "roles": ["tenant_admin", "content_operator"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "expectedSurfaceTestId": null,
+      "acceptance": "real_no_provider_blocked_readiness",
+      "currentClassification": "no_provider_blocked_readiness"
+    }
+  ],
+  "operations": [
+    {
+      "key": "dashboard",
+      "route": "/dashboard",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-dashboard-real-projects"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "products",
+      "route": "/enterprise/products",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-products-real-capabilities"],
+      "requiredTexts": ["video.generate", "不代表已购买商品"],
+      "requiredMarkerEnvironment": "CANVAS_FULL_CASE_PROJECT_NAME",
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "platform_invitations",
+      "route": "/platform/invitations",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-invitations-ready"],
+      "requiredTexts": ["canvas-local-platform@example.invalid", "revoked"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_revoked_record"
+    },
+    {
+      "key": "channel_invitations",
+      "route": "/channel/invitations",
+      "organizationType": "CHANNEL",
+      "roles": ["channel_admin"],
+      "expectedTestIds": ["pilot-invitations-ready"],
+      "requiredTexts": ["Channel reusable invitation", "revoked"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_revoked_record"
+    },
+    {
+      "key": "tenant_invitations",
+      "route": "/enterprise/invitations",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-invitations-ready"],
+      "requiredTexts": ["canvas-local-tenant@example.invalid", "revoked"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_revoked_record"
+    },
+    {
+      "key": "platform_members",
+      "route": "/platform/members",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-members-ready"],
+      "requiredTexts": ["platform@videoagent.test"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "channel_members",
+      "route": "/channel/members",
+      "organizationType": "CHANNEL",
+      "roles": ["channel_admin"],
+      "expectedTestIds": ["pilot-members-ready"],
+      "requiredTexts": ["channel@videoagent.test"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "tenant_members",
+      "route": "/enterprise/members",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-members-ready"],
+      "requiredTexts": ["admin@videoagent.test", "operator@videoagent.test"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_server_data"
+    },
+    {
+      "key": "terms",
+      "route": "/platform/terms",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-terms-documents-ready", "pilot-terms-versions-ready"],
+      "requiredTexts": ["[CANVAS_FULL_CASE_TERMS]", "DRAFT"],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_draft_record"
+    },
+    {
+      "key": "platform_financial_empty",
+      "route": "/platform/commission-audit",
+      "organizationType": "PLATFORM",
+      "roles": ["platform_admin"],
+      "expectedTestIds": ["pilot-platform-commission-audit-empty"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_empty"
+    },
+    {
+      "key": "channel_financial_empty",
+      "route": "/channel/commission-audit",
+      "organizationType": "CHANNEL",
+      "roles": ["channel_admin"],
+      "expectedTestIds": ["pilot-channel-commission-audit-empty"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_empty"
+    },
+    {
+      "key": "tenant_financial_empty",
+      "route": "/enterprise/recharge-orders",
+      "organizationType": "TENANT",
+      "roles": ["tenant_admin"],
+      "expectedTestIds": ["pilot-tenant-recharge-empty"],
+      "requiredTexts": [],
+      "requiredMarkerEnvironment": null,
+      "acceptance": "real_empty"
+    }
+  ],
+  "forbiddenSuccessSurfaces": {
+    "testIds": [
+      "pilot-route-handoff",
+      "pilot-route-unavailable",
+      "pilot-project-not-found",
+      "pilot-project-service-error",
+      "pilot-storycanvas-boundary-blocked",
+      "pilot-brand-empty",
+      "pilot-brand-invalid-brief",
+      "pilot-script-empty",
+      "pilot-script-invalid",
+      "pilot-storyboard-empty",
+      "pilot-project-content-no-scope",
+      "pilot-project-content-error"
+    ],
+    "phrases": [
+      "该页面尚未接入真实 Pilot 数据",
+      "该能力尚未在 Pilot 实现",
+      "不会把 Demo 内容伪装成生产成功",
+      "页面占位",
+      "placeholder"
+    ]
+  }
+}
