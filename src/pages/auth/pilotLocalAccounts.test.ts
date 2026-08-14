@@ -5,6 +5,7 @@ describe('Pilot local account choices', () => {
   it('offers four non-secret identities only in development', () => {
     expect(resolvePilotLocalAccountChoices({ DEV: true })).toEqual(PILOT_LOCAL_ACCOUNT_CHOICES);
     expect(resolvePilotLocalAccountChoices({ DEV: false })).toEqual([]);
+    expect(resolvePilotLocalAccountChoices({})).toEqual([]);
   });
 
   it('keeps the browser projection limited to labels and emails', () => {

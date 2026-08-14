@@ -5,14 +5,15 @@ import {
   SafetyCertificateOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Alert, Button, Form, Input, Tag, Typography } from 'antd';
-import { useState } from 'react';
+import { Alert, Button, Form, Input, Select, Tag, Typography, type InputRef } from 'antd';
+import { useRef, useState } from 'react';
 import haidilaoLogo from '../../components/brand/assets/haidilao-logo.png';
 import { pilotRuntime } from '../../config/pilotRuntime';
 import { DEMO_IDENTITIES, type DemoIdentity } from '../../domain/demoIdentity';
 import { DEMO_AUTH_NOTICE, DEMO_AUTH_PASSWORD } from '../../services/demoAuth';
 import { useAuthStore } from '../../stores/authStore';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
+import { PILOT_LOCAL_ACCOUNT_CHOICES } from './pilotLocalAccounts';
 import '../../design/d2-auth.css';
 
 interface LoginValues {
@@ -273,6 +274,8 @@ function DemoLoginPage() {
 
 function PilotLoginPage({ onRegister }: LoginPageProps) {
   const [form] = Form.useForm<LoginValues>();
+  const passwordInput = useRef<InputRef>(null);
+  const localAccounts = import.meta.env.DEV ? PILOT_LOCAL_ACCOUNT_CHOICES : [];
   const login = usePilotAuthStore((state) => state.login);
   const status = usePilotAuthStore((state) => state.status);
   const storeError = usePilotAuthStore((state) => state.error);
@@ -282,6 +285,12 @@ function PilotLoginPage({ onRegister }: LoginPageProps) {
   const submitLogin = async (values: LoginValues) => {
     clearError();
     await login({ email: values.account.trim(), password: values.password });
+  };
+
+  const selectLocalAccount = (email: string) => {
+    clearError();
+    form.setFieldValue('account', email);
+    passwordInput.current?.focus();
   };
 
   return (
@@ -339,6 +348,22 @@ function PilotLoginPage({ onRegister }: LoginPageProps) {
               onFinish={submitLogin}
               onValuesChange={clearError}
             >
+              {localAccounts.length > 0 ? (
+                <Form.Item label="快捷账号" extra="仅填充邮箱，实际权限由服务端账号决定">
+                  <Select
+                    id="pilot-local-account"
+                    aria-label="快捷账号"
+                    size="large"
+                    placeholder="选择本地开发账号"
+                    options={localAccounts.map((account) => ({
+                      label: account.label,
+                      value: account.email,
+                    }))}
+                    onChange={selectLocalAccount}
+                    data-testid="pilot-local-account-select"
+                  />
+                </Form.Item>
+              ) : null}
               <Form.Item
                 label="企业邮箱"
                 name="account"
@@ -360,6 +385,7 @@ function PilotLoginPage({ onRegister }: LoginPageProps) {
                 rules={[{ required: true, message: '请输入密码' }]}
               >
                 <Input.Password
+                  ref={passwordInput}
                   size="large"
                   prefix={<LockOutlined />}
                   autoComplete="current-password"
