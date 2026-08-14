@@ -213,19 +213,25 @@ test("workspace recovery resumes persisted task_created events and advances the 
 
   let recoveryStarts = 0;
   let approvals = 0;
+  let complete!: (value: { outputAssetId: string }) => void;
+  const completion = new Promise<{ outputAssetId: string }>((resolve) => { complete = resolve; });
   const recovered = new CanvasCommandService(options(db, {
     validateApproval: async () => { approvals += 1; return true; },
     startShotProduction: async () => {
       recoveryStarts += 1;
       return {
         taskId: "18181818-1818-4818-8818-181818181818",
-        completion: Promise.resolve({ outputAssetId: "19191919-1919-4919-8919-191919191919" }),
+        completion,
       };
     },
     assertOutputAsset: async () => true,
   }));
 
   assert.equal(await recovered.resumePendingGenerations(scope), 1);
+  assert.equal(await recovered.resumePendingGenerations(scope), 0);
+  assert.equal(recoveryStarts, 1);
+  assert.equal(approvals, 1);
+  complete({ outputAssetId: "19191919-1919-4919-8919-191919191919" });
   let persisted: CanvasEventV01 | null = null;
   for (let attempt = 0; attempt < 20; attempt += 1) {
     persisted = JSON.parse(String((await db("sc_canvas_v1_events").first()).eventJson) as string) as CanvasEventV01;

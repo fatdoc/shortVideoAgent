@@ -330,6 +330,7 @@ export function createCanvasV1RuntimeRouter(options: CanvasV1RuntimeRouterOption
         const authority = options.readAuthority(scope.canvasSessionId);
         const workspaceAuthority = preparedAuthorities.get(scope.canvasSessionId);
         if (!authority || !workspaceAuthority) throw new CanvasCommandServiceError("CANVAS_CAPABILITY_UNAVAILABLE");
+        await commandService.resumePendingGenerations(scope);
         return workspaceReader.read({
           scope,
           approvedPackage: authority.redemption.productionPackage,

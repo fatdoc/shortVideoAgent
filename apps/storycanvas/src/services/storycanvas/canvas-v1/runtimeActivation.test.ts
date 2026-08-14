@@ -579,7 +579,10 @@ test('provider failure persists only a fixed safe error and remains non-repeatab
   };
   await adapter.start(input);
   await new Promise((resolve) => setTimeout(resolve, 20));
-  await adapter.start(input);
+  await assert.rejects(
+    () => adapter.start(input),
+    (error: unknown) => (error as { code?: unknown }).code === 'CANVAS_PROVIDER_FAILED',
+  );
   assert.equal(providerStarts, 1);
   const serialized = JSON.stringify(await db('sc_tasks'));
   assert.doesNotMatch(serialized, /paid-secret|asset:\/\/|providerRawBody|credential=x/iu);

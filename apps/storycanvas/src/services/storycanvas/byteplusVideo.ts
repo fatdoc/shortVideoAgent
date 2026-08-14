@@ -203,6 +203,23 @@ export async function generateBytePlusVideo(
 
   await hooks.onTaskCreated?.(taskId);
 
+  return await waitForBytePlusVideoTask(taskId, hooks);
+}
+
+export async function waitForBytePlusVideoTask(
+  taskId: string,
+  hooks: BytePlusVideoHooks = {},
+): Promise<{ taskId: string; videoUrl: string }> {
+  if (!/^[A-Za-z0-9._:-]{1,300}$/.test(taskId)) {
+    throw new Error("视频任务 ID 无效");
+  }
+  const config = getRuntimeConfig();
+  const taskUrl = `${config.baseUrl}/contents/generations/tasks`;
+  const headers = {
+    Authorization: `Bearer ${config.apiKey}`,
+    "Content-Type": "application/json",
+  };
+
   const deadline = Date.now() + 20 * 60_000;
   let previousStatus = "";
   while (Date.now() < deadline) {

@@ -22,7 +22,14 @@ export { CanvasCommandServiceError } from "./errors";
 interface CommandRow {
   commandId: string;
   payloadDigest: string;
+  commandJson: string;
   resultEventJson: string | null;
+}
+
+interface EventRow {
+  eventId: string;
+  commandId: string;
+  eventJson: string;
 }
 
 const HIGH_COST_COMMANDS = new Set<CanvasCommandV01["commandType"]>([
@@ -101,6 +108,7 @@ export class CanvasCommandService {
   private readonly now: () => Date;
   private readonly randomId: () => string;
   private readonly documents: CanvasDocumentStore;
+  private readonly generationObservers = new Map<string, Promise<void>>();
 
   constructor(private readonly options: CanvasCommandServiceOptions) {
     this.now = options.now ?? (() => new Date());
@@ -154,6 +162,61 @@ export class CanvasCommandService {
       return this.generate(command, scope, digest);
     }
     return this.mutate(command, scope, digest);
+  }
+
+  async resumePendingGenerations(scope: CanvasProductionScope): Promise<number> {
+    const rows = await this.options.database<EventRow>("sc_canvas_v1_events")
+      .where({
+        tenantId: scope.tenantId,
+        projectId: scope.projectId,
+        packageId: scope.packageId,
+        canvasSessionId: scope.canvasSessionId,
+        status: "task_created",
+      });
+    let resumed = 0;
+    for (const row of rows) {
+      if (this.generationObservers.has(row.eventId)) continue;
+      let event: CanvasEventV01;
+      let command: CanvasCommandV01;
+      let commandRow: CommandRow;
+      try {
+        const parsedEvent = parseCanvasV1Contract(JSON.parse(row.eventJson));
+        commandRow = await this.options.database<CommandRow>("sc_canvas_v1_commands")
+          .where({ commandId: row.commandId })
+          .first();
+        if (parsedEvent.objectType !== "CanvasEvent" || !commandRow) {
+          throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
+        }
+        const parsedCommand = parseCanvasV1Contract(JSON.parse(commandRow.commandJson));
+        if (parsedCommand.objectType !== "CanvasCommand") {
+          throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
+        }
+        event = parsedEvent;
+        command = parsedCommand;
+      } catch {
+        throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
+      }
+      if (event.eventId !== row.eventId || event.commandId !== command.commandId
+        || event.commandType !== "GENERATE_SHOT" || event.status !== "task_created"
+        || command.commandType !== "GENERATE_SHOT"
+        || command.tenantId !== scope.tenantId || command.projectId !== scope.projectId
+        || command.packageId !== scope.packageId || command.canvasSessionId !== scope.canvasSessionId
+        || command.requestedByActorId !== scope.actorId) {
+        throw new CanvasCommandServiceError("CANVAS_SCOPE_MISMATCH");
+      }
+      const currentScope = await this.options.resolveScope(command).catch((error) => {
+        throw toCanvasCommandServiceError(error);
+      });
+      if (currentScope.tenantId !== scope.tenantId || currentScope.projectId !== scope.projectId
+        || currentScope.packageId !== scope.packageId || currentScope.canvasSessionId !== scope.canvasSessionId
+        || currentScope.actorId !== scope.actorId || currentScope.localProjectId !== scope.localProjectId
+        || commandRow.payloadDigest !== semanticDigest(command)) {
+        throw new CanvasCommandServiceError("CANVAS_SCOPE_MISMATCH");
+      }
+      await this.generate(command, currentScope, commandRow.payloadDigest, event);
+      resumed += 1;
+    }
+    return resumed;
   }
 
   private event(command: CanvasCommandV01, values: Partial<CanvasEventV01>): CanvasEventV01 {
@@ -323,24 +386,47 @@ export class CanvasCommandService {
         referenceAssetIds: payload.referenceAssetIds,
         referenceAssetUris,
       });
-      const taskCreated = this.event(command, {
-        eventId: accepted.eventId,
-        status: "task_created",
-        providerSubmitted: true,
-        taskCreated: true,
-        taskId: started.taskId,
-        replayed: Boolean(recovering),
-      });
-      await this.updateEvent(command, taskCreated);
-      if (started.completion) {
-        void this.observeGenerationCompletion(command, scope, taskCreated, started.completion);
+      const persistedTaskCreated = recovering?.status === "task_created"
+        ? recovering
+        : this.event(command, {
+          eventId: accepted.eventId,
+          status: "task_created",
+          providerSubmitted: true,
+          taskCreated: true,
+          taskId: started.taskId,
+          replayed: Boolean(recovering),
+        });
+      if (persistedTaskCreated.taskId !== started.taskId) {
+        throw new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
       }
-      return taskCreated;
+      if (recovering?.status !== "task_created") {
+        await this.updateEvent(command, persistedTaskCreated);
+      }
+      if (started.completion) {
+        if (!this.generationObservers.has(persistedTaskCreated.eventId)) {
+          const observer = this.observeGenerationCompletion(
+            command,
+            scope,
+            persistedTaskCreated,
+            started.completion,
+          ).finally(() => {
+            if (this.generationObservers.get(persistedTaskCreated.eventId) === observer) {
+              this.generationObservers.delete(persistedTaskCreated.eventId);
+            }
+          });
+          this.generationObservers.set(persistedTaskCreated.eventId, observer);
+          void observer.catch(() => undefined);
+        }
+      }
+      return { ...persistedTaskCreated, replayed: Boolean(recovering) };
     } catch {
       const error = new CanvasCommandServiceError("CANVAS_PROVIDER_FAILED");
       const failed = this.event(command, {
         eventId: accepted.eventId,
         status: "failed",
+        providerSubmitted: recovering?.status === "task_created",
+        taskCreated: recovering?.status === "task_created",
+        taskId: recovering?.status === "task_created" ? recovering.taskId : null,
         error: { code: error.code, message: error.message, retryable: error.retryable },
       });
       await this.updateEvent(command, failed);
