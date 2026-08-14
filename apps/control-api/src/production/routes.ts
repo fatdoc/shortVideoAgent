@@ -166,6 +166,23 @@ function projectPackagePublicDto(value: ProjectProductionPackage) {
   };
 }
 
+function projectPackageSelectionDto(value: ProjectProductionPackage) {
+  const parsed = packagePublicSourceSchema.parse(value);
+  return {
+    objectType: parsed.objectType,
+    contractVersion: parsed.contractVersion,
+    projectId: parsed.projectId,
+    packageId: parsed.packageId,
+    packageVersion: parsed.packageVersion,
+    scriptVersionId: parsed.scriptVersionId,
+    storyboardVersionId: parsed.storyboardVersionId,
+    capabilityRequirements: parsed.capabilityRequirements,
+    status: parsed.status,
+    createdAt: parsed.createdAt,
+    expiresAt: parsed.expiresAt,
+  };
+}
+
 function actor(response: ActorResponse): SessionActor {
   if (!response.locals.actor) throw new Error('authenticated actor is missing');
   return response.locals.actor;
@@ -340,6 +357,35 @@ export function createProductionRouter(options: ProductionRouterOptions): Router
           packageDomainError(response, error);
           return;
         }
+        internalError(response);
+      }
+    },
+  );
+
+  router.get(
+    '/projects/:projectId/production-packages',
+    async (request, response: ActorResponse) => {
+      const parsedProject = uuidSchema.safeParse(request.params.projectId);
+      if (!parsedProject.success) {
+        domainError(
+          response,
+          new ProductionDomainError('invalid path', 422, 'SCHEMA_INVALID', 'schema'),
+        );
+        return;
+      }
+      try {
+        if (
+          !(await authorizeProject(
+            response,
+            options,
+            parsedProject.data,
+            'project.production.read',
+          ))
+        )
+          return;
+        const values = await options.store.listPackages(actor(response), parsedProject.data);
+        response.status(200).json({ packages: values.map(projectPackageSelectionDto) });
+      } catch {
         internalError(response);
       }
     },

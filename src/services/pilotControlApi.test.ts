@@ -9,6 +9,7 @@ vi.mock('../config/pilotRuntime', () => ({
 }));
 
 import {
+  createPilotProject,
   createPilotChannelInvitation,
   createPilotPlatformInvitation,
   createPilotTenantInvitation,
@@ -197,6 +198,49 @@ describe('pilot Control API adapter', () => {
       2,
       'https://control.example.com/api/v1/projects/project%2Fwith%20slash',
       expect.objectContaining({ credentials: 'include' }),
+    );
+    expect(window.localStorage.length).toBe(0);
+  });
+
+  it('creates a real project with an explicit idempotency key and no browser persistence', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify(project), {
+        status: 201,
+        headers: {
+          'content-type': 'application/json',
+          'x-request-id': 'req-project-create',
+          'idempotency-replayed': 'false',
+        },
+      }),
+    );
+
+    await expect(
+      createPilotProject(
+        {
+          name: ' 真实项目 ',
+          status: 'draft',
+          platform: ' douyin ',
+          aspectRatio: ' 9:16 ',
+          targetDurationSeconds: 30,
+        },
+        'project-create-manual-1',
+      ),
+    ).resolves.toEqual({ project, replayed: false });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'https://control.example.com/api/v1/projects',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: expect.objectContaining({ 'Idempotency-Key': 'project-create-manual-1' }),
+        body: JSON.stringify({
+          name: '真实项目',
+          status: 'draft',
+          platform: 'douyin',
+          aspectRatio: '9:16',
+          targetDurationSeconds: 30,
+        }),
+      }),
     );
     expect(window.localStorage.length).toBe(0);
   });
