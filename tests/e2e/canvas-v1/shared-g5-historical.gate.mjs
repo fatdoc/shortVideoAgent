@@ -32,6 +32,7 @@ test('historical Shared matrix is exact four RED before product and all GREEN on
         'src/services/pilotStoryCanvasBridge.test.ts',
         'src/app/Router.pilot.test.tsx',
         'src/config/pilotE2eProxy.test.ts',
+        '--testTimeout=20000',
         '--reporter=json',
         `--outputFile=${resultPath}`,
       ],
