@@ -35,6 +35,9 @@ import {
 import {
   pilotE2eFixtureIds,
 } from "../../apps/control-api/src/e2e/fixtures.js";
+import { PostgresInvitationRepository } from "../../apps/control-api/src/invitations/repository.js";
+import { InvitationService } from "../../apps/control-api/src/invitations/service.js";
+import type { InvitationActor } from "../../apps/control-api/src/invitations/types.js";
 import { payloadDigest } from "../../apps/control-api/src/projects/digest.js";
 import { PostgresContentStore } from "../../apps/control-api/src/projects/repository.js";
 import type { SessionActor } from "../../apps/control-api/src/projects/types.js";
@@ -45,6 +48,9 @@ import type { ProjectProductionPackageV03 } from "../../apps/control-api/src/pro
 import { createStoryboardDraftRevision } from "../../apps/control-api/src/storyboards/contract.js";
 import { PostgresStoryboardAuthorityStore } from "../../apps/control-api/src/storyboards/repository.js";
 import { StoryboardAuthorityService } from "../../apps/control-api/src/storyboards/service.js";
+import { PostgresTermsRepository } from "../../apps/control-api/src/terms/repository.js";
+import { TermsService } from "../../apps/control-api/src/terms/service.js";
+import type { TermsActor } from "../../apps/control-api/src/terms/types.js";
 
 import * as storyMigrationsNamespace from "../../apps/storycanvas/src/lib/storycanvasMigrations.js";
 import * as assetMaterializationNamespace from "../../apps/storycanvas/src/services/storycanvas/canvas-v1/assetMaterialization.js";
@@ -123,6 +129,11 @@ export type LocalManualCaseSummary = {
       authorizedAssets: number;
       approvedAssets: number;
     };
+    operationsCounts: {
+      members: { platform: number; channel: number; tenant: number };
+      revokedInvitations: { platform: number; channel: number; tenant: number };
+      terms: { documents: number; drafts: number; published: number; consents: number };
+    };
   };
   story: {
     migrationCount: number;
@@ -147,6 +158,14 @@ const rootDir = path.resolve(import.meta.dirname, "../..");
 const STORY_ROOT_BASENAME = /^videoagent-story-local-case(?:-test-[A-Za-z0-9._-]+)?$/u;
 const UUID_NAMESPACE = "de2fa034-cd10-5a5b-bf5e-73453b50a638";
 const CASE_VERSION = "canvas-local-manual-case-v1";
+const OPERATIONS_NOW = new Date("2026-08-14T09:00:00.000Z");
+const TERMS_DOCUMENT_CODE = "canvas-local-case-terms";
+const TERMS_TITLE = "完整本地人工案例运营条款 [CANVAS_FULL_CASE_TERMS]";
+const TERMS_VERSION_LABEL = "v1-local-draft";
+const TERMS_CONTENT = [
+  "[CANVAS_FULL_CASE_TERMS] 本文件仅用于本地人工案例的 Platform Terms 运营页面校验。",
+  "状态固定为 DRAFT，不构成发布条款、用户同意或付费承诺。",
+].join("\n");
 const REDEEMER = "storycanvas-production-plane";
 const expectedReasonCodes = [
   "PROVIDER_UNAVAILABLE",
@@ -622,6 +641,301 @@ async function resolveLocalAuthority(
   };
 }
 
+type OperationsCaseFacts = {
+  organizationIds: { platform: string; channel: string; tenant: string };
+  invitationIds: { platform: string; channel: string; tenant: string };
+  termsDocumentId: string;
+  termsVersionId: string;
+};
+
+const forbiddenCommerceTables = [
+  "credit_conversion_rule_versions",
+  "wallets",
+  "recharge_orders",
+  "recharge_order_events",
+  "payment_events",
+  "commission_rule_versions",
+  "commission_calculation_outcomes",
+  "commission_accruals",
+  "commission_reversals",
+  "commission_settlements",
+  "commission_settlement_items",
+] as const;
+
+async function commerceCounts(database: Knex): Promise<Record<string, number>> {
+  return Object.fromEntries(await Promise.all(forbiddenCommerceTables.map(async (table) => {
+    const row = await database(`control_plane.${table}`).count<{ count: string | number }[]>("* as count").first();
+    return [table, Number(row?.count ?? 0)];
+  })));
+}
+
+async function resolveOperationsActor(
+  database: Knex,
+  authority: CaseAuthority,
+  accountKey: "platformAdmin" | "channelAdminA" | "tenantAdminA",
+  organizationType: InvitationActor["organizationType"],
+  requiredRole: "platform_admin" | "channel_admin" | "tenant_admin",
+): Promise<InvitationActor> {
+  const membershipId = authority.membershipIds[accountKey];
+  const userId = authority.userIds[accountKey];
+  const membership = await database("control_plane.organization_memberships as membership")
+    .join(
+      "control_plane.organizations as organization",
+      "organization.organization_id",
+      "membership.organization_id",
+    )
+    .select(
+      "membership.membership_id",
+      "membership.user_id",
+      "membership.organization_id",
+      "membership.primary_role_code",
+      "organization.organization_type",
+    )
+    .where({
+      "membership.membership_id": membershipId,
+      "membership.user_id": userId,
+      "membership.status": "active",
+      "organization.organization_type": organizationType,
+      "organization.status": "active",
+    })
+    .first();
+  const roleRows = await database("control_plane.organization_membership_roles")
+    .select("role_code")
+    .where({ membership_id: membershipId });
+  const roles = roleRows.map(({ role_code }) => String(role_code));
+  if (!membership || membership.primary_role_code !== requiredRole || !roles.includes(requiredRole)) {
+    fail("LOCAL_CASE_OPERATIONS_ACTOR_INVALID");
+  }
+  return {
+    userId,
+    membershipId,
+    organizationId: String(membership.organization_id),
+    organizationType,
+    roles: roles as InvitationActor["roles"],
+  };
+}
+
+function invitationToken(scope: "platform" | "channel" | "tenant"): string {
+  return createHash("sha256").update(`${CASE_VERSION}:invitation-token:${scope}`, "utf8")
+    .digest("base64url");
+}
+
+function assertRevokedInvitation(
+  value: Awaited<ReturnType<InvitationService["revokeInvitation"]>>["value"],
+  expected: {
+    invitationId: string;
+    actor: InvitationActor;
+    invitationType: "PLATFORM" | "CHANNEL" | "TENANT_MEMBER";
+    targetEmail: string | null;
+    targetOrganizationId: string | null;
+    attributionChannelId: string | null;
+    maxUses: number;
+  },
+): void {
+  if (
+    value.invitationId !== expected.invitationId
+    || value.issuerMembershipId !== expected.actor.membershipId
+    || value.issuerOrganizationId !== expected.actor.organizationId
+    || value.invitationType !== expected.invitationType
+    || value.targetEmailNormalized !== expected.targetEmail
+    || value.targetOrganizationId !== expected.targetOrganizationId
+    || value.attributionChannelId !== expected.attributionChannelId
+    || value.maxUses !== expected.maxUses
+    || value.usedCount !== 0
+    || value.status !== "revoked"
+    || value.revokedByMembershipId !== expected.actor.membershipId
+    || value.revokedAt === null
+  ) {
+    fail("LOCAL_CASE_INVITATION_CONFLICT");
+  }
+}
+
+async function ensureOperationsCase(
+  database: Knex,
+  authority: CaseAuthority,
+): Promise<OperationsCaseFacts> {
+  const commerceBefore = await commerceCounts(database);
+  const facts = await database.transaction(async (transaction) => {
+    await transaction.raw("select pg_advisory_xact_lock(hashtextextended(?, 0))", [
+      `${CASE_VERSION}:operations`,
+    ]);
+    const platform = await resolveOperationsActor(
+      transaction,
+      authority,
+      "platformAdmin",
+      "PLATFORM",
+      "platform_admin",
+    );
+    const channel = await resolveOperationsActor(
+      transaction,
+      authority,
+      "channelAdminA",
+      "CHANNEL",
+      "channel_admin",
+    );
+    const tenant = await resolveOperationsActor(
+      transaction,
+      authority,
+      "tenantAdminA",
+      "TENANT",
+      "tenant_admin",
+    );
+    const channelRow = await transaction("control_plane.channels")
+      .select("channel_id")
+      .where({ organization_id: channel.organizationId })
+      .limit(2);
+    if (channelRow.length !== 1) fail("LOCAL_CASE_CHANNEL_FACTS_INVALID");
+    const channelId = String(channelRow[0].channel_id);
+
+    const invitationFacts = [
+      {
+        scope: "platform" as const,
+        actor: platform,
+        invitationType: "PLATFORM" as const,
+        targetEmail: "canvas-local-platform@example.invalid",
+        targetOrganizationId: null,
+        attributionChannelId: null,
+        maxUses: 1,
+      },
+      {
+        scope: "channel" as const,
+        actor: channel,
+        invitationType: "CHANNEL" as const,
+        targetEmail: null,
+        targetOrganizationId: null,
+        attributionChannelId: channelId,
+        maxUses: 100,
+      },
+      {
+        scope: "tenant" as const,
+        actor: tenant,
+        invitationType: "TENANT_MEMBER" as const,
+        targetEmail: "canvas-local-tenant@example.invalid",
+        targetOrganizationId: tenant.organizationId,
+        attributionChannelId: null,
+        maxUses: 1,
+      },
+    ];
+    const invitationIds = {} as OperationsCaseFacts["invitationIds"];
+    for (const seed of invitationFacts) {
+      const invitationId = stableUuid(`${CASE_VERSION}:invitation:${seed.scope}`);
+      const service = new InvitationService(
+        new PostgresInvitationRepository(
+          transaction,
+          () => OPERATIONS_NOW,
+          () => invitationId,
+        ),
+        {
+          now: () => OPERATIONS_NOW,
+          createToken: () => invitationToken(seed.scope),
+        },
+      );
+      if (seed.scope === "platform") {
+        await service.createPlatformInvitation(seed.actor, {
+          targetEmail: seed.targetEmail!,
+          attributionChannelId: null,
+          idempotencyKey: `${CASE_VERSION}:invitation:platform`,
+        });
+      } else if (seed.scope === "channel") {
+        await service.createChannelInvitation(seed.actor, {
+          idempotencyKey: `${CASE_VERSION}:invitation:channel`,
+        });
+      } else {
+        await service.createTenantMemberInvitation(seed.actor, {
+          targetEmail: seed.targetEmail!,
+          idempotencyKey: `${CASE_VERSION}:invitation:tenant`,
+        });
+      }
+      const revoked = await service.revokeInvitation(seed.actor, invitationId);
+      assertRevokedInvitation(revoked.value, { invitationId, ...seed });
+      invitationIds[seed.scope] = invitationId;
+    }
+
+    const termsDocumentId = stableUuid(`${CASE_VERSION}:terms:document`);
+    const termsVersionId = stableUuid(`${CASE_VERSION}:terms:version`);
+    const termsActor: TermsActor = {
+      userId: platform.userId,
+      organizationType: platform.organizationType,
+      roles: platform.roles,
+    };
+    const terms = new TermsService(new PostgresTermsRepository(
+      transaction,
+      () => OPERATIONS_NOW,
+      (entity) => entity === "document" ? termsDocumentId : termsVersionId,
+    ));
+    let document = await transaction("control_plane.terms_documents")
+      .whereRaw("lower(document_code) = lower(?)", [TERMS_DOCUMENT_CODE])
+      .first();
+    if (!document) {
+      await terms.createDocument(termsActor, {
+        documentCode: TERMS_DOCUMENT_CODE,
+        title: TERMS_TITLE,
+      });
+      document = await transaction("control_plane.terms_documents")
+        .where({ terms_document_id: termsDocumentId })
+        .first();
+    }
+    exactRow(document, {
+      terms_document_id: termsDocumentId,
+      document_code: TERMS_DOCUMENT_CODE,
+      title: TERMS_TITLE,
+      status: "active",
+    }, "LOCAL_CASE_TERMS_CONFLICT");
+    let version = await transaction("control_plane.terms_versions")
+      .where({
+        terms_document_id: termsDocumentId,
+        locale: "zh-CN",
+        version_label: TERMS_VERSION_LABEL,
+      })
+      .first();
+    if (!version) {
+      await terms.createDraft(termsActor, {
+        termsDocumentId,
+        versionLabel: TERMS_VERSION_LABEL,
+        content: TERMS_CONTENT,
+        locale: "zh-CN",
+        mustReaccept: false,
+        supersedesTermsVersionId: null,
+      });
+      version = await transaction("control_plane.terms_versions")
+        .where({ terms_version_id: termsVersionId })
+        .first();
+    }
+    exactRow(version, {
+      terms_version_id: termsVersionId,
+      terms_document_id: termsDocumentId,
+      version_label: TERMS_VERSION_LABEL,
+      status: "DRAFT",
+      content: TERMS_CONTENT,
+      locale: "zh-CN",
+      must_reaccept: false,
+      published_at: null,
+      effective_at: null,
+      published_by: null,
+      supersedes_terms_version_id: null,
+    }, "LOCAL_CASE_TERMS_CONFLICT");
+    if (await transaction("control_plane.user_consents")
+      .where({ terms_version_id: termsVersionId }).first()) {
+      fail("LOCAL_CASE_TERMS_CONSENT_CONFLICT");
+    }
+    return {
+      organizationIds: {
+        platform: platform.organizationId,
+        channel: channel.organizationId,
+        tenant: tenant.organizationId,
+      },
+      invitationIds,
+      termsDocumentId,
+      termsVersionId,
+    };
+  });
+  const commerceAfter = await commerceCounts(database);
+  if (JSON.stringify(commerceAfter) !== JSON.stringify(commerceBefore)) {
+    fail("LOCAL_CASE_FORBIDDEN_COMMERCE_MUTATION");
+  }
+  return facts;
+}
+
 async function prepareControlFoundation(options: LocalManualCaseOptions): Promise<void> {
   if (options.target === "test" && options.resetTestTarget) {
     if (!options.accountPassword) fail("LOCAL_CASE_ACCOUNT_PASSWORD_REQUIRED");
@@ -661,6 +975,10 @@ async function assertControlPrivileges(database: Knex): Promise<void> {
     "canvas_asset_sessions",
     "canvas_asset_records",
     "canvas_asset_materialization_attempts",
+    "invitations",
+    "terms_documents",
+    "terms_versions",
+    "user_consents",
   ];
   const result = await database.raw<{ rows: { table_name: string; allowed: boolean }[] }>(`
     select required.table_name,
@@ -1384,6 +1702,7 @@ async function buildSummary(input: {
   storyDatabase: StoryKnex;
   contentIds: Awaited<ReturnType<typeof ensureApprovedContent>>;
   authority: CaseAuthority;
+  operations: OperationsCaseFacts;
   productionPackage: ProjectProductionPackageV03;
   primaryAssetId: string;
   localProjectId: number;
@@ -1465,6 +1784,53 @@ async function buildSummary(input: {
     authorizedAssets: assets.filter(({ rights_status }) => rights_status === "authorized").length,
     approvedAssets: assets.filter(({ approval_status }) => approval_status === "approved").length,
   };
+  const operationsCounts = {
+    members: {
+      platform: await countRows(input.controlDatabase, "control_plane.organization_memberships", {
+        organization_id: input.operations.organizationIds.platform,
+        status: "active",
+      }),
+      channel: await countRows(input.controlDatabase, "control_plane.organization_memberships", {
+        organization_id: input.operations.organizationIds.channel,
+        status: "active",
+      }),
+      tenant: await countRows(input.controlDatabase, "control_plane.organization_memberships", {
+        organization_id: input.operations.organizationIds.tenant,
+        status: "active",
+      }),
+    },
+    revokedInvitations: {
+      platform: await countRows(input.controlDatabase, "control_plane.invitations", {
+        invitation_id: input.operations.invitationIds.platform,
+        status: "revoked",
+      }),
+      channel: await countRows(input.controlDatabase, "control_plane.invitations", {
+        invitation_id: input.operations.invitationIds.channel,
+        status: "revoked",
+      }),
+      tenant: await countRows(input.controlDatabase, "control_plane.invitations", {
+        invitation_id: input.operations.invitationIds.tenant,
+        status: "revoked",
+      }),
+    },
+    terms: {
+      documents: await countRows(input.controlDatabase, "control_plane.terms_documents", {
+        terms_document_id: input.operations.termsDocumentId,
+        status: "active",
+      }),
+      drafts: await countRows(input.controlDatabase, "control_plane.terms_versions", {
+        terms_version_id: input.operations.termsVersionId,
+        status: "DRAFT",
+      }),
+      published: await countRows(input.controlDatabase, "control_plane.terms_versions", {
+        terms_document_id: input.operations.termsDocumentId,
+        status: "PUBLISHED",
+      }),
+      consents: await countRows(input.controlDatabase, "control_plane.user_consents", {
+        terms_version_id: input.operations.termsVersionId,
+      }),
+    },
+  };
   const [migrationRow] = await input.controlDatabase("control_api_migrations").count("* as count");
   const [storyMigrationRow] = await input.storyDatabase("sc_migrations").count("* as count");
   const semanticFacts = {
@@ -1474,6 +1840,7 @@ async function buildSummary(input: {
     entryHandle: input.entry.handle,
     roles,
     authorityCounts,
+    operationsCounts,
     factCounts,
     readinessReasonCodes,
   };
@@ -1489,6 +1856,7 @@ async function buildSummary(input: {
       roles,
       projectName: String(project.name),
       authorityCounts,
+      operationsCounts,
     },
     story: {
       migrationCount: Number(storyMigrationRow?.count ?? 0),
@@ -1526,6 +1894,7 @@ export async function runLocalManualCase(
     }
     await assertControlPrivileges(controlDatabase);
     const authority = await resolveLocalAuthority(controlDatabase, options);
+    const operations = await ensureOperationsCase(controlDatabase, authority);
     await ensureLegacyStoryAnchors(storyDatabase);
     await runStoryCanvasMigrations(storyDatabase);
     const project = await controlDatabase("control_plane.projects")
@@ -1601,6 +1970,7 @@ export async function runLocalManualCase(
       storyDatabase,
       contentIds,
       authority,
+      operations,
       productionPackage,
       primaryAssetId: primaryAsset.assetId,
       localProjectId,
