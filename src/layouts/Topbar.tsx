@@ -173,7 +173,8 @@ function PilotTopbar() {
   const projects = usePilotProjectContextStore((state) => state.projects);
   const activeProjectId = usePilotProjectContextStore((state) => state.activeProjectId);
   const projectStatus = usePilotProjectContextStore((state) => state.status);
-  const title = pageTitle(location.pathname);
+  const title =
+    location.pathname === ROUTES.enterpriseProducts ? '生产能力' : pageTitle(location.pathname);
   const organizationType = session?.activeContext.organizationType;
   const routeDecision = session
     ? authorizePilotOrganizationRoute({

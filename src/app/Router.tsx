@@ -49,6 +49,7 @@ import {
   PilotProjectContentPage,
   type PilotProjectContentRouteKey,
 } from '../pages/pilot-production/PilotProjectContentPages';
+import { PilotTenantOverviewPage } from '../pages/pilot-production/PilotTenantOverviewPages';
 import { BrandBrainPage } from '../pages/brand-brain/BrandBrainPage';
 import { BriefPage } from '../pages/brief/BriefPage';
 import {
@@ -835,6 +836,16 @@ function PilotManifestRoute({ route }: { route: TenantRouteManifestEntry }) {
   }
 
   if (route.key === 'production-canvas') return <CanvasV1RouteContainer />;
+
+  if (route.key === 'dashboard' || route.key === 'products') {
+    return (
+      <PilotTenantOverviewPage
+        routeKey={route.key}
+        projects={projects}
+        activeProjectId={activeProjectId}
+      />
+    );
+  }
 
   const contentRouteKeys = new Set<PilotProjectContentRouteKey>([
     'project-create',

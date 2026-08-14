@@ -309,14 +309,14 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
       '无权访问企业工作台',
     );
     expect(screen.queryByRole('menuitem', { name: /企业工作台/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /已购能力/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /生产能力/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /新建 \/ Brief/ })).not.toBeInTheDocument();
   });
 
   it('routes tenant administrators to real Dashboard and production capability pages', async () => {
     setTenantContext('tenant_admin');
     window.history.replaceState({}, '', '/dashboard');
-    const view = render(<App />);
+    render(<App />);
 
     expect(await screen.findByTestId('pilot-tenant-overview-dashboard')).toHaveAttribute(
       'data-project-id',
@@ -324,8 +324,7 @@ describe('A-BIZ-01.4C Pilot unified creation shell', () => {
     );
     expect(screen.queryByTestId('pilot-route-unavailable')).not.toBeInTheDocument();
 
-    window.history.pushState({}, '', '/enterprise/products');
-    view.rerender(<App />);
+    fireEvent.click(screen.getByRole('menuitem', { name: /生产能力/ }));
     expect(await screen.findByTestId('pilot-tenant-overview-products')).toHaveAttribute(
       'data-project-count',
       '1',
