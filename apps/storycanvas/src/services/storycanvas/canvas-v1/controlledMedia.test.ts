@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import knex from "knex";
 
 import canvasV1Migration from "../../../../migrations/005_canvas_v1_asset_command";
 import { buildRemoteOutputKey } from "../remoteOutputStorage";
 import type { CanvasProductionScope } from "../assets-v1";
+import { resolveProjectMediaPath } from "../projectMedia";
 import { CanvasV1ControlledMediaService } from "./controlledMedia";
 
 const scope: CanvasProductionScope = {
@@ -24,7 +28,7 @@ async function database() {
   const db = knex({ client: "better-sqlite3", connection: { filename: ":memory:" }, useNullAsDefault: true });
   await canvasV1Migration.up(db);
   await db.schema.createTable("sc_tasks", (table) => { table.string("id"); table.integer("projectId"); table.string("status"); table.text("outputJson"); });
-  await db.schema.createTable("sc_media_assets", (table) => { table.string("id"); table.integer("projectId"); table.string("type"); table.string("source"); table.string("mimeType"); table.string("localPath"); table.text("metadataJson"); });
+  await db.schema.createTable("sc_media_assets", (table) => { table.string("id"); table.integer("projectId"); table.string("type"); table.string("source"); table.string("mimeType"); table.integer("byteSize"); table.string("sha256"); table.string("localPath"); table.text("metadataJson"); });
   const command = {
     objectType: "CanvasCommand", contractVersion: "0.1", tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId,
     canvasSessionId: scope.canvasSessionId, commandId, commandType: "GENERATE_SHOT", requestedByActorId: scope.actorId, requestSource: "user",
@@ -40,7 +44,7 @@ async function database() {
   await db("sc_canvas_v1_commands").insert({ commandId, tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId, canvasSessionId: scope.canvasSessionId, commandType: "GENERATE_SHOT", payloadDigest: "digest", commandJson: JSON.stringify(command), resultEventJson: JSON.stringify(event), createdAt: occurredAt, updatedAt: occurredAt });
   await db("sc_canvas_v1_events").insert({ eventId, commandId, tenantId: scope.tenantId, projectId: scope.projectId, packageId: scope.packageId, canvasSessionId: scope.canvasSessionId, status: "task_created", eventJson: JSON.stringify(event), createdAt: occurredAt });
   await db("sc_tasks").insert({ id: taskId, projectId: scope.localProjectId, status: "succeeded", outputJson: JSON.stringify({ outputAssetId: assetId }) });
-  await db("sc_media_assets").insert({ id: assetId, projectId: scope.localProjectId, type: "video", source: "generated", mimeType: "video/mp4", localPath: `tos://${target.bucket}/${key}`, metadataJson: JSON.stringify({ taskId, storage: { provider: "byteplus-tos", bucket: target.bucket, key } }) });
+  await db("sc_media_assets").insert({ id: assetId, projectId: scope.localProjectId, type: "video", source: "generated", mimeType: "video/mp4", byteSize: 5, sha256: "a".repeat(64), localPath: `tos://${target.bucket}/${key}`, metadataJson: JSON.stringify({ taskId, storage: { provider: "byteplus-tos", bucket: target.bucket, key } }) });
   return db;
 }
 
@@ -63,6 +67,38 @@ test("controlled media exact-joins authority facts and proxies a bounded Range w
   assert.equal(capturedInit?.redirect, "error");
   assert.match(capturedUrl, /X-Tos-Signature=secret/u);
   assert.equal(JSON.stringify(output).includes("X-Tos-Signature"), false);
+});
+
+test("controlled media streams an exact local output range without exposing its filesystem path", async (context) => {
+  const db = await database();
+  const projectsRoot = await mkdtemp(path.join(os.tmpdir(), "canvas-v1-controlled-local-"));
+  context.after(async () => { await db.destroy(); await rm(projectsRoot, { recursive: true, force: true }); });
+  const bytes = Buffer.from("local-video");
+  const localPath = resolveProjectMediaPath(scope.localProjectId, "videos", assetId, "mp4", projectsRoot);
+  await import("node:fs/promises").then(({ mkdir }) => mkdir(path.dirname(localPath), { recursive: true }));
+  await writeFile(localPath, bytes, { mode: 0o600 });
+  const digest = await import("node:crypto").then(({ default: crypto }) => crypto.createHash("sha256").update(bytes).digest("hex"));
+  await db("sc_media_assets").where({ id: assetId }).update({
+    localPath,
+    byteSize: bytes.byteLength,
+    sha256: digest,
+    metadataJson: JSON.stringify({ taskId, storage: { provider: "storycanvas-local" } }),
+  });
+  let storageCalls = 0;
+  const service = new CanvasV1ControlledMediaService({
+    database: db,
+    projectsRoot,
+    resolveTarget: async () => { storageCalls += 1; return target; },
+    signGet: () => { storageCalls += 1; return "https://should-not-run.invalid"; },
+    fetch: async () => { storageCalls += 1; return new Response(); },
+  });
+  const output = await service.open({ scope, assetId, range: "bytes=1-5" });
+  assert.equal(output.status, 206);
+  assert.equal(output.contentRange, `bytes 1-5/${bytes.byteLength}`);
+  assert.equal(output.contentLength, 5);
+  assert.equal(Buffer.from(await new Response(output.body).arrayBuffer()).toString(), "ocal-");
+  assert.equal(storageCalls, 0);
+  assert.equal(JSON.stringify(output).includes(projectsRoot), false);
 });
 
 test("controlled media fails closed on task/media scope drift before object storage", async (context) => {

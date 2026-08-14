@@ -11,6 +11,8 @@ import {
 } from '../remoteOutputStorage';
 import type { StartShotProductionInput } from './canvasCommandService';
 import { CanvasCommandServiceError } from './errors';
+import { persistLocalCanvasOutput } from './localOutputStorage';
+import getPath from '@/utils/getPath';
 
 const TASK_TYPE = 'canvas_v1_video_generation';
 const SAFE_PROVIDER_TASK_ID = /^[A-Za-z0-9._:-]{1,300}$/;
@@ -48,16 +50,28 @@ export type CanvasV1ShotProductionAdapterOptions = {
   now?: () => Date;
 };
 
+export type CanvasV1OutputStorageMode = 'tos' | 'local';
+
+export function resolveCanvasV1OutputStorageMode(
+  env: NodeJS.ProcessEnv = process.env,
+): CanvasV1OutputStorageMode | null {
+  const value = (env.CANVAS_V1_OUTPUT_STORAGE ?? 'tos').trim().toLowerCase();
+  return value === 'tos' || value === 'local' ? value : null;
+}
+
 export function isCanvasV1ShotProductionConfigured(
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  return Boolean(
+  const providerConfigured = Boolean(
     env.ARK_API_KEY?.trim() &&
       env.ARK_ASSET_ACCESS_KEY?.trim() &&
       env.ARK_ASSET_SECRET_KEY?.trim() &&
-      env.ARK_ASSET_GROUP_ID?.trim() &&
-      env.ARK_ASSET_TOS_BUCKET?.trim() &&
-      env.ARK_ASSET_TOS_ENDPOINT?.trim(),
+      env.ARK_ASSET_GROUP_ID?.trim(),
+  );
+  const storageMode = resolveCanvasV1OutputStorageMode(env);
+  if (!providerConfigured || !storageMode) return false;
+  return storageMode === 'local' || Boolean(
+    env.ARK_ASSET_TOS_BUCKET?.trim() && env.ARK_ASSET_TOS_ENDPOINT?.trim(),
   );
 }
 
@@ -143,6 +157,22 @@ async function realPersistOutput(input: {
 }): Promise<{ outputAssetId: string }> {
   const outputAssetId = crypto.randomUUID();
   const content = await downloadBytePlusVideo(input.videoUrl);
+  const storageMode = resolveCanvasV1OutputStorageMode();
+  if (storageMode === 'local') {
+    const saved = await persistLocalCanvasOutput({
+      database: input.database,
+      scope: input.scope,
+      taskId: input.taskId,
+      assetId: outputAssetId,
+      content,
+      mimeType: 'video/mp4',
+      projectsRoot: getPath('projects'),
+    });
+    return { outputAssetId: saved.outputAssetId };
+  }
+  if (storageMode !== 'tos') {
+    throw new CanvasCommandServiceError('CANVAS_CAPABILITY_UNAVAILABLE');
+  }
   const upload: RemoteOutputUpload = await uploadRemoteOutput(
     { projectId: input.scope.localProjectId, taskId: input.taskId, assetId: outputAssetId },
     content,
@@ -227,7 +257,7 @@ export class CanvasV1ShotProductionAdapter {
         createdAt,
         updatedAt: createdAt,
       });
-    } catch (error) {
+    } catch {
       const replay = await this.options.database('sc_tasks').where({ idempotencyKey }).first();
       if (
         replay &&

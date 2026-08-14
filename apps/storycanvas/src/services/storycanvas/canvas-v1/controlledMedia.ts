@@ -1,3 +1,6 @@
+import { createReadStream } from "node:fs";
+import { lstat } from "node:fs/promises";
+import { Readable } from "node:stream";
 import type { Knex } from "knex";
 
 import { parseCanvasV1Contract, type CanvasCommandV01, type CanvasEventV01 } from "@/contracts/canvas-v1";
@@ -8,6 +11,8 @@ import {
   type BytePlusTosTarget,
 } from "../byteplusTos";
 import { buildRemoteOutputKey } from "../remoteOutputStorage";
+import { resolveProjectMediaPath, sha256File } from "../projectMedia";
+import getPath from "@/utils/getPath";
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const RANGE = /^bytes=(?:\d+-\d*|\d*-\d+)$/;
@@ -38,6 +43,7 @@ export interface CanvasV1ControlledMediaOutput {
 
 export interface CanvasV1ControlledMediaServiceOptions {
   database: Knex;
+  projectsRoot?: string;
   resolveTarget?: () => Promise<BytePlusTosTarget>;
   signGet?: (key: string, target: BytePlusTosTarget, date?: Date, expiresSeconds?: number) => string;
   fetch?: typeof fetch;
@@ -64,6 +70,22 @@ function safeJson(value: unknown): Record<string, unknown> | null {
   } catch { return null; }
 }
 
+function parseLocalRange(value: string | undefined, size: number): { start: number; end: number } | null {
+  if (!value) return null;
+  const expression = value.slice("bytes=".length);
+  const [rawStart, rawEnd] = expression.split("-", 2);
+  if (rawStart === "") {
+    const suffix = Number(rawEnd);
+    if (!Number.isSafeInteger(suffix) || suffix <= 0) fail();
+    return { start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(rawStart);
+  const requestedEnd = rawEnd === "" ? size - 1 : Number(rawEnd);
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(requestedEnd)
+    || start < 0 || start >= size || requestedEnd < start) fail();
+  return { start, end: Math.min(requestedEnd, size - 1) };
+}
+
 export class CanvasV1ControlledMediaService {
   private readonly resolveTarget: () => Promise<BytePlusTosTarget>;
   private readonly signGet: NonNullable<CanvasV1ControlledMediaServiceOptions["signGet"]>;
@@ -87,7 +109,8 @@ export class CanvasV1ControlledMediaService {
     const taskId = typeof metadata?.taskId === "string" ? metadata.taskId : null;
     const storage = metadata?.storage && typeof metadata.storage === "object" && !Array.isArray(metadata.storage)
       ? metadata.storage as Record<string, unknown> : null;
-    if (!taskId || !UUID.test(taskId) || storage?.provider !== "byteplus-tos") fail();
+    if (!taskId || !UUID.test(taskId) || !storage
+      || !["byteplus-tos", "storycanvas-local"].includes(String(storage.provider))) fail();
     const taskRows = await this.options.database("sc_tasks")
       .where({ id: taskId, projectId: input.scope.localProjectId, status: "succeeded" }).limit(2);
     if (taskRows.length !== 1 || safeJson(taskRows[0].outputJson)?.outputAssetId !== input.assetId) fail();
@@ -129,6 +152,40 @@ export class CanvasV1ControlledMediaService {
       command = parsed;
     } catch { fail(); }
     if (!(command.payload as { shotId?: unknown }).shotId) fail();
+
+    if (storage.provider === "storycanvas-local") {
+      const projectsRoot = this.options.projectsRoot ?? getPath("projects");
+      let expectedPath: string;
+      try {
+        expectedPath = resolveProjectMediaPath(
+          input.scope.localProjectId,
+          "videos",
+          input.assetId,
+          "mp4",
+          projectsRoot,
+        );
+      } catch { fail(); }
+      if (media.localPath !== expectedPath || media.mimeType !== "video/mp4"
+        || !Number.isSafeInteger(Number(media.byteSize)) || Number(media.byteSize) < 1
+        || typeof media.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(media.sha256)) fail();
+      let file;
+      try { file = await lstat(expectedPath); } catch { fail(); }
+      if (!file.isFile() || file.isSymbolicLink() || file.size !== Number(media.byteSize)) fail();
+      try {
+        if (await sha256File(expectedPath) !== media.sha256) fail();
+      } catch { fail(); }
+      const range = parseLocalRange(input.range, file.size);
+      const start = range?.start ?? 0;
+      const end = range?.end ?? file.size - 1;
+      return {
+        status: range ? 206 : 200,
+        contentType: "video/mp4",
+        contentLength: end - start + 1,
+        contentRange: range ? `bytes ${start}-${end}/${file.size}` : undefined,
+        acceptRanges: "bytes",
+        body: Readable.toWeb(createReadStream(expectedPath, range ? { start, end } : undefined)) as ReadableStream<Uint8Array>,
+      };
+    }
 
     let target: BytePlusTosTarget;
     try { target = await this.resolveTarget(); } catch { fail(); }
