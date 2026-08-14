@@ -23,7 +23,7 @@ const exactAccounts = [
 ];
 const exactStages = [
   ['project', '/projects', 'implemented_real'],
-  ['brand', '/projects/:projectId/brand', 'implemented_real'],
+  ['brand', '/projects/:projectId/brand', 'product_blocked_canonical_brand_projection'],
   ['brief', '/projects/new', 'implemented_real'],
   ['script', '/projects/:projectId/script', 'implemented_real'],
   ['storyboard', '/projects/:projectId/storyboard', 'implemented_real'],
@@ -47,7 +47,7 @@ test('full-case matrix freezes four real accounts and their project-scope dispos
   assert.equal(new Set(matrix.accounts.map(({ email }) => email)).size, 4);
 });
 
-test('full-case stages are ordered and distinguish real, missing-page and safe blocked states', () => {
+test('full-case stages distinguish implemented, product-blocked and safe no-provider states', () => {
   assert.deepEqual(
     matrix.stages.map((stage) => [stage.key, stage.routeTemplate, stage.currentClassification]),
     exactStages,
@@ -65,6 +65,18 @@ test('full-case stages are ordered and distinguish real, missing-page and safe b
     assert.notEqual(stage.currentClassification, 'demo');
     assert.notEqual(stage.currentClassification, 'placeholder_pass');
   }
+});
+
+test('Brand remains product RED while the UI cannot project canonical brandPolicySnapshot', () => {
+  const contentPages = fs.readFileSync(contentPagesPath, 'utf8');
+  const brand = matrix.stages.find(({ key }) => key === 'brand');
+  assert.equal(brand.currentClassification, 'product_blocked_canonical_brand_projection');
+  assert.equal(brand.blockerCode, 'CANONICAL_BRAND_POLICY_SNAPSHOT_UNSUPPORTED');
+  assert.match(
+    contentPages,
+    /exactKeys\(payload, \['merchantName', 'city', 'campaignGoal', 'brandFacts'\]\)/u,
+  );
+  assert.doesNotMatch(contentPages, /brandPolicySnapshot/u);
 });
 
 test('platform and channel roles cannot masquerade as the tenant full case', () => {

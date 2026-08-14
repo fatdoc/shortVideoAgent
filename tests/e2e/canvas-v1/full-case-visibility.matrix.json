@@ -54,7 +54,8 @@
       "requiredMarkerEnvironment": "CANVAS_FULL_CASE_BRAND_MARKER",
       "expectedSurfaceTestId": "pilot-project-content-brand",
       "acceptance": "real_server_data",
-      "currentClassification": "implemented_real"
+      "currentClassification": "product_blocked_canonical_brand_projection",
+      "blockerCode": "CANONICAL_BRAND_POLICY_SNAPSHOT_UNSUPPORTED"
     },
     {
       "key": "brief",
