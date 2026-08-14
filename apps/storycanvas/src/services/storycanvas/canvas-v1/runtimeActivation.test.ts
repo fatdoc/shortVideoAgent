@@ -10,6 +10,8 @@ import {
 } from './controlApprovalClient';
 import {
   CanvasV1ShotProductionAdapter,
+  isCanvasV1ShotProductionConfigured,
+  resolveCanvasV1OutputStorageMode,
   type CanvasV1ApprovedPackage,
   type CanvasV1ShotProvider,
 } from './shotProductionAdapter';
@@ -90,6 +92,25 @@ async function database(): Promise<Knex> {
   });
   return db;
 }
+
+test('local output mode enables Canvas production without pretending TOS is configured', () => {
+  const common = {
+    ARK_API_KEY: 'provider-key',
+    ARK_ASSET_ACCESS_KEY: 'asset-access',
+    ARK_ASSET_SECRET_KEY: 'asset-secret',
+    ARK_ASSET_GROUP_ID: 'asset-group',
+  };
+  assert.equal(resolveCanvasV1OutputStorageMode({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'local' }), 'local');
+  assert.equal(isCanvasV1ShotProductionConfigured({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'local' }), true);
+  assert.equal(isCanvasV1ShotProductionConfigured({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'tos' }), false);
+  assert.equal(isCanvasV1ShotProductionConfigured({
+    ...common,
+    CANVAS_V1_OUTPUT_STORAGE: 'tos',
+    ARK_ASSET_TOS_BUCKET: 'bucket',
+    ARK_ASSET_TOS_ENDPOINT: 'tos.example.test',
+  }), true);
+  assert.equal(isCanvasV1ShotProductionConfigured({ ...common, CANVAS_V1_OUTPUT_STORAGE: 'fallback' }), false);
+});
 
 test('runtime authority acceptance requires an existing canonical project mapping and persists exact v0.3 facts', async (context) => {
   const db = knex({
