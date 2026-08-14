@@ -14,6 +14,7 @@ const contentPagesPath = path.join(
   root,
   'src/pages/pilot-production/PilotProjectContentPages.tsx',
 );
+const contentApiPath = path.join(root, 'src/services/pilotContentProductionApi.ts');
 
 const exactAccounts = [
   ['platform_admin', 'platform@videoagent.test', 'PLATFORM', 'denied', 'pilot-tenant-context-required'],
@@ -23,7 +24,7 @@ const exactAccounts = [
 ];
 const exactStages = [
   ['project', '/projects', 'implemented_real'],
-  ['brand', '/projects/:projectId/brand', 'product_blocked_canonical_brand_projection'],
+  ['brand', '/projects/:projectId/brand', 'implemented_real'],
   ['brief', '/projects/new', 'implemented_real'],
   ['script', '/projects/:projectId/script', 'implemented_real'],
   ['storyboard', '/projects/:projectId/storyboard', 'implemented_real'],
@@ -67,16 +68,18 @@ test('full-case stages distinguish implemented, product-blocked and safe no-prov
   }
 });
 
-test('Brand remains product RED while the UI cannot project canonical brandPolicySnapshot', () => {
+test('Brand projects canonical Brief through a strict browser-safe envelope', () => {
   const contentPages = fs.readFileSync(contentPagesPath, 'utf8');
+  const contentApi = fs.readFileSync(contentApiPath, 'utf8');
   const brand = matrix.stages.find(({ key }) => key === 'brand');
-  assert.equal(brand.currentClassification, 'product_blocked_canonical_brand_projection');
-  assert.equal(brand.blockerCode, 'CANONICAL_BRAND_POLICY_SNAPSHOT_UNSUPPORTED');
-  assert.match(
-    contentPages,
-    /exactKeys\(payload, \['merchantName', 'city', 'campaignGoal', 'brandFacts'\]\)/u,
-  );
-  assert.doesNotMatch(contentPages, /brandPolicySnapshot/u);
+  assert.equal(brand.currentClassification, 'implemented_real');
+  assert.match(contentPages, /type PilotBriefPayload/u);
+  assert.match(contentPages, /record\.factsConfirmed !== true/u);
+  assert.match(contentPages, /获客目标：\{brand\.objective\}/u);
+  assert.match(contentPages, /Brief 目标：\{brief\.objective\}/u);
+  assert.match(contentApi, /'objective',[\s\S]*'brandFacts',[\s\S]*'factsConfirmed'/u);
+  assert.doesNotMatch(contentPages, /brandPolicySnapshot|sourceDigest|factId/u);
+  assert.doesNotMatch(contentApi, /brandPolicySnapshot|sourceDigest|factId/u);
 });
 
 test('platform and channel roles cannot masquerade as the tenant full case', () => {

@@ -123,13 +123,13 @@ for (const account of matrix.accounts) {
         await expect(page.getByText('Seedance 能力当前不可用').first()).toBeVisible();
         await expect(page.getByRole('button', { name: '生成当前镜头' })).toBeDisabled();
       }
+      await page.screenshot({
+        path: testInfo.outputPath(`${account.key}-${stage.key}-${testInfo.project.name}.png`),
+        fullPage: false,
+      });
     }
 
     expect(approvalRequests).toEqual([]);
     expect(commandRequests).toEqual([]);
-    await page.screenshot({
-      path: testInfo.outputPath(`${account.key}-${testInfo.project.name}.png`),
-      fullPage: false,
-    });
   });
 }
