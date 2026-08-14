@@ -1094,3 +1094,14 @@ StoryCanvas 已迁入根 SaaS 前端并由 `/production/canvas/:projectId` 直�
 - 第一个 RED：Boundary 使用 `controller={{ openCanvas }}` 后只调用一次零参数 `openCanvas()`，成功显示 safe ready selector，DOM 不出现 Entry handle 或 packageId；当前 `entry + consumer` 实现必须失败。
 - 在 controller 合同和 Route Adapter 完成前，不修改 Bridge/Orchestrator/StoryCanvas server capability，不把 raw Entry 捕获到 React props，不从 URL/Storage/Demo 猜 Package，不回退 legacy StoryCanvas。
 - 当前保持：`SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-14 · G5 / G6-Safe Main PR Handoff
+
+- 已从 frozen G5/G6-safe candidate `49af8a3` 与 A `26f1611` 创建普通双 parent merge `85247ed`；parents 未改写。
+- Router 冲突采用正式 `CanvasV1RouteContainer`，保留 Script/Storyboard Pilot boundary 并删除旧 Canvas `entry=null + consumer` 接线；Proxy 保持 explicit flags、loopback-only 与 `changeOrigin: false`；Bridge 采用正式 activation/workspace transport；Orchestrator 适配 `activate()` 并验证 exact activation state。
+- historical Gate 名称兼容提交：`967dbc5`；当前机器慢 Router matrix 的 20 秒 Gate timeout 提交：`59552e8`；完整验收记录：`af8cfdb`。
+- Gate：`SHARED_G5_GATE_PASS`、`SESSION_RECOVERY_PASS`、browser provenance 6/6、targeted 89/89、Root/Control API/StoryCanvas build、governance、tsc、Prettier、diff-check PASS；数据库两张 `control_plane` 事实表均为 0。
+- Integration 已通过 SSH 推送；Main PR #4：`https://github.com/fatdoc/shortVideoAgent/pull/4`。PR 只接受 G5 与 G6 safe/no-provider browser slice，不接受 `61b3de7` paid Seedance smoke。
+- 不得宣称 `G6_COMPLETE`、`PAID_PROVIDER_GATE_PASS`、`REAL_MEDIA_GENERATION_PASS`、`CANVAS_V1_GOLDEN_PATH_PASS`、`AB_GOLDEN_PATH_COMPLETE`、`JOINT_GATE_PASS` 或 `FULL_JOINT_GATE_PASS`。
+- `dev/business-plane@26f1611` 当前仍不含 formal G5 integration。后续 A 代码必须等待 PR #4 受控合并并同步新 Main；不要继续实现旧 `PilotCanvasBoundaryPage(entry + consumer)` 或基于其冻结新 Route Adapter。同步后应以 formal Canvas V1 route、explicit Package selection 和现有 Package Orchestrator 的真实缺口为基线启动下一独立 RED/GREEN。
+- `apps/storycanvas/data/vendor/byteplus.ts` 继续严格排除。

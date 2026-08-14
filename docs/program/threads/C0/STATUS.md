@@ -2,8 +2,8 @@
 
 - 岗位：总项目负责人 / 总架构师
 - 当前阶段：A 业务平台 Wave 4 · 运营收口与 A/B 联合 Gate
-- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `B_REMEDIATION_ACCEPTED / SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED` / A-BIZ-06F.1～06F.5 `COMPLETE` / `AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`
-- 当前任务：A 已完成 B remediation 正式验收、Shared Proxy/Bridge/Router partial Green、canonical Production Package scope preservation、DI-only Package Bootstrap Orchestrator 及 bounded capability/idempotency hardening；下一步先与 B 冻结 Canvas Boundary `openCanvas()` controller 合同，确保 Shared Bridge 独占 Entry creation/redemption 编排，再实现 canonical Router → Package Orchestrator → Canvas Boundary 数据流。真实浏览器 Golden Path 与 Full Joint Gate 仍保持阻断
+- 当前状态：Wave 0 `BUSINESS_DECISIONS_APPROVED` / A-BIZ-01～03.4 `COMPLETE` / A-BIZ-06A～06D `COMPLETE` / A-BIZ-06E `G5_INTEGRATION_ACCEPTED / G6_SAFE_NO_PROVIDER_BROWSER_SLICE_ACCEPTED / MAIN_PR_4_OPEN` / A-BIZ-06F.1～06F.5 `COMPLETE` / `G6_OVERALL_BLOCKED / PAID_PROVIDER_GATE_NOT_ACCEPTED / AB_GOLDEN_PATH_NOT_COMPLETE / JOINT_GATE_NOT_PASS`
+- 当前任务：G5 与 G6-safe/no-provider integration 已在 `integration/a-biz-06e-shared-canvas@af8cfdb` 完成、推送并创建 Main PR #4。`dev/business-plane@26f1611` 不包含该正式 G5 架构，后续 A 产品代码不得继续基于旧 `entry + consumer` Canvas Boundary 方案扩展；等待 PR #4 受控合并并同步新基线后，再从正式 `CanvasV1RouteContainer`、Activation Transport 与 Package Orchestrator 的实际边界开启下一独立 RED/GREEN。付费 Provider、完整 G6、A/B Golden Path 与 Joint Gate 继续阻断
 - 顶层设计：T0 已完成
 - 领域冻结：T1 已完成，C1-C8 首轮规格已交付
 - D1 Gate：静态与运行证据已通过，结论 `GO_FOR_INTERNAL_DEMO`
@@ -18,7 +18,7 @@
 - A-05 计划：`docs/program/threads/C0/A05_PILOT_V0_CONTROL_API_PLAN.md`
 - A/B 双线职责：`docs/program/threads/C0/A05_TWO_PERSON_EXECUTION_SPLIT.md`
 - A-05 多窗口任务顶层设计：`docs/program/A05_MULTI_WINDOW_TOP_LEVEL_DESIGN.md`
-- 最近更新：2026-08-13
+- 最近更新：2026-08-14
 
 ## 2026-07-30 单前端收口
 
@@ -1446,3 +1446,14 @@
 - Orchestrator 尚未接入 Router。Canvas route 继续以 `entry=null` fail closed，不表示 browser-facing Bootstrap 或真实编辑器已加载。
 - 审计确认 Shared Bridge 已负责 Entry creation 与 B consumer redemption，而 B `PilotCanvasBoundaryPage` 仍采用 `entry + consumer.openEntry()`；下一 shared 原子切片必须先冻结零参数 `openCanvas()` controller，避免重复 redemption 或 raw Entry authority 穿过 React props。
 - 当前状态：`CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-14 · G5 / G6-Safe Integration Delivered to Main PR
+
+- 冻结接受 candidate：`49af8a39b82213fbc13ebcf841c4c00b78962787`；明确排除且未接受 paid smoke：`61b3de7c6226ea20dc80a5ffd5ac9747f1ae5d75`。
+- Integration merge：`85247ed5a299543c973696643359c947f50ac0b5`，parents 精确为 `49af8a3` 与 A HEAD `26f1611`；后续兼容提交为 `967dbc5`、`59552e8`，验收记录为 `af8cfdb`。
+- 完整 G5 输出 `SHARED_G5_GATE_PASS`；G6 session recovery 输出 `SESSION_RECOVERY_PASS`；browser provenance 6/6、integration targeted 89/89、三项 build、governance、TypeScript、Prettier 与 diff-check 全部 PASS。
+- PostgreSQL `videoagent_control_test` 的 `control_plane.high_cost_command_approvals` 与 `control_plane.production_tasks` 均为 0。
+- 分支已推送，Main PR #4 已创建：`https://github.com/fatdoc/shortVideoAgent/pull/4`。不得直接 push main、force push 或在 PR review 前宣称 Main 已落地。
+- 当前只允许：`G5_ACCEPTED / G6_SAFE_NO_PROVIDER_BROWSER_SLICE_ACCEPTED`；继续保持：`G6_OVERALL_BLOCKED / PAID_PROVIDER_GATE_NOT_ACCEPTED / AB_GOLDEN_PATH_NOT_COMPLETE / JOINT_GATE_NOT_PASS`。
+- A 本地 `dev/business-plane@26f1611` 仍是 merge parent，不包含 formal G5 integration tree。旧 C0 的 `PilotCanvasBoundaryPage(entry + consumer)` 后续接线计划不得继续扩展；下一 A 产品原子切片必须等待 PR #4 合并并同步正式 G5 基线后再开始，避免在旧 Router/Bridge 合同上制造并行实现。
+- B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未读取、修改、删除、暂存或提交。

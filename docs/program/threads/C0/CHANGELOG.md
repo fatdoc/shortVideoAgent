@@ -559,3 +559,12 @@
 - 定向验证 `44/44 PASS`；ESLint、Prettier、diff-check PASS。Router 尚未接入 Orchestrator，Canvas Boundary 仍以 `entry=null` blocked。
 - Shared Bridge 与 B Boundary 的 redemption 单一所有权合同、A Route Adapter 和 Shared Router wiring 仍待独立 RED/GREEN。
 - 当前状态：`CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-14 · G5 / G6-Safe Integration Main PR
+
+- `85247ed` 以普通双 parent merge 集成 frozen candidate `49af8a3` 与 A `26f1611`；`61b3de7` paid Seedance smoke 明确排除。
+- `967dbc5` 保留历史 G5 Router attestation 精确名称；`59552e8` 为慢 Router historical matrix 固定 20 秒测试上限；`af8cfdb` 记录完整 integration evidence。
+- G5、G6-safe session/provenance、89 项 targeted、三项 build、governance、tsc、Prettier、diff-check 与 `control_plane` 两表零事实检查全部通过。
+- Integration 分支已推送并创建 Main PR #4：`https://github.com/fatdoc/shortVideoAgent/pull/4`。
+- 允许声明 `G5_ACCEPTED / G6_SAFE_NO_PROVIDER_BROWSER_SLICE_ACCEPTED`；完整 G6、paid Provider、A/B Golden Path 与 Joint Gate 继续阻断。
+- A 分支在 PR 合并/同步前不继续旧 Canvas Boundary controller/Route Adapter 产品实现，防止与 formal G5 Route/Bridge 架构并行分叉。
