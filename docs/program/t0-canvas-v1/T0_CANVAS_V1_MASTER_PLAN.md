@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.16`
+> 版本：`v0.17`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -88,6 +88,15 @@ G6 platform local-output product head:
 
 G6 persisted-task restart recovery product head:
 871a193d2eb491c94001bd1f4428a962b992ab32
+
+G6 final local full-case product integrated head:
+c218526e995ecfb941d636408b6ad1c3fa577596
+
+G6 final local full-case independent QA head:
+ca251f8e761e9317a1adfc59d8c9c472b77cb4ca
+
+G6 final local full-case evidence integrated head:
+c04323058d1b37e270c6e80b670662bb53887f9f
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -451,7 +460,7 @@ raw Idempotency-Key
 | CV3 | Canvas Agent 工程师 | `tasks/CV3_CANVAS_AGENT_TASK.md` | `ACCEPTED` | G4 已独立验收；只读分析和单镜头受控命令面就绪 |
 | CV4 | Canvas UI 工程师 | `tasks/CV4_CANVAS_UI_TASK.md` | `ACCEPTED` | G3 已独立复验通过 |
 | CV5 | 业务融合工程师 | `tasks/CV5_BUSINESS_INTEGRATION_TASK.md` | `ACCEPTED` | Control、Story 与 Shared Bridge/Router/Proxy 已独立验收 |
-| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `BLOCKED` | 非付费真实浏览器与一次本地落盘付费 smoke 已通过；TOS 签名访问及完整产品输出链仍阻塞 |
+| CV6 | QA/Gate 工程师 | `tasks/CV6_QA_GATE_TASK.md` | `BLOCKED` | 4 账号×2 视口的非付费本地完整案例已通过；真实平台页动态审批→付费 Seedance→输出回显仍未执行 |
 
 运行配置遵循 `docs/program/EMPLOYEE_RULES.md`：
 
@@ -587,7 +596,7 @@ Gate 状态：
 | G3 | `ACCEPTED` | CV4 owner 31/31、CV6 独立三项回归 3/3；审批、状态恢复和五个媒体 sink 均 fail-closed |
 | G4 | `ACCEPTED` | CV6 独立静态 4/4、动态 7/7，CV3 owner 11/11；Agent 不直连 DB/Provider 且不能绕过 scope/readiness/approval |
 | G5 | `ACCEPTED` | Control、Story、Shared 同源 API/Bridge/Router/Proxy 均通过独立 Gate；历史 4 个 Shared RED 以真实产品实现转绿 |
-| G6 | `BLOCKED` | 真实三服务、Chromium 双视口、刷新恢复与安全扫描已通过；一次直连受控 Seedance task 已成功。平台现已支持显式本地受控输出、`output_registered` 事实推进和 UI 轮询，但尚未从真实平台页面再次执行付费命令闭环 |
+| G6 | `BLOCKED` | 真实三服务、4 账号×Chromium 1440×900/1672×941、68 张逐页证据全部通过；真实 Project→Brief→Brand→Script→Storyboard→Package→Canvas 已打通，Canvas 在无 Provider 环境中真实 hydrate 且 fail closed，审批/命令/Provider 均为 0。一次直连受控 Seedance task 历史证据仍保留，但本轮未从真实平台页执行动态审批→付费 Seedance→输出回显，因此 G6 整体不放行 |
 
 状态词只使用：
 
@@ -873,6 +882,8 @@ G6 platform local output: atomic 0600 file + sc_media_assets + controlled Range 
 G6 platform polling:      bounded authoritative workspace refresh GREEN
 G6 task restart recovery: existing provider task read-only resume + same event output_registered GREEN
 G6 audio config:          enabled in ignored local env; no second paid task executed
+G6 local full case:       4 accounts x 2 viewports, 8/8 PASS; 68 success screenshots; 0 failure artifacts
+G6 local data:            Project/Brief/Brand/Script/Storyboard/Package/Canvas + members/invitations/Terms verified
 G6 status:                BLOCKED; real browser approval→CanvasCommand→paid Seedance→local output evidence not yet run
 ```
 
@@ -893,6 +904,15 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.17 · 2026-08-14
+
+- 合并 V3 图像化 UI 与真实 Pilot 业务页；Dashboard、生产能力、新建 Brief、Brand、Script、Storyboard、Production Package 与 Canvas 均使用严格服务端事实，不再以 Demo/handoff 代替成功页；
+- 新增可幂等重放的本地完整案例：固定 Project/Brief/Script/Storyboard/Package，4 条已授权已批准资产，Story Workspace 文档/需求/readiness 真实持久化；无 Provider 时固定 `BLOCKED_NO_PROVIDER`，零付费调用；
+- 4 个本地账号和三层成员数据已校验；补入 3 条已撤销 Invitation 与 1 份 DRAFT Terms，但支付、充值、积分、佣金和结算事实保持 0，页面展示真实空态；
+- 修复 Canonical Brief 受信本地种子边界与 Channel Invitation `attributionChannelId` 前后端严格解析漂移，两者均不放宽浏览器合同或 Token 安全边界；
+- 最终真实浏览器 Gate：4 账号×2 视口 `8/8 PASS`，68 张成功截图、0 失败产物；Root `545/545`、Control `567 PASS`、Story Canvas `75/75`，三端 build 与 governance 通过；
+- 本版只接受“非付费本地完整案例”切片；本轮未执行新的付费 Seedance，没有任务/输出回显新证据，G6 整体继续 `BLOCKED`。
 
 ### v0.16 · 2026-08-14
 
