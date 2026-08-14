@@ -55,7 +55,13 @@ function script(version: number): PilotScriptVersion {
     projectId: project.id,
     version,
     status: version === 2 ? 'approved' : 'superseded',
-    payload: { title: `脚本 v${version}`, content: `真实脚本正文 ${version}` },
+    payload: {
+      title: `脚本 v${version}`,
+      content:
+        version === 2
+          ? '[CANVAS_FULL_CASE_SCRIPT] 真实脚本正文 2\n[CANVAS_FULL_CASE_PRODUCTION] 已批准生产内容'
+          : `真实脚本正文 ${version}`,
+    },
     createdBy: 'user-1',
     createdAt: `2026-08-14T0${version}:00:00.000Z`,
   };
@@ -94,12 +100,26 @@ function storyboard(): PilotStoryboardVersion {
 function contentApi(overrides: Partial<PilotContentProductionApi> = {}): PilotContentProductionApi {
   return {
     listBriefVersions: vi.fn().mockResolvedValue([
-      brief(1, { merchantName: '旧门店', city: '上海', campaignGoal: '旧目标', brandFacts: [] }),
+      brief(1, {
+        objective: '旧目标',
+        audience: ['旧客群'],
+        platforms: ['douyin'],
+        brandFacts: [{ text: '旧事实', sourceReference: '旧资料' }],
+        prohibitedTerms: [],
+        requiredDisclosures: [],
+        factsConfirmed: true,
+      }),
       brief(2, {
-        merchantName: '南门咖啡',
-        city: '郑州',
-        campaignGoal: '到店核销',
-        brandFacts: ['临街门店', '手冲咖啡'],
+        objective: '[CANVAS_FULL_CASE_BRIEF] 到店核销',
+        audience: ['郑州周边消费者'],
+        platforms: ['douyin'],
+        brandFacts: [
+          { text: '[CANVAS_FULL_CASE_BRAND] 临街门店', sourceReference: '门店照片' },
+          { text: '手冲咖啡', sourceReference: '门店菜单' },
+        ],
+        prohibitedTerms: ['全网最低价'],
+        requiredDisclosures: ['供应以门店当日菜单为准'],
+        factsConfirmed: true,
       }),
     ]),
     createBriefVersion: vi.fn(),
@@ -130,21 +150,29 @@ describe('PilotProjectContentPage real Control facts', () => {
       />,
     );
 
-    expect(await screen.findByTestId('pilot-brand-facts')).toHaveTextContent('南门咖啡');
-    expect(screen.getByTestId('pilot-brand-facts')).toHaveTextContent('郑州');
-    expect(screen.getByTestId('pilot-brand-facts')).toHaveTextContent('到店核销');
+    expect(await screen.findByTestId('pilot-brand-facts')).toHaveTextContent(
+      '[CANVAS_FULL_CASE_BRIEF] 到店核销',
+    );
+    expect(screen.getByTestId('pilot-brand-facts')).toHaveTextContent(
+      '[CANVAS_FULL_CASE_BRAND] 临街门店',
+    );
     expect(screen.getByTestId('pilot-brand-facts')).toHaveTextContent('手冲咖啡');
-    expect(screen.queryByText('旧门店')).not.toBeInTheDocument();
+    expect(screen.getByTestId('pilot-brand-facts')).toHaveTextContent('门店菜单');
+    expect(screen.queryByText('旧目标')).not.toBeInTheDocument();
   });
 
   it('fails closed instead of rendering a malformed latest Brief payload', async () => {
     const api = contentApi({
       listBriefVersions: vi.fn().mockResolvedValue([
         brief(3, {
-          merchantName: '不应泄漏',
-          city: ['malformed'],
-          accessToken: 'raw-secret',
-          brandFacts: [],
+          objective: '不应泄漏',
+          audience: ['test'],
+          platforms: ['douyin'],
+          brandFacts: [{ text: '不应泄漏', sourceReference: ['malformed'] }],
+          prohibitedTerms: [],
+          requiredDisclosures: [],
+          factsConfirmed: true,
+          sourceDigest: 'raw-secret',
         }),
       ]),
     });
@@ -178,6 +206,9 @@ describe('PilotProjectContentPage real Control facts', () => {
 
     expect(await screen.findByTestId('pilot-script-facts')).toHaveTextContent('脚本 v2');
     expect(screen.getByTestId('pilot-script-facts')).toHaveTextContent('真实脚本正文 2');
+    expect(screen.getByTestId('pilot-script-facts')).toHaveTextContent(
+      '[CANVAS_FULL_CASE_BRIEF] 到店核销',
+    );
 
     view.rerender(
       <PilotProjectContentPage
@@ -249,16 +280,51 @@ describe('PilotProjectContentPage real Control facts', () => {
     expect(onOpenCanvas).toHaveBeenCalledWith(packageB.packageId);
   });
 
+  it('shows the exact Package-bound approved Script summary on Production overview', async () => {
+    const candidate = {
+      objectType: 'ProjectProductionPackage' as const,
+      contractVersion: '0.3' as const,
+      projectId: project.id,
+      packageId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+      packageVersion: 3,
+      scriptVersionId: 'script-v2',
+      storyboardVersionId: 'storyboard-v1',
+      capabilityRequirements: ['video.generate' as const],
+      status: 'ready' as const,
+      createdAt: '2026-08-14T01:00:00.000Z',
+      expiresAt: '2026-08-14T02:00:00.000Z',
+    };
+
+    render(
+      <PilotProjectContentPage
+        routeKey="production-overview"
+        projectId={project.id}
+        project={project}
+        contentApi={contentApi({
+          listProductionPackages: vi.fn().mockResolvedValue([candidate]),
+        })}
+      />,
+    );
+
+    expect(await screen.findByTestId('pilot-production-packages')).toHaveTextContent(
+      '[CANVAS_FULL_CASE_PRODUCTION] 已批准生产内容',
+    );
+    expect(screen.getByTestId('pilot-production-packages')).toHaveTextContent('脚本 v2');
+  });
+
   it('creates a real Project and its first strict Brief before activating it', async () => {
     const createdProject = { ...project, id: 'project-created' };
     const createProject = vi.fn().mockResolvedValue({ project: createdProject, replayed: false });
     const createBriefVersion = vi.fn().mockResolvedValue({
       value: {
         ...brief(1, {
-          merchantName: '南门咖啡',
-          city: '郑州',
-          campaignGoal: '到店核销',
-          brandFacts: ['手冲咖啡'],
+          objective: '到店核销',
+          audience: ['周边消费者'],
+          platforms: ['douyin'],
+          brandFacts: [{ text: '手冲咖啡', sourceReference: '门店菜单' }],
+          prohibitedTerms: [],
+          requiredDisclosures: [],
+          factsConfirmed: true,
         }),
         projectId: createdProject.id,
       },
@@ -279,12 +345,14 @@ describe('PilotProjectContentPage real Control facts', () => {
     );
 
     fireEvent.change(screen.getByLabelText('项目名称'), { target: { value: '南门咖啡探店' } });
-    fireEvent.change(screen.getByLabelText('门店名称'), { target: { value: '南门咖啡' } });
-    fireEvent.change(screen.getByLabelText('城市'), { target: { value: '郑州' } });
     fireEvent.change(screen.getByLabelText('获客目标'), { target: { value: '到店核销' } });
-    fireEvent.change(screen.getByLabelText('品牌事实（每行一条）'), {
-      target: { value: '手冲咖啡' },
+    fireEvent.change(screen.getByLabelText('目标人群（每行一条）'), {
+      target: { value: '周边消费者' },
     });
+    fireEvent.change(screen.getByLabelText('品牌事实与来源（事实｜来源）'), {
+      target: { value: '手冲咖啡｜门店菜单' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: '我已核验以上品牌事实和来源' }));
     fireEvent.click(screen.getByRole('button', { name: '创建真实项目与 Brief' }));
 
     await waitFor(() => expect(createProject).toHaveBeenCalledTimes(1));
@@ -302,10 +370,13 @@ describe('PilotProjectContentPage real Control facts', () => {
       'project-created',
       {
         payload: {
-          merchantName: '南门咖啡',
-          city: '郑州',
-          campaignGoal: '到店核销',
-          brandFacts: ['手冲咖啡'],
+          objective: '到店核销',
+          audience: ['周边消费者'],
+          platforms: ['douyin'],
+          brandFacts: [{ text: '手冲咖啡', sourceReference: '门店菜单' }],
+          prohibitedTerms: [],
+          requiredDisclosures: [],
+          factsConfirmed: true,
         },
       },
       'stable-create-key:brief',
