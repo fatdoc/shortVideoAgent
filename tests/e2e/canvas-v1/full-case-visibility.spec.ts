@@ -86,12 +86,36 @@ async function login(page: Page, account: Account) {
 async function assertNoFalseSuccess(page: Page) {
   const text = (await page.locator('body').innerText()).trim();
   expect(text.length).toBeGreaterThan(120);
+  expect(text).not.toContain(password);
   for (const testId of matrix.forbiddenSuccessSurfaces.testIds) {
     await expect(page.getByTestId(testId)).toHaveCount(0);
   }
   for (const phrase of matrix.forbiddenSuccessSurfaces.phrases) {
     expect(text.toLowerCase()).not.toContain(phrase.toLowerCase());
   }
+}
+
+async function assertBrowserContainment(
+  page: Page,
+  consoleMessages: string[],
+  externalRequests: string[],
+) {
+  const current = new URL(page.url());
+  expect(current.origin).toBe(browserOrigin);
+  expect(page.url()).not.toContain(password);
+  expect(externalRequests).toEqual([]);
+  const storage = await page.evaluate(() => ({
+    local: Object.entries(localStorage),
+    session: Object.entries(sessionStorage),
+  }));
+  const serializedStorage = JSON.stringify(storage);
+  expect(serializedStorage).not.toContain(password);
+  for (const [key] of [...storage.local, ...storage.session]) {
+    expect(key).not.toMatch(/(?:password|secret|token|csrf|session)/iu);
+  }
+  const serializedConsole = consoleMessages.join('\n');
+  expect(serializedConsole).not.toContain(password);
+  expect(serializedConsole).not.toMatch(/(?:authorization|x-csrf-token|set-cookie)\s*[:=]/iu);
 }
 
 async function assertOperation(page: Page, account: Account, operation: Operation, testInfo: import('@playwright/test').TestInfo) {
@@ -120,8 +144,16 @@ for (const account of matrix.accounts) {
   test(`${account.key}: exact role visibility and full-case disposition`, async ({ page }, testInfo) => {
     const approvalRequests: string[] = [];
     const commandRequests: string[] = [];
+    const externalRequests: string[] = [];
+    const consoleMessages: string[] = [];
+    page.on('console', (message) => consoleMessages.push(message.text()));
     page.on('request', (request) => {
-      const pathname = new URL(request.url()).pathname;
+      const requestUrl = new URL(request.url());
+      const pathname = requestUrl.pathname;
+      if (['http:', 'https:'].includes(requestUrl.protocol) && requestUrl.origin !== browserOrigin) {
+        externalRequests.push(requestUrl.origin);
+      }
+      expect(request.url()).not.toContain(password);
       if (pathname.endsWith('/canvas-command-approvals')) approvalRequests.push(pathname);
       if (pathname.endsWith('/canvas/v1/commands')) commandRequests.push(pathname);
     });
@@ -167,6 +199,7 @@ for (const account of matrix.accounts) {
       });
       expect(approvalRequests).toEqual([]);
       expect(commandRequests).toEqual([]);
+      await assertBrowserContainment(page, consoleMessages, externalRequests);
       return;
     }
 
@@ -192,9 +225,22 @@ for (const account of matrix.accounts) {
         path: testInfo.outputPath(`${account.key}-${stage.key}-${testInfo.project.name}.png`),
         fullPage: false,
       });
+      if (stage.acceptance === 'real_no_provider_blocked_readiness') {
+        await page.reload();
+        await expect(page.getByText(required('CANVAS_FULL_CASE_PROJECT_NAME'), { exact: false }).first())
+          .toBeVisible();
+        await expect(page.getByText('Seedance 能力当前不可用').first()).toBeVisible();
+        await expect(page.getByRole('button', { name: '生成当前镜头' })).toBeDisabled();
+        await assertNoFalseSuccess(page);
+        await page.screenshot({
+          path: testInfo.outputPath(`${account.key}-${stage.key}-reload-${testInfo.project.name}.png`),
+          fullPage: false,
+        });
+      }
     }
 
     expect(approvalRequests).toEqual([]);
     expect(commandRequests).toEqual([]);
+    await assertBrowserContainment(page, consoleMessages, externalRequests);
   });
 }

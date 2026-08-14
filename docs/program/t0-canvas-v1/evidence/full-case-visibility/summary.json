@@ -1,0 +1,37 @@
+{
+  "testedIntegration": "c218526e995ecfb941d636408b6ad1c3fa577596",
+  "qaMergeHead": "3e132f00901062aa51ed9ff9ccdbad51f4b8b301",
+  "canonicalCanvasUrl": "http://127.0.0.1:5173/production/canvas/00b4826e-d2d9-58ca-9f88-999bc1013ccb?packageId=366f7983-0c30-4017-ac71-3a0ef73311ce",
+  "accounts": 4,
+  "viewports": [
+    "1440x900",
+    "1672x941"
+  ],
+  "browserCasesPassed": 8,
+  "browserCasesFailed": 0,
+  "screenshots": 68,
+  "stages": {
+    "dashboard": "real_server_data",
+    "brand": "real_server_data",
+    "brief": "real_service_create_surface",
+    "script": "real_server_data",
+    "storyboard": "real_server_data",
+    "production": "real_server_data",
+    "canvas": "hydrated_no_provider_blocked_readiness",
+    "canvasReload": "hydrated_no_provider_blocked_readiness",
+    "invitations": "real_revoked_records",
+    "terms": "real_draft_record",
+    "members": "real_server_data",
+    "financial": "real_empty"
+  },
+  "containment": {
+    "approvalRequests": 0,
+    "commandRequests": 0,
+    "paidProviderCalls": 0,
+    "providerConfigured": false,
+    "externalBrowserRequests": 0,
+    "forbiddenDomUrlStorageConsoleValues": 0
+  },
+  "result": "SAFE_FULL_CASE_NO_PROVIDER_PASS",
+  "paidGoldenPath": "NOT_RUN"
+}

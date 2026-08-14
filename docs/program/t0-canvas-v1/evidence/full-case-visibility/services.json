@@ -1,0 +1,26 @@
+{
+  "testedIntegration": "c218526e995ecfb941d636408b6ad1c3fa577596",
+  "runtimeHead": "3e132f00901062aa51ed9ff9ccdbad51f4b8b301",
+  "startedAt": "2026-08-14T10:05:26.046Z",
+  "origins": {
+    "control": "http://127.0.0.1:10600",
+    "story": "http://127.0.0.1:10588",
+    "browser": "http://127.0.0.1:5173"
+  },
+  "pids": {
+    "control": 36713,
+    "story": 36716,
+    "vite": 36718
+  },
+  "listenerPids": {
+    "control": 36714,
+    "story": 36717,
+    "vite": 36718
+  },
+  "healthStatus": {
+    "control": 200,
+    "story": 200,
+    "browser": 200
+  },
+  "providerConfigured": false
+}
