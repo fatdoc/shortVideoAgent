@@ -8,7 +8,10 @@ import { CanvasV1RouteContainer } from './CanvasV1RouteContainer';
 
 const workspace = JSON.parse(
   readFileSync(
-    resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json'),
+    resolve(
+      process.cwd(),
+      'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json',
+    ),
     'utf8',
   ),
 ).workspaceResponse;
@@ -54,6 +57,10 @@ describe('CanvasV1RouteContainer production hydration', () => {
     expect(screen.getByTestId('pilot-storycanvas-boundary-blocked')).toHaveTextContent(
       '不会回退 Demo',
     );
+    expect(screen.getByRole('link', { name: '选择生产包并进入画布' })).toHaveAttribute(
+      'href',
+      `/production/inbox/${workspace.projectId}?target=canvas`,
+    );
     expect(adapter.activate).not.toHaveBeenCalled();
   });
 
@@ -68,11 +75,13 @@ describe('CanvasV1RouteContainer production hydration', () => {
     expect(screen.getAllByText('镜头 01').length).toBeGreaterThan(0);
     expect(screen.getAllByText('门店讲解员').length).toBeGreaterThan(0);
     expect(screen.queryByText('门店探店视频')).not.toBeInTheDocument();
-    expect(adapter.activate).toHaveBeenCalledWith(expect.objectContaining({
-      projectId: workspace.projectId,
-      packageId: workspace.packageId,
-      activationAttemptId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
-    }));
+    expect(adapter.activate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: workspace.projectId,
+        packageId: workspace.packageId,
+        activationAttemptId: expect.stringMatching(/^[0-9a-f-]{36}$/u),
+      }),
+    );
   });
 
   it('fails closed without rendering workspace data when activation rejects', async () => {
@@ -133,6 +142,8 @@ describe('CanvasV1RouteContainer production hydration', () => {
     );
     expect(await screen.findByText(workspace.project.projectName)).toBeInTheDocument();
     await waitFor(() => expect(adapter.refreshWorkspace).toHaveBeenCalledTimes(1));
-    expect(vi.mocked(adapter.refreshWorkspace).mock.calls[0][0].workspace).toEqual(runningWorkspace);
+    expect(vi.mocked(adapter.refreshWorkspace).mock.calls[0][0].workspace).toEqual(
+      runningWorkspace,
+    );
   });
 });

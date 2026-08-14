@@ -1,5 +1,6 @@
+import { Button } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import type { CanvasCommandV01, CanvasEventV01 } from '../model/contracts';
 import type { CanvasWorkspaceV01 } from '../model/workspaceContract';
 import { CanvasV1Page, type CanvasAssetView, type CanvasShotView } from '../pages/CanvasV1Page';
@@ -25,9 +26,11 @@ const RUNNING_EVENT_STATUSES = new Set(['accepted', 'provider_submitted', 'task_
 
 function runningEventKey(workspace: CanvasWorkspaceV01): string {
   return workspace.shots
-    .flatMap(({ event }) => event && RUNNING_EVENT_STATUSES.has(event.status)
-      ? [`${event.commandId}:${event.status}`]
-      : [])
+    .flatMap(({ event }) =>
+      event && RUNNING_EVENT_STATUSES.has(event.status)
+        ? [`${event.commandId}:${event.status}`]
+        : [],
+    )
     .sort()
     .join('|');
 }
@@ -36,12 +39,34 @@ function pollDelay(value: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, value));
 }
 
-function BoundaryBlocked({ projectId }: { projectId: string | undefined }) {
+function BoundaryBlocked({
+  projectId,
+  selectionRequired = false,
+}: {
+  projectId: string | undefined;
+  selectionRequired?: boolean;
+}) {
   return (
-    <main className="cv1-state-page cv1-state-page--error" data-testid="pilot-storycanvas-boundary-blocked" role="alert">
-      <strong>StoryCanvas Pilot 服务暂不可用</strong>
-      <span>{projectId ? `Project ${projectId} · ` : ''}入口未能建立完整生产权限边界。</span>
+    <main
+      className="cv1-state-page cv1-state-page--error"
+      data-testid="pilot-storycanvas-boundary-blocked"
+      role="alert"
+    >
+      <strong>
+        {selectionRequired ? '进入 StoryCanvas 前请选择生产包' : 'StoryCanvas Pilot 服务暂不可用'}
+      </strong>
+      <span>
+        {projectId ? `Project ${projectId} · ` : ''}
+        {selectionRequired
+          ? '画布不会自动猜测最新或默认 Package。'
+          : '入口未能建立完整生产权限边界。'}
+      </span>
       <span>系统不会回退 Demo，也不会使用默认项目或默认内容。</span>
+      {selectionRequired && projectId ? (
+        <Link to={`/production/inbox/${encodeURIComponent(projectId)}?target=canvas`}>
+          <Button type="primary">选择生产包并进入画布</Button>
+        </Link>
+      ) : null}
     </main>
   );
 }
@@ -101,11 +126,10 @@ export function CanvasV1RouteContainer({
   const [activationState, setActivationState] = useState<PilotCanvasActivationState | null>(null);
   const [failed, setFailed] = useState(false);
   const activationStateRef = useRef<PilotCanvasActivationState | null>(null);
-  const safePollIntervalMs = Number.isFinite(pollIntervalMs)
-    && pollIntervalMs >= 1
-    && pollIntervalMs <= 60_000
-    ? pollIntervalMs
-    : 5_000;
+  const safePollIntervalMs =
+    Number.isFinite(pollIntervalMs) && pollIntervalMs >= 1 && pollIntervalMs <= 60_000
+      ? pollIntervalMs
+      : 5_000;
 
   useEffect(() => {
     activationStateRef.current = activationState;
@@ -115,7 +139,10 @@ export function CanvasV1RouteContainer({
     let active = true;
     setActivationState(null);
     setFailed(false);
-    if (!selection) return () => { active = false; };
+    if (!selection)
+      return () => {
+        active = false;
+      };
     void bridge.activate({ ...selection, activationAttemptId }).then(
       (value) => {
         if (active) setActivationState(value);
@@ -124,7 +151,9 @@ export function CanvasV1RouteContainer({
         if (active) setFailed(true);
       },
     );
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [activationAttemptId, bridge, selection]);
 
   const activeProductionKey = activationState ? runningEventKey(activationState.workspace) : '';
@@ -154,10 +183,14 @@ export function CanvasV1RouteContainer({
       }
     };
     void poll();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [activeProductionKey, bridge, safePollIntervalMs]);
 
-  if (!selection || failed) return <BoundaryBlocked projectId={projectId} />;
+  if (!selection || failed) {
+    return <BoundaryBlocked projectId={projectId} selectionRequired={!selection} />;
+  }
   if (!activationState) {
     return (
       <main className="cv1-state-page" role="status">

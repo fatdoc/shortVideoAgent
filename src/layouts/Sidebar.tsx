@@ -29,6 +29,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useControlPlaneStore } from '../stores/controlPlaneStore';
 import { usePilotAuthStore } from '../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../stores/pilotProjectContextStore';
+import { resolveSidebarNavigationTarget } from './sidebarNavigation';
 
 const { Sider } = Layout;
 
@@ -345,7 +346,7 @@ function SidebarFrame({
         openKeys={openKeys}
         onOpenChange={changeOpenKeys}
         items={[...items] as MenuProps['items']}
-        onClick={({ key }) => navigate(key)}
+        onClick={({ key }) => navigate(resolveSidebarNavigationTarget(key))}
         style={{ borderInlineEnd: 0 }}
       />
       <div className="sidebar-footer">{footer}</div>

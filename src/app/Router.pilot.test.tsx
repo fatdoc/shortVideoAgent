@@ -606,7 +606,7 @@ describe('A-BIZ-06E.4P Shared Router fail-closed boundary RED', () => {
     expect.soft(blockedState).not.toBeNull();
     if (blockedState) {
       expect.soft(blockedState).toHaveTextContent('Project project-alpha');
-      expect.soft(blockedState).toHaveTextContent(/StoryCanvas Pilot (边界|服务).*暂不可用/);
+      expect.soft(blockedState).toHaveTextContent('进入 StoryCanvas 前请选择生产包');
       expect.soft(blockedState).toHaveTextContent('不会回退 Demo');
     }
   });
