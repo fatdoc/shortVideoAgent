@@ -1255,7 +1255,7 @@ function parseInvitationManagement(value: unknown): PilotInvitationManagement {
     value.targetOrganizationId === null &&
     value.targetRoleCode === null &&
     targetEmail === null &&
-    value.attributionChannelId === null &&
+    uuid(value.attributionChannelId) &&
     value.maxUses === 100;
   const validTenant =
     invitationType === 'TENANT_MEMBER' &&
