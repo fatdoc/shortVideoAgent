@@ -1,6 +1,6 @@
 # T0-CV1 · Canvas V1 紧急融合开发总控计划
 
-> 版本：`v0.15`
+> 版本：`v0.16`
 > 日期：`2026-08-14`
 > 状态：`ACTIVE / EXECUTION_SOURCE_OF_TRUTH`
 > 优先级：`T0 · 紧急特殊开发`
@@ -85,6 +85,9 @@ G6 safe no-provider browser independent QA integrated head:
 
 G6 platform local-output product head:
 1dca807e0ff82576f83ac9165ef05d8b656afa72
+
+G6 persisted-task restart recovery product head:
+871a193d2eb491c94001bd1f4428a962b992ab32
 
 origin/main:
 19582cbf16e1414f884f9864f7c0d372640cb26a
@@ -868,6 +871,7 @@ G6 paid local smoke:      one Provider POST; succeeded; H.264 4.041667s; local S
 G6 TOS status:            signed object GET 403 AccessDenied; no TOS write attempted
 G6 platform local output: atomic 0600 file + sc_media_assets + controlled Range + output_registered GREEN
 G6 platform polling:      bounded authoritative workspace refresh GREEN
+G6 task restart recovery: existing provider task read-only resume + same event output_registered GREEN
 G6 audio config:          enabled in ignored local env; no second paid task executed
 G6 status:                BLOCKED; real browser approval→CanvasCommand→paid Seedance→local output evidence not yet run
 ```
@@ -889,6 +893,15 @@ Full Joint Gate:                    BLOCKED as designed
 这些失败不归因于 T0-CV1，也不得在后续被删除、skip、弱化或伪报为 PASS。
 
 ## 17. 变更记录
+
+### v0.16 · 2026-08-14
+
+- 冻结并修复 StoryCanvas 重启后已付费任务长期停留在 `task_created` 的产品缺口：formal Workspace 刷新会在 exact actor/tenant/project/package/session/command/event/task authority 下恢复未完成任务；
+- 恢复路径只查询已持久化的 Provider task ID，不创建新任务、不重复 POST、不改变 command/event/task identity；同一进程的并发刷新共享 completion observer；
+- Provider 成功后使用 task 派生的稳定输出资产 UUID，继续走本地或 TOS 的既有严格持久化与 `output_registered` 推进；持久任务、输出或 authority 漂移均 fail closed；
+- 原子切片：RED `54d2123a370b335f55a9a8be051cbc2c609725d5`、GREEN `26a2ffb0af85d4586e85720f1d5937f1648d66f7`、类型收敛 `871a193d2eb491c94001bd1f4428a962b992ab32`；
+- 验证：Canvas/Story targeted 55/55、Root 522/522、v0.2+Media/TTS/Storage 22/22、Root build、StoryCanvas build、target ESLint、Governance、diff-check 全部通过；StoryCanvas strict tsc 保留 28 个既有 AI SDK/Zod 基线错误，变更路径 0；`byteplus.ts` 未触碰；
+- 本切片零 Provider POST、零付费调用。G6 继续 `BLOCKED`，仍需新的明确付费授权才能执行真实浏览器动态审批→CanvasCommand→带音频 Seedance→本地登记→controlled media 回显。
 
 ### v0.15 · 2026-08-14
 

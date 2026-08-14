@@ -3,7 +3,11 @@ import type { Knex } from 'knex';
 
 import type { PilotCanvasRedemption } from '../pilotCanvasCapability';
 import type { CanvasProductionScope } from '../assets-v1';
-import { downloadBytePlusVideo, generateBytePlusVideo } from '../byteplusVideo';
+import {
+  downloadBytePlusVideo,
+  generateBytePlusVideo,
+  waitForBytePlusVideoTask,
+} from '../byteplusVideo';
 import {
   registerRemoteOutputAsset,
   uploadRemoteOutput,
@@ -32,6 +36,9 @@ export interface CanvasV1ShotProvider {
       resolution: '720p';
     },
     hooks: { onTaskCreated(taskId: string): Promise<void> },
+  ): Promise<{ externalTaskId: string; videoUrl: string }>;
+  resume?(
+    externalTaskId: string,
   ): Promise<{ externalTaskId: string; videoUrl: string }>;
 }
 
@@ -151,6 +158,23 @@ async function realProviderStart(
   return { externalTaskId: result.taskId, videoUrl: result.videoUrl };
 }
 
+async function realProviderResume(externalTaskId: string) {
+  const result = await waitForBytePlusVideoTask(externalTaskId);
+  return { externalTaskId: result.taskId, videoUrl: result.videoUrl };
+}
+
+function stableOutputAssetId(taskId: string): string {
+  const bytes = crypto.createHash('sha256')
+    .update('canvas-v1-output\0')
+    .update(taskId)
+    .digest()
+    .subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const value = bytes.toString('hex');
+  return `${value.slice(0, 8)}-${value.slice(8, 12)}-${value.slice(12, 16)}-${value.slice(16, 20)}-${value.slice(20)}`;
+}
+
 async function realPersistOutput(input: {
   database: Knex;
   scope: CanvasProductionScope;
@@ -158,7 +182,7 @@ async function realPersistOutput(input: {
   externalTaskId: string;
   videoUrl: string;
 }): Promise<{ outputAssetId: string }> {
-  const outputAssetId = crypto.randomUUID();
+  const outputAssetId = stableOutputAssetId(input.taskId);
   const content = await downloadBytePlusVideo(input.videoUrl);
   const storageMode = resolveCanvasV1OutputStorageMode();
   if (storageMode === 'local') {
@@ -201,7 +225,7 @@ export class CanvasV1ShotProductionAdapter {
   private readonly completions = new Map<string, Promise<{ outputAssetId: string }>>();
 
   constructor(private readonly options: CanvasV1ShotProductionAdapterOptions) {
-    this.provider = options.provider ?? { start: realProviderStart };
+    this.provider = options.provider ?? { start: realProviderStart, resume: realProviderResume };
     this.persistOutput = options.persistOutput ?? realPersistOutput;
     this.newId = options.newId ?? crypto.randomUUID;
     this.now = options.now ?? (() => new Date());
@@ -248,6 +272,67 @@ export class CanvasV1ShotProductionAdapter {
               return { taskId, completion: Promise.resolve({ outputAssetId }) };
             }
           } catch { /* fixed failure below */ }
+        }
+        if (existing.status === 'failed') {
+          throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
+        }
+        if ((existing.status === 'queued' || existing.status === 'running') && this.provider.resume) {
+          const externalTaskId = String(existing.externalTaskId);
+          const run = async (): Promise<{ outputAssetId: string }> => {
+            try {
+              const generated = await this.provider.resume!(externalTaskId);
+              if (generated.externalTaskId !== externalTaskId) {
+                throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
+              }
+              const output = await this.persistOutput({
+                database: this.options.database,
+                scope: input.scope,
+                taskId,
+                externalTaskId,
+                videoUrl: generated.videoUrl,
+              });
+              const changed = await this.options.database('sc_tasks')
+                .where({ id: taskId, externalTaskId })
+                .whereIn('status', ['queued', 'running'])
+                .update({
+                  status: 'succeeded',
+                  progress: 100,
+                  outputJson: JSON.stringify({ outputAssetId: output.outputAssetId }),
+                  errorJson: null,
+                  updatedAt: safeDate(this.now),
+                });
+              if (changed !== 1) {
+                const persisted = await this.options.database('sc_tasks')
+                  .where({ id: taskId, externalTaskId })
+                  .first();
+                let persistedOutputAssetId: unknown;
+                try {
+                  persistedOutputAssetId = JSON.parse(String(persisted?.outputJson)).outputAssetId;
+                } catch { /* fixed failure below */ }
+                if (persisted?.status !== 'succeeded' || persistedOutputAssetId !== output.outputAssetId) {
+                  throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
+                }
+              }
+              return { outputAssetId: output.outputAssetId };
+            } catch {
+              await this.options.database('sc_tasks')
+                .where({ id: taskId, externalTaskId })
+                .whereIn('status', ['queued', 'running'])
+                .update({
+                  status: 'failed',
+                  progress: 100,
+                  errorJson: JSON.stringify({ code: 'CANVAS_PROVIDER_FAILED' }),
+                  updatedAt: safeDate(this.now),
+                }).catch(() => undefined);
+              throw new CanvasCommandServiceError('CANVAS_PROVIDER_FAILED');
+            }
+          };
+          const resumed = run().finally(() => {
+            if (this.completions.get(taskId) === resumed) this.completions.delete(taskId);
+          });
+          this.completions.set(taskId, resumed);
+          void resumed.catch(() => undefined);
+          return { taskId, completion: resumed };
         }
         return { taskId };
       }
