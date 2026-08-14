@@ -24,6 +24,28 @@ describe('A-BIZ-01.4 unified Tenant route manifest', () => {
     expect(new Set(capabilities).size).toBe(capabilities.length);
   });
 
+  it('marks only connected Pilot fact pages ready and keeps unimplemented output reads blocked', () => {
+    const readiness = Object.fromEntries(
+      TENANT_ROUTE_MANIFEST.map((route) => [route.key, route.pilotReadiness]),
+    );
+    expect(readiness).toMatchObject({
+      projects: 'ready',
+      dashboard: 'ready',
+      products: 'ready',
+      'project-create': 'ready',
+      brand: 'ready',
+      script: 'ready',
+      storyboard: 'ready',
+      'production-overview': 'ready',
+      'production-inbox': 'ready',
+      'production-canvas': 'ready',
+      'rough-cut': 'handoff-required',
+      'production-tasks': 'handoff-required',
+      'production-assets': 'handoff-required',
+      'production-export': 'handoff-required',
+    });
+  });
+
   it('keeps enterprise and production routes in one ordered Tenant menu', () => {
     const menu = buildTenantMenu({
       roleCodes: ['tenant_admin'],

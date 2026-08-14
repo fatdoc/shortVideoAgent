@@ -10,6 +10,8 @@ import { up as addStoryboardAuthority } from '../db/migrations/020_storyboard_au
 import type { ProjectPolicy } from './policy.js';
 import { createContentRouter } from './routes.js';
 import { PostgresContentStore } from './repository.js';
+import { payloadDigest } from './digest.js';
+import type { SessionActor } from './types.js';
 
 const databaseUrl = process.env.CONTROL_API_TEST_DATABASE_URL;
 const testDatabaseName = databaseUrl ? new URL(databaseUrl).pathname.slice(1) : '';
@@ -34,6 +36,36 @@ function browserBrief(objective: string) {
     factsConfirmed: true as const,
   };
 }
+
+const trustedActor: SessionActor = {
+  userId: userA,
+  membershipId: '10000000-0000-4000-8000-000000000003',
+  organizationId: tenantA,
+  organizationType: 'TENANT',
+  tenantId: tenantA,
+  membershipVersion: 1,
+  primaryRole: 'tenant_admin',
+  roles: ['tenant_admin'],
+};
+
+const deterministicCanonicalBrief = {
+  objective: '[CANVAS_FULL_CASE_BRIEF] deterministic trusted seed',
+  audience: ['local-case-reviewers'],
+  platforms: ['douyin'],
+  brandPolicySnapshot: {
+    facts: [
+      {
+        factId: '71000000-0000-4000-8000-000000000001',
+        text: '[CANVAS_FULL_CASE_BRAND] deterministic trusted fact',
+        sourceReference: 'local-case://brand/fact-1',
+        approved: true as const,
+      },
+    ],
+    prohibitedTerms: ['unverified claim'],
+    requiredDisclosures: ['local TEST only'],
+    sourceDigest: digest('deterministic-trusted-brief'),
+  },
+};
 
 async function insertStoryboardVersion(
   database: Knex,
@@ -441,6 +473,81 @@ describe.runIf(hasDedicatedTestDatabase)('A03 PostgreSQL HTTP workflow', () => {
     expect(
       scripts.body.scriptVersions.map((version: { version: number }) => version.version),
     ).toEqual([1, 2]);
+  });
+
+  it('lets only the explicit trusted seed boundary persist and replay deterministic canonical Brief authority', async () => {
+    const project = await request(app)
+      .post('/api/v1/projects')
+      .set('cookie', 'videoagent_session=tenant-a-session')
+      .set('idempotency-key', 'trusted-brief-project')
+      .send({
+        name: 'Trusted Brief Seed',
+        status: 'draft',
+        platform: 'douyin',
+        aspectRatio: '9:16',
+        targetDurationSeconds: 30,
+      });
+    expect(project.status).toBe(201);
+    const projectId = project.body.id as string;
+    const store = new PostgresContentStore(database);
+    const idempotency = {
+      operation: `brief.create:${projectId}`,
+      key: 'trusted-canonical-brief-v1',
+      payload: { payload: deterministicCanonicalBrief },
+    };
+
+    const created = await store.createCanonicalBriefVersionForTrustedSeed(
+      trustedActor,
+      projectId,
+      deterministicCanonicalBrief,
+      idempotency,
+    );
+    expect(created).toMatchObject({ replayed: false });
+    expect(created?.value.payload).toEqual(deterministicCanonicalBrief);
+
+    const replay = await store.createCanonicalBriefVersionForTrustedSeed(
+      trustedActor,
+      projectId,
+      deterministicCanonicalBrief,
+      idempotency,
+    );
+    expect(replay).toMatchObject({ replayed: true });
+    expect(replay?.value).toEqual(created?.value);
+
+    const stored = await database('control_plane.creative_briefs')
+      .select('payload', 'payload_digest')
+      .where({ project_id: projectId })
+      .first();
+    expect(stored?.payload).toEqual(deterministicCanonicalBrief);
+    expect(stored?.payload_digest).toBe(payloadDigest(deterministicCanonicalBrief));
+    const record = await database('control_plane.idempotency_records')
+      .select('request_digest')
+      .where({
+        tenant_id: tenantA,
+        operation: idempotency.operation,
+        idempotency_key: idempotency.key,
+      })
+      .first();
+    expect(record?.request_digest).toBe(payloadDigest(idempotency.payload));
+
+    const browserRead = await request(app)
+      .get(`/api/v1/projects/${projectId}/brief-versions`)
+      .set('cookie', 'videoagent_session=tenant-a-session');
+    expect(browserRead.status).toBe(200);
+    expect(browserRead.body.briefVersions[0].payload).toEqual({
+      objective: deterministicCanonicalBrief.objective,
+      audience: deterministicCanonicalBrief.audience,
+      platforms: deterministicCanonicalBrief.platforms,
+      brandFacts: deterministicCanonicalBrief.brandPolicySnapshot.facts.map(
+        ({ text, sourceReference }) => ({ text, sourceReference }),
+      ),
+      prohibitedTerms: deterministicCanonicalBrief.brandPolicySnapshot.prohibitedTerms,
+      requiredDisclosures: deterministicCanonicalBrief.brandPolicySnapshot.requiredDisclosures,
+      factsConfirmed: true,
+    });
+    expect(JSON.stringify(browserRead.body)).not.toMatch(
+      /sourceDigest|brandPolicySnapshot|sha256:/u,
+    );
   });
 
   it('uses only the latest script/storyboard authorities and fails closed without fallback', async () => {

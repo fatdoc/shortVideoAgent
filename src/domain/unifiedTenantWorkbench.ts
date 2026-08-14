@@ -55,18 +55,18 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ADMIN_ONLY,
     requiresProject: false,
     showInMenu: true,
-    pilotReadiness: 'not-implemented',
+    pilotReadiness: 'ready',
   },
   {
     key: 'products',
     pattern: ROUTES.enterpriseProducts,
-    label: '已购能力',
+    label: '生产能力',
     order: 20,
     capability: 'tenant.products.read',
     roles: ADMIN_ONLY,
     requiresProject: false,
     showInMenu: true,
-    pilotReadiness: 'not-implemented',
+    pilotReadiness: 'ready',
   },
   {
     key: 'project-create',
@@ -77,7 +77,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ADMIN_ONLY,
     requiresProject: false,
     showInMenu: true,
-    pilotReadiness: 'not-implemented',
+    pilotReadiness: 'ready',
   },
   {
     key: 'brand',
@@ -88,7 +88,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'script',
@@ -99,7 +99,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'storyboard',
@@ -110,7 +110,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'rough-cut',
@@ -132,7 +132,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: false,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'production-inbox',
@@ -143,7 +143,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'production-canvas',
@@ -154,7 +154,7 @@ export const TENANT_ROUTE_MANIFEST = [
     roles: ALL_TENANT_ROLES,
     requiresProject: true,
     showInMenu: true,
-    pilotReadiness: 'handoff-required',
+    pilotReadiness: 'ready',
   },
   {
     key: 'production-tasks',
