@@ -16,6 +16,7 @@ import {
   type CommercialOperationsSummary,
 } from '../../domain/controlPlaneViewModels';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
+import '../pilot/v3-ops.css';
 
 const PRICE_LAYER_LABELS: Record<DemoPriceLayer, string> = {
   UPSTREAM_COST: '上游成本',
@@ -80,7 +81,7 @@ export function PlatformOverviewPage() {
     view.platformRisk.openCommercialExceptions + view.platformRisk.unmatchedReceiptCount;
 
   return (
-    <div className="d1-page-stack" data-testid="platform-overview-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="platform-overview-page">
       <header className="d1-page-header">
         <div>
           <Tag color="blue">PLATFORM_GLOBAL</Tag>
@@ -190,7 +191,7 @@ export function PlatformOrganizationsPage() {
   const view = usePlatformCommercialView();
 
   return (
-    <div className="d1-page-stack" data-testid="platform-organizations-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="platform-organizations-page">
       <header className="d1-page-header">
         <div>
           <Tag color="blue">PLATFORM_ORGANIZATIONS</Tag>
@@ -288,7 +289,7 @@ export function PlatformCatalogPage() {
   const view = usePlatformCommercialView();
 
   return (
-    <div className="d1-page-stack" data-testid="platform-catalog-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="platform-catalog-page">
       <header className="d1-page-header">
         <div>
           <Tag color="blue">PLATFORM_CATALOG</Tag>
@@ -427,7 +428,7 @@ export function PlatformReceiptMonitorPage() {
   const { generationTasks, assets, exports } = view.operations;
 
   return (
-    <div className="d1-page-stack" data-testid="platform-receipts-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="platform-receipts-page">
       <header className="d1-page-header">
         <div>
           <Tag color="blue">PLATFORM_RECEIPTS</Tag>

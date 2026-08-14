@@ -17,6 +17,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const DIRECTORY_LIMIT = 100;
 
@@ -276,11 +277,19 @@ function DocumentDirectory({
   return (
     <section className="d1-surface" data-testid="pilot-terms-documents-ready">
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <Typography.Title level={4}>真实 Document Directory</Typography.Title>
+        <div className="d1-section-heading">
+          <div>
+            <Typography.Title level={4}>真实 Document Directory</Typography.Title>
+            <Typography.Text type="secondary">
+              选择当前文档后才读取 Version Directory。
+            </Typography.Text>
+          </div>
+          <Tag>{documents.length} documents</Tag>
+        </div>
         {documents.map((document) => (
           <Button
             key={document.termsDocumentId}
-            type={selectedDocumentId === document.termsDocumentId ? 'primary' : 'default'}
+            type="default"
             block
             style={{ height: 'auto', padding: 12, textAlign: 'left' }}
             onClick={() => onSelect(document.termsDocumentId)}
@@ -292,6 +301,9 @@ function DocumentDirectory({
                 <Tag color={document.status === 'active' ? 'green' : 'default'}>
                   {document.status}
                 </Tag>
+                {selectedDocumentId === document.termsDocumentId ? (
+                  <Tag color="orange">selected</Tag>
+                ) : null}
               </Space>
               <Typography.Text type="secondary">
                 更新于 {formatUtcTimestamp(document.updatedAt)}
@@ -324,12 +336,17 @@ function VersionDirectory({
   return (
     <section className="d1-surface" data-testid="pilot-terms-versions-ready">
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
-        <Typography.Title level={4}>真实 Version Directory</Typography.Title>
+        <div className="d1-section-heading">
+          <div>
+            <Typography.Title level={4}>真实 Version Directory</Typography.Title>
+            <Typography.Text type="secondary">
+              DRAFT / PUBLISHED / RETIRED 均来自真实服务端目录。
+            </Typography.Text>
+          </div>
+          <Tag>{versions.length} versions</Tag>
+        </div>
         {versions.map((version) => (
-          <article
-            key={version.termsVersionId}
-            style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}
-          >
+          <article className="v3-ops-panel" key={version.termsVersionId}>
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
               <Space wrap>
                 <Typography.Text strong>{version.versionLabel}</Typography.Text>
@@ -375,7 +392,7 @@ function VersionDirectory({
                       disabled={submitting}
                     />
                   </label>
-                  <Button type="primary" disabled={submitting} onClick={() => onPublish(version)}>
+                  <Button disabled={submitting} onClick={() => onPublish(version)}>
                     发布 {version.versionLabel}
                   </Button>
                 </Space>
@@ -644,12 +661,16 @@ export function PilotTermsOperationsPage() {
         : mutationState.phase === 'error' && mutationState.error.kind === 'unauthorized'
           ? mutationState.error
           : { kind: 'unauthorized' as const, requestId: null };
-    return <DirectoryError scope="documents" error={unauthorizedError} onRetry={() => undefined} />;
+    return (
+      <div className="v3-ops-page">
+        <DirectoryError scope="documents" error={unauthorizedError} onRetry={() => undefined} />
+      </div>
+    );
   }
 
   if (!allowed) {
     return (
-      <section className="d1-surface" data-testid="pilot-terms-permission-denied">
+      <section className="d1-surface v3-ops-page" data-testid="pilot-terms-permission-denied">
         <Result
           status="403"
           title="仅 Platform 管理员可管理 Terms"
@@ -660,7 +681,7 @@ export function PilotTermsOperationsPage() {
   }
 
   return (
-    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+    <Space className="v3-ops-page" direction="vertical" size={20} style={{ width: '100%' }}>
       <header className="d1-page-header">
         <div>
           <Space size={8} wrap>
@@ -751,7 +772,6 @@ export function PilotTermsOperationsPage() {
               <Button
                 aria-label="创建 Terms Document"
                 htmlType="submit"
-                type="primary"
                 icon={<PlusOutlined />}
                 loading={submitting}
               >
@@ -903,7 +923,7 @@ export function PilotTermsOperationsPage() {
                   发布后要求重新接受
                 </label>
                 <Space>
-                  <Button htmlType="submit" type="primary" loading={submitting}>
+                  <Button htmlType="submit" loading={submitting}>
                     保存 DRAFT
                   </Button>
                   <Button disabled={submitting} onClick={() => setEditingVersion(null)}>

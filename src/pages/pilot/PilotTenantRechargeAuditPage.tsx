@@ -9,6 +9,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const RECHARGE_AUDIT_LIMIT = 50;
 
@@ -221,42 +222,29 @@ function RechargeErrorPanel({
 function RechargeOrderRow({ order }: { order: PilotRechargeOrderAudit }) {
   const status = STATUS_CONTENT[order.status];
   return (
-    <article
-      style={{
-        padding: 16,
-        border: '1px solid #f0f0f0',
-        borderRadius: 8,
-        background: '#fff',
-      }}
-    >
-      <Space direction="vertical" size={8} style={{ width: '100%' }}>
-        <Space size={8} wrap>
-          <AuditOutlined />
+    <div className="d1-receipt-row">
+      <span className="d1-receipt-icon is-asset">
+        <AuditOutlined />
+      </span>
+      <div>
+        <Space size={6} wrap>
           <Typography.Text strong>
             订单 {shortOrderReference(order.rechargeOrderId)}
           </Typography.Text>
           <Tag color="gold">TEST</Tag>
           <Tag color={status.color}>{status.label}</Tag>
         </Space>
-        <Typography.Text type="secondary">{status.description}</Typography.Text>
-        <Typography.Text>
-          审计金额：<strong>{formatAmount(order.amountMinor, order.currency)}</strong>
-        </Typography.Text>
-        <Typography.Text>
-          购买额度 {formatCredits(order.purchasedCredits)} · 赠送额度{' '}
-          {formatCredits(order.bonusCredits)}
-        </Typography.Text>
-        <Typography.Text>
-          赠送到期：
-          {order.bonusExpiresInDays === null
-            ? '无冻结天数'
-            : `${order.bonusExpiresInDays.toLocaleString('zh-CN')} 天`}
-        </Typography.Text>
         <Typography.Text type="secondary">
-          创建 {formatAuditTime(order.createdAt)} UTC · 更新 {formatAuditTime(order.updatedAt)} UTC
+          {status.description} · 创建 {formatAuditTime(order.createdAt)} UTC · 更新{' '}
+          {formatAuditTime(order.updatedAt)} UTC
         </Typography.Text>
-      </Space>
-    </article>
+      </div>
+      <Typography.Text strong>{formatAmount(order.amountMinor, order.currency)}</Typography.Text>
+      <Tag>
+        购买额度 {formatCredits(order.purchasedCredits)} · 赠送额度{' '}
+        {formatCredits(order.bonusCredits)}
+      </Tag>
+    </div>
   );
 }
 
@@ -292,7 +280,7 @@ export function PilotTenantRechargeAuditPage() {
 
   if (state.phase === 'error' && state.error.kind === 'unauthorized') {
     return (
-      <div className="d1-page-stack">
+      <div className="d1-page-stack v3-ops-page">
         <RechargeHeader canReload={false} onReload={() => undefined} />
         <RechargeBoundaryNotice />
         <RechargeErrorPanel error={state.error} onRetry={() => undefined} />
@@ -302,7 +290,7 @@ export function PilotTenantRechargeAuditPage() {
 
   if (!isTenantScope || !hasTenantAdminRole) {
     return (
-      <div className="d1-page-stack">
+      <div className="d1-page-stack v3-ops-page">
         <RechargeHeader canReload={false} onReload={() => undefined} />
         <RechargeBoundaryNotice />
         <section className="d1-surface" data-testid="pilot-tenant-recharge-permission-denied">
@@ -318,7 +306,7 @@ export function PilotTenantRechargeAuditPage() {
 
   if (!tenantId) {
     return (
-      <div className="d1-page-stack">
+      <div className="d1-page-stack v3-ops-page">
         <RechargeHeader canReload={false} onReload={() => undefined} />
         <RechargeBoundaryNotice />
         <section className="d1-surface" data-testid="pilot-tenant-recharge-context-error">
@@ -335,7 +323,7 @@ export function PilotTenantRechargeAuditPage() {
   const loading = state.phase === 'loading' || state.phase === 'retrying';
 
   return (
-    <div className="d1-page-stack">
+    <div className="d1-page-stack v3-ops-page">
       <RechargeHeader
         canReload={!loading}
         onReload={() => {
@@ -396,11 +384,11 @@ export function PilotTenantRechargeAuditPage() {
             </div>
             <Tag color="blue">{state.orders.length} / 50</Tag>
           </div>
-          <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          <div className="d1-receipt-list">
             {state.orders.map((order) => (
               <RechargeOrderRow key={order.rechargeOrderId} order={order} />
             ))}
-          </Space>
+          </div>
         </section>
       ) : null}
 

@@ -18,6 +18,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const AUDIT_LIST_LIMIT = 50;
 
@@ -363,7 +364,7 @@ function ReversalRows({ items }: { items: PilotCommissionReversalAudit[] }) {
 
 function PlatformAuditReady({ data }: { data: PlatformAuditData }) {
   return (
-    <div data-testid="pilot-platform-commission-audit-ready" className="d1-page-stack">
+    <div data-testid="pilot-platform-commission-audit-ready" className="d1-page-stack v3-ops-page">
       <AuditSection
         title="Payment Events"
         description="仅显示 TEST 类型、处理状态、金额与安全时间字段。"
@@ -435,7 +436,7 @@ function PlatformAuditReady({ data }: { data: PlatformAuditData }) {
 
 function ChannelAuditReady({ data }: { data: ChannelAuditData }) {
   return (
-    <div data-testid="pilot-channel-commission-audit-ready" className="d1-page-stack">
+    <div data-testid="pilot-channel-commission-audit-ready" className="d1-page-stack v3-ops-page">
       <section className="d1-surface">
         <div className="d1-section-heading">
           <div>
@@ -507,7 +508,7 @@ export function PilotPlatformCommissionAuditPage() {
   const contextLabel = 'PLATFORM SCOPE · bounded 50';
 
   return (
-    <div className="d1-page-stack">
+    <div className="d1-page-stack v3-ops-page">
       <AuditHeader
         title="平台佣金审计"
         description="真实 Session Cookie 下的 TEST Payment、Calculation、Accrual、Reversal 与 Manual Review 安全投影。"
@@ -569,7 +570,7 @@ export function PilotChannelCommissionAuditPage() {
   const channel = state.phase === 'ready' || state.phase === 'empty' ? state.data.channel : null;
 
   return (
-    <div className="d1-page-stack">
+    <div className="d1-page-stack v3-ops-page">
       <AuditHeader
         title="渠道佣金审计"
         description="先由服务端解析 canonical Channel，再读取该 Channel 的 TEST Calculation、Accrual 与 Reversal。"

@@ -16,6 +16,7 @@ import {
   type CommercialOperationsSummary,
 } from '../../domain/controlPlaneViewModels';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
+import '../pilot/v3-ops.css';
 
 const PRICE_LAYER_LABELS: Partial<Record<DemoPriceLayer, string>> = {
   CHANNEL_WHOLESALE: '渠道直接批发价',
@@ -42,7 +43,7 @@ function DemoDisclaimer({ view }: { view: ChannelCommercialView }) {
       type="info"
       showIcon
       message={view.disclaimer}
-      description="渠道库存、价格、订单、销售净额与订单毛差均为只读 Mock 管理口径，不构成正式报价、结算单或法定利润。"
+      description="渠道库存、价格、订单、销售净额与订单毛差均为只读演示管理口径，不构成正式报价、结算单或法定利润。"
     />
   );
 }
@@ -93,7 +94,7 @@ export function ChannelOverviewPage() {
   const view = useChannelCommercialView();
 
   return (
-    <div className="d1-page-stack" data-testid="channel-overview-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="channel-overview-page">
       <header className="d1-page-header">
         <div>
           <Space size={8} wrap>
@@ -202,7 +203,7 @@ export function ChannelProductsPage() {
   const view = useChannelCommercialView();
 
   return (
-    <div className="d1-page-stack" data-testid="channel-products-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="channel-products-page">
       <header className="d1-page-header">
         <div>
           <Space size={8} wrap>
@@ -282,7 +283,7 @@ export function ChannelCustomersPage() {
   const view = useChannelCommercialView();
 
   return (
-    <div className="d1-page-stack" data-testid="channel-customers-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="channel-customers-page">
       <header className="d1-page-header">
         <div>
           <Space size={8} wrap>
@@ -356,7 +357,7 @@ export function ChannelCustomerUsagePage() {
   const customerOrders = view.orders.filter((order) => order.buyer.partyId === customer.tenantId);
 
   return (
-    <div className="d1-page-stack" data-testid="channel-customer-usage-page">
+    <div className="d1-page-stack v3-ops-page" data-testid="channel-customer-usage-page">
       <header className="d1-page-header">
         <div>
           <Space size={8} wrap>

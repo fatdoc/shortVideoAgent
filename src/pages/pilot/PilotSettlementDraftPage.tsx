@@ -14,6 +14,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const ACTIVE_CHANNEL_LIMIT = 100;
 const FIXED_CURRENCY = 'CNY';
@@ -326,24 +327,40 @@ function CurrentDraft({
         </div>
       </div>
 
+      <div className="v3-ops-timeline">
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>beneficiary Channel</Typography.Text>
+          <strong>{channel?.displayName ?? '当前 Directory 未匹配'}</strong>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>净额</Typography.Text>
+          <strong>{formatAmount(draft.netAmountMinor, draft.currency)}</strong>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>毛计提 / 冲正</Typography.Text>
+          <span>
+            {formatAmount(draft.grossAccrualAmountMinor, draft.currency)} /{' '}
+            {formatAmount(draft.grossReversalAmountMinor, draft.currency)}
+          </span>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>条目</Typography.Text>
+          <span>
+            {draft.itemCount}（计提 {draft.accrualItemCount} / 冲正 {draft.reversalItemCount}）
+          </span>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>UTC 周期</Typography.Text>
+          <span>
+            {formatUtcTimestamp(draft.periodStart)} — {formatUtcTimestamp(draft.periodEnd)}
+          </span>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>UTC cutoff</Typography.Text>
+          <span>{formatUtcTimestamp(draft.cutoffAt)}</span>
+        </div>
+      </div>
       <Space direction="vertical" size={10} style={{ width: '100%' }}>
-        <Typography.Text>
-          beneficiary Channel：<strong>{channel?.displayName ?? '当前 Directory 未匹配'}</strong>
-        </Typography.Text>
-        <Typography.Text>
-          净额：<strong>{formatAmount(draft.netAmountMinor, draft.currency)}</strong>
-        </Typography.Text>
-        <Typography.Text>
-          毛计提 / 冲正：{formatAmount(draft.grossAccrualAmountMinor, draft.currency)} /{' '}
-          {formatAmount(draft.grossReversalAmountMinor, draft.currency)}
-        </Typography.Text>
-        <Typography.Text>
-          条目：{draft.itemCount}（计提 {draft.accrualItemCount} / 冲正 {draft.reversalItemCount}）
-        </Typography.Text>
-        <Typography.Text>
-          UTC 周期：{formatUtcTimestamp(draft.periodStart)} — {formatUtcTimestamp(draft.periodEnd)}
-        </Typography.Text>
-        <Typography.Text>UTC cutoff：{formatUtcTimestamp(draft.cutoffAt)}</Typography.Text>
         {draft.itemCount === 0 ? (
           <Alert
             type="success"
@@ -468,7 +485,7 @@ export function PilotPlatformSettlementDraftPage() {
       : undefined;
 
   return (
-    <div className="d1-page-stack">
+    <div className="d1-page-stack v3-ops-page">
       <SettlementHeader />
       <SettlementBoundaryNotice />
 
