@@ -1044,7 +1044,7 @@ describe('pilot Control API adapter', () => {
       invitationId: '73000000-0000-4000-8000-000000000003',
       invitationType: 'CHANNEL',
       targetEmail: null,
-      attributionChannelId: null,
+      attributionChannelId: '73000000-0000-4000-8000-000000000006',
       maxUses: 100,
       remainingUses: 100,
     };
@@ -1087,6 +1087,41 @@ describe('pilot Control API adapter', () => {
       expect.objectContaining({ credentials: 'include', cache: 'no-store' }),
     );
     expect(window.localStorage.length).toBe(0);
+  });
+
+  it('rejects Channel invitation projections without one canonical Channel UUID', async () => {
+    const channelInvitation = {
+      invitationId: '73000000-0000-4000-8000-000000000003',
+      invitationType: 'CHANNEL',
+      targetOrganizationId: null,
+      targetRoleCode: null,
+      targetEmail: null,
+      attributionChannelId: null,
+      status: 'revoked',
+      validFrom: '2026-08-10T00:00:00.000Z',
+      expiresAt: '2026-08-17T00:00:00.000Z',
+      maxUses: 100,
+      usedCount: 0,
+      remainingUses: 100,
+      createdAt: '2026-08-10T00:00:00.000Z',
+      updatedAt: '2026-08-10T01:00:00.000Z',
+      revokedAt: '2026-08-10T01:00:00.000Z',
+    };
+
+    for (const unsafeProjection of [
+      channelInvitation,
+      { ...channelInvitation, attributionChannelId: 'not-a-channel-id' },
+      {
+        ...channelInvitation,
+        attributionChannelId: '73000000-0000-4000-8000-000000000006',
+        targetEmail: 'must-not-target@example.com',
+      },
+    ]) {
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ invitations: [unsafeProjection] }));
+      await expect(
+        listPilotChannelInvitations('73000000-0000-4000-8000-000000000006'),
+      ).rejects.toMatchObject({ code: 'INVALID_API_RESPONSE' });
+    }
   });
 
   it('rejects guessed Invitation scopes, invalid filters, and sensitive management projections', async () => {
@@ -1158,6 +1193,7 @@ describe('pilot Control API adapter', () => {
       invitationId: '73000000-0000-4000-8000-000000000013',
       invitationType: 'CHANNEL',
       targetEmail: null,
+      attributionChannelId: channelId,
       maxUses: 100,
       remainingUses: 100,
     };
