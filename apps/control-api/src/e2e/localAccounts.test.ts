@@ -48,12 +48,16 @@ describe('Pilot local accounts', () => {
     expect(JSON.stringify(PILOT_LOCAL_ACCOUNTS)).not.toContain(password);
   });
 
-  it.each(['', 'short', 'alllowercase2026!', 'ALLUPPERCASE2026!', 'NoDigitsHere!', 'No-Symbol-2026']) (
-    'rejects a weak shared password before touching the database: %s',
-    (password) => {
-      expect(() => parsePilotLocalAccountPassword(password)).toThrow(
-        'PILOT_LOCAL_ACCOUNT_PASSWORD_INVALID',
-      );
-    },
-  );
+  it.each([
+    '',
+    'short',
+    'alllowercase2026!',
+    'ALLUPPERCASE2026!',
+    'NoDigitsHere!',
+    'NoSymbol2026A',
+  ])('rejects a weak shared password before touching the database: %s', (password) => {
+    expect(() => parsePilotLocalAccountPassword(password)).toThrow(
+      'PILOT_LOCAL_ACCOUNT_PASSWORD_INVALID',
+    );
+  });
 });

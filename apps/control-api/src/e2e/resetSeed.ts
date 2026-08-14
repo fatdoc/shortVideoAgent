@@ -203,7 +203,7 @@ export async function seedPilotE2eDatabase(
     await transaction('control_plane.users').insert(
       accountKeys.map((key) => ({
         user_id: ids.users[key],
-        email: pilotE2eFixtureAccounts[key].email,
+        email: secrets.accounts[key].email,
         display_name: pilotE2eFixtureAccounts[key].displayName,
         password_hash: hashes[key],
         status: 'active',
@@ -397,7 +397,7 @@ export async function seedPilotE2eDatabase(
 
     await transaction('control_plane.registrations').insert({
       registration_id: ids.registration,
-      normalized_email: pilotE2eFixtureAccounts.tenantAdminA.email,
+      normalized_email: secrets.accounts.tenantAdminA.email,
       status: 'completed',
       registration_path: 'CHANNEL_INVITATION',
       invitation_id: ids.invitations.attribution,
@@ -734,6 +734,7 @@ export async function verifyPilotE2eSeed(database: Knex): Promise<PilotE2eSeedSu
 
 export async function resetMigrateSeedPilotE2e(
   environmentVariables: NodeJS.ProcessEnv = process.env,
+  secrets: PilotE2eSecrets = createPilotE2eSecrets(),
 ): Promise<PilotE2eSeedResult> {
   const environment = parsePilotE2eEnvironment(environmentVariables);
   const database = knex({
@@ -741,8 +742,6 @@ export async function resetMigrateSeedPilotE2e(
     connection: environment.databaseUrl,
     pool: { min: 0, max: 1 },
   });
-  const secrets = createPilotE2eSecrets();
-
   try {
     await resetPilotE2eStorage(database, environment);
     await migratePilotE2eDatabase(database);
