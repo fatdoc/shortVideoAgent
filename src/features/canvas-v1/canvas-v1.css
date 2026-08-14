@@ -19,7 +19,8 @@
 
 .cv1-app {
   width: 100%;
-  min-height: 100%;
+  height: calc(100svh - var(--va-topbar-height, 56px) - 84px);
+  min-height: 680px;
   overflow: hidden;
   background: var(--cv1-bg);
   color: var(--cv1-ink);
@@ -128,14 +129,14 @@
 }
 
 .cv1-workspace {
-  height: calc(100svh - 82px);
-  min-height: 680px;
+  height: calc(100% - 82px);
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(214px, 16vw) minmax(0, 1fr) minmax(292px, 20vw);
   overflow: hidden;
 }
 
-.cv1-conflict + .cv1-workspace { height: calc(100svh - 118px); }
+.cv1-conflict + .cv1-workspace { height: calc(100% - 118px); }
 .cv1-shot-rail,
 .cv1-production,
 .cv1-inspector,
@@ -451,7 +452,7 @@
 .cv1-approval-dialog__actions .cv1-secondary-action,
 .cv1-approval-dialog__actions .cv1-primary-action { width: auto; min-width: 110px; margin: 0; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 
-.cv1-state-page { min-height: 100svh; padding: 24px; box-sizing: border-box; background: var(--cv1-bg); display: grid; place-items: center; align-content: center; gap: 9px; color: var(--cv1-muted); text-align: center; }
+.cv1-state-page { min-height: calc(100svh - var(--va-topbar-height, 56px) - 84px); padding: 24px; box-sizing: border-box; background: var(--cv1-bg); display: grid; place-items: center; align-content: center; gap: 9px; color: var(--cv1-muted); text-align: center; }
 .cv1-state-page strong { color: var(--cv1-ink); font-size: 16px; }
 .cv1-state-page span { font-size: 11px; }
 .cv1-state-page--error svg { color: var(--cv1-red); }
