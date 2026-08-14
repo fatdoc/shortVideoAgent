@@ -179,7 +179,7 @@ const ERROR_CONTENT: Record<
   },
   'service-error': {
     title: 'Tenant 充值审计服务暂不可用',
-    description: '无法完成真实 Control API 读取；不会回退 Demo、Mock 或本地商业数据。',
+    description: '无法完成真实 Control API 读取；不会回退演示或本地商业数据。',
     testId: 'pilot-tenant-recharge-service-error',
     retryable: true,
   },

@@ -185,7 +185,7 @@ const DIRECTORY_ERROR_CONTENT: Record<
   },
   'service-error': {
     title: 'Channel Directory 服务暂不可用',
-    description: '无法完成真实 Control API 读取；不会回退 Demo、Mock 或本地数据。',
+    description: '无法完成真实 Control API 读取；不会回退演示或本地数据。',
     testId: 'pilot-settlement-channel-service-error',
     retryable: true,
   },
@@ -504,7 +504,7 @@ export function PilotPlatformSettlementDraftPage() {
                 : '正在加载真实 active Channel Directory…'}
             </Typography.Text>
             <Typography.Text type="secondary">
-              页面不会从 Commission 记录反推 Channel，也不会读取 Demo、Mock 或 localStorage。
+              页面不会从 Commission 记录反推 Channel，也不会读取演示或本地数据。
             </Typography.Text>
           </Space>
         </section>

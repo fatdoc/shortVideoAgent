@@ -316,8 +316,8 @@ export function ChannelCustomersPage() {
               <div>
                 <Typography.Text strong>{customer.displayName}</Typography.Text>
                 <Typography.Text type="secondary">
-                  {customer.tenantId} · 已购 Entitlement {customer.activeEntitlementCount}/
-                  {customer.entitlementCount} · 汇总用量 {customer.creditUsage.consumed.value}
+                  已购权益 {customer.activeEntitlementCount}/{customer.entitlementCount} · 汇总用量{' '}
+                  {customer.creditUsage.consumed.value}
                 </Typography.Text>
               </div>
               <Tag color={customer.status === 'active' ? 'green' : 'default'}>

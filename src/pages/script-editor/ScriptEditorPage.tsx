@@ -200,9 +200,9 @@ export function ScriptEditorPage() {
     return (
       <ErrorState
         title="项目不存在"
-        subTitle={`仅支持统一 Demo 项目 ${DEMO_PROJECT_ID}，当前为 ${projectId}`}
+        subTitle="当前访问项目未接入 AI 探店脚本。"
         onRetry={() => navigate(ROUTES.script(DEMO_PROJECT_ID))}
-        retryLabel="打开 Demo 脚本"
+        retryLabel="打开探店脚本"
       />
     );
   }

@@ -244,10 +244,7 @@ export function PlatformOrganizationsPage() {
                 Tenant · {view.tenant.status} · {view.tenant.acquisitionMode}
               </span>
               <strong>{view.tenant.displayName}</strong>
-              <small>
-                {view.tenant.tenantId} · service channel:{' '}
-                {view.tenant.currentServiceChannelOrganizationId}
-              </small>
+              <small>服务渠道已配置，内部组织标识已隐藏</small>
             </div>
           </div>
         </div>

@@ -109,7 +109,7 @@ describe('A-03.3 channel commercial pages', () => {
       within(page).getByRole('heading', { level: 2, name: '渠道企业客户' }),
     ).toBeInTheDocument();
     expect(within(page).getByText('海底捞演示企业')).toBeInTheDocument();
-    expect(within(page).getByText(/已购 Entitlement 2\/4/)).toBeInTheDocument();
+    expect(within(page).getByText(/已购权益 2\/4/)).toBeInTheDocument();
     expect(within(page).getByText(/汇总用量 100/)).toBeInTheDocument();
     expect(within(page).getByRole('button', { name: /查看商业用量/ })).toBeInTheDocument();
     expectSensitiveContentHidden();

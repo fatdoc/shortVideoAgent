@@ -162,7 +162,7 @@ function AuditLoading({ testId, retrying }: { testId: string; retrying: boolean 
           {retrying ? '正在重新加载真实 Control API 审计…' : '正在加载真实 Control API 审计…'}
         </Typography.Text>
         <Typography.Text type="secondary">
-          当前投影已清空；不会读取 Demo、Mock 或本地商业数据。
+          当前投影已清空；不会读取演示或本地商业数据。
         </Typography.Text>
       </Space>
     </section>
@@ -528,7 +528,7 @@ export function PilotPlatformCommissionAuditPage() {
         <AuditEmpty
           testId="pilot-platform-commission-audit-empty"
           title="当前窗口暂无 TEST 商业审计记录"
-          description="这是有效的真实空列表，不代表完整历史，也不会回退 Demo 或 Mock。"
+          description="这是有效的真实空列表，不代表完整历史，也不会回退演示数据。"
         />
       ) : null}
       {state.phase === 'ready' ? <PlatformAuditReady data={state.data} /> : null}

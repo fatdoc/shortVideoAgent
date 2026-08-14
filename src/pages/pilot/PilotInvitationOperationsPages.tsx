@@ -176,7 +176,7 @@ const ERROR_CONTENT: Record<
   'service-error': {
     status: '500',
     title: '邀请服务暂不可用',
-    description: '无法完成真实 Control API 操作；不会回退 Demo、Mock 或本地数据。',
+    description: '无法完成真实 Control API 操作；不会回退演示或本地数据。',
     retryable: true,
   },
   'invalid-response': {

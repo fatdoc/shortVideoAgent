@@ -76,7 +76,7 @@ const content: Record<ErrorKind, { title: string; detail: string }> = {
   },
   'service-error': {
     title: '成员服务暂不可用',
-    detail: '无法完成真实 Control API 操作，不会回退 Demo 或 Mock。',
+    detail: '无法完成真实 Control API 操作，不会回退演示数据。',
   },
   'invalid-response': {
     title: '成员响应无法安全解析',

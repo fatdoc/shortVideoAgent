@@ -125,9 +125,9 @@ export function BrandBrainPage() {
     return (
       <ErrorState
         title="品牌项目不存在"
-        subTitle={`仅支持统一 Demo 项目 ${DEMO_PROJECT_ID}，当前为 ${projectId}`}
+        subTitle="当前访问项目未接入门店档案。"
         onRetry={() => navigate(ROUTES.brand(DEMO_PROJECT_ID))}
-        retryLabel="打开 Demo 品牌大脑"
+        retryLabel="打开门店档案"
       />
     );
   }

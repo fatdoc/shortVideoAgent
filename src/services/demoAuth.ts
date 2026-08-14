@@ -1,4 +1,3 @@
-import { isDemoBrowserPersistenceEnabled } from '../config/demoPersistencePolicy';
 import { authorizeDemoNavigationRoute } from '../domain/demoRouteAccess';
 import {
   DEMO_SESSION_VERSION,
@@ -17,7 +16,9 @@ export const DEMO_AUTH_STORAGE_KEY = 'videoagent:demo-auth:session:v1';
 export const DEMO_AUTH_PASSWORD = 'Demo@123456';
 export const DEMO_SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
 export const DEMO_AUTH_NOTICE =
-  '仅供前端 Demo 演示：固定账号密码与 localStorage 会话不具备生产安全能力。';
+  '仅供前端 Demo 演示：固定账号密码与运行时会话不具备生产安全能力。';
+
+let inMemorySession: DemoSession | null = null;
 
 export type DemoAuthErrorCode =
   | 'INVALID_CREDENTIALS'
@@ -56,15 +57,6 @@ const SESSION_ORGANIZATION_TYPE = {
   CHANNEL: 'channel',
   TENANT: 'enterprise',
 } as const satisfies Record<string, DemoSessionOrganizationType>;
-
-function getLocalStorage(): Storage | null {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 function createSessionId(): string {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
@@ -138,13 +130,8 @@ function sessionMatchesIdentity(
   );
 }
 
-function removePersistedSession(storage: Storage | null): void {
-  if (!storage) return;
-  try {
-    storage.removeItem(DEMO_AUTH_STORAGE_KEY);
-  } catch {
-    // Demo logout remains successful even when browser storage is unavailable.
-  }
+function removePersistedSession(): void {
+  inMemorySession = null;
 }
 
 export function loginWithDemoAccount(
@@ -158,46 +145,18 @@ export function loginWithDemoAccount(
     );
   }
 
-  const storage = getLocalStorage();
-  if (!storage) {
-    throw new DemoAuthError(
-      'SESSION_UNAVAILABLE',
-      '浏览器 localStorage 不可用，无法建立 Demo 会话。',
-    );
-  }
-
-  // A successful credential check always starts a fresh identity session.
-  // If the following write fails, the previous identity must not survive.
-  removePersistedSession(storage);
-  try {
-    storage.setItem(
-      DEMO_AUTH_STORAGE_KEY,
-      JSON.stringify(createSession(identity)),
-    );
-  } catch {
-    throw new DemoAuthError(
-      'SESSION_UNAVAILABLE',
-      '写入 Demo 会话失败，请检查浏览器存储设置。',
-    );
-  }
+  // A successful credential check always starts a fresh runtime identity
+  // session without persisting business-scoped identifiers to browser storage.
+  removePersistedSession();
+  inMemorySession = createSession(identity);
 
   return identity;
 }
 
 export function hydrateDemoSession(): DemoIdentity | null {
-  const storage = getLocalStorage();
-  if (!storage) return null;
-
-  let rawSession: string | null;
   try {
-    rawSession = storage.getItem(DEMO_AUTH_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-  if (!rawSession) return null;
-
-  try {
-    const session: unknown = JSON.parse(rawSession);
+    const session: unknown = inMemorySession;
+    if (!session) return null;
     if (!isDemoSession(session)) {
       throw new DemoAuthError('SESSION_INVALID', 'Demo 会话格式无效。');
     }
@@ -210,13 +169,13 @@ export function hydrateDemoSession(): DemoIdentity | null {
     }
     return identity;
   } catch {
-    removePersistedSession(storage);
+    removePersistedSession();
     return null;
   }
 }
 
 export function logoutDemoAccount(): void {
-  removePersistedSession(getLocalStorage());
+  removePersistedSession();
 }
 
 function containsControlCharacter(value: string): boolean {

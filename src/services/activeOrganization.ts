@@ -1,4 +1,3 @@
-import { isDemoBrowserPersistenceEnabled } from '../config/demoPersistencePolicy';
 import {
   CONTROL_PLANE_FIXTURE_ID,
   type ActiveOrganizationContext,
@@ -9,9 +8,8 @@ import {
 } from '../domain/controlPlane';
 import { ControlPlaneMockError } from './controlPlaneMockAdapter';
 
-const ACTIVE_ORGANIZATION_STORAGE_KEY =
-  'videoagent:control-plane:active-organization:v1';
 export const DEMO_PRINCIPAL_ID = 'principal-demo-owner';
+let inMemoryActiveOrganizationId: string | null = null;
 
 function organizationTypeForId(
   snapshot: ControlPlaneDemoState,
@@ -147,18 +145,9 @@ export function resolveActiveOrganization(
 }
 
 export function loadActiveOrganizationId(): string | null {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return null;
-  try {
-    return window.localStorage.getItem(ACTIVE_ORGANIZATION_STORAGE_KEY);
-  } catch {
-    return null;
-  }
+  return inMemoryActiveOrganizationId;
 }
 
 export function saveActiveOrganizationId(organizationId: string): void {
-  if (typeof window === 'undefined' || !isDemoBrowserPersistenceEnabled()) return;
-  window.localStorage.setItem(
-    ACTIVE_ORGANIZATION_STORAGE_KEY,
-    organizationId,
-  );
+  inMemoryActiveOrganizationId = organizationId;
 }

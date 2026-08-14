@@ -11,6 +11,37 @@ const modeColor: Record<CapabilityTruthMode, string> = {
   FALLBACK: 'orange',
 };
 
+const modeLabel: Record<CapabilityTruthMode, string> = {
+  'REAL-UI': '真实界面',
+  'REAL-CAP': '真实能力',
+  'MOCK-CONTRACT': '演示合同',
+  HYBRID: '混合接入',
+  LOCKED: '未开放',
+  FALLBACK: '降级态',
+};
+
+const truthValueLabel: Record<string, string> = {
+  MOCK: '演示执行',
+  'MOCK-CONTRACT': '演示合同',
+  'REAL-UI': '真实界面',
+  'REAL-CAP': '真实能力',
+  HYBRID: '混合接入',
+  LOCKED: '未开放',
+  FALLBACK: '降级态',
+  NOT_APPLICABLE: '不适用',
+};
+
+function safeTruthText(value: string): string {
+  return value
+    .replace(/\bMOCK-CONTRACT\b/g, '演示合同')
+    .replace(/\bMOCK\b/g, '演示执行')
+    .replace(/\bMock\b/gi, '演示数据');
+}
+
+function displayTruthValue(value: string): string {
+  return truthValueLabel[value] ?? safeTruthText(value);
+}
+
 interface TruthBadgeProps {
   capabilityId: string;
   compact?: boolean;
@@ -26,19 +57,18 @@ export function TruthBadge({ capabilityId, compact = false }: TruthBadgeProps) {
   if (!entry) return null;
 
   const detail = [
-    `UI: ${entry.ui}`,
-    `执行: ${entry.execution}`,
-    `传输: ${entry.transport}`,
+    `界面: ${displayTruthValue(entry.ui)}`,
+    `执行: ${displayTruthValue(entry.execution)}`,
+    `传输: ${displayTruthValue(entry.transport)}`,
     `项目接入: ${entry.projectIntegrated ? '是' : '否'}`,
-    ...entry.knownLimitations,
+    ...entry.knownLimitations.map(safeTruthText),
   ].join('\n');
 
   return (
     <Tooltip title={<span style={{ whiteSpace: 'pre-line' }}>{detail}</span>}>
       <Tag color={modeColor[entry.mode]} className="d1-truth-badge">
-        {compact ? entry.mode : `${entry.mode} · ${entry.displayName}`}
+        {compact ? modeLabel[entry.mode] : `${modeLabel[entry.mode]} · ${entry.displayName}`}
       </Tag>
     </Tooltip>
   );
 }
-

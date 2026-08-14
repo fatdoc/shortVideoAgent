@@ -29,7 +29,7 @@ describe('Pilot login page', () => {
   it('only offers real allowlist login and wires credentials to the Pilot store', async () => {
     render(<LoginPage />);
 
-    expect(screen.getByRole('heading', { name: '白名单账号登录' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '登录工作台' })).toBeInTheDocument();
     expect(screen.queryByTestId('demo-identities')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByTestId('pilot-login-email'), {

@@ -102,7 +102,7 @@ export function BrandFactsTable({
               </span>
             </div>
             <Typography.Text type="secondary">
-              口吻示例 {voiceExample ?? '“海底捞服务至上，让每一次用餐都暖心！”'}
+              口吻示例 {voiceExample ?? '“服务有温度，让每一次到店都安心。”'}
             </Typography.Text>
           </div>
           <Typography.Text type="secondary" className="brand-tone-summary-type">

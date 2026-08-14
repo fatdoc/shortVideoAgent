@@ -26,7 +26,7 @@ describe('app smoke', () => {
     });
   });
 
-  it('redirects anonymous users to the role login page', async () => {
+  it('redirects anonymous users to the neutral login page', async () => {
     useAuthStore.getState().logout();
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
@@ -34,7 +34,8 @@ describe('app smoke', () => {
     expect(
       await screen.findByRole('heading', { level: 2, name: '登录工作台' }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('demo-identity-platform')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-identities')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('邮箱')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
   });
 
@@ -142,7 +143,7 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '工作台' });
+    await screen.findByRole('heading', { level: 3, name: '门店经营工作台' });
     expect(screen.getByRole('combobox', { name: '切换工作台' })).toBeDisabled();
     expect(screen.getAllByText('统一创作工作台').length).toBeGreaterThan(0);
 
@@ -159,7 +160,7 @@ describe('app smoke', () => {
       expect(window.location.pathname).toBe('/projects/demo-local-001/brand');
     });
     expect(
-      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
+      await screen.findByRole('heading', { level: 3, name: '门店档案' }),
     ).toBeInTheDocument();
   }, 10_000);
 
@@ -167,10 +168,10 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
-    expect(screen.getByText('短视频 Agent')).toBeInTheDocument();
-    expect((await screen.findAllByText('demo-local-001')).length).toBeGreaterThan(0);
-    expect(screen.getByText('品牌事实')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: '门店经营工作台' })).toBeInTheDocument();
+    expect(screen.getByText('源核 AI 社群')).toBeInTheDocument();
+    expect(screen.queryByText('demo-local-001')).not.toBeInTheDocument();
+    expect(screen.getByText(/从门店建档、商品套餐、门店资产到获客任务/)).toBeInTheDocument();
   });
 
   it('navigates across six primary routes from sidebar', async () => {
@@ -178,7 +179,7 @@ describe('app smoke', () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
 
-    await screen.findByRole('heading', { level: 3, name: '工作台' });
+    await screen.findByRole('heading', { level: 3, name: '门店经营工作台' });
 
     await user.click(screen.getByRole('menuitem', { name: /新建 \/ Brief/ }));
     expect(
@@ -187,12 +188,12 @@ describe('app smoke', () => {
 
     await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
     expect(
-      await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' }),
+      await screen.findByRole('heading', { level: 3, name: '门店档案' }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
     expect(
-      await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' }),
+      await screen.findByRole('heading', { level: 3, name: 'AI 探店脚本' }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /分镜/ }));
@@ -206,7 +207,7 @@ describe('app smoke', () => {
     });
 
     await user.click(screen.getByRole('menuitem', { name: /企业工作台/ }));
-    expect(await screen.findByRole('heading', { level: 3, name: '工作台' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 3, name: '门店经营工作台' })).toBeInTheDocument();
   }, 15_000);
 
   it('keeps Brief data consistent across Brand and Script pages', async () => {
@@ -228,11 +229,11 @@ describe('app smoke', () => {
     });
 
     await user.click(screen.getByRole('menuitem', { name: /品牌大脑/ }));
-    await screen.findByRole('heading', { level: 3, name: '品牌 / 商家大脑' });
+    await screen.findByRole('heading', { level: 3, name: '门店档案' });
     expect(await screen.findByText(nextCta)).toBeInTheDocument();
 
     await user.click(screen.getByRole('menuitem', { name: /脚本编辑/ }));
-    await screen.findByRole('heading', { level: 3, name: '脚本生成与编辑' });
+    await screen.findByRole('heading', { level: 3, name: 'AI 探店脚本' });
     expect(
       screen.getByText((_, element) => element?.textContent === `CTA：${nextCta}`),
     ).toBeInTheDocument();
@@ -241,7 +242,7 @@ describe('app smoke', () => {
   it('shows shell chrome and demo project chip', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
-    await screen.findByRole('heading', { level: 3, name: '工作台' });
+    await screen.findByRole('heading', { level: 3, name: '门店经营工作台' });
     expect(screen.getByRole('button', { name: /重置 Demo/ })).toBeInTheDocument();
     expect(screen.getAllByText(/海底捞/).length).toBeGreaterThan(0);
     // sidebar footer id

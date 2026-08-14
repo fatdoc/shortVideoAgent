@@ -123,8 +123,8 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
       {
         key: 'dispatch',
         index: '01',
-        title: 'POST canonical package + Demo grant',
-        detail: '一次调用创建/复用包与 Grant，并等待 StoryCanvas accepted / duplicate。',
+        title: '准备生产包与画布入口',
+        detail: '创建或复用生产包，并等待画布入口返回 accepted / duplicate。',
         done: packageAccepted,
         disabled: scriptApproval?.status !== 'approved',
         action: dispatchPackage,
@@ -222,7 +222,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
       <section className="d1-production-hero">
         <div>
           <Space size={8} wrap>
-            <Tag color="blue">demo-local-001</Tag>
+            <Tag color="blue">当前门店项目</Tag>
             <TruthBadge capabilityId="control.production-contract-adapter" compact />
             <Tag>{snapshot.truthManifest.disclaimer}</Tag>
           </Space>
@@ -301,7 +301,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
             <div>
               <Typography.Title level={4}>生产包与 StoryCanvas 入口</Typography.Title>
               <Typography.Text type="secondary">
-                发包完成后进入同一 SaaS 前端内嵌画布；Grant 只通过 React 内存边界传递。
+                发包完成后进入同一 SaaS 前端内嵌画布；入口授权只通过 React 内存边界传递。
               </Typography.Text>
             </div>
             <Space wrap>
@@ -312,7 +312,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
                   disabled={scriptApproval?.status !== 'approved'}
                   onClick={dispatchPackage}
                 >
-                  POST package + grant
+                  准备画布入口
                 </Button>
               ) : null}
               {retryableTransport ? (
@@ -343,7 +343,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
               <CloudServerOutlined />
               <span>控制平面</span>
               <small>
-                {productionPackage && grant ? 'package + grant ready' : 'waiting approved script'}
+                {productionPackage && grant ? '生产包与画布入口就绪' : '等待已批准脚本'}
               </small>
             </div>
             <span className="d1-connection-track" />
@@ -371,7 +371,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
               type="success"
               showIcon
               message={`${transport.phase} · 同页画布入口已就绪`}
-              description="Package 与当前 Grant 已验证。进入画布后由根应用以内存 Prop 注入 Grant，不经过 URL 或跨窗口消息。"
+              description="生产包与当前画布入口已验证。进入画布后由根应用以内存边界传递授权，不经过 URL 或跨窗口消息。"
               action={
                 <Button
                   size="small"
@@ -627,7 +627,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
 
             <div className="d1-receipt-group">
               <Space>
-                <Typography.Text strong>ExportReceipt</Typography.Text>
+                <Typography.Text strong>导出回执</Typography.Text>
                 <Tag>{snapshot.exportReceipts.length}</Tag>
               </Space>
               {snapshot.exportReceipts.length ? (
@@ -668,7 +668,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
                 <Alert
                   type="warning"
                   showIcon
-                  message="尚无 ExportReceipt · playable=false"
+                  message="尚无导出回执 · playable=false"
                   description="不会把静态素材、qa_blocked 资产或 FALLBACK 说明包装成成片。"
                 />
               )}
@@ -720,7 +720,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
             <Space wrap>
               <TruthBadge capabilityId="production.basic-ffmpeg-merge" compact />
               <Button disabled icon={<LinkOutlined />}>
-                {snapshot.exportReceipts.length ? '无可验证下载地址' : '等待 ExportReceipt'}
+                {snapshot.exportReceipts.length ? '无可验证下载地址' : '等待导出回执'}
               </Button>
             </Space>
           </div>
@@ -728,12 +728,12 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
           {productionPackage && sourceTask && sourceReservation ? (
             <div className="d1-source-chain">
               {[
-                ['Tenant', '当前租户'],
-                ['Package', '生产包已记录'],
-                ['Script', '已批准脚本'],
-                ['Task', '内部任务已记录'],
-                ['Asset', sourceAsset ? '资产回执已登记' : '无可交付资产'],
-                ['Export', sourceExport ? '导出回执已登记' : '无 ExportReceipt'],
+                ['租户范围', '当前租户'],
+                ['生产包', '生产包已记录'],
+                ['脚本', '已批准脚本'],
+                ['任务', '内部任务已记录'],
+                ['资产', sourceAsset ? '资产回执已登记' : '无可交付资产'],
+                ['导出', sourceExport ? '导出回执已登记' : '无导出回执'],
                 [
                   'Credit',
                   `${sourceReservation.status} · ${sourceReservation.consumedCredits.value} consumed`,
@@ -809,7 +809,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
             </div>
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="归因连接完成前，不展示线索列表、转化路径或经营 KPI。"
+              description="归因连接完成前，不展示线索列表、转化路径或经营指标。"
             />
           </div>
         </section>
@@ -818,7 +818,7 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
       <Drawer
         open={packageInspectorOpen}
         onClose={() => setPackageInspectorOpen(false)}
-        title="ProjectProductionPackage 检查器"
+        title="生产包检查器"
         width={640}
       >
         {productionPackage ? (
@@ -839,50 +839,48 @@ export function ProductionControlSurface({ view = 'all' }: ProductionControlSurf
               items={[
                 {
                   key: 'contract',
-                  label: 'Contract',
+                  label: '合同版本',
                   children: `v${productionPackage.contractVersion}`,
                 },
                 {
                   key: 'project',
-                  label: 'Project',
-                  children: productionPackage.projectId,
+                  label: '项目范围',
+                  children: '项目范围已记录',
                 },
                 {
                   key: 'tenant',
-                  label: 'Tenant',
-                  children: productionPackage.tenantId,
+                  label: '租户范围',
+                  children: '租户范围已记录',
                 },
                 {
                   key: 'package',
-                  label: 'Package',
+                  label: '生产包',
                   children: '生产包已记录',
                 },
                 {
                   key: 'digest',
-                  label: '摘要',
-                  children: '内部摘要已记录',
+                  label: '校验',
+                  children: '内部校验已记录',
                 },
                 {
                   key: 'claims',
-                  label: 'Claims',
-                  children: productionPackage.brandFactsSnapshot
-                    .map((claim) => claim.id)
-                    .join(' · '),
+                  label: '品牌事实',
+                  children: `${productionPackage.brandFactsSnapshot.length} 条品牌事实已纳入`,
                 },
                 {
                   key: 'script',
-                  label: 'Approved script',
-                  children: productionPackage.approvedScriptVersion.id,
+                  label: '已批准脚本',
+                  children: '脚本版本已批准',
                 },
                 {
                   key: 'shots',
-                  label: 'Shots',
+                  label: '镜头规格',
                   children: `${productionPackage.shotDrafts.length} 镜 · ${productionPackage.target.aspectRatio} · ${productionPackage.target.durationSeconds}s`,
                 },
                 {
                   key: 'grant',
-                  label: 'Grant',
-                  children: grant ? `已签发 · ${grant.truthMode}` : '尚未签发',
+                  label: '入口授权',
+                  children: grant ? '已签发 · 演示合同' : '尚未签发',
                 },
               ]}
             />

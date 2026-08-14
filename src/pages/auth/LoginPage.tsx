@@ -2,7 +2,6 @@ import {
   ArrowRightOutlined,
   MailOutlined,
   LockOutlined,
-  UserOutlined,
 } from '@ant-design/icons';
 import { Alert, Button, Form, Input } from 'antd';
 import { useState } from 'react';
@@ -94,21 +93,21 @@ function DemoLoginPage() {
               onValuesChange={clearError}
             >
               <Form.Item
-                label="演示账号"
+                label="邮箱"
                 name="account"
-                rules={[{ required: true, message: '请输入演示账号' }]}
+                rules={[{ required: true, message: '请输入邮箱' }]}
               >
                 <Input
                   size="large"
-                  prefix={<UserOutlined />}
+                  prefix={<MailOutlined />}
                   autoComplete="username"
                   data-testid="login-account"
                 />
               </Form.Item>
               <Form.Item
-                label="演示密码"
+                label="密码"
                 name="password"
-                rules={[{ required: true, message: '请输入演示密码' }]}
+                rules={[{ required: true, message: '请输入密码' }]}
               >
                 <Input.Password
                   size="large"
@@ -158,15 +157,15 @@ function PilotLoginPage({ onRegister }: LoginPageProps) {
             <p>此入口仅接受已加入白名单的账号。身份、组织和权限由服务端验证。</p>
             <ul>
               <li>注册需完成条款确认、邮箱验证或有效邀请校验</li>
-              <li>服务异常会明确提示，不会切换到 Demo 数据</li>
+              <li>服务异常会明确提示，不会切换到替代数据</li>
               <li>浏览器不会展示密码或会话凭据</li>
             </ul>
           </section>
 
           <section className="d2-auth-login-panel">
             <div className="d2-auth-login-heading">
-              <h2>白名单账号登录</h2>
-              <p>使用试点管理员提供的账号</p>
+              <h2>登录工作台</h2>
+              <p>使用已配置的账号进入可访问空间</p>
             </div>
 
             {storeError ? (

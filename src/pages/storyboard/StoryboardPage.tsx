@@ -60,7 +60,7 @@ export function StoryboardPage() {
 
   if (projectId !== DEMO_PROJECT_ID) {
     return (
-      <Empty description={`仅支持 canonical 项目 ${DEMO_PROJECT_ID}，当前为 ${projectId}`}>
+      <Empty description="当前访问项目未接入分镜生产单。">
         <Button type="primary" onClick={() => navigate(`/projects/${DEMO_PROJECT_ID}/storyboard`)}>
           打开统一分镜
         </Button>
@@ -73,7 +73,7 @@ export function StoryboardPage() {
       <header className="d1-page-header">
         <div>
           <Space size={8} wrap>
-            <Tag color="blue">{DEMO_PROJECT_ID}</Tag>
+            <Tag color="blue">当前门店项目</Tag>
             <TruthBadge capabilityId="demo.local-life-golden-path" compact />
           </Space>
           <Typography.Title level={2}>分镜生产单</Typography.Title>

@@ -164,7 +164,7 @@ const ERROR_CONTENT: Record<
   'invalid-response': {
     status: '500',
     title: 'Terms 响应无法安全解析',
-    description: 'Control API 返回了无效投影；页面已 fail closed，未使用任何 Mock。',
+    description: 'Control API 返回了无效投影；页面已 fail closed，未使用替代数据。',
   },
 };
 
@@ -180,7 +180,7 @@ function DirectoryLoading({ kind, retrying }: { kind: 'Document' | 'Version'; re
           strong
         >{`${kind} Directory ${retrying ? 'retrying' : 'loading'}`}</Typography.Text>
         <Typography.Text type="secondary">
-          旧投影已清空；仅等待真实 Control API，不读取 Demo、Mock 或本地管理状态。
+          旧投影已清空；仅等待真实 Control API，不读取演示或本地管理状态。
         </Typography.Text>
       </Space>
     </section>
