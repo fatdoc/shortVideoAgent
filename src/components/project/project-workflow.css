@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: #2f332f;
 }
 
 .project-page-toolbar {
@@ -13,6 +14,18 @@
 
 .project-page-toolbar .ant-typography {
   margin: 0;
+}
+
+.project-workflow-page .ant-btn-primary {
+  background: #f26a21;
+  border-color: #f26a21;
+  box-shadow: none;
+}
+
+.project-workflow-page .ant-btn-primary:hover,
+.project-workflow-page .ant-btn-primary:focus-visible {
+  background: #e85f16 !important;
+  border-color: #e85f16 !important;
 }
 
 .project-page-toolbar-copy {
@@ -268,6 +281,213 @@
   background: #eaf2ff;
 }
 
+.store-workbench-hero {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  gap: 28px;
+  align-items: center;
+  padding: 20px 0 24px;
+  border-bottom: 1px solid #ebe6df;
+}
+
+.store-hero-media {
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid #e9e2d9;
+  border-radius: 8px;
+  background: #f6f2ec;
+}
+
+.store-hero-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  filter: grayscale(1) sepia(0.16) saturate(0.72) contrast(0.94);
+}
+
+.store-hero-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #8a8076;
+}
+
+.store-hero-copy {
+  min-width: 0;
+}
+
+.store-hero-copy h2.ant-typography {
+  margin: 5px 0 8px;
+  color: #252525;
+  font-size: 30px;
+  line-height: 1.18;
+}
+
+.store-progress-line {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) 48px;
+  gap: 10px;
+  align-items: center;
+  max-width: 460px;
+  margin-top: 18px;
+  color: #4f4a45;
+  font-size: 13px;
+}
+
+.store-progress-line .ant-progress-line {
+  margin: 0;
+}
+
+.store-progress-line .ant-progress-bg {
+  background: #f26a21 !important;
+}
+
+.store-hero-facts,
+.store-flow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.store-hero-facts {
+  margin-top: 14px;
+}
+
+.store-hero-facts span {
+  padding: 5px 8px;
+  border: 1px solid #e8e0d8;
+  border-radius: 5px;
+  background: #fbfaf7;
+  color: #635b53;
+  font-size: 12px;
+}
+
+.store-flow-strip {
+  padding: 10px 0 2px;
+}
+
+.store-flow-step {
+  min-width: 170px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  border: 1px solid #e8e0d8;
+  border-radius: 7px;
+  background: #fffdf9;
+  color: #3a3734;
+  text-align: left;
+  cursor: pointer;
+}
+
+.store-flow-step:hover,
+.store-flow-step:focus-visible {
+  border-color: #f26a21;
+  outline: none;
+}
+
+.store-flow-step > span {
+  grid-row: span 2;
+  color: #f26a21;
+}
+
+.store-flow-step small {
+  color: #827970;
+}
+
+.store-delivery-panel {
+  border-color: #e8e0d8;
+  background: #fffdf9;
+}
+
+.store-delivery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid #eee7df;
+}
+
+.store-delivery-grid > div {
+  min-height: 66px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-right: 1px solid #eee7df;
+}
+
+.store-delivery-grid > div:last-child {
+  border-right: 0;
+}
+
+.store-dashboard-grid {
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.store-queue-table {
+  border: 1px solid #ebe6df;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.store-queue-head,
+.store-queue-row {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) 100px 112px 108px 96px;
+  gap: 12px;
+  align-items: center;
+}
+
+.store-queue-head {
+  padding: 9px 12px;
+  background: #f7f4ef;
+  color: #766d64;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.store-queue-row {
+  min-height: 74px;
+  padding: 10px 12px;
+  border-top: 1px solid #eee7df;
+}
+
+.store-queue-row:hover {
+  background: #fffaf4;
+}
+
+.store-queue-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.store-queue-title img,
+.store-queue-title > span {
+  width: 64px;
+  height: 42px;
+  flex: 0 0 auto;
+  border-radius: 5px;
+  object-fit: cover;
+  filter: grayscale(1) sepia(0.12) saturate(0.72) contrast(0.96);
+  background: #f1ebe4;
+}
+
+.store-queue-title > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.store-queue-title .ant-typography {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .project-task-copy {
   display: flex;
   flex: 1;
@@ -514,5 +734,19 @@
 
   .brief-layout {
     grid-template-columns: minmax(0, 1fr) 292px;
+  }
+
+  .store-workbench-hero {
+    grid-template-columns: minmax(280px, 0.82fr) minmax(0, 1fr);
+  }
+
+  .store-queue-head,
+  .store-queue-row {
+    grid-template-columns: minmax(220px, 1fr) 88px 104px 88px;
+  }
+
+  .store-queue-head span:nth-child(4),
+  .store-queue-row > .ant-typography:nth-child(4) {
+    display: none;
   }
 }

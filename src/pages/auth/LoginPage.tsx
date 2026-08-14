@@ -1,16 +1,11 @@
 import {
   ArrowRightOutlined,
-  CheckCircleFilled,
+  MailOutlined,
   LockOutlined,
-  SafetyCertificateOutlined,
-  UserOutlined,
 } from '@ant-design/icons';
-import { Alert, Button, Form, Input, Select, Tag, Typography, type InputRef } from 'antd';
+import { Alert, Button, Form, Input, Select, type InputRef } from 'antd';
 import { useRef, useState } from 'react';
-import haidilaoLogo from '../../components/brand/assets/haidilao-logo.png';
 import { pilotRuntime } from '../../config/pilotRuntime';
-import { DEMO_IDENTITIES, type DemoIdentity } from '../../domain/demoIdentity';
-import { DEMO_AUTH_NOTICE, DEMO_AUTH_PASSWORD } from '../../services/demoAuth';
 import { useAuthStore } from '../../stores/authStore';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { PILOT_LOCAL_ACCOUNT_CHOICES } from './pilotLocalAccounts';
@@ -25,12 +20,23 @@ interface LoginPageProps {
   onRegister?: () => void;
 }
 
-const identityTone = {
-  platform: 'blue',
-  channel: 'gold',
-  tenant: 'red',
-  production: 'cyan',
-} as const;
+const entrySteps = ['资料建档', '素材归集', '脚本确认', '分镜成片', '发布投放', '线索跟进'];
+
+function AuthProcessRail() {
+  return (
+    <section className="d2-auth-process" aria-label="工作流概览">
+      <ol>
+        {entrySteps.map((step, index) => (
+          <li key={step}>
+            <span>{index + 1}</span>
+            <strong>{step}</strong>
+          </li>
+        ))}
+      </ol>
+      <p>登录后按权限进入对应工作区；无可用资料或服务未接通时，页面会显示空态或阻断原因。</p>
+    </section>
+  );
+}
 
 function DemoLoginPage() {
   const [form] = Form.useForm<LoginValues>();
@@ -38,7 +44,6 @@ function DemoLoginPage() {
   const storeError = useAuthStore((state) => state.error);
   const clearStoreError = useAuthStore((state) => state.clearError);
   const [submitting, setSubmitting] = useState(false);
-  const [selectedAccount, setSelectedAccount] = useState('tenant');
 
   const clearError = () => clearStoreError();
 
@@ -52,137 +57,20 @@ function DemoLoginPage() {
     setSubmitting(false);
   };
 
-  const loginAsIdentity = (identity: DemoIdentity) => {
-    setSelectedAccount(identity.loginName);
-    form.setFieldsValue({
-      account: identity.loginName,
-      password: DEMO_AUTH_PASSWORD,
-    });
-    submitLogin({
-      account: identity.loginName,
-      password: DEMO_AUTH_PASSWORD,
-    });
-  };
-
   return (
-    <main className="d2-auth-page" data-testid="login-page">
-      <section className="d2-auth-shell">
-        <header className="d2-auth-productbar">
-          <div className="d2-auth-product">
-            <span className="d2-auth-product-mark">VA</span>
-            <span>
-              <strong>短视频营销 Agent</strong>
-              <small>品牌事实驱动的内容生产平台</small>
-            </span>
-          </div>
-          <Tag color="processing">D2 内部演示环境</Tag>
-        </header>
-
+    <main className="d2-auth-page va-auth-page" data-testid="login-page">
+      <section className="d2-auth-shell va-auth-shell">
         <div className="d2-auth-content">
-          <section className="d2-auth-preview" aria-label="海底捞品牌大脑预览">
-            <div className="d2-auth-preview-heading">
-              <img src={haidilaoLogo} alt="海底捞品牌标识" />
-              <div>
-                <div className="d2-auth-preview-titleline">
-                  <Typography.Title level={3}>海底捞三里屯店</Typography.Title>
-                  <Tag color="success" icon={<CheckCircleFilled />}>
-                    资料已认证
-                  </Tag>
-                </div>
-                <Typography.Text type="secondary">
-                  北京市朝阳区三里屯路 · 火锅 · 本地生活商家
-                </Typography.Text>
-              </div>
-            </div>
-
-            <div className="d2-auth-metrics">
-              <div>
-                <span>品牌事实</span>
-                <strong>8</strong>
-                <small>C1—C8 唯一事实源</small>
-              </div>
-              <div>
-                <span>套餐 / 商品</span>
-                <strong>28</strong>
-                <small>含团购与门店套餐</small>
-              </div>
-              <div>
-                <span>禁用词</span>
-                <strong>6</strong>
-                <small>生成前自动校验</small>
-              </div>
-              <div>
-                <span>风险提醒</span>
-                <strong className="is-safe">0</strong>
-                <small>当前可进入生产</small>
-              </div>
-            </div>
-
-            <div className="d2-auth-preview-grid">
-              <article className="d2-auth-preview-card">
-                <div className="d2-auth-card-title">
-                  <span>商家基本资料</span>
-                  <Tag color="green">正常营业</Tag>
-                </div>
-                <dl>
-                  <div>
-                    <dt>品牌主体</dt>
-                    <dd>海底捞国际控股有限公司</dd>
-                  </div>
-                  <div>
-                    <dt>服务门店</dt>
-                    <dd>海底捞火锅（三里屯店）</dd>
-                  </div>
-                  <div>
-                    <dt>内容定位</dt>
-                    <dd>服务体验、聚餐场景、暖心陪伴</dd>
-                  </div>
-                </dl>
-              </article>
-
-              <article className="d2-auth-preview-card">
-                <div className="d2-auth-card-title">
-                  <span>事实语料</span>
-                  <a>查看事实库</a>
-                </div>
-                <ul className="d2-auth-fact-list">
-                  <li>
-                    <b>C1</b>
-                    <span>创立于 1994 年，以服务体验著称</span>
-                  </li>
-                  <li>
-                    <b>C3</b>
-                    <span>门店提供生日庆祝及个性化服务</span>
-                  </li>
-                  <li>
-                    <b>C7</b>
-                    <span>所有价格与套餐以门店实时信息为准</span>
-                  </li>
-                </ul>
-              </article>
-
-              <article className="d2-auth-preview-card d2-auth-preview-card--risk">
-                <div className="d2-auth-card-title">
-                  <span>生成规则</span>
-                  <SafetyCertificateOutlined />
-                </div>
-                <p>引用事实必须留痕，禁用绝对化承诺，不虚构价格、门店能力或人物观点。</p>
-                <div className="d2-auth-rule-status">
-                  <i /> 品牌规则已启用
-                </div>
-              </article>
-            </div>
-
-            <div className="d2-auth-preview-foot">
-              登录后可查看完整品牌资料、套餐、事实库、老板 IP、引用记录与风险提醒
-              <ArrowRightOutlined />
-            </div>
+          <section className="d2-auth-intro" aria-label="入口说明">
+            <h1>从资料到获客线索</h1>
+            <p>受控工作台入口只处理登录、会话恢复和跳转；业务内容在登录后按真实权限加载。</p>
+            <AuthProcessRail />
           </section>
 
           <section className="d2-auth-login-panel">
             <div className="d2-auth-login-heading">
-              <Typography.Title level={2}>登录工作台</Typography.Title>
-              <Typography.Text type="secondary">选择身份后进入对应业务空间</Typography.Text>
+              <h2>登录工作台</h2>
+              <p>使用已配置的账号进入可访问空间</p>
             </div>
 
             {storeError ? (
@@ -201,26 +89,26 @@ function DemoLoginPage() {
               form={form}
               layout="vertical"
               requiredMark={false}
-              initialValues={{ account: 'tenant', password: DEMO_AUTH_PASSWORD }}
+              initialValues={{ account: 'tenant' }}
               onFinish={submitLogin}
               onValuesChange={clearError}
             >
               <Form.Item
-                label="演示账号"
+                label="邮箱"
                 name="account"
-                rules={[{ required: true, message: '请输入演示账号' }]}
+                rules={[{ required: true, message: '请输入邮箱' }]}
               >
                 <Input
                   size="large"
-                  prefix={<UserOutlined />}
+                  prefix={<MailOutlined />}
                   autoComplete="username"
                   data-testid="login-account"
                 />
               </Form.Item>
               <Form.Item
-                label="演示密码"
+                label="密码"
                 name="password"
-                rules={[{ required: true, message: '请输入演示密码' }]}
+                rules={[{ required: true, message: '请输入密码' }]}
               >
                 <Input.Password
                   size="large"
@@ -240,31 +128,7 @@ function DemoLoginPage() {
                 登录并进入工作台 <ArrowRightOutlined />
               </Button>
             </Form>
-
-            <div className="d2-auth-divider">
-              <span>快速选择演示身份</span>
-            </div>
-            <div className="d2-auth-identities" data-testid="demo-identities">
-              {DEMO_IDENTITIES.map((identity) => (
-                <button
-                  key={identity.accountId}
-                  type="button"
-                  className={selectedAccount === identity.loginName ? 'is-selected' : ''}
-                  onClick={() => loginAsIdentity(identity)}
-                  data-testid={`demo-identity-${identity.accountKind}`}
-                >
-                  <span className={`d2-auth-role-dot is-${identityTone[identity.accountKind]}`} />
-                  <span>
-                    <strong>{identity.displayName}</strong>
-                    <small>{identity.roleLabel}</small>
-                  </span>
-                  <em>{identity.loginName}</em>
-                </button>
-              ))}
-            </div>
-
-            <p className="d2-auth-notice">统一密码：{DEMO_AUTH_PASSWORD}</p>
-            <p className="d2-auth-legal">{DEMO_AUTH_NOTICE}</p>
+            <p className="d2-auth-legal">登录或注册即代表你同意当前发布的《用户须知》。</p>
           </section>
         </div>
       </section>
@@ -294,38 +158,23 @@ function PilotLoginPage({ onRegister }: LoginPageProps) {
   };
 
   return (
-    <main className="d2-auth-page" data-testid="pilot-login-page">
-      <section className="d2-auth-shell d2-auth-shell--pilot">
-        <header className="d2-auth-productbar">
-          <div className="d2-auth-product">
-            <span className="d2-auth-product-mark">VA</span>
-            <span>
-              <strong>短视频营销 Agent</strong>
-              <small>单客户白名单真实试点</small>
-            </span>
-          </div>
-          <Tag color="success">Pilot 真实环境</Tag>
-        </header>
-
+    <main className="d2-auth-page va-auth-page" data-testid="pilot-login-page">
+      <section className="d2-auth-shell va-auth-shell d2-auth-shell--pilot">
         <div className="d2-auth-pilot-content">
-          <section className="d2-auth-pilot-intro">
-            <SafetyCertificateOutlined />
-            <Typography.Title level={2}>受控真实试点</Typography.Title>
-            <Typography.Paragraph>
-              此入口仅接受已加入白名单的企业账号。身份和租户由 Control API 验证，会话保存在安全的
-              HttpOnly Cookie 中。
-            </Typography.Paragraph>
+          <section className="d2-auth-intro d2-auth-pilot-intro">
+            <h1>受控真实试点</h1>
+            <p>此入口仅接受已加入白名单的账号。身份、组织和权限由服务端验证。</p>
             <ul>
               <li>注册需完成条款确认、邮箱验证或有效邀请校验</li>
-              <li>服务异常会明确提示，不会切换到 Demo 数据</li>
-              <li>浏览器不会保存密码或 Session Token</li>
+              <li>服务异常会明确提示，不会切换到替代数据</li>
+              <li>浏览器不会展示密码或会话凭据</li>
             </ul>
           </section>
 
           <section className="d2-auth-login-panel">
             <div className="d2-auth-login-heading">
-              <Typography.Title level={2}>白名单账号登录</Typography.Title>
-              <Typography.Text type="secondary">使用试点管理员提供的企业账号</Typography.Text>
+              <h2>登录工作台</h2>
+              <p>使用已配置的账号进入可访问空间</p>
             </div>
 
             {storeError ? (
@@ -374,7 +223,7 @@ function PilotLoginPage({ onRegister }: LoginPageProps) {
               >
                 <Input
                   size="large"
-                  prefix={<UserOutlined />}
+                  prefix={<MailOutlined />}
                   autoComplete="username"
                   data-testid="pilot-login-email"
                 />

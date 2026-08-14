@@ -76,9 +76,7 @@ describe('ScriptEditorPage', () => {
     expect(screen.getByText('未保存')).toBeInTheDocument();
     await user.click(screen.getByTestId('script-save-btn'));
     await waitFor(() => {
-      const active = useProjectStore
-        .getState()
-        .workspace.scripts.find((s) => s.id === 'script-a');
+      const active = useProjectStore.getState().workspace.scripts.find((s) => s.id === 'script-a');
       expect(active?.blocks.find((b) => b.type === 'hook')?.content).toContain(
         '三里屯探店开场测试文案',
       );
@@ -103,19 +101,14 @@ describe('ScriptEditorPage', () => {
     });
   });
 
-  it('mock generate shows loading then updates draft', async () => {
+  it('blocks AI rewrite when no real script generation endpoint is connected', async () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByTestId('script-editor-page');
-    await user.click(screen.getByTestId('script-generate-btn'));
-    expect(await screen.findByText(/正在 Mock 生成/)).toBeInTheDocument();
-    await waitFor(
-      () => {
-        expect(screen.queryByText(/正在 Mock 生成/)).not.toBeInTheDocument();
-      },
-      { timeout: 3000 },
-    );
-    expect(screen.getByText('未保存')).toBeInTheDocument();
+    expect(screen.queryByText(/Mock/)).not.toBeInTheDocument();
+    await user.click(screen.getByTestId('script-generation-blocked-btn'));
+    expect(await screen.findByText('AI 脚本服务待配置')).toBeInTheDocument();
+    expect(screen.getByText('已同步')).toBeInTheDocument();
   });
 
   it('navigates to storyboard entry', async () => {

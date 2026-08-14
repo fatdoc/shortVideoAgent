@@ -49,13 +49,16 @@ describe('BriefPage', () => {
     expect(await screen.findByText('已保存')).toBeInTheDocument();
   });
 
-  it('simulates asset upload and applies AI suggestions', async () => {
+  it('shows acquisition readiness without simulating uploads or AI suggestions', async () => {
     const user = userEvent.setup();
     renderPage();
     expect(screen.getByText('已有 6 个素材引用')).toBeInTheDocument();
-    await user.click(screen.getByTestId('brief-upload'));
-    expect(screen.getByText('已有 7 个素材引用')).toBeInTheDocument();
-    await user.click(screen.getByTestId('brief-ai-suggest'));
-    expect(await screen.findByDisplayValue(/前 3 秒用三里屯深夜火锅场景/)).toBeInTheDocument();
+    expect(screen.queryByTestId('brief-upload')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('brief-ai-suggest')).not.toBeInTheDocument();
+    expect(screen.getByText('平台')).toBeInTheDocument();
+    expect(screen.getByText('人群')).toBeInTheDocument();
+    expect(screen.getByText('限制')).toBeInTheDocument();
+    await user.click(screen.getByTestId('brief-to-brand'));
+    expect(await screen.findByText('Brand route')).toBeInTheDocument();
   });
 });

@@ -11,10 +11,7 @@ import {
   createCanonicalSuccessTaskReceipt,
   createControlPlaneDemoState,
 } from '../../mocks/controlPlaneDemo';
-import {
-  ProductionControlSurface,
-  type ProductionView,
-} from './ProductionControlSurface';
+import { ProductionControlSurface, type ProductionView } from './ProductionControlSurface';
 
 const storeMock = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
@@ -23,9 +20,7 @@ const storeMock = vi.hoisted(() => ({
 }));
 
 vi.mock('../../stores/controlPlaneStore', () => ({
-  useControlPlaneStore: (
-    selector: (state: Record<string, unknown>) => unknown,
-  ) =>
+  useControlPlaneStore: (selector: (state: Record<string, unknown>) => unknown) =>
     selector(
       new Proxy(storeMock.state, {
         get(target, property) {
@@ -71,12 +66,7 @@ function renderSurface(view: ProductionView = 'tasks') {
   return render(
     <MemoryRouter initialEntries={['/production/tasks']}>
       <Routes>
-        <Route
-          path="/production/tasks"
-          element={
-            <ProductionControlSurface view={view} />
-          }
-        />
+        <Route path="/production/tasks" element={<ProductionControlSurface view={view} />} />
         <Route
           path="/production/canvas/:projectId"
           element={<div>StoryCanvas canonical route</div>}
@@ -98,9 +88,7 @@ describe('ProductionControlSurface', () => {
     const popupSpy = vi.spyOn(window, 'open');
     renderSurface('inbox');
 
-    await user.click(
-      screen.getByRole('button', { name: /进入 StoryCanvas 画布/ }),
-    );
+    await user.click(screen.getByRole('button', { name: /进入 StoryCanvas 画布/ }));
 
     expect(await screen.findByText('StoryCanvas canonical route')).toBeInTheDocument();
     expect(window.location.pathname).not.toContain('storycanvas');
@@ -142,9 +130,7 @@ describe('ProductionControlSurface', () => {
         <Routes>
           <Route
             path="/production/tasks"
-            element={
-              <ProductionControlSurface view={'tasks' as ProductionView} />
-            }
+            element={<ProductionControlSurface view={'tasks' as ProductionView} />}
           />
         </Routes>
       </MemoryRouter>,
@@ -152,5 +138,19 @@ describe('ProductionControlSurface', () => {
 
     expect(screen.queryByRole('button', { name: '同步 Outbox' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reserve 80' })).toBeEnabled();
+  });
+
+  it('masks internal identifiers and shows disconnected publish and leads states', () => {
+    const snapshot = createAcceptedSnapshot();
+    const successTask = createCanonicalSuccessTaskReceipt();
+    snapshot.generationTaskReceipts = [successTask];
+    setStoreSnapshot(snapshot);
+
+    renderSurface('export');
+
+    expect(screen.getByText('发布投放待配置')).toBeInTheDocument();
+    expect(screen.getByText('线索入口暂无真实归因数据')).toBeInTheDocument();
+    expect(screen.queryByText(successTask.generationTaskId)).not.toBeInTheDocument();
+    expect(screen.queryByText(snapshot.package?.digest ?? '')).not.toBeInTheDocument();
   });
 });

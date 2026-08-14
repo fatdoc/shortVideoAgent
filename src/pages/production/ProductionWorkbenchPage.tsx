@@ -4,19 +4,14 @@ import {
   ProductionControlSurface,
   type ProductionView,
 } from '../../components/production/ProductionControlSurface';
-import {
-  CanonicalRouteError,
-  requireCanonicalRoute,
-} from '../../services/canonicalRouteGuard';
+import { CanonicalRouteError, requireCanonicalRoute } from '../../services/canonicalRouteGuard';
 import { useControlPlaneStore } from '../../stores/controlPlaneStore';
 
 interface ProductionWorkbenchPageProps {
   view?: ProductionView;
 }
 
-export function ProductionWorkbenchPage({
-  view = 'all',
-}: ProductionWorkbenchPageProps) {
+export function ProductionWorkbenchPage({ view = 'all' }: ProductionWorkbenchPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { projectId } = useParams<{ projectId?: string }>();
@@ -27,10 +22,7 @@ export function ProductionWorkbenchPage({
 
   if (projectId) {
     try {
-      requireCanonicalRoute(
-        tenantIdFromDeepLink ?? activeTenantId,
-        projectId,
-      );
+      requireCanonicalRoute(tenantIdFromDeepLink ?? activeTenantId, projectId);
     } catch (error) {
       routeError =
         error instanceof CanonicalRouteError
@@ -63,9 +55,7 @@ export function ProductionWorkbenchPage({
     <div className="d1-page-stack">
       <header className="d1-page-header">
         <div>
-          <Tag color="purple">
-            TENANT {activeTenantId} · PROJECT {projectId ?? snapshot.fixtureId}
-          </Tag>
+          <Tag color="purple">当前租户 · 当前项目</Tag>
           <Typography.Title level={2}>媒体生产工作台</Typography.Title>
           <Typography.Paragraph type="secondary">
             生产包、任务、资产和来源链；不读取客户价格、渠道关系或供应商密钥。

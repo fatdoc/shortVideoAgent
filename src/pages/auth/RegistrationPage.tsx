@@ -3,7 +3,6 @@ import {
   CheckCircleFilled,
   LockOutlined,
   MailOutlined,
-  SafetyCertificateOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -69,6 +68,8 @@ const registrationPathLabels: Record<
   CHANNEL_INVITATION: '渠道邀请注册',
   TENANT_MEMBER_INVITATION: '企业成员邀请注册',
 };
+
+const registrationSteps = ['填写账号', '校验邀请', '阅读须知', '邮箱验证', '提交申请'];
 
 function pageError(error: unknown): PageError {
   if (!(error instanceof PublicRegistrationApiError)) {
@@ -229,7 +230,7 @@ export function RegistrationPage({
 
   if (completion) {
     return (
-      <main className="d2-auth-page" data-testid="registration-success-page">
+      <main className="d2-auth-page va-auth-page" data-testid="registration-success-page">
         <section className="d2-pilot-status-card d2-registration-success">
           <CheckCircleFilled className="d2-registration-success-icon" />
           <Typography.Title level={2}>注册申请已完成</Typography.Title>
@@ -251,27 +252,22 @@ export function RegistrationPage({
     termsState !== 'ready' || invitationState !== 'ready' || Boolean(invitationError) || submitting;
 
   return (
-    <main className="d2-auth-page" data-testid="registration-page">
-      <section className="d2-auth-shell d2-auth-shell--registration">
-        <header className="d2-auth-productbar">
-          <div className="d2-auth-product">
-            <span className="d2-auth-product-mark">VA</span>
-            <span>
-              <strong>短视频营销 Agent</strong>
-              <small>受控注册入口</small>
-            </span>
-          </div>
-          <Tag color="processing">Pilot 注册准备态</Tag>
-        </header>
-
+    <main className="d2-auth-page va-auth-page" data-testid="registration-page">
+      <section className="d2-auth-shell va-auth-shell d2-auth-shell--registration">
         <div className="d2-registration-content">
-          <section className="d2-registration-context">
-            <SafetyCertificateOutlined />
-            <Typography.Title level={2}>创建受控试点账号</Typography.Title>
+          <section className="d2-auth-intro d2-registration-context">
+            <h1>创建账号</h1>
             <Typography.Paragraph>
-              注册来源、组织归属和角色由服务端验证。注册成功后不会自动登录，也不会在浏览器保存验证凭据或会话
-              Token。
+              注册来源、组织归属和角色由服务端验证。注册成功后不会自动登录，也不会在浏览器展示验证凭据或会话信息。
             </Typography.Paragraph>
+            <ol className="d2-registration-steps" aria-label="注册流程">
+              {registrationSteps.map((step, index) => (
+                <li key={step}>
+                  <span>{index + 1}</span>
+                  {step}
+                </li>
+              ))}
+            </ol>
 
             <div className="d2-registration-context-card">
               <strong>注册来源</strong>
@@ -346,8 +342,8 @@ export function RegistrationPage({
 
           <section className="d2-auth-login-panel d2-registration-form-panel">
             <div className="d2-auth-login-heading">
-              <Typography.Title level={2}>填写注册信息</Typography.Title>
-              <Typography.Text type="secondary">所有字段只用于本次受控注册请求</Typography.Text>
+              <h2>填写注册信息</h2>
+              <p>所有字段只用于本次受控注册请求</p>
             </div>
 
             {submitError ? (

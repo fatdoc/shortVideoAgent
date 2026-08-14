@@ -132,29 +132,32 @@ describe('DashboardPage', () => {
     });
   });
 
-  it('renders unified demo metrics and project row', () => {
+  it('renders a V3 store operations workbench without KPI-card-wall or raw ids', () => {
     renderPage();
     expect(screen.getByTestId('dashboard-page')).toBeInTheDocument();
     expect(screen.getByText('海底捞火锅·北京三里屯店探店视频')).toBeInTheDocument();
-    expect(screen.getByText('品牌事实')).toBeInTheDocument();
-    expect(screen.getByTestId('workflow-progress')).toBeInTheDocument();
-    expect(screen.getByText('团队成员')).toBeInTheDocument();
-    expect(screen.getByText('已购能力')).toBeInTheDocument();
-    expect(screen.getByTestId('dashboard-delivery-status')).toHaveTextContent('项目交付状态');
+    expect(screen.getByText('门店建档')).toBeInTheDocument();
+    expect(screen.getByText('商品套餐')).toBeInTheDocument();
+    expect(screen.getByText('门店资产')).toBeInTheDocument();
+    expect(screen.getByText('获客任务')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-store-hero')).toHaveTextContent('门店素材');
+    expect(screen.getByTestId('dashboard-operations-queue')).toHaveTextContent('生产队列');
+    expect(screen.getByTestId('dashboard-inspector')).toHaveTextContent('下一步');
+    expect(screen.queryByText('品牌事实')).not.toBeInTheDocument();
+    expect(screen.queryByText('demo-local-001')).not.toBeInTheDocument();
+    expect(screen.queryByText(/matchStatus=/)).not.toBeInTheDocument();
   });
 
-  it('shows a safe empty delivery state instead of receipt event counts', () => {
+  it('shows safe delivery readiness without raw receipt event labels', () => {
     renderPage();
 
     const delivery = screen.getByTestId('dashboard-delivery-status');
-    expect(delivery).toHaveTextContent('项目交付状态');
-    expect(delivery).toHaveTextContent('Package missing');
-    expect(delivery).toHaveTextContent('Grant missing');
-    expect(delivery).toHaveTextContent('传输 offline');
-    expect(delivery).toHaveTextContent('最近同步 idle');
-    expect(delivery).toHaveTextContent('唯一任务 0');
-    expect(delivery).toHaveTextContent('可交付 Asset 0');
-    expect(delivery).toHaveTextContent('Export 0');
+    expect(delivery).toHaveTextContent('门店资产入口');
+    expect(delivery).toHaveTextContent('待配置');
+    expect(delivery).toHaveTextContent('没有可展示的生成结果');
+    expect(delivery).not.toHaveTextContent('Package');
+    expect(delivery).not.toHaveTextContent('Grant');
+    expect(delivery).not.toHaveTextContent('MOCK');
     expect(delivery).not.toHaveTextContent('GenerationTask');
   });
 
@@ -167,20 +170,12 @@ describe('DashboardPage', () => {
     renderPage();
 
     const delivery = screen.getByTestId('dashboard-delivery-status');
-    expect(delivery).toHaveTextContent('Package ready');
-    expect(delivery).toHaveTextContent('Grant active');
-    expect(delivery).toHaveTextContent('传输 accepted');
-    expect(delivery).toHaveTextContent('唯一任务 1');
-    expect(delivery).toHaveTextContent('成功 1');
-    expect(delivery).toHaveTextContent('失败 0');
-    expect(delivery).toHaveTextContent('可交付 Asset 1');
-    expect(delivery).toHaveTextContent('Export 1');
-    expect(delivery).toHaveTextContent('reserved 0');
-    expect(delivery).toHaveTextContent('consumed 100');
-    expect(delivery).toHaveTextContent('released 20');
-    expect(delivery).toHaveTextContent('DEMO');
-    expect(delivery).toHaveTextContent('MOCK-CONTRACT');
-    expect(delivery).toHaveTextContent('NON_SERVER_SOURCE');
+    expect(delivery).toHaveTextContent('可进入资产工作流');
+    expect(delivery).toHaveTextContent('已生成 1');
+    expect(delivery).toHaveTextContent('可交付素材 1');
+    expect(delivery).toHaveTextContent('导出 1');
+    expect(delivery).not.toHaveTextContent('MOCK-CONTRACT');
+    expect(delivery).not.toHaveTextContent('NON_SERVER_SOURCE');
     expect(delivery).not.toHaveTextContent(successTask.inputDigest);
     expect(delivery).not.toHaveTextContent(successAsset.storageReference);
     expect(delivery).not.toHaveTextContent(exportReceipt.checksum ?? '');
@@ -228,8 +223,7 @@ describe('DashboardPage', () => {
     renderPage();
 
     const delivery = screen.getByTestId('dashboard-delivery-status');
-    expect(delivery).toHaveTextContent('最近同步 partial_failure');
-    expect(delivery).toHaveTextContent('ACK error 1');
+    expect(delivery).toHaveTextContent('回执确认待处理');
     expect(delivery).toHaveTextContent('TRANSPORT_OFFLINE');
     expect(delivery).toHaveTextContent('部分回执尚未确认。');
     expect(delivery).toHaveTextContent('可重试：是');
@@ -257,7 +251,7 @@ describe('DashboardPage', () => {
     useControlPlaneStore.setState({ snapshot, lastReceiptSync: receiptSync });
     renderPage();
 
-    expect(screen.getByTestId('dashboard-delivery-status')).toHaveTextContent('唯一任务 1');
+    expect(screen.getByTestId('dashboard-delivery-status')).toHaveTextContent('已生成 1');
 
     act(() => {
       useControlPlaneStore.setState({
@@ -268,13 +262,8 @@ describe('DashboardPage', () => {
     });
 
     const delivery = screen.getByTestId('dashboard-delivery-status');
-    expect(delivery).toHaveTextContent('Package missing');
-    expect(delivery).toHaveTextContent('Grant missing');
-    expect(delivery).toHaveTextContent('传输 offline');
-    expect(delivery).toHaveTextContent('最近同步 idle');
-    expect(delivery).toHaveTextContent('唯一任务 0');
-    expect(delivery).toHaveTextContent('consumed 0');
-    expect(delivery).toHaveTextContent('released 0');
+    expect(delivery).toHaveTextContent('待配置');
+    expect(delivery).toHaveTextContent('没有可展示的生成结果');
   });
 
   it('opens the Brief route from new project', async () => {

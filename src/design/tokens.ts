@@ -1,21 +1,22 @@
 export const colors = {
-  primary: '#1677FF',
-  primaryHover: '#4096FF',
-  primaryActive: '#0958D9',
-  success: '#52C41A',
-  warning: '#FA8C16',
-  error: '#FF4D4F',
-  info: '#13C2C2',
-  text: '#1F1F1F',
-  textSecondary: '#595959',
-  textTertiary: '#8C8C8C',
-  border: '#F0F0F0',
-  borderStrong: '#D9D9D9',
-  bg: '#F5F7FA',
-  bgElevated: '#FFFFFF',
-  sidebar: '#001529',
-  sidebarText: 'rgba(255,255,255,0.85)',
-  sidebarMuted: 'rgba(255,255,255,0.45)',
+  primary: '#F25A1D',
+  primaryHover: '#FF6A2A',
+  primaryActive: '#C84312',
+  success: '#2F8F5B',
+  warning: '#C97916',
+  error: '#C63D32',
+  info: '#4B6F85',
+  text: '#242424',
+  textSecondary: '#5F6368',
+  textTertiary: '#8B8F94',
+  border: '#ECE7E1',
+  borderStrong: '#D8D3CC',
+  bg: '#F7F5F1',
+  bgElevated: '#FFFEFC',
+  bgSubtle: '#F1EEE9',
+  sidebar: '#FFFEFC',
+  sidebarText: '#303030',
+  sidebarMuted: '#77736D',
 } as const;
 
 export const statusColors = {
@@ -28,12 +29,12 @@ export const statusColors = {
   fail: '#FF4D4F',
   pending: '#8C8C8C',
   draft: '#8C8C8C',
-  briefing: '#1677FF',
-  scripting: '#1677FF',
-  storyboarding: '#13C2C2',
-  production: '#722ED1',
-  reviewing: '#FA8C16',
-  exported: '#52C41A',
+  briefing: '#F25A1D',
+  scripting: '#F25A1D',
+  storyboarding: '#4B6F85',
+  production: '#6E6259',
+  reviewing: '#C97916',
+  exported: '#2F8F5B',
 } as const;
 
 export const spacing = {
@@ -57,12 +58,12 @@ export const shadows = {
 } as const;
 
 export const layout = {
-  sidebarWidth: 220,
-  topbarHeight: 56,
-  truthBarHeight: 36,
+  sidebarWidth: 184,
+  topbarHeight: 58,
+  truthBarHeight: 34,
   contentMaxWidth: 1440,
   contentMinHeight: 'calc(100vh - 92px - 48px)',
-  pagePadding: 24,
+  pagePadding: 22,
 } as const;
 
 export const zIndex = {

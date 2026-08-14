@@ -14,6 +14,7 @@ import {
 } from '../../services/pilotControlApi';
 import { usePilotAuthStore } from '../../stores/pilotAuthStore';
 import { usePilotProjectContextStore } from '../../stores/pilotProjectContextStore';
+import './v3-ops.css';
 
 const ACTIVE_CHANNEL_LIMIT = 100;
 const FIXED_CURRENCY = 'CNY';
@@ -184,7 +185,7 @@ const DIRECTORY_ERROR_CONTENT: Record<
   },
   'service-error': {
     title: 'Channel Directory 服务暂不可用',
-    description: '无法完成真实 Control API 读取；不会回退 Demo、Mock 或本地数据。',
+    description: '无法完成真实 Control API 读取；不会回退演示或本地数据。',
     testId: 'pilot-settlement-channel-service-error',
     retryable: true,
   },
@@ -326,24 +327,40 @@ function CurrentDraft({
         </div>
       </div>
 
+      <div className="v3-ops-timeline">
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>beneficiary Channel</Typography.Text>
+          <strong>{channel?.displayName ?? '当前 Directory 未匹配'}</strong>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>净额</Typography.Text>
+          <strong>{formatAmount(draft.netAmountMinor, draft.currency)}</strong>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>毛计提 / 冲正</Typography.Text>
+          <span>
+            {formatAmount(draft.grossAccrualAmountMinor, draft.currency)} /{' '}
+            {formatAmount(draft.grossReversalAmountMinor, draft.currency)}
+          </span>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>条目</Typography.Text>
+          <span>
+            {draft.itemCount}（计提 {draft.accrualItemCount} / 冲正 {draft.reversalItemCount}）
+          </span>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>UTC 周期</Typography.Text>
+          <span>
+            {formatUtcTimestamp(draft.periodStart)} — {formatUtcTimestamp(draft.periodEnd)}
+          </span>
+        </div>
+        <div className="v3-ops-timeline-item">
+          <Typography.Text>UTC cutoff</Typography.Text>
+          <span>{formatUtcTimestamp(draft.cutoffAt)}</span>
+        </div>
+      </div>
       <Space direction="vertical" size={10} style={{ width: '100%' }}>
-        <Typography.Text>
-          beneficiary Channel：<strong>{channel?.displayName ?? '当前 Directory 未匹配'}</strong>
-        </Typography.Text>
-        <Typography.Text>
-          净额：<strong>{formatAmount(draft.netAmountMinor, draft.currency)}</strong>
-        </Typography.Text>
-        <Typography.Text>
-          毛计提 / 冲正：{formatAmount(draft.grossAccrualAmountMinor, draft.currency)} /{' '}
-          {formatAmount(draft.grossReversalAmountMinor, draft.currency)}
-        </Typography.Text>
-        <Typography.Text>
-          条目：{draft.itemCount}（计提 {draft.accrualItemCount} / 冲正 {draft.reversalItemCount}）
-        </Typography.Text>
-        <Typography.Text>
-          UTC 周期：{formatUtcTimestamp(draft.periodStart)} — {formatUtcTimestamp(draft.periodEnd)}
-        </Typography.Text>
-        <Typography.Text>UTC cutoff：{formatUtcTimestamp(draft.cutoffAt)}</Typography.Text>
         {draft.itemCount === 0 ? (
           <Alert
             type="success"
@@ -468,7 +485,7 @@ export function PilotPlatformSettlementDraftPage() {
       : undefined;
 
   return (
-    <div className="d1-page-stack">
+    <div className="d1-page-stack v3-ops-page">
       <SettlementHeader />
       <SettlementBoundaryNotice />
 
@@ -487,7 +504,7 @@ export function PilotPlatformSettlementDraftPage() {
                 : '正在加载真实 active Channel Directory…'}
             </Typography.Text>
             <Typography.Text type="secondary">
-              页面不会从 Commission 记录反推 Channel，也不会读取 Demo、Mock 或 localStorage。
+              页面不会从 Commission 记录反推 Channel，也不会读取演示或本地数据。
             </Typography.Text>
           </Space>
         </section>

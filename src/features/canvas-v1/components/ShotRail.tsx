@@ -23,7 +23,7 @@ export function ShotRail({ shots, activeShotId, taskEvents, onSelect }: ShotRail
   return (
     <nav className="cv1-shot-rail" aria-label="分镜列表">
       <div className="cv1-section-heading">
-        <div><span>镜头</span><small>{shots.length} 个</small></div>
+        <div><span>镜头序列</span><small>{shots.length} 个 · 点击切换</small></div>
       </div>
       <ol>
         {shots.map((shot) => {

@@ -10,7 +10,7 @@ interface ErrorStateProps {
 
 export function ErrorState({
   title = '加载失败',
-  subTitle = '请稍后重试，或检查本地 Mock 数据是否完整。',
+  subTitle = '请稍后重试，或检查当前服务与权限状态。',
   onRetry,
   retryLabel = '重试',
   retryLoading = false,
