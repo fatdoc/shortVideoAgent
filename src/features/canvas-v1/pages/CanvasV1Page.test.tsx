@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -315,7 +315,12 @@ describe('CanvasV1Page interactions and safety', () => {
       '门店建档商品套餐门店资产获客任务AI 探店脚本探店分镜剪辑成片发布投放线索转化',
     );
     const productionChain = screen.getByRole('list', { name: '当前镜头生产链' });
-    expect(productionChain).toHaveTextContent('ScriptAssetImageVideo');
+    expect(within(productionChain).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      expect.stringContaining('Script'),
+      expect.stringContaining('Asset'),
+      expect.stringContaining('Image'),
+      expect.stringContaining('Video'),
+    ]);
     expect(container.querySelectorAll('button.cv1-primary-action')).toHaveLength(1);
   });
 
@@ -340,7 +345,7 @@ describe('CanvasV1Page interactions and safety', () => {
       taskEvents: { [shotId]: createEvent('output_registered') },
     })} />);
 
-    expect(screen.getByText('输出已登记')).toBeInTheDocument();
+    expect(screen.getAllByText('输出已登记')).toHaveLength(2);
     expect(screen.getByText('可预览')).toBeInTheDocument();
     const preview = screen.getByLabelText('门店开场视频预览');
     expect(preview).toHaveAttribute('src', '/api/production/pilot/canvas/v1/media/output-safe.mp4');
