@@ -209,7 +209,10 @@ const activationFixture = JSON.parse(
 ) as ActivationFixture;
 const workspaceFixture = JSON.parse(
   readFileSync(
-    resolve(process.cwd(), 'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json'),
+    resolve(
+      process.cwd(),
+      'docs/program/contracts/canvas-v1/fixtures/workspace-materialization.json',
+    ),
     'utf8',
   ),
 ) as { workspaceResponse: CanvasWorkspaceV01 };
@@ -306,7 +309,10 @@ describe('Pilot StoryCanvas bridge exact activation and refresh', () => {
     expect(order).toEqual(['csrf', 'approval']);
     expect(port.prepareApproval).toHaveBeenCalledWith(
       command.projectId,
-      expect.objectContaining({ expiresInSeconds: 60, action: { commandId: command.commandId, payload: command.payload } }),
+      expect.objectContaining({
+        expiresInSeconds: 60,
+        action: { commandId: command.commandId, payload: command.payload },
+      }),
       'A'.repeat(43),
     );
   });

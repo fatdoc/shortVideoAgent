@@ -153,6 +153,7 @@ export interface PilotProductionEligibility {
 export interface PilotProductionPackage {
   objectType: 'ProjectProductionPackage';
   contractVersion: '0.3';
+  tenantId: string;
   projectId: string;
   packageId: string;
   packageVersion: number;
@@ -866,6 +867,7 @@ function parseProductionPackage(value: unknown): PilotProductionPackage {
   return {
     objectType: 'ProjectProductionPackage',
     contractVersion: '0.3',
+    tenantId: value.tenantId,
     projectId: value.projectId,
     packageId: value.packageId,
     packageVersion: value.packageVersion,

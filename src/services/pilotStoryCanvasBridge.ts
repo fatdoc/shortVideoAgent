@@ -35,7 +35,10 @@ export interface PilotStoryCanvasBridge {
     state: PilotCanvasActivationState,
     request: PrepareHighCostApprovalRequest,
   ): Promise<CanvasApprovalProjection>;
-  dispatch(state: PilotCanvasActivationState, command: CanvasCommandV01): ReturnType<PilotStoryCanvasHttpPort['dispatch']>;
+  dispatch(
+    state: PilotCanvasActivationState,
+    command: CanvasCommandV01,
+  ): ReturnType<PilotStoryCanvasHttpPort['dispatch']>;
   refreshWorkspace(state: PilotCanvasActivationState): Promise<PilotCanvasActivationState>;
 }
 
@@ -44,10 +47,12 @@ function fail(code: string): never {
 }
 
 function sameScope(value: CanvasV1Scope, expected: CanvasWorkspaceV01): boolean {
-  return value.tenantId === expected.tenantId
-    && value.projectId === expected.projectId
-    && value.packageId === expected.packageId
-    && value.canvasSessionId === expected.canvasSessionId;
+  return (
+    value.tenantId === expected.tenantId &&
+    value.projectId === expected.projectId &&
+    value.packageId === expected.packageId &&
+    value.canvasSessionId === expected.canvasSessionId
+  );
 }
 
 function assertBootstrapAgreement(
@@ -56,21 +61,24 @@ function assertBootstrapAgreement(
 ): void {
   const embedded = workspace.bootstrap;
   if (
-    !sameScope(formal, workspace)
-    || formal.status !== embedded.status
-    || formal.approvedScript.scriptId !== embedded.approvedScript.scriptId
-    || formal.approvedScript.version !== embedded.approvedScript.version
-    || formal.approvedStoryboard.storyboardId !== embedded.approvedStoryboard.storyboardId
-    || formal.approvedStoryboard.version !== embedded.approvedStoryboard.version
-    || formal.document.documentId !== embedded.document.documentId
-    || formal.document.version !== embedded.document.version
+    !sameScope(formal, workspace) ||
+    formal.status !== embedded.status ||
+    formal.approvedScript.scriptId !== embedded.approvedScript.scriptId ||
+    formal.approvedScript.version !== embedded.approvedScript.version ||
+    formal.approvedStoryboard.storyboardId !== embedded.approvedStoryboard.storyboardId ||
+    formal.approvedStoryboard.version !== embedded.approvedStoryboard.version ||
+    formal.document.documentId !== embedded.document.documentId ||
+    formal.document.version !== embedded.document.version
   ) {
     fail('CANVAS_BOOTSTRAP_WORKSPACE_MISMATCH');
   }
 }
 
 function assertDocument(document: CanvasDocumentV01, workspace: CanvasWorkspaceV01): void {
-  if (!sameScope(document, workspace) || JSON.stringify(document) !== JSON.stringify(workspace.document)) {
+  if (
+    !sameScope(document, workspace) ||
+    JSON.stringify(document) !== JSON.stringify(workspace.document)
+  ) {
     fail('CANVAS_DOCUMENT_REFRESH_MISMATCH');
   }
 }
@@ -80,14 +88,14 @@ function assertAssets(assets: AssetRecordV01[], workspace: CanvasWorkspaceV01): 
   for (const [index, asset] of assets.entries()) {
     const expected = workspace.assets[index];
     if (
-      !expected
-      || !sameScope(asset, workspace)
-      || asset.assetId !== expected.assetId
-      || asset.category !== expected.category
-      || asset.displayName !== expected.displayName
-      || asset.rights.status !== expected.rightsStatus
-      || asset.approval.status !== expected.approvalStatus
-      || asset.controlledPreviewUrl !== expected.controlledPreviewUrl
+      !expected ||
+      !sameScope(asset, workspace) ||
+      asset.assetId !== expected.assetId ||
+      asset.category !== expected.category ||
+      asset.displayName !== expected.displayName ||
+      asset.rights.status !== expected.rightsStatus ||
+      asset.approval.status !== expected.approvalStatus ||
+      asset.controlledPreviewUrl !== expected.controlledPreviewUrl
     ) {
       fail('CANVAS_ASSET_REFRESH_MISMATCH');
     }
@@ -101,10 +109,10 @@ function assertReadiness(
 ): void {
   const expected = workspace.shots.find((shot) => shot.shotId === shotId)?.readiness;
   if (
-    !expected
-    || !sameScope(readiness, workspace)
-    || readiness.shotId !== shotId
-    || JSON.stringify(readiness) !== JSON.stringify(expected)
+    !expected ||
+    !sameScope(readiness, workspace) ||
+    readiness.shotId !== shotId ||
+    JSON.stringify(readiness) !== JSON.stringify(expected)
   ) {
     fail('CANVAS_READINESS_REFRESH_MISMATCH');
   }
@@ -112,17 +120,19 @@ function assertReadiness(
 
 function assertState(state: PilotCanvasActivationState): void {
   if (
-    state.selection.projectId !== state.workspace.projectId
-    || state.selection.packageId !== state.workspace.packageId
-    || state.canvasSessionId !== state.workspace.canvasSessionId
+    state.selection.projectId !== state.workspace.projectId ||
+    state.selection.packageId !== state.workspace.packageId ||
+    state.canvasSessionId !== state.workspace.canvasSessionId
   ) {
     fail('CANVAS_STATE_SCOPE_MISMATCH');
   }
 }
 
-export function createPilotStoryCanvasBridge(options: {
-  port?: PilotStoryCanvasHttpPort;
-} = {}): PilotStoryCanvasBridge {
+export function createPilotStoryCanvasBridge(
+  options: {
+    port?: PilotStoryCanvasHttpPort;
+  } = {},
+): PilotStoryCanvasBridge {
   const port = options.port ?? createPilotStoryCanvasHttpPort();
 
   return {
@@ -141,7 +151,10 @@ export function createPilotStoryCanvasBridge(options: {
       const opened = await port.openLegacy(legacyOpenRequest(activation.entry));
       const formal = await port.readBootstrap(opened.canvasSessionId, selection);
       const workspace = await port.readWorkspace(opened.canvasSessionId, selection);
-      if (activation.entry.tenantId !== formal.tenantId || activation.entry.tenantId !== workspace.tenantId) {
+      if (
+        activation.entry.tenantId !== formal.tenantId ||
+        activation.entry.tenantId !== workspace.tenantId
+      ) {
         fail('CANVAS_ACTIVATION_TENANT_MISMATCH');
       }
       assertBootstrapAgreement(formal, workspace);
@@ -153,11 +166,11 @@ export function createPilotStoryCanvasBridge(options: {
     async prepareApproval(state, request) {
       assertState(state);
       if (
-        request.tenantId !== state.workspace.tenantId
-        || request.projectId !== state.workspace.projectId
-        || request.packageId !== state.workspace.packageId
-        || request.canvasSessionId !== state.workspace.canvasSessionId
-        || request.requestedByActorId !== state.workspace.project.requestedByActorId
+        request.tenantId !== state.workspace.tenantId ||
+        request.projectId !== state.workspace.projectId ||
+        request.packageId !== state.workspace.packageId ||
+        request.canvasSessionId !== state.workspace.canvasSessionId ||
+        request.requestedByActorId !== state.workspace.project.requestedByActorId
       ) {
         fail('CANVAS_APPROVAL_SCOPE_MISMATCH');
       }
@@ -182,8 +195,8 @@ export function createPilotStoryCanvasBridge(options: {
     dispatch(state, command) {
       assertState(state);
       if (
-        !sameScope(command, state.workspace)
-        || command.requestedByActorId !== state.workspace.project.requestedByActorId
+        !sameScope(command, state.workspace) ||
+        command.requestedByActorId !== state.workspace.project.requestedByActorId
       ) {
         fail('CANVAS_COMMAND_SCOPE_MISMATCH');
       }
@@ -194,13 +207,16 @@ export function createPilotStoryCanvasBridge(options: {
       assertState(state);
       const workspace = await port.readWorkspace(state.canvasSessionId, state.selection);
       if (
-        workspace.tenantId !== state.workspace.tenantId
-        || workspace.project.requestedByActorId !== state.workspace.project.requestedByActorId
-        || workspace.document.documentId !== state.workspace.document.documentId
+        workspace.tenantId !== state.workspace.tenantId ||
+        workspace.project.requestedByActorId !== state.workspace.project.requestedByActorId ||
+        workspace.document.documentId !== state.workspace.document.documentId
       ) {
         fail('CANVAS_WORKSPACE_REFRESH_MISMATCH');
       }
-      const document = await port.readDocument(state.canvasSessionId, workspace.document.documentId);
+      const document = await port.readDocument(
+        state.canvasSessionId,
+        workspace.document.documentId,
+      );
       assertDocument(document, workspace);
       const assets = await port.readAssets(state.canvasSessionId);
       assertAssets(assets, workspace);

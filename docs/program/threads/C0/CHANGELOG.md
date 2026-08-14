@@ -121,6 +121,7 @@
 | 2026-08-11 | A-BIZ-06E.5A 与 06E.5B fail-closed runner skeleton 完成：fixture、security/preflight/report/process/config/no-skip Oracle、shared baseline validator、runner 与 manifest wiring 已落地；B capability 未证明时 reset/spawn 前阻断                          | A_BIZ_06E_5B_RUNNER_SKELETON_COMPLETE / B_BLOCKED   |
 
 | 2026-08-13 | A 以 merge commit `228c211` 将 B Shared Canvas capability baseline `6fd901f` 纳入 business-plane 祖先链，修正此前已验收但无法 `--ff-only` 同步的历史合同；remediation、Shared activation 与联合 Gate 状态不变 | B_BASELINE_ANCESTOR_CORRECTED / REMEDIATION_STILL_BLOCKED |
+| 2026-08-13 | 完成 canonical Production Package tenant scope、Package Bootstrap Orchestrator 与 bounded capability/idempotency hardening；Router/Boundary dataflow 仍待单一 controller 合同 | CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / PACKAGE_BOOTSTRAP_POLICY_HARDENED / CANVAS_ROUTE_DATAFLOW_REQUIRED |
 
 ## 2026-08-08 · A-BIZ-03.3B Atomic Commission Accrual Plan
 
@@ -539,3 +540,22 @@
 - Shared Router、Bridge、Proxy RED 继续保留；本次只接受 remediation，不记录 Shared Green、真实编辑器、Golden Path 或 Joint Gate 完成。
 - B-owned 未跟踪 `apps/storycanvas/data/vendor/byteplus.ts` 未触碰、未暂存、未提交。
 - 状态仅更新为：`B_REMEDIATION_ACCEPTED / SHARED_ACTIVATION_GREEN_READY_FOR_PLANNING / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Shared Canvas Activation Partial Green
+
+- `9d82e58` 在 explicit Golden Path test flags 下增加 loopback StoryCanvas proxy，普通 runtime 保持不变。
+- `f317ecd` / `65073da` 冻结并完成 strict Shared Pilot Bridge：固定 120 秒 Entry、deterministic cycle idempotency、exact Scope binding、B browser-facing consumer handoff 与安全错误投影。
+- `6ef169c` / `3357f78` 冻结 Router boundary 和 manifest readiness RED；`409dfdf` 激活 B Pilot Script/Storyboard/Canvas boundaries，并仅将三条已同步路由标记 `ready`。
+- Canvas 尚无 canonical Package/Entry dataflow，Router 以 `entry=null` fail closed；未实现或宣称真实 editor、Golden Path 或 Joint Gate。
+- targeted `71/71 PASS`，ESLint、Root Build、Governance、Prettier、diff-check PASS；B-owned untracked `apps/storycanvas/data/vendor/byteplus.ts` 未触碰。
+- 状态：`SHARED_PROXY_GREEN / SHARED_BRIDGE_GREEN / PILOT_PRODUCTION_BOUNDARIES_ACTIVATED / CANVAS_PACKAGE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
+
+## 2026-08-13 · Canonical Canvas Package Bootstrap
+
+- `0198180` / `415dd95` 冻结并修复 strict Production Package parser，使 browser-safe Package projection 保留 canonical `tenantId`。
+- `e497283` / `d79ed56` / `f71ef20` 完成 Package Bootstrap Orchestrator RED、refinement 和 Green；只使用 current approved Script + Storyboard eligibility 创建 exact Package，并验证 tenant/project/Script/Storyboard/capability/status/expiry 后调用 Shared Bridge。
+- eligibility=false 时不创建 Package；scope mismatch、stale/expired Package 和不安全 dependency error 均 fail closed；401/403/404/409/410/422/500/503 只投影安全 `status/code/retryable/requestId`。
+- `ad697a2` / `81bd075` 完成 capability allowlist、最多四项、唯一性和 bounded deterministic Package idempotency identity hardening。key 固定为 `pilot-production-package-v1:<projectId>:h_<16 lowercase hex>`，不使用随机数、当前时间或临时 UUID。
+- 定向验证 `44/44 PASS`；ESLint、Prettier、diff-check PASS。Router 尚未接入 Orchestrator，Canvas Boundary 仍以 `entry=null` blocked。
+- Shared Bridge 与 B Boundary 的 redemption 单一所有权合同、A Route Adapter 和 Shared Router wiring 仍待独立 RED/GREEN。
+- 当前状态：`CANONICAL_PACKAGE_ORCHESTRATOR_GREEN / CANVAS_PACKAGE_BOOTSTRAP_POLICY_HARDENED / B_BOUNDARY_CONTROLLER_CONTRACT_REQUIRED / CANVAS_ROUTE_DATAFLOW_REQUIRED / AB_GOLDEN_PATH_NOT_IMPLEMENTED / FULL_JOINT_GATE_STILL_BLOCKED`。
